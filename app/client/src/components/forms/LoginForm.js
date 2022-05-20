@@ -1,8 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Box, FormControlLabel, Grid, Link, Stack, Typography, TextField, Button } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
+import { Grid, Stack, Typography, TextField, Button } from '@mui/material'
 
 import PropTypes from 'prop-types'
 
@@ -14,19 +13,6 @@ const LoginForm = function ({ sx }) {
   const [password, setPassword] = React.useState(null)
   const [alert, setAlert] = React.useState({})
   const navigate = useNavigate()
-
-  React.useEffect(() => {
-    async function isLoggedIn() {
-      try {
-        if (!(await AuthService.isLoggedIn()).data) {
-          navigate('/login')
-        }
-      } catch (err) {
-        console.log(err)
-      }
-    }
-    isLoggedIn()
-  }, [])
 
   async function login() {
     if (!username || !password) {
