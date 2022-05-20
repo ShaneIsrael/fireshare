@@ -13,7 +13,6 @@ CORS(main, supports_credentials=True)
 def before_first_request():
     # Create the admin user if it doesn't already exist
     admin = User.query.filter_by(username='admin').first()
-    print(current_app.config['ADMIN_PASSWORD'])
     if not admin:
         admin_user = User(username='admin', password=generate_password_hash(current_app.config['ADMIN_PASSWORD'], method='sha256'))
         db.session.add(admin_user)
