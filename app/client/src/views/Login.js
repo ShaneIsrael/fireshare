@@ -1,7 +1,6 @@
 import React from 'react'
 
 import { Box, Grid, Paper } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
 
 import LoginForm from '../components/forms/LoginForm'
 import { AuthService } from '../services'
@@ -21,7 +20,7 @@ const Login = function () {
       }
     }
     isLoggedIn()
-  }, [])
+  }, [navigate])
 
   return (
     <Box component="main" sx={{ height: '100vh' }}>

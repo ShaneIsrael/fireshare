@@ -19,7 +19,7 @@ const Dashboard = () => {
       }
     }
     isLoggedIn()
-  }, [])
+  }, [navigate])
 
   if (!authenticated) return null
 
