@@ -1,3 +1,6 @@
+# db
+db.sqlite
+
 # dependencies
 node_modules/
 
