@@ -16,7 +16,7 @@ def login():
     user = User.query.filter_by(username=username).first()
 
     if not user or not check_password_hash(user.password, password):
-        return Response(response="Invalid username/password", status=401)
+        return Response(response="Invalid username or password", status=401)
 
     login_user(user, remember=True)
     return Response(status=200)
