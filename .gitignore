@@ -1,6 +1,9 @@
 # db
 db.sqlite
 
+*.mp4
+*.mkv
+
 # dependencies
 node_modules/
 

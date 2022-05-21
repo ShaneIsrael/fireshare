@@ -26,4 +26,4 @@ ENV ADMIN_PASSWORD admin
 
 EXPOSE 5000
 
-CMD ["gunicorn", "-b", ":5000", "app:create_app()"]
+CMD ["gunicorn", "-b", ":5000", "app:create_app()", "-w", "1", "--threads", "12"]
