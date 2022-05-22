@@ -4,6 +4,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_cors import CORS
+from pathlib import Path
 
 # init SQLAlchemy so we can use it later in our models
 db = SQLAlchemy()
@@ -14,9 +15,19 @@ def create_app():
 
     app.config['SECRET_KEY'] = 'secret-key-goes-here'
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
-    app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
+    app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///{data_directory}/db.sqlite'.format(data_directory=app.config['DATA_DIRECTORY'])
+
+    processed_dir = Path(app.config['PROCESSED_DIRECTORY'])
+    data_dir = Path(app.config['DATA_DIRECTORY'])
+    if not processed_dir.is_dir():
+        processed_dir.mkdir()
+        print(f"Creating {str(processed_dir)}")
+    video_dir = data_dir / "video_links"
+    if not video_dir.is_dir():
+        print(f"Creating {str(video_dir)}")
+        video_dir.mkdir()
 
     db.init_app(app)
 

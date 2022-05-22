@@ -1,8 +1,9 @@
 import os, re
-from flask import Blueprint, request, Response, jsonify
+from flask import Blueprint, request, Response, jsonify, current_app
 from flask_login import logout_user, current_user
 from flask_cors import CORS
 from . import db
+from pathlib import Path
 
 api = Blueprint('api', __name__)
 
@@ -13,7 +14,9 @@ CORS(api, supports_credentials=True)
 
 def get_video_path(id):
     # db lookup to get path to mp4
-    return 'app/server/test_videos/{id}.mp4'.format(id=id)
+    data_root = Path(current_app.config["DATA_DIRECTORY"])
+    video_path = data_root / "video_links" / f"{id}.mp4"
+    return str(video_path)
 
 @api.route('/api/video/details', methods=["GET"])
 def get_video_details():

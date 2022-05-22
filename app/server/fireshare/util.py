@@ -15,4 +15,4 @@ def video_id(path: Path, mb=16):
     """
     with path.open('rb', 0) as f:
         file_header = f.read(int(1024*1024*mb))
-    return xxhash.xxh64_hexdigest(file_header)
+    return xxhash.xxh3_128_hexdigest(file_header)
