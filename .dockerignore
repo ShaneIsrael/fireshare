@@ -1,0 +1,7 @@
+**/*.mp4
+**/*.MP4
+**/*.mkv
+**/*.MKV
+**/*.mov
+**/*.MOV
+app/server/test_videos/*.*

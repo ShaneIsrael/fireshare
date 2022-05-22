@@ -14,6 +14,7 @@ def create_app():
 
     app.config['SECRET_KEY'] = 'secret-key-goes-here'
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
+    app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///{data_directory}/db.sqlite'.format(data_directory=app.config['DATA_DIRECTORY'])
 

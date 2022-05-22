@@ -5,7 +5,7 @@ Self host your media and share with unique links
 # Server
 
 ```
-pip install -r app/server/requirements.txt
+pip install -e app/server/
 ```
 
 then source the dev env vars.
