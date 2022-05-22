@@ -4,6 +4,7 @@ from flask_login import logout_user, current_user
 from flask_cors import CORS
 from . import db
 from pathlib import Path
+from .models import Video, VideoInfo
 
 api = Blueprint('api', __name__)
 
@@ -18,14 +19,21 @@ def get_video_path(id):
     video_path = data_root / "video_links" / f"{id}.mp4"
     return str(video_path)
 
+@api.route('/api/videos')
+def get_videos():
+    return jsonify({"videos": [v.json() for v in Video.query.all()]})
+
 @api.route('/api/video/details', methods=["GET"])
 def get_video_details():
     # db lookup and get the details title/views/etc
     video_id = request.args['id']
-    return jsonify(
-        title="This is just a temporary title",
-        views=9001
-    )
+    video = Video.query.filter_by(video_id=video_id).first()
+    if video:
+        return jsonify(video.json())
+    else:
+        return jsonify({
+            'message': 'Video not found'
+        }), 404
 
 @api.route('/api/video')
 def get_video():

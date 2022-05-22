@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import json
 import click
 from flask import current_app
 from fireshare import create_app, db, util
@@ -66,6 +67,31 @@ def scan_videos():
             info = VideoInfo(video_id=nv.video_id, title=Path(nv.path).stem)
             db.session.add(info)
         db.session.commit()
+
+@cli.command()
+def sync_metadata():
+    with create_app().app_context():
+        root = Path(current_app.config['DATA_DIRECTORY'])
+        videos = VideoInfo.query.filter(VideoInfo.info==None).all()
+        if not videos:
+            print('Video metadata up to date')
+        for v in videos:
+            vpath = root / "video_links" / str(v.video_id + v.video.extension)
+            info = util.get_media_info(vpath)
+            print(v.video_id, vpath)
+            vcodec = [i for i in info if i['codec_type'] == 'video'][0]
+            if 'duration' in vcodec:
+                duration = float(vcodec['duration'])
+            elif 'tags' in vcodec:
+                duration = util.dur_string_to_seconds(vcodec['tags']['DURATION'])
+            width, height = int(vcodec['width']), int(vcodec['height'])
+            print('Scanned {} duration={}s, resolution={}x{}'.format(v.video_id, duration, width, height))
+            v.info = json.dumps(info)
+            v.duration = duration
+            v.width = width
+            v.height = height
+            db.session.add(v)
+            db.session.commit()
 
 if __name__=="__main__":
     cli()
