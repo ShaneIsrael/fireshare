@@ -1,6 +1,10 @@
 nginx -s stop
 
+DEV_TEMPLATE_CONF=$(pwd)/app/nginx/dev.template.conf
 DEV_CONF=$(pwd)/app/nginx/dev.conf
+
+cp $DEV_TEMPLATE_CONF $DEV_CONF
+
 DEV_BUILD=$(pwd)/app/client/build
 # NGINX_CONF=$(nginx -V 2>&1 | grep -o '\-\-conf-path=\(.*conf\)' | cut -d '=' -f2)
 NGINX_CONF_FOLDER=/usr/local/etc/nginx
