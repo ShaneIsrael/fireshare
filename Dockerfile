@@ -14,11 +14,10 @@ WORKDIR /
 
 RUN mkdir /data
 
-COPY app/server/requirements.txt ./
 COPY app/server/ ./app
 COPY --from=client /app/build ./app/build
 
-RUN pip install -r ./requirements.txt
+RUN pip install ./app
 
 ENV FLASK_ENV production
 ENV DATA_DIRECTORY /data
@@ -26,4 +25,4 @@ ENV ADMIN_PASSWORD admin
 
 EXPOSE 5000
 
-CMD ["gunicorn", "-b", ":5000", "app:create_app()", "-w", "1", "--threads", "12"]
+CMD ["gunicorn", "-b", ":5000", "fireshare:create_app()", "-w", "1", "--threads", "12"]

@@ -1,8 +1,9 @@
 # db
 db.sqlite
 
-*.mp4
-*.mkv
+*.[Mm][Pp]4
+*.[Mm][Kk][Vv]
+*.[Mm][Oo][Vv]
 
 # dependencies
 node_modules/
