@@ -67,8 +67,18 @@ const LoginForm = function ({ sx }) {
         <Box component="img" src={logo} height={128} alt="fireshare logo" />
       </Grid>
       <Grid item sx={{ mb: 1 }}>
-        <Typography variant="h1" align="center">
-          Fireshare
+        <Typography
+          align="center"
+          sx={{
+            fontFamily: 'monospace',
+            fontWeight: 700,
+            fontSize: 32,
+            letterSpacing: '.2rem',
+            color: 'inherit',
+            textDecoration: 'none',
+          }}
+        >
+          FIRESHARE
         </Typography>
       </Grid>
       <Grid item>
