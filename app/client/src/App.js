@@ -6,8 +6,9 @@ import Login from './views/Login'
 import Watch from './views/Watch'
 import Dashboard from './views/Dashboard'
 import theme from './common/theme'
+import darkTheme from './common/darkTheme'
 
-const muitheme = createTheme(theme)
+const muitheme = createTheme(darkTheme)
 
 export default function App() {
   return (

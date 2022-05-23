@@ -27,7 +27,7 @@ def create_app():
     video_dir = data_dir / "video_links"
     if not video_dir.is_dir():
         print(f"Creating {str(video_dir)}")
-        video_dir.mkdir()
+        video_dir.mkdir(parents=True)
 
     db.init_app(app)
 

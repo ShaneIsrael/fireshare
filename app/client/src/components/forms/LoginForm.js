@@ -1,12 +1,14 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Grid, Stack, Typography, TextField, Button } from '@mui/material'
+import { Grid, Stack, Typography, TextField, Button, Box } from '@mui/material'
 
 import PropTypes from 'prop-types'
 
 import { AuthService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
+
+import logo from '../../assets/logo.png'
 
 const LoginForm = function ({ sx }) {
   const [username, setUsername] = React.useState(null)
@@ -61,8 +63,11 @@ const LoginForm = function ({ sx }) {
   return (
     <Grid container direction="column" justifyContent="flex-end" alignItems="center" sx={{ p: 2, ...sx }}>
       <SnackbarAlert severity={alert.type}>{alert.message}</SnackbarAlert>
+      <Grid item sx={{ mb: 2 }}>
+        <Box component="img" src={logo} height={128} alt="fireshare logo" />
+      </Grid>
       <Grid item sx={{ mb: 1 }}>
-        <Typography variant="h2" align="center">
+        <Typography variant="h1" align="center">
           Fireshare
         </Typography>
       </Grid>
