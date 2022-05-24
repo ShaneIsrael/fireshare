@@ -1,11 +1,12 @@
 import { Box, Grid, Modal, Paper, Typography } from '@mui/material'
 import React from 'react'
 import ReactPlayer from 'react-player'
-import { getUrl } from '../../common/utils'
+import { getServedBy, getUrl } from '../../common/utils'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoListItem from './VideoListItem'
 
 const URL = getUrl()
+const SERVED_BY = getServedBy()
 
 const EMPTY_STATE = (
   <Grid sx={{ height: '100%' }} container direction="row" justifyContent="center">
@@ -58,7 +59,16 @@ const VideoList = ({ videos }) => {
             boxShadow: 24,
           }}
         >
-          <ReactPlayer url={`${URL}/api/video?id=${videoModal.id}`} width="100%" height="auto" controls />
+          <ReactPlayer
+            url={`${
+              SERVED_BY === 'nginx'
+                ? `${URL}/_content/video_links/${videoModal.id}.mp4`
+                : `${URL}/api/video?id=${videoModal.id}`
+            }`}
+            width="100%"
+            height="auto"
+            controls
+          />
         </Box>
       </Modal>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>

@@ -15,6 +15,7 @@ def create_app():
     if 'DATA_DIRECTORY' not in os.environ:
         raise Exception("DATA_DIRECTORY not found in environment")
 
+    app.config['ENVIRONMENT'] = os.getenv('ENVIRONMENT')
     app.config['SECRET_KEY'] = 'secret-key-goes-here'
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
     app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
