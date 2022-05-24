@@ -13,11 +13,12 @@ const Watch = () => {
 
   React.useEffect(() => {
     async function fetch() {
-      const resp = (await VideoService.getDetails(1)).data
+      const resp = (await VideoService.getDetails(id)).data
+      console.log(resp)
       setDetails(resp)
     }
     if (details == null) fetch()
-  }, [details])
+  }, [details, id])
 
   return (
     <Grid container>
@@ -28,11 +29,11 @@ const Watch = () => {
         <Paper elevation={3} width="100%" square sx={{ p: 1, mt: -0.5 }}>
           <Grid container justifyContent="center">
             <Grid item xs sx={{ ml: 2 }}>
-              <Typography variant="h4">{details?.title}</Typography>
+              <Typography variant="h4">{details?.info.title}</Typography>
             </Grid>
             <Grid item sx={{ mr: 2 }}>
               <Typography variant="overline" color="primary" sx={{ fontSize: 14, fontWeight: 600 }}>
-                Views: {details?.views}
+                Views: {details?.info.views || '9,439,998'}
               </Typography>
             </Grid>
           </Grid>

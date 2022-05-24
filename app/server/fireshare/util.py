@@ -29,6 +29,9 @@ def get_media_info(path):
         print('Could not extract video info', ex)
         return None
 
+def create_poster(video_path, out_path):
+    sp.call(['ffmpeg', '-i', video_path, '-ss', '00:00:00.000', '-vframes', '1', out_path])
+
 def dur_string_to_seconds(dur: str) -> float:
     if type(dur) == int: return float(dur)
     num_parts = len(dur.split(':'))

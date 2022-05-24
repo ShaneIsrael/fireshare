@@ -1,5 +1,5 @@
 import os, re
-from flask import Blueprint, request, Response, jsonify, current_app
+from flask import Blueprint, request, Response, jsonify, current_app, send_file
 from flask_login import logout_user, current_user
 from flask_cors import CORS
 from . import db
@@ -26,17 +26,35 @@ def get_videos():
         return Response(response='You do not have access to this resource.', status=401)
     return jsonify({"videos": [v.json() for v in Video.query.all()]})
 
-@api.route('/api/video/details', methods=["GET"])
-def get_video_details():
-    # db lookup and get the details title/views/etc
+@api.route('/api/video/details/<id>', methods=["GET", "PUT"])
+def handle_video_details(id):
+    if request.method == 'GET':
+        # db lookup and get the details title/views/etc
+        # video_id = request.args['id']
+        video = Video.query.filter_by(video_id=id).first()
+        if video:
+            return jsonify(video.json())
+        else:
+            return jsonify({
+                'message': 'Video not found'
+            }), 404
+    if request.method == 'PUT':
+        video_info = VideoInfo.query.filter_by(video_id=id).first()
+        print(request.json)
+        if video_info:
+            db.session.query(VideoInfo).filter_by(video_id=id).update(request.json)
+            db.session.commit()
+            return Response(status=201)
+        else:
+            return jsonify({
+                'message': 'Video details not found'
+            }), 404
+
+@api.route('/api/video/poster', methods=['GET'])
+def get_video_poster():
     video_id = request.args['id']
-    video = Video.query.filter_by(video_id=video_id).first()
-    if video:
-        return jsonify(video.json())
-    else:
-        return jsonify({
-            'message': 'Video not found'
-        }), 404
+    poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "poster.jpg")
+    return send_file(poster_path, mimetype='image/jpg')
 
 @api.route('/api/video')
 def get_video():

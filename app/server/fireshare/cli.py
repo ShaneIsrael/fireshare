@@ -93,5 +93,20 @@ def sync_metadata():
             db.session.add(v)
             db.session.commit()
 
+@cli.command()
+def create_posters():
+    with create_app().app_context():
+        processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+        root = Path(current_app.config['DATA_DIRECTORY'])
+        vinfos = VideoInfo.query.all()
+        for v in vinfos:
+            derived_path = Path(processed_root, "derived", v.video_id)
+            video_path = Path(root, "video_links", v.video_id + ".mp4")
+            if not Path(derived_path, "poster.jpg").exists():
+                print('Creating poster for {}'.format(v.video_id))
+                if not derived_path.exists():
+                    derived_path.mkdir(parents=True)
+                util.create_poster(video_path, derived_path / "poster.jpg")
+
 if __name__=="__main__":
     cli()

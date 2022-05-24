@@ -1,7 +1,9 @@
 import axios from 'axios'
-import { getUrl } from '../common/utils'
 
-const URL = getUrl()
+const URL =
+  window.location.hostname.indexOf('localhost') >= 0
+    ? 'http://localhost:5000'
+    : `${window.location.protocol}//${window.location.hostname}`
 
 const cancelToken = axios.CancelToken.source()
 
@@ -29,8 +31,9 @@ instance.interceptors.response.use(
     return null
   },
 )
-
-export default () => {
+const Api = () => {
   instance.defaults.withCredentials = true
   return instance
 }
+
+export default Api
