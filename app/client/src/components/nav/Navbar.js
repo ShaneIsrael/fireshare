@@ -16,12 +16,11 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import { lightBlue } from '@mui/material/colors'
 
 import logo from '../../assets/logo.png'
-import { AuthService } from '../../services'
 import { useNavigate } from 'react-router-dom'
 
 const pages = []
 
-const Navbar = ({ children }) => {
+const Navbar = ({ children, options }) => {
   const [anchorElNav, setAnchorElNav] = React.useState(null)
   const [anchorElUser, setAnchorElUser] = React.useState(null)
 
@@ -42,23 +41,10 @@ const Navbar = ({ children }) => {
     setAnchorElUser(null)
   }
 
-  const handleLogout = async () => {
-    try {
-      await AuthService.logout()
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const options = [
-    { name: 'Settings', handler: handleCloseUserMenu },
-    { name: 'Logout', handler: handleLogout },
-  ]
   return (
     <>
       <AppBar position="static">
-        <Container maxWidth="xl">
+        <Container maxWidth="100%">
           <Toolbar disableGutters>
             <Box
               component="img"
@@ -68,7 +54,7 @@ const Navbar = ({ children }) => {
               sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }}
             />
             <Typography
-              variant="h6"
+              variant="div"
               noWrap
               component="a"
               href="/"
@@ -77,6 +63,7 @@ const Navbar = ({ children }) => {
                 display: { xs: 'none', md: 'flex' },
                 fontFamily: 'monospace',
                 fontWeight: 700,
+                fontSize: 22,
                 letterSpacing: '.2rem',
                 color: 'inherit',
                 textDecoration: 'none',
@@ -85,42 +72,44 @@ const Navbar = ({ children }) => {
               FIRESHARE
             </Typography>
 
-            <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
-              <IconButton
-                size="large"
-                aria-label="account of current user"
-                aria-controls="menu-appbar"
-                aria-haspopup="true"
-                onClick={handleOpenNavMenu}
-                color="inherit"
-              >
-                <MenuIcon />
-              </IconButton>
-              <Menu
-                id="menu-appbar"
-                anchorEl={anchorElNav}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'left',
-                }}
-                keepMounted
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'left',
-                }}
-                open={Boolean(anchorElNav)}
-                onClose={handleCloseNavMenu}
-                sx={{
-                  display: { xs: 'block', md: 'none' },
-                }}
-              >
-                {pages.map((page) => (
-                  <MenuItem key={page} onClick={handleCloseNavMenu}>
-                    <Typography textAlign="center">{page}</Typography>
-                  </MenuItem>
-                ))}
-              </Menu>
-            </Box>
+            {pages.length > 0 && (
+              <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
+                <IconButton
+                  size="large"
+                  aria-label="account of current user"
+                  aria-controls="menu-appbar"
+                  aria-haspopup="true"
+                  onClick={handleOpenNavMenu}
+                  color="inherit"
+                >
+                  <MenuIcon />
+                </IconButton>
+                <Menu
+                  id="menu-appbar"
+                  anchorEl={anchorElNav}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'left',
+                  }}
+                  keepMounted
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'left',
+                  }}
+                  open={Boolean(anchorElNav)}
+                  onClose={handleCloseNavMenu}
+                  sx={{
+                    display: { xs: 'block', md: 'none' },
+                  }}
+                >
+                  {pages.map((page) => (
+                    <MenuItem key={page} onClick={handleCloseNavMenu}>
+                      <Typography textAlign="center">{page}</Typography>
+                    </MenuItem>
+                  ))}
+                </Menu>
+              </Box>
+            )}
             <Box
               component="img"
               src={logo}
@@ -129,16 +118,17 @@ const Navbar = ({ children }) => {
               sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }}
             />
             <Typography
-              variant="h5"
+              variant="div"
               noWrap
               component="a"
-              href=""
+              href="/"
               sx={{
                 mr: 2,
                 display: { xs: 'flex', md: 'none' },
                 flexGrow: 1,
                 fontFamily: 'monospace',
                 fontWeight: 700,
+                fontSize: 22,
                 letterSpacing: '.2rem',
                 color: 'inherit',
                 textDecoration: 'none',

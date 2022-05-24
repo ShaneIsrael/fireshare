@@ -102,11 +102,10 @@ def sync_metadata():
 def create_posters():
     with create_app().app_context():
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
-        root = Path(current_app.config['DATA_DIRECTORY'])
         vinfos = VideoInfo.query.all()
         for v in vinfos:
             derived_path = Path(processed_root, "derived", v.video_id)
-            video_path = Path(root, "video_links", v.video_id + ".mp4")
+            video_path = Path(processed_root, "video_links", v.video_id + ".mp4")
             if not Path(derived_path, "poster.jpg").exists():
                 print('Creating poster for {}'.format(v.video_id))
                 if not derived_path.exists():

@@ -36,8 +36,19 @@ const Dashboard = () => {
 
   if (!authenticated) return null
 
+  const handleLogout = async () => {
+    try {
+      await AuthService.logout()
+      navigate('/login')
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const options = [{ name: 'Logout', handler: handleLogout }]
+
   return (
-    <Navbar>
+    <Navbar options={options}>
       <Box component="main">
         <Paper square sx={{ overflow: 'auto' }}>
           <Grid sx={{ height: 'calc(100vh - 64px)' }} container direction="row" justifyContent="center">
