@@ -1,6 +1,9 @@
 # db
 db.sqlite
 
+#nginx
+dev.conf
+
 *.[Mm][Pp]4
 *.[Mm][Kk][Vv]
 *.[Mm][Oo][Vv]

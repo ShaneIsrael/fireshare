@@ -3,11 +3,9 @@ import { useParams } from 'react-router-dom'
 import ReactPlayer from 'react-player'
 import { Grid, Paper, Typography } from '@mui/material'
 import { VideoService } from '../services'
+import { getUrl } from '../common/utils'
 
-const URL =
-  window.location.hostname.indexOf('localhost') >= 0
-    ? 'http://localhost:5000'
-    : `${window.location.protocol}//${window.location.hostname}`
+const URL = getUrl()
 
 const Watch = () => {
   const { id } = useParams()

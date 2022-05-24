@@ -19,8 +19,11 @@ def get_video_path(id):
     video_path = data_root / "video_links" / f"{id}.mp4"
     return str(video_path)
 
+
 @api.route('/api/videos')
 def get_videos():
+    if not current_user.is_authenticated:
+        return Response(response='You do not have access to this resource.', status=401)
     return jsonify({"videos": [v.json() for v in Video.query.all()]})
 
 @api.route('/api/video/details', methods=["GET"])
