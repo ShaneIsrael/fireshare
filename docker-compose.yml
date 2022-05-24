@@ -1,0 +1,12 @@
+services:
+  fireshare:
+    container_name: fireshare
+    image: fireshare:test
+    ports:
+      - "80:80"
+    volumes:
+      - ./dev_root/dev_data:/data
+      - ./dev_root/dev_videos:/videos
+      - ./dev_root/dev_processed:/processed
+    environment:
+      - ADMIN_PASSWORD=admin

@@ -62,7 +62,7 @@ const VideoCards = ({ videos }) => {
           <ReactPlayer
             url={`${
               SERVED_BY === 'nginx'
-                ? `${URL}/_content/video_links/${videoModal.id}.mp4`
+                ? `${URL}/_content/video/${videoModal.id}.mp4`
                 : `${URL}/api/video?id=${videoModal.id}`
             }`}
             width="100%"
