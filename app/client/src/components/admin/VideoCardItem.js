@@ -42,7 +42,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
     if (debouncedTitle && debouncedTitle !== title) {
       update()
     }
-  }, [debouncedTitle, alertHandler, title, video.video_id])
+  }, [debouncedTitle, title, video.video_id])
 
   return (
     <Card sx={{ width: 300, bgcolor: '#1E1D1D' }} square elevation={2}>
