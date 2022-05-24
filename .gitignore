@@ -4,6 +4,10 @@ db.sqlite
 #nginx
 dev.conf
 
+root/
+root_processed/
+dev_root/
+
 *.[Mm][Pp]4
 *.[Mm][Kk][Vv]
 *.[Mm][Oo][Vv]

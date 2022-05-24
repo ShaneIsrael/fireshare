@@ -5,10 +5,8 @@ import Alert from './Alert'
 export default function SnackbarAlert({ severity, children, open, setOpen }) {
   const handleClose = (event, reason) => {
     if (reason === 'clickaway') {
-      setOpen(false)
       return
     }
-
     setOpen(false)
   }
 

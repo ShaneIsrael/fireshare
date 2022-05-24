@@ -1,9 +1,9 @@
-import { Box, Grid, Modal, Paper, Typography } from '@mui/material'
 import React from 'react'
+import { Box, Grid, Modal, Typography } from '@mui/material'
 import ReactPlayer from 'react-player'
 import { getUrl } from '../../common/utils'
 import SnackbarAlert from '../alert/SnackbarAlert'
-import VideoListItem from './VideoListItem'
+import VideoCardItem from './VideoCardItem'
 
 const URL = getUrl()
 
@@ -26,7 +26,7 @@ const EMPTY_STATE = (
   </Grid>
 )
 
-const VideoList = ({ videos }) => {
+const VideoCards = ({ videos }) => {
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
@@ -64,20 +64,18 @@ const VideoList = ({ videos }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Paper variant="outlined" sx={{ minHeight: 200, overflow: 'hidden' }}>
-        {!videos && EMPTY_STATE}
-        {videos && (
-          <Grid container>
-            {videos.map((v) => (
-              <Grid key={v.video_id} item xs={12}>
-                <VideoListItem video={v} openVideoHandler={openVideo} alertHandler={handleAlert} />
-              </Grid>
-            ))}
-          </Grid>
-        )}
-      </Paper>
+      {!videos && EMPTY_STATE}
+      {videos && (
+        <Grid container spacing={2} justifyContent="center">
+          {videos.map((v) => (
+            <Grid key={v.video_id} item>
+              <VideoCardItem video={v} openVideoHandler={openVideo} alertHandler={handleAlert} />
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Box>
   )
 }
 
-export default VideoList
+export default VideoCards
