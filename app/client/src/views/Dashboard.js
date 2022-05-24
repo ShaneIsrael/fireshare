@@ -1,26 +1,33 @@
 import { Box, Button, Grid, Paper, Typography } from '@mui/material'
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import VideoList from '../components/admin/VideoList'
 import Navbar from '../components/nav/Navbar'
-import { AuthService } from '../services'
+import { AuthService, VideoService } from '../services'
 
 const Dashboard = () => {
   const [authenticated, setAuthenticated] = React.useState(false)
+  const [videos, setVideos] = React.useState(null)
   const navigate = useNavigate()
 
   React.useEffect(() => {
-    async function isLoggedIn() {
-      try {
+    try {
+      async function isLoggedIn() {
         if (!(await AuthService.isLoggedIn()).data) {
           navigate('/login')
         } else {
           setAuthenticated(true)
         }
-      } catch (err) {
-        console.log(err)
       }
+      async function fetchVideos() {
+        const res = (await VideoService.getVideos()).data
+        setVideos(res.videos)
+      }
+      isLoggedIn()
+      fetchVideos()
+    } catch (err) {
+      console.error(err)
     }
-    isLoggedIn()
   }, [navigate])
 
   if (!authenticated) return null
@@ -38,23 +45,10 @@ const Dashboard = () => {
     <Navbar>
       <Box component="main">
         <Paper square sx={{ overflow: 'auto' }}>
-          <Grid
-            sx={{ height: 'calc(100vh - 64px)' }}
-            container
-            direction="row"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Grid container item justifyContent="center" spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="h3" align="center">
-                  You are currently logged in
-                </Typography>
-              </Grid>
-              <Grid item>
-                <Button variant="contained" size="large" onClick={logoutHandler}>
-                  Logout
-                </Button>
+          <Grid sx={{ height: 'calc(100vh - 64px)' }} container direction="row" justifyContent="center">
+            <Grid container item justifyContent="center" spacing={2} sx={{ mt: 10 }}>
+              <Grid item xs={10}>
+                <VideoList videos={videos} />
               </Grid>
             </Grid>
           </Grid>

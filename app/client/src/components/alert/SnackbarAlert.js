@@ -2,17 +2,10 @@ import * as React from 'react'
 import Snackbar from '@mui/material/Snackbar'
 import Alert from './Alert'
 
-export default function SnackbarAlert({ severity, children }) {
-  const [open, setOpen] = React.useState(false)
-
-  React.useEffect(() => {
-    if (children) {
-      setOpen(true)
-    }
-  }, [children])
-
+export default function SnackbarAlert({ severity, children, open, setOpen }) {
   const handleClose = (event, reason) => {
     if (reason === 'clickaway') {
+      setOpen(false)
       return
     }
 

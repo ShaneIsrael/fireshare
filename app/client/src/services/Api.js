@@ -1,9 +1,7 @@
 import axios from 'axios'
+import { getUrl } from '../common/utils'
 
-const URL =
-  window.location.hostname.indexOf('localhost') >= 0
-    ? 'http://localhost:5000'
-    : `${window.location.protocol}//${window.location.hostname}`
+const URL = getUrl()
 
 const cancelToken = axios.CancelToken.source()
 

@@ -13,7 +13,7 @@ import logo from '../../assets/logo.png'
 const LoginForm = function ({ sx }) {
   const [username, setUsername] = React.useState(null)
   const [password, setPassword] = React.useState(null)
-  const [alert, setAlert] = React.useState({})
+  const [alert, setAlert] = React.useState({ open: false })
   const navigate = useNavigate()
 
   async function login() {
@@ -21,6 +21,7 @@ const LoginForm = function ({ sx }) {
       setAlert({
         type: 'error',
         message: 'A Username & Password are required.',
+        open: true,
       })
     }
     setAlert({})
@@ -33,11 +34,13 @@ const LoginForm = function ({ sx }) {
         setAlert({
           type: 'warning',
           message: err.response.data,
+          open: true,
         })
       } else {
         setAlert({
           type: 'error',
           message: 'An unknown error occurred while trying to log in',
+          open: true,
         })
       }
     }
@@ -62,7 +65,9 @@ const LoginForm = function ({ sx }) {
 
   return (
     <Grid container direction="column" justifyContent="flex-end" alignItems="center" sx={{ p: 2, ...sx }}>
-      <SnackbarAlert severity={alert.type}>{alert.message}</SnackbarAlert>
+      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+        {alert.message}
+      </SnackbarAlert>
       <Grid item sx={{ mb: 2 }}>
         <Box component="img" src={logo} height={128} alt="fireshare logo" />
       </Grid>
