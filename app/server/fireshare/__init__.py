@@ -12,22 +12,34 @@ db = SQLAlchemy()
 def create_app():
     app = Flask(__name__, static_url_path='', static_folder='build', template_folder='build')
     CORS(app, supports_credentials=True)
+    if 'DATA_DIRECTORY' not in os.environ:
+        raise Exception("DATA_DIRECTORY not found in environment")
 
     app.config['SECRET_KEY'] = 'secret-key-goes-here'
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
+    app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///{data_directory}/db.sqlite'.format(data_directory=app.config['DATA_DIRECTORY'])
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/db.sqlite'
 
-    processed_dir = Path(app.config['PROCESSED_DIRECTORY'])
-    data_dir = Path(app.config['DATA_DIRECTORY'])
-    if not processed_dir.is_dir():
-        processed_dir.mkdir()
-        print(f"Creating {str(processed_dir)}")
-    video_dir = data_dir / "video_links"
-    if not video_dir.is_dir():
-        print(f"Creating {str(video_dir)}")
-        video_dir.mkdir(parents=True)
+    paths = {
+        'data': Path(app.config['DATA_DIRECTORY']),
+        'video': Path(app.config['VIDEO_DIRECTORY']),
+        'processed': Path(app.config['PROCESSED_DIRECTORY']),
+    }
+    app.config['PATHS'] = paths
+    for k, path in paths.items():
+        if not path.is_dir():
+            print(f"Creating {k} directory at {str(path)}")
+            path.mkdir(parents=True, exist_ok=True)
+    subpaths = [
+        paths['processed'] / 'video_links',
+        paths['processed'] / 'derived',
+    ]
+    for subpath in subpaths:
+        if not subpath.is_dir():
+            print(f"Creating subpath directory at {str(subpath.absolute())}")
+            subpath.mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
 

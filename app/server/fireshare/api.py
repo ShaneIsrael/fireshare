@@ -15,8 +15,8 @@ CORS(api, supports_credentials=True)
 
 def get_video_path(id):
     # db lookup to get path to mp4
-    data_root = Path(current_app.config["DATA_DIRECTORY"])
-    video_path = data_root / "video_links" / f"{id}.mp4"
+    paths = current_app.config['PATHS']
+    video_path = paths["processed"] / "video_links" / f"{id}.mp4"
     return str(video_path)
 
 

@@ -25,13 +25,13 @@ def add_user(username, password):
 @cli.command()
 def scan_videos():
     with create_app().app_context():
-        data_root = Path(current_app.config["DATA_DIRECTORY"])
-        raw_videos = data_root / "raw_videos"
-        video_links = data_root / "video_links"
+        paths = current_app.config['PATHS']
+        raw_videos = paths["video"]
+        video_links = paths["processed"] / "video_links"
         if not video_links.is_dir():
             video_links.mkdir()
 
-        print(f"Scanning {str(raw_videos)} for videos")
+        click.echo(f"Scanning {str(raw_videos)} for videos")
         video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix in ['.mp4']]
 
         new_videos = []
@@ -55,15 +55,18 @@ def scan_videos():
 
         fd = os.open(str(video_links.absolute()), os.O_DIRECTORY)
         for nv in new_videos:
-            src = "../" + str((raw_videos / nv.path).relative_to(data_root))
-            dst = Path(nv.video_id + str(Path(nv.path).suffix))
+            src = Path((paths["video"] / nv.path).absolute())
+            dst = Path(paths["processed"] / "video_links" / (nv.video_id + nv.extension))
+            common_root = Path(*os.path.commonprefix([src.parts, dst.parts]))
+            num_up = len(dst.parts)-1 - len(common_root.parts)
+            prefix = "../" * num_up
+            rel_src = Path(prefix + str(src).replace(str(common_root), ''))
             if not dst.exists():
-                print(f"Linking {str(src)} --> {str(dst)}")
+                click.echo(f"Linking {str(rel_src)} --> {str(dst)}")
                 try:
                     os.symlink(src, dst, dir_fd=fd)
                 except FileExistsError:
-                    print(f"{dst} exists already")
-        
+                    click.echo(f"{dst} exists already")
             info = VideoInfo(video_id=nv.video_id, title=Path(nv.path).stem)
             db.session.add(info)
         db.session.commit()
@@ -71,27 +74,29 @@ def scan_videos():
 @cli.command()
 def sync_metadata():
     with create_app().app_context():
-        root = Path(current_app.config['DATA_DIRECTORY'])
+        paths = current_app.config['PATHS']
         videos = VideoInfo.query.filter(VideoInfo.info==None).all()
         if not videos:
-            print('Video metadata up to date')
+            click.echo('Video metadata up to date')
         for v in videos:
-            vpath = root / "video_links" / str(v.video_id + v.video.extension)
-            info = util.get_media_info(vpath)
-            print(v.video_id, vpath)
-            vcodec = [i for i in info if i['codec_type'] == 'video'][0]
-            if 'duration' in vcodec:
-                duration = float(vcodec['duration'])
-            elif 'tags' in vcodec:
-                duration = util.dur_string_to_seconds(vcodec['tags']['DURATION'])
-            width, height = int(vcodec['width']), int(vcodec['height'])
-            print('Scanned {} duration={}s, resolution={}x{}'.format(v.video_id, duration, width, height))
-            v.info = json.dumps(info)
-            v.duration = duration
-            v.width = width
-            v.height = height
-            db.session.add(v)
-            db.session.commit()
+            vpath = paths["processed"] / "video_links" / str(v.video_id + v.video.extension)
+            if Path(vpath).is_file():
+                info = util.get_media_info(vpath)
+                vcodec = [i for i in info if i['codec_type'] == 'video'][0]
+                if 'duration' in vcodec:
+                    duration = float(vcodec['duration'])
+                elif 'tags' in vcodec:
+                    duration = util.dur_string_to_seconds(vcodec['tags']['DURATION'])
+                width, height = int(vcodec['width']), int(vcodec['height'])
+                click.echo(f'Scanned {v.video_id} duration={duration}s, resolution={width}x{height}: {v.video.path}')
+                v.info = json.dumps(info)
+                v.duration = duration
+                v.width = width
+                v.height = height
+                db.session.add(v)
+                db.session.commit()
+            else:
+                click.echo(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
 
 if __name__=="__main__":
     cli()
