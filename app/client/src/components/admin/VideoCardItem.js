@@ -45,7 +45,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
   }, [debouncedTitle, title, video.video_id])
 
   return (
-    <Card sx={{ width: 300, bgcolor: '#1E1D1D' }} square elevation={2}>
+    <Card sx={{ width: 300, bgcolor: '#0b132b', border: '1px solid #046595' }} square elevation={2}>
       <CardActionArea onClick={() => openVideoHandler(video)}>
         <CardMedia component="img" image={`${URL}/api/video/poster?id=${video.video_id}`} />
         <Box
@@ -64,7 +64,6 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
               fontWeight: 700,
               fontSize: 20,
               fontFamily: 'monospace',
-
               color: '#fff',
             }}
           >
@@ -79,6 +78,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
           label="Title"
           defaultValue={updatedTitle || title}
           onChange={(e) => setUpdatedTitle(e.target.value)}
+          sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
         />
       </CardContent>
       <CardActions>

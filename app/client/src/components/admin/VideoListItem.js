@@ -62,6 +62,7 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler }) => {
               label="Title"
               defaultValue={updatedTitle || title}
               onChange={(e) => setUpdatedTitle(e.target.value)}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
             />
           </Grid>
           <Grid item sx={{ pl: 1, pr: 1 }}>
