@@ -11,11 +11,12 @@ import {
   Typography,
 } from '@mui/material'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, getUrl, useDebounce } from '../../common/utils'
+import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
 import VideoService from '../../services/VideoService'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
+const SERVED_BY = getServedBy()
 
 const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
   const title = video.info?.title
@@ -47,7 +48,14 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
   return (
     <Card sx={{ width: 300, bgcolor: '#0b132b', border: '1px solid #046595' }} square elevation={2}>
       <CardActionArea onClick={() => openVideoHandler(video)}>
-        <CardMedia component="img" image={`${URL}/api/video/poster?id=${video.video_id}`} />
+        <CardMedia
+          component="img"
+          image={`${
+            SERVED_BY === 'nginx'
+              ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
+              : `${URL}/api/video/poster?id=${video.video_id}`
+          }`}
+        />
         <Box
           sx={{
             pr: 1,

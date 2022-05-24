@@ -3,11 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import ReactPlayer from 'react-player'
 import { Grid, Paper, Typography } from '@mui/material'
 import { AuthService, VideoService } from '../services'
-import { getUrl } from '../common/utils'
+import { getServedBy, getUrl } from '../common/utils'
 import Navbar from '../components/nav/Navbar'
 import { Box } from '@mui/system'
 
 const URL = getUrl()
+const SERVED_BY = getServedBy()
 
 const Watch = () => {
   const { id } = useParams()
@@ -56,7 +57,12 @@ const Watch = () => {
     <Navbar options={options}>
       <Grid container>
         <Grid item xs={12}>
-          <ReactPlayer url={`${URL}/api/video?id=${id}`} width="100%" height="auto" controls />
+          <ReactPlayer
+            url={`${SERVED_BY === 'nginx' ? `${URL}/_content/video_links/${id}.mp4` : `${URL}/api/video?id=${id}`}`}
+            width="100%"
+            height="auto"
+            controls
+          />
         </Grid>
         <Grid item xs={12}>
           <Paper elevation={3} width="100%" square sx={{ p: 1, mt: -1 }}>
