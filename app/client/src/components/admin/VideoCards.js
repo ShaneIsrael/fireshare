@@ -8,26 +8,29 @@ import VideoCardItem from './VideoCardItem'
 const URL = getUrl()
 const SERVED_BY = getServedBy()
 
-const EMPTY_STATE = (
+const EMPTY_STATE = (loadingIcon) => (
   <Grid sx={{ height: '100%' }} container direction="row" justifyContent="center">
     <Grid container item justifyContent="center" sx={{ mt: 10 }}>
-      <Typography
-        variant="h4"
-        sx={{
-          fontFamily: 'monospace',
-          fontWeight: 500,
-          letterSpacing: '.2rem',
-          color: 'inherit',
-          textDecoration: 'none',
-        }}
-      >
-        NO VIDEOS
-      </Typography>
+      {!loadingIcon && (
+        <Typography
+          variant="h4"
+          sx={{
+            fontFamily: 'monospace',
+            fontWeight: 500,
+            letterSpacing: '.2rem',
+            color: 'inherit',
+            textDecoration: 'none',
+          }}
+        >
+          NO VIDEOS
+        </Typography>
+      )}
+      {loadingIcon}
     </Grid>
   </Grid>
 )
 
-const VideoCards = ({ videos }) => {
+const VideoCards = ({ videos, loadingIcon = null }) => {
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
@@ -74,7 +77,8 @@ const VideoCards = ({ videos }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      {!videos && EMPTY_STATE}
+
+      {!videos && EMPTY_STATE(loadingIcon)}
       {videos && (
         <Grid container spacing={2} justifyContent="center">
           {videos.map((v) => (

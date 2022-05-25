@@ -7,6 +7,7 @@ import VideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
 import Navbar from '../components/nav/Navbar'
 import { AuthService, VideoService } from '../services'
+import LoadingSpinner from '../components/misc/LoadingSpinner'
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props
@@ -21,6 +22,7 @@ function TabPanel(props) {
 const Dashboard = () => {
   const [authenticated, setAuthenticated] = React.useState(false)
   const [videos, setVideos] = React.useState(null)
+  const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
   const [tab, setTab] = React.useState(0)
   const [listStyle, setListStyle] = React.useState('card')
@@ -50,6 +52,7 @@ const Dashboard = () => {
         })
         tfolders.sort().unshift('All Videos')
         setFolders(tfolders)
+        setLoading(false)
       }
       isLoggedIn()
       fetchVideos()
@@ -141,10 +144,11 @@ const Dashboard = () => {
                       <TabPanel key={f} value={tab} index={i}>
                         {listStyle === 'list' && (
                           <VideoList
+                            loadingIcon={loading ? <LoadingSpinner /> : null}
                             videos={
                               i === 0
                                 ? videos
-                                : videos.filter(
+                                : videos?.filter(
                                     (v) =>
                                       v.path
                                         .split('/')
@@ -156,10 +160,11 @@ const Dashboard = () => {
                         )}
                         {listStyle === 'card' && (
                           <VideoCards
+                            loadingIcon={loading ? <LoadingSpinner /> : null}
                             videos={
                               i === 0
                                 ? videos
-                                : videos.filter(
+                                : videos?.filter(
                                     (v) =>
                                       v.path
                                         .split('/')
