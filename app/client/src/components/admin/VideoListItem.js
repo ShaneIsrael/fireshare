@@ -58,6 +58,7 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler }) => {
         <Grid container sx={{ width: 'calc(100% - 75px)', height: '100%', pl: 1 }} alignItems="center">
           <Grid item xs>
             <TextField
+              fullWidth
               size="small"
               label="Title"
               defaultValue={updatedTitle || title}

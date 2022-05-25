@@ -23,6 +23,7 @@ COPY --from=client /app/build /app/build
 RUN pip install /app/server
 
 ENV FLASK_ENV production
+ENV ENVIRONMENT production
 ENV DATA_DIRECTORY /data
 ENV VIDEO_DIRECTORY /videos
 ENV PROCESSED_DIRECTORY /processed

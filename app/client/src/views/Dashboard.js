@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid, Paper, Typography, Divider, ToggleButtonGroup, ToggleButton } from '@mui/material'
+import { Box, Grid, Paper, Typography, Divider, ToggleButtonGroup, ToggleButton, Tabs, Tab } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
@@ -8,9 +8,21 @@ import VideoList from '../components/admin/VideoList'
 import Navbar from '../components/nav/Navbar'
 import { AuthService, VideoService } from '../services'
 
+function TabPanel(props) {
+  const { children, value, index, ...other } = props
+
+  return (
+    <div role="tabpanel" hidden={value !== index} {...other}>
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  )
+}
+
 const Dashboard = () => {
   const [authenticated, setAuthenticated] = React.useState(false)
   const [videos, setVideos] = React.useState(null)
+  const [folders, setFolders] = React.useState(['All Videos'])
+  const [tab, setTab] = React.useState(0)
   const [listStyle, setListStyle] = React.useState('card')
   const navigate = useNavigate()
 
@@ -26,6 +38,15 @@ const Dashboard = () => {
       async function fetchVideos() {
         const res = (await VideoService.getVideos()).data
         setVideos(res.videos)
+        const tfolders = []
+        res.videos.forEach((v) => {
+          const split = v.path.split(/^(.+)\/([^/]+)$/).filter((f) => f !== '')
+          if (split.length > 1) {
+            tfolders.push(split[0])
+          }
+        })
+        tfolders.sort().unshift('All Videos')
+        setFolders(tfolders)
       }
       isLoggedIn()
       fetchVideos()
@@ -58,13 +79,12 @@ const Dashboard = () => {
     { name: 'Logout', handler: handleLogout },
     { name: 'Scan', handler: handleScan },
   ]
-
   return (
     <Navbar options={options}>
       <Box component="main">
         <Paper square sx={{ overflow: 'auto' }}>
           <Grid sx={{ height: 'calc(100vh - 64px)' }} container direction="row" justifyContent="center">
-            <Grid container item justifyContent="center" spacing={2} sx={{ mt: 10 }}>
+            <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
               <Grid item xs={11}>
                 <Grid container>
                   <Grid item xs>
@@ -99,8 +119,37 @@ const Dashboard = () => {
                   </Grid>
                 </Grid>
                 <Divider sx={{ mb: 2 }} light />
-                {listStyle === 'list' && <VideoList videos={videos} />}
-                {listStyle === 'card' && <VideoCards videos={videos} />}
+                <Grid container justifyContent="center">
+                  <Box sx={{ maxWidth: { xs: 350, sm: 600, md: 1000 }, bgcolor: 'background.paper' }}>
+                    <Tabs
+                      value={tab}
+                      onChange={(e, value) => setTab(value)}
+                      variant="scrollable"
+                      scrollButtons="auto"
+                      aria-label="wrapped label tabs example"
+                    >
+                      {folders.map((f, i) => (
+                        <Tab key={f} value={i} label={f} wrapped />
+                      ))}
+                    </Tabs>
+                  </Box>
+                  <Grid item xs={12}>
+                    {folders.map((f, i) => (
+                      <TabPanel key={f} value={tab} index={i}>
+                        {listStyle === 'list' && (
+                          <VideoList
+                            videos={i === 0 ? videos : videos.filter((v) => v.path.split(/^(.+)\/([^/]+)$/)[1] === f)}
+                          />
+                        )}
+                        {listStyle === 'card' && (
+                          <VideoCards
+                            videos={i === 0 ? videos : videos.filter((v) => v.path.split(/^(.+)\/([^/]+)$/)[1] === f)}
+                          />
+                        )}
+                      </TabPanel>
+                    ))}
+                  </Grid>
+                </Grid>
               </Grid>
             </Grid>
           </Grid>

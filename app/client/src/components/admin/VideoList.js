@@ -74,7 +74,7 @@ const VideoList = ({ videos }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Paper variant="outlined" sx={{ minHeight: 200, overflow: 'hidden' }}>
+      <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
         {!videos && EMPTY_STATE}
         {videos && (
           <Grid container>

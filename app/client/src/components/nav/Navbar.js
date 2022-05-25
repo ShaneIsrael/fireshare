@@ -16,15 +16,12 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import { lightBlue } from '@mui/material/colors'
 
 import logo from '../../assets/logo.png'
-import { useNavigate } from 'react-router-dom'
 
 const pages = []
 
 const Navbar = ({ children, options }) => {
   const [anchorElNav, setAnchorElNav] = React.useState(null)
   const [anchorElUser, setAnchorElUser] = React.useState(null)
-
-  const navigate = useNavigate()
 
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget)
