@@ -11,7 +11,7 @@ RUN npm run build
 FROM python:3.9-slim-buster
 WORKDIR /
 RUN apt-get update && apt-get install -y \
-    nginx supervisor build-essential gcc libc-dev libffi-dev python3-pip ffmpeg
+    nginx nginx-extras supervisor build-essential gcc libc-dev libffi-dev python3-pip ffmpeg
 RUN adduser --disabled-password --gecos '' nginx
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log 

@@ -75,7 +75,7 @@ const Dashboard = () => {
                       sx={{ mt: -1.5 }}
                       value={listStyle}
                       exclusive
-                      onChange={(e, style) => setListStyle(style)}
+                      onChange={(e, style) => style !== null && setListStyle(style)}
                     >
                       <ToggleButton value="card">
                         <AppsIcon />
