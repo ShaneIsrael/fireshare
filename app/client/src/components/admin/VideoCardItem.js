@@ -56,6 +56,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
               ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
               : `${URL}/api/video/poster?id=${video.video_id}`
           }`}
+          height={167}
         />
         {/* <Box
           sx={{
