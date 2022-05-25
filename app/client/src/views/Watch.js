@@ -75,21 +75,6 @@ const Watch = () => {
         <meta property="og:video:width" value={details?.info?.width} />
         <meta property="og:video:height" value={details?.info?.height} />
         <meta property="og:site_name" value="Fireshare" />
-        {/*  */}
-
-        {/* 
-        <meta property="og:site_name" value={'Clipface - ' + currentURL.host} />
-        <meta property="og:url" value={currentURL.toString()} />
-        <meta property="og:title" value={clipMeta.title || clipName} />
-
-        {clipMeta.description && <meta property="og:description" value={clipMeta.description} />}
-
-        <meta property="og:video" value={fullVideoURL} />
-        <meta property="og:video:url" value={fullVideoURL} />
-        <meta property="og:video:secure_url" value={fullVideoURL} />
-        <meta property="og:video:type" content={clipMeta.mime} />
-        <meta property="og:video:width" content="1280" />
-        <meta property="og:video:height" content="720" /> */}
       </Helmet>
       <Grid container>
         <Grid item xs={12}>
