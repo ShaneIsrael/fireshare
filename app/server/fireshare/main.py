@@ -17,6 +17,9 @@ def before_first_request():
         admin_user = User(username='admin', password=generate_password_hash(current_app.config['ADMIN_PASSWORD'], method='sha256'))
         db.session.add(admin_user)
         db.session.commit()
+    if not check_password_hash(admin.password, current_app.config['ADMIN_PASSWORD']):
+        db.session.query(User).filter_by(username='admin').update({'password': generate_password_hash(current_app.config['ADMIN_PASSWORD'], method='sha256')})
+        db.session.commit()
 
 @main.route('/', defaults={'path': ''})
 @main.route('/#/<path:path>')
