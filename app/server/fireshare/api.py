@@ -1,4 +1,5 @@
 import os, re
+import subprocess as sp
 from flask import Blueprint, request, Response, jsonify, current_app, send_file
 from flask_login import logout_user, current_user
 from flask_cors import CORS
@@ -19,12 +20,26 @@ def get_video_path(id):
     video_path = paths["processed"] / "video_links" / f"{id}.mp4"
     return str(video_path)
 
+@api.route('/api/manual/scan')
+def manual_scan():
+    if not current_app.config["ENVIRONMENT"] == 'production':
+        return Response(response='You must be running in production for this task to work.', status=400)
+    if not current_user.is_authenticated:
+        return Response(response='You do not have access to this resource.', status=401)
+    else:
+        sp.call(['python', '/app/server/fireshare/cli.py', 'scan-videos'])
+        sp.call(['python', '/app/server/fireshare/cli.py', 'sync-metadata'])
+        sp.call(['python', '/app/server/fireshare/cli.py', 'create-posters'])
+        return Response(status=200)
+
+    
 
 @api.route('/api/videos')
 def get_videos():
     if not current_user.is_authenticated:
         return Response(response='You do not have access to this resource.', status=401)
     return jsonify({"videos": [v.json() for v in Video.query.all()]})
+
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):

@@ -45,7 +45,19 @@ const Dashboard = () => {
     }
   }
 
-  const options = [{ name: 'Logout', handler: handleLogout }]
+  const handleScan = async () => {
+    try {
+      await VideoService.scan()
+      console.log('scan completed')
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const options = [
+    { name: 'Logout', handler: handleLogout },
+    { name: 'Scan', handler: handleScan },
+  ]
 
   return (
     <Navbar options={options}>

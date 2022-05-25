@@ -12,6 +12,9 @@ const service = {
       title,
     })
   },
+  scan() {
+    return Api().get('/api/manual/scan')
+  },
 }
 
 export default service
