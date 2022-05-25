@@ -1,6 +1,10 @@
-# fireshare
+# Fireshare
 
 Self host your media and share with unique links
+
+---
+
+[![Publish Docker Image](https://github.com/ShaneIsrael/fireshare/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ShaneIsrael/fireshare/actions/workflows/docker-publish.yml)
 
 # Server
 
