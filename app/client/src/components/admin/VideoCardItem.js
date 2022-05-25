@@ -85,7 +85,6 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
         <TextField
           fullWidth
           size="small"
-          label="Title"
           defaultValue={updatedTitle || title}
           onChange={(e) => setUpdatedTitle(e.target.value)}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}

@@ -8,6 +8,7 @@ import VideoList from '../components/admin/VideoList'
 import Navbar from '../components/nav/Navbar'
 import { AuthService, VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
+import { getSettings, setSetting } from '../common/utils'
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props
@@ -18,6 +19,7 @@ function TabPanel(props) {
     </div>
   )
 }
+const settings = getSettings()
 
 const Dashboard = () => {
   const [authenticated, setAuthenticated] = React.useState(false)
@@ -25,7 +27,7 @@ const Dashboard = () => {
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
   const [tab, setTab] = React.useState(0)
-  const [listStyle, setListStyle] = React.useState('card')
+  const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
   const navigate = useNavigate()
 
   React.useEffect(() => {
@@ -81,6 +83,14 @@ const Dashboard = () => {
     }
   }
 
+  const handleListStyleChange = (e, style) => {
+    if (style !== null) {
+      setListStyle(style)
+      setSetting({ listStyle: style })
+      console.log(style)
+    }
+  }
+
   const options = [
     { name: 'Logout', handler: handleLogout },
     { name: 'Scan', handler: handleScan },
@@ -109,12 +119,7 @@ const Dashboard = () => {
                     </Typography>
                   </Grid>
                   <Grid item>
-                    <ToggleButtonGroup
-                      sx={{ mt: -1.5 }}
-                      value={listStyle}
-                      exclusive
-                      onChange={(e, style) => style !== null && setListStyle(style)}
-                    >
+                    <ToggleButtonGroup sx={{ mt: -1.5 }} value={listStyle} exclusive onChange={handleListStyleChange}>
                       <ToggleButton value="card">
                         <AppsIcon />
                       </ToggleButton>

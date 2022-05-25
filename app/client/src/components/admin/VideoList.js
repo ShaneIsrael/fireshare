@@ -78,7 +78,7 @@ const VideoList = ({ videos, loadingIcon = null }) => {
         {alert.message}
       </SnackbarAlert>
       <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-        {!videos && EMPTY_STATE}
+        {!videos && EMPTY_STATE(loadingIcon)}
         {videos && (
           <Grid container>
             {videos.map((v) => (
