@@ -5,10 +5,11 @@ on:
     paths:
       - "app/**"
   workflow_dispatch:
-    tag:
-      description: The build tag to push.
-      required: true
-      default: "latest"
+    inputs:
+      tag:
+        description: The build tag to push.
+        required: true
+        default: "latest"
 jobs:
   push_to_registry:
     if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
