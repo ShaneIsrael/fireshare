@@ -40,8 +40,11 @@ const Dashboard = () => {
         setVideos(res.videos)
         const tfolders = []
         res.videos.forEach((v) => {
-          const split = v.path.split(/^(.+)\/([^/]+)$/).filter((f) => f !== '')
-          if (split.length > 1 && !tfolders.includes(split[0])) {
+          const split = v.path
+            .split('/')
+            .slice(0, -1)
+            .filter((f) => f !== '')
+          if (split.length > 0 && !tfolders.includes(split[0])) {
             tfolders.push(split[0])
           }
         })
@@ -138,12 +141,32 @@ const Dashboard = () => {
                       <TabPanel key={f} value={tab} index={i}>
                         {listStyle === 'list' && (
                           <VideoList
-                            videos={i === 0 ? videos : videos.filter((v) => v.path.split(/^(.+)\/([^/]+)$/)[1] === f)}
+                            videos={
+                              i === 0
+                                ? videos
+                                : videos.filter(
+                                    (v) =>
+                                      v.path
+                                        .split('/')
+                                        .slice(0, -1)
+                                        .filter((f) => f !== '')[0] === f,
+                                  )
+                            }
                           />
                         )}
                         {listStyle === 'card' && (
                           <VideoCards
-                            videos={i === 0 ? videos : videos.filter((v) => v.path.split(/^(.+)\/([^/]+)$/)[1] === f)}
+                            videos={
+                              i === 0
+                                ? videos
+                                : videos.filter(
+                                    (v) =>
+                                      v.path
+                                        .split('/')
+                                        .slice(0, -1)
+                                        .filter((f) => f !== '')[0] === f,
+                                  )
+                            }
                           />
                         )}
                       </TabPanel>
