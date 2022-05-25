@@ -58,7 +58,7 @@ const Watch = () => {
       <Grid container>
         <Grid item xs={12}>
           <ReactPlayer
-            url={`${SERVED_BY === 'nginx' ? `${URL}/_content/video_links/${id}.mp4` : `${URL}/api/video?id=${id}`}`}
+            url={`${SERVED_BY === 'nginx' ? `${URL}/_content/video/${id}.mp4` : `${URL}/api/video?id=${id}`}`}
             width="100%"
             height="auto"
             controls
