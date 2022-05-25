@@ -41,7 +41,7 @@ const Dashboard = () => {
         const tfolders = []
         res.videos.forEach((v) => {
           const split = v.path.split(/^(.+)\/([^/]+)$/).filter((f) => f !== '')
-          if (split.length > 1) {
+          if (split.length > 1 && !tfolders.includes(split[0])) {
             tfolders.push(split[0])
           }
         })
