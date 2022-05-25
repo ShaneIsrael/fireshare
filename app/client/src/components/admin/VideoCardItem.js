@@ -7,6 +7,7 @@ import {
   CardActions,
   CardContent,
   CardMedia,
+  Grid,
   TextField,
   Typography,
 } from '@mui/material'
@@ -56,7 +57,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
               : `${URL}/api/video/poster?id=${video.video_id}`
           }`}
         />
-        <Box
+        {/* <Box
           sx={{
             pr: 1,
             pl: 1,
@@ -77,7 +78,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
           >
             {new Date(video.info.duration * 1000).toISOString().substr(11, 8)}
           </Typography>
-        </Box>
+        </Box> */}
       </CardActionArea>
       <CardContent sx={{ height: 55 }}>
         <TextField
@@ -90,21 +91,34 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
         />
       </CardContent>
       <CardActions>
-        <CopyToClipboard text={`${PURL}${video.video_id}`}>
-          <Button
-            sx={{ ml: 0.05 }}
-            size="small"
-            onClick={() =>
-              alertHandler({
-                type: 'info',
-                message: 'Link copied to clipboard',
-                open: true,
-              })
-            }
-          >
-            Copy Link
-          </Button>
-        </CopyToClipboard>
+        <Grid container>
+          <Grid item xs>
+            <CopyToClipboard text={`${PURL}${video.video_id}`}>
+              <Button
+                sx={{ ml: 0.05 }}
+                size="small"
+                onClick={() =>
+                  alertHandler({
+                    type: 'info',
+                    message: 'Link copied to clipboard',
+                    open: true,
+                  })
+                }
+              >
+                Copy Link
+              </Button>
+            </CopyToClipboard>
+          </Grid>
+          <Grid item>
+            <Typography
+              variant="div"
+              color="primary"
+              sx={{ mr: 1.1, fontWeight: 700, fontSize: 12, fontFamily: 'monospace' }}
+            >
+              {new Date(video.info.duration * 1000).toISOString().substr(11, 8)}
+            </Typography>
+          </Grid>
+        </Grid>
       </CardActions>
     </Card>
   )
