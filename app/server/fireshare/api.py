@@ -1,13 +1,13 @@
 import os, re
 import subprocess as sp
-from flask import Blueprint, request, Response, jsonify, current_app, send_file
+from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file
 from flask_login import logout_user, current_user
 from flask_cors import CORS
 from . import db
 from pathlib import Path
 from .models import Video, VideoInfo
 
-api = Blueprint('api', __name__)
+api = Blueprint('api', __name__, template_folder='./templates/')
 
 CORS(api, supports_credentials=True)
 
@@ -19,6 +19,16 @@ def get_video_path(id):
     paths = current_app.config['PATHS']
     video_path = paths["processed"] / "video_links" / f"{id}.mp4"
     return str(video_path)
+
+
+@api.route('/v/<video_id>')
+def video_metadata(video_id):
+    video = Video.query.filter_by(video_id=video_id).first()
+    if video:
+        return render_template('metadata.html', video=video.json())
+    else:
+        return Response("not found"), 404
+
 
 @api.route('/api/manual/scan')
 def manual_scan():
