@@ -15,6 +15,7 @@ import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
 import VideoService from '../../services/VideoService'
 import ReactPlayer from 'react-player'
+import HoverVideoPlayer from 'react-hover-video-player'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -23,7 +24,6 @@ const SERVED_BY = getServedBy()
 const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
-  const [hovering, setHovering] = React.useState(false)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
 
   React.useEffect(() => {
@@ -51,7 +51,43 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
   return (
     <Card sx={{ width: 375, bgcolor: '#0b132b', border: '1px solid #046595' }} square elevation={2}>
       <CardActionArea onClick={() => openVideoHandler(video)}>
-        <div onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+        <HoverVideoPlayer
+          style={{
+            width: 375,
+            height: 208,
+          }}
+          videoSrc={[
+            {
+              src: `${
+                SERVED_BY === 'nginx'
+                  ? `${URL}/_content/video/${video.video_id}.mp4`
+                  : `${URL}/api/video?id=${video.video_id}`
+              }`,
+              type: 'video/mp4',
+            },
+          ]}
+          pausedOverlay={
+            <img
+              src={`${
+                SERVED_BY === 'nginx'
+                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
+                  : `${URL}/api/video/poster?id=${video.video_id}`
+              }`}
+              alt="video-thumbnail"
+              style={{
+                width: 375,
+                height: 211,
+              }}
+            />
+          }
+          loadingOverlay={
+            <div className="loading-overlay">
+              <div className="loading-spinner" />
+            </div>
+          }
+          crossOrigin="use-credentials"
+        />
+        {/* <div onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
           {!hovering && (
             <CardMedia
               component="img"
@@ -78,7 +114,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
               pip={false}
             />
           )}
-        </div>
+        </div> */}
         {/* <Box
           sx={{
             pr: 1,
