@@ -61,6 +61,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
           selectedHandler(video.video_id)
           openVideoHandler(video)
         }}
+        sx={{ overflow: 'hidden' }}
       >
         <HoverVideoPlayer
           style={{
