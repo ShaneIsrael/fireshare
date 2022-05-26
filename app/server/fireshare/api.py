@@ -21,7 +21,7 @@ def get_video_path(id):
     return str(video_path)
 
 
-@api.route('/v/<video_id>')
+@api.route('/w/<video_id>')
 def video_metadata(video_id):
     video = Video.query.filter_by(video_id=video_id).first()
     if video:
