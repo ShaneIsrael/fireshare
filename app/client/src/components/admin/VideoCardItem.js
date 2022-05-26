@@ -21,7 +21,7 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
+const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler, selected }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
@@ -49,8 +49,17 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
   }, [debouncedTitle, title, video.video_id])
 
   return (
-    <Card sx={{ width: 375, bgcolor: '#0b132b', border: '1px solid #046595' }} square elevation={2}>
-      <CardActionArea onClick={() => openVideoHandler(video)}>
+    <Card
+      sx={{ width: 375, bgcolor: '#0b132b', border: selected ? '3px solid #fffc31' : '1px solid #046595' }}
+      square
+      elevation={2}
+    >
+      <CardActionArea
+        onClick={() => {
+          selectedHandler(video.video_id)
+          openVideoHandler(video)
+        }}
+      >
         <HoverVideoPlayer
           style={{
             width: 375,
@@ -87,56 +96,6 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
           }
           crossOrigin="use-credentials"
         />
-        {/* <div onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
-          {!hovering && (
-            <CardMedia
-              component="img"
-              image={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
-                  : `${URL}/api/video/poster?id=${video.video_id}`
-              }`}
-              height={208}
-            />
-          )}
-          {hovering && (
-            <ReactPlayer
-              url={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/video/${video.video_id}.mp4`
-                  : `${URL}/api/video?id=${video.video_id}`
-              }`}
-              playing={hovering}
-              muted
-              width={375}
-              height={208}
-              stopOnUnmount
-              pip={false}
-            />
-          )}
-        </div> */}
-        {/* <Box
-          sx={{
-            pr: 1,
-            pl: 1,
-            position: 'absolute',
-            top: '20px',
-            left: '50%',
-            background: 'rgba(0, 0, 0, 0.9)',
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          <Typography
-            sx={{
-              fontWeight: 700,
-              fontSize: 20,
-              fontFamily: 'monospace',
-              color: '#fff',
-            }}
-          >
-            {new Date(video.info.duration * 1000).toISOString().substr(11, 8)}
-          </Typography>
-        </Box> */}
       </CardActionArea>
       <CardContent sx={{ height: 55 }}>
         <TextField

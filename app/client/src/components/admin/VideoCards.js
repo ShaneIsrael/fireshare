@@ -35,6 +35,7 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
   const [videoModal, setVideoModal] = React.useState({
     open: false,
   })
+  const [selected, setSelected] = React.useState(null)
 
   const openVideo = (video) => {
     setVideoModal({
@@ -46,6 +47,8 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
   const handleAlert = (alert) => {
     setAlert(alert)
   }
+
+  const handleSelected = (id) => setSelected(id)
 
   return (
     <Box>
@@ -83,7 +86,13 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
         <Grid container spacing={2} justifyContent="center">
           {videos.map((v) => (
             <Grid key={v.video_id} item>
-              <VideoCardItem video={v} openVideoHandler={openVideo} alertHandler={handleAlert} />
+              <VideoCardItem
+                video={v}
+                openVideoHandler={openVideo}
+                alertHandler={handleAlert}
+                selectedHandler={handleSelected}
+                selected={selected === v.video_id}
+              />
             </Grid>
           ))}
         </Grid>
