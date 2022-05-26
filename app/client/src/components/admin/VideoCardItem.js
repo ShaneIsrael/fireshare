@@ -65,6 +65,8 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
             width: 375,
             height: 208,
           }}
+          preload="none"
+          unloadVideoOnPaused
           videoSrc={[
             {
               src: `${
