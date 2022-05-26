@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, render_template, current_app, redirect
 from flask_login import current_user
 from flask_cors import CORS
@@ -5,9 +6,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
 
-# template_folder = '/app/server/fireshare/templates' if current_app.config["ENVIRONMENT"] == "production" else 'templates'
+templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
 
-main = Blueprint('main', __name__, template_folder="templates")
+main = Blueprint('main', __name__, template_folder=templates_path)
 
 CORS(main, supports_credentials=True)
 

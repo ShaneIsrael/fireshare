@@ -19,7 +19,7 @@ export const getPublicWatchUrl = () => {
   return window.location.port === 3000 ||
     (window.location.hostname.indexOf('localhost') >= 0 && window.location.port !== '')
     ? `http://localhost:${window.location.port}/#/w/`
-    : `${window.location.protocol}//${window.location.hostname}${portWithColon}/#/w/`
+    : `${window.location.protocol}//${window.location.hostname}${portWithColon}/w/`
 }
 
 export const useDebounce = (value, delay) => {

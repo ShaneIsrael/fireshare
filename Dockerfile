@@ -27,6 +27,7 @@ ENV ENVIRONMENT production
 ENV DATA_DIRECTORY /data
 ENV VIDEO_DIRECTORY /videos
 ENV PROCESSED_DIRECTORY /processed
+ENV TEMPLATE_PATH=/app/server/fireshare/templates
 ENV ADMIN_PASSWORD admin
 
 EXPOSE 80
