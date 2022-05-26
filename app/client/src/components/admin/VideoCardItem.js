@@ -21,7 +21,7 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler, selected }) => {
+const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler, selected, visible }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
