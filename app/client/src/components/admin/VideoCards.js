@@ -1,9 +1,10 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { Box, Grid, Modal, Typography } from '@mui/material'
 import ReactPlayer from 'react-player'
 import { getServedBy, getUrl } from '../../common/utils'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoCardItem from './VideoCardItem'
+import { useInViewport } from 'react-in-viewport'
 
 const URL = getUrl()
 const SERVED_BY = getServedBy()
@@ -37,6 +38,9 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
   })
   const [selectedTimeout, setSelectedTimeout] = React.useState(null)
   const [selected, setSelected] = React.useState(null)
+
+  const myRef = useRef()
+  const { inViewport, enterCount, leaveCount } = useInViewport(myRef)
 
   const openVideo = (video) => {
     clearTimeout(selectedTimeout)
@@ -98,7 +102,7 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
       {videos && (
         <Grid container spacing={2} justifyContent="center">
           {videos.map((v) => (
-            <Grid key={v.video_id} item>
+            <Grid ref={myRef} key={v.video_id} item>
               <VideoCardItem
                 video={v}
                 openVideoHandler={openVideo}

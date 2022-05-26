@@ -16,9 +16,12 @@
     "react-dom": "^18.1.0",
     "react-helmet": "^6.1.0",
     "react-hover-video-player": "^9.5.0",
+    "react-in-viewport": "^1.0.0-alpha.28",
     "react-player": "^2.10.1",
     "react-router-dom": "^6.3.0",
     "react-scripts": "5.0.1",
+    "react-virtualized-auto-sizer": "^1.0.6",
+    "react-window": "^1.8.7",
     "video.js": "^7.19.2",
     "web-vitals": "^2.1.4"
   },

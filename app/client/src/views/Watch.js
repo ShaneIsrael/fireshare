@@ -92,7 +92,10 @@ const Watch = () => {
             url={`${SERVED_BY === 'nginx' ? `${URL}/_content/video/${id}.mp4` : `${URL}/api/video?id=${id}`}`}
             width="100%"
             height="auto"
-            config={{ file: { attributes: { onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) } } }}
+            playing
+            config={{
+              file: { forcedAudio: true, attributes: { onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) } },
+            }}
             controls
           />
         </Grid>
