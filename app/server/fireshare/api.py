@@ -7,7 +7,7 @@ from . import db
 from pathlib import Path
 from .models import Video, VideoInfo
 
-api = Blueprint('api', __name__, template_folder='./templates/')
+api = Blueprint('api', __name__, template_folder='templates')
 
 CORS(api, supports_credentials=True)
 
