@@ -5,7 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
 
-main = Blueprint('main', __name__, template_folder='templates')
+main = Blueprint('main', __name__, template_folder='/app/server/fireshare/templates')
 
 CORS(main, supports_credentials=True)
 
