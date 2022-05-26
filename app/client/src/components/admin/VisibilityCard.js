@@ -6,7 +6,7 @@ import { Grid } from '@mui/material'
 const VisibilityCard = ({ video, openVideo, handleAlert, handleSelected, selected }) => {
   const [visible, setVisible] = React.useState(false)
   return (
-    <VisibilitySensor onChange={setVisible}>
+    <VisibilitySensor onChange={setVisible} partialVisibility={true}>
       <Grid item>
         <VideoCardItem
           visible={visible}

@@ -106,7 +106,7 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
               handleAlert={handleAlert}
               handleSelected={handleSelected}
               openVideo={openVideo}
-              selected
+              selected={selected}
             />
           ))}
         </Grid>
