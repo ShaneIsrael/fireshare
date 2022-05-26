@@ -44,15 +44,24 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
     })
   }
 
+  const onModalClose = () => {
+    setTimeout(() => {
+      setSelected(null)
+    }, 5000)
+    setVideoModal({ open: false })
+  }
+
   const handleAlert = (alert) => {
     setAlert(alert)
   }
 
-  const handleSelected = (id) => setSelected(id)
+  const handleSelected = (id) => {
+    setSelected(id)
+  }
 
   return (
     <Box>
-      <Modal open={videoModal.open} onClose={() => setVideoModal({ open: false })}>
+      <Modal open={videoModal.open} onClose={onModalClose}>
         <Box
           sx={{
             position: 'absolute',
