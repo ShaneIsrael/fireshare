@@ -1,20 +1,8 @@
 import React from 'react'
-import {
-  Box,
-  Button,
-  Card,
-  CardActionArea,
-  CardActions,
-  CardContent,
-  CardMedia,
-  Grid,
-  TextField,
-  Typography,
-} from '@mui/material'
+import { Box, Button, Card, CardActionArea, CardActions, CardContent, Grid, TextField, Typography } from '@mui/material'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
 import VideoService from '../../services/VideoService'
-import ReactPlayer from 'react-player'
 import HoverVideoPlayer from 'react-hover-video-player'
 
 const URL = getUrl()
