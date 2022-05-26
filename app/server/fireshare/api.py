@@ -13,15 +13,11 @@ api = Blueprint('api', __name__, template_folder=template_folder)
 
 CORS(api, supports_credentials=True)
 
-# sample.mp4 is just a silent spinning earth
-# sample2.mp4 is a larger video with sound and burned in subtitles
-
 def get_video_path(id):
     # db lookup to get path to mp4
     paths = current_app.config['PATHS']
     video_path = paths["processed"] / "video_links" / f"{id}.mp4"
     return str(video_path)
-
 
 @api.route('/w/<video_id>')
 def video_metadata(video_id):
@@ -30,7 +26,6 @@ def video_metadata(video_id):
         return render_template('metadata.html', video=video.json())
     else:
         return Response("not found"), 404
-
 
 @api.route('/api/manual/scan')
 def manual_scan():
@@ -44,14 +39,11 @@ def manual_scan():
         sp.call(['python', '/app/server/fireshare/cli.py', 'create-posters'])
         return Response(status=200)
 
-    
-
 @api.route('/api/videos')
 def get_videos():
     if not current_user.is_authenticated:
         return Response(response='You do not have access to this resource.', status=401)
     return jsonify({"videos": [v.json() for v in Video.query.all()]})
-
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
