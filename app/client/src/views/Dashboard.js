@@ -101,8 +101,8 @@ const Dashboard = () => {
         <Paper square sx={{ overflow: 'auto' }}>
           <Grid sx={{ height: 'calc(100vh - 64px)' }} container direction="row" justifyContent="center">
             <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
-              <Grid item xs={11}>
-                <Grid container>
+              <Grid item xs={12}>
+                <Grid container sx={{ pr: 4, pl: 4 }}>
                   <Grid item xs>
                     <Typography
                       variant="h4"
@@ -119,7 +119,13 @@ const Dashboard = () => {
                     </Typography>
                   </Grid>
                   <Grid item>
-                    <ToggleButtonGroup sx={{ mt: -1.5 }} value={listStyle} exclusive onChange={handleListStyleChange}>
+                    <ToggleButtonGroup
+                      size="small"
+                      sx={{ mt: -0.5 }}
+                      value={listStyle}
+                      exclusive
+                      onChange={handleListStyleChange}
+                    >
                       <ToggleButton value="card">
                         <AppsIcon />
                       </ToggleButton>

@@ -14,6 +14,7 @@ import {
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
 import VideoService from '../../services/VideoService'
+import ReactPlayer from 'react-player'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -22,6 +23,7 @@ const SERVED_BY = getServedBy()
 const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
+  const [hovering, setHovering] = React.useState(false)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
 
   React.useEffect(() => {
@@ -47,17 +49,36 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler }) => {
   }, [debouncedTitle, title, video.video_id])
 
   return (
-    <Card sx={{ width: 300, bgcolor: '#0b132b', border: '1px solid #046595' }} square elevation={2}>
+    <Card sx={{ width: 375, bgcolor: '#0b132b', border: '1px solid #046595' }} square elevation={2}>
       <CardActionArea onClick={() => openVideoHandler(video)}>
-        <CardMedia
-          component="img"
-          image={`${
-            SERVED_BY === 'nginx'
-              ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
-              : `${URL}/api/video/poster?id=${video.video_id}`
-          }`}
-          height={167}
-        />
+        <div onMouseEnter={() => setHovering(true)} onMouseLeave={() => setHovering(false)}>
+          {!hovering && (
+            <CardMedia
+              component="img"
+              image={`${
+                SERVED_BY === 'nginx'
+                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
+                  : `${URL}/api/video/poster?id=${video.video_id}`
+              }`}
+              height={208}
+            />
+          )}
+          {hovering && (
+            <ReactPlayer
+              url={`${
+                SERVED_BY === 'nginx'
+                  ? `${URL}/_content/video/${video.video_id}.mp4`
+                  : `${URL}/api/video?id=${video.video_id}`
+              }`}
+              playing={hovering}
+              muted
+              width={375}
+              height={208}
+              stopOnUnmount
+              pip={false}
+            />
+          )}
+        </div>
         {/* <Box
           sx={{
             pr: 1,
