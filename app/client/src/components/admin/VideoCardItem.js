@@ -97,7 +97,6 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
                 <div className="loading-spinner" />
               </div>
             }
-            crossOrigin="use-credentials"
           />
         )}
         {!visible && <div style={{ width: 375, height: 208 }} />}
