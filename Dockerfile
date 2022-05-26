@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 RUN adduser --disabled-password --gecos '' nginx
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log 
-RUN mkdir /data
+RUN mkdir /data && mkdir /processed
 COPY entrypoint.sh /
 COPY app/nginx/prod.conf /etc/nginx/nginx.conf
 COPY app/server/ /app/server
