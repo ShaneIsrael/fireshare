@@ -35,9 +35,11 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
   const [videoModal, setVideoModal] = React.useState({
     open: false,
   })
+  const [selectedTimeout, setSelectedTimeout] = React.useState(null)
   const [selected, setSelected] = React.useState(null)
 
   const openVideo = (video) => {
+    clearTimeout(selectedTimeout)
     setVideoModal({
       open: true,
       id: video.video_id,
@@ -45,9 +47,11 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
   }
 
   const onModalClose = () => {
-    setTimeout(() => {
-      setSelected(null)
-    }, 5000)
+    setSelectedTimeout(
+      setTimeout(() => {
+        setSelected(null)
+      }, 5000),
+    )
     setVideoModal({ open: false })
   }
 
