@@ -1,5 +1,5 @@
-import React from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import React, { useRef } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactPlayer from 'react-player'
 import { Grid, Paper, Typography } from '@mui/material'
 import { AuthService, VideoService } from '../services'
@@ -12,11 +12,20 @@ import { Helmet } from 'react-helmet'
 const URL = getUrl()
 const SERVED_BY = getServedBy()
 
+function useQuery() {
+  const { search } = useLocation()
+
+  return React.useMemo(() => new URLSearchParams(search), [search])
+}
+
 const Watch = () => {
   const { id } = useParams()
+  const query = useQuery()
+  const time = query.get('t')
   const [details, setDetails] = React.useState(null)
   const [loggedIn, setLoggedIn] = React.useState(false)
   const navigate = useNavigate()
+  const videoPlayerRef = useRef(null)
 
   React.useEffect(() => {
     async function fetch() {
@@ -79,9 +88,11 @@ const Watch = () => {
       <Grid container>
         <Grid item xs={12}>
           <ReactPlayer
+            ref={videoPlayerRef}
             url={`${SERVED_BY === 'nginx' ? `${URL}/_content/video/${id}.mp4` : `${URL}/api/video?id=${id}`}`}
             width="100%"
             height="auto"
+            config={{ file: { attributes: { onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) } } }}
             controls
           />
         </Grid>
