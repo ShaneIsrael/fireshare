@@ -21,7 +21,7 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler, selected }) => {
+const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler, selected, visible }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
@@ -60,44 +60,47 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
           openVideoHandler(video)
         }}
       >
-        <HoverVideoPlayer
-          style={{
-            width: 375,
-            height: 208,
-          }}
-          preload="none"
-          unloadVideoOnPaused
-          videoSrc={[
-            {
-              src: `${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/video/${video.video_id}.mp4`
-                  : `${URL}/api/video?id=${video.video_id}`
-              }`,
-              type: 'video/mp4',
-            },
-          ]}
-          pausedOverlay={
-            <img
-              src={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
-                  : `${URL}/api/video/poster?id=${video.video_id}`
-              }`}
-              alt="video-thumbnail"
-              style={{
-                width: 375,
-                height: 211,
-              }}
-            />
-          }
-          loadingOverlay={
-            <div className="loading-overlay">
-              <div className="loading-spinner" />
-            </div>
-          }
-          crossOrigin="use-credentials"
-        />
+        {visible && (
+          <HoverVideoPlayer
+            style={{
+              width: 375,
+              height: 208,
+            }}
+            preload="none"
+            unloadVideoOnPaused
+            videoSrc={[
+              {
+                src: `${
+                  SERVED_BY === 'nginx'
+                    ? `${URL}/_content/video/${video.video_id}.mp4`
+                    : `${URL}/api/video?id=${video.video_id}`
+                }`,
+                type: 'video/mp4',
+              },
+            ]}
+            pausedOverlay={
+              <img
+                src={`${
+                  SERVED_BY === 'nginx'
+                    ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
+                    : `${URL}/api/video/poster?id=${video.video_id}`
+                }`}
+                alt="video-thumbnail"
+                style={{
+                  width: 375,
+                  height: 211,
+                }}
+              />
+            }
+            loadingOverlay={
+              <div className="loading-overlay">
+                <div className="loading-spinner" />
+              </div>
+            }
+            crossOrigin="use-credentials"
+          />
+        )}
+        {!visible && <div style={{ width: 375, height: 208 }} />}
       </CardActionArea>
       <CardContent sx={{ height: 55 }}>
         <TextField

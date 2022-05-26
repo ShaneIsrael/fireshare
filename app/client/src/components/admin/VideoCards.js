@@ -4,7 +4,8 @@ import ReactPlayer from 'react-player'
 import { getServedBy, getUrl } from '../../common/utils'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoCardItem from './VideoCardItem'
-import { useInViewport } from 'react-in-viewport'
+import VisibilitySensor from 'react-visibility-sensor'
+import VisibilityCard from './VisibilityCard'
 
 const URL = getUrl()
 const SERVED_BY = getServedBy()
@@ -38,9 +39,6 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
   })
   const [selectedTimeout, setSelectedTimeout] = React.useState(null)
   const [selected, setSelected] = React.useState(null)
-
-  const myRef = useRef()
-  const { inViewport, enterCount, leaveCount } = useInViewport(myRef)
 
   const openVideo = (video) => {
     clearTimeout(selectedTimeout)
@@ -102,15 +100,14 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
       {videos && (
         <Grid container spacing={2} justifyContent="center">
           {videos.map((v) => (
-            <Grid ref={myRef} key={v.video_id} item>
-              <VideoCardItem
-                video={v}
-                openVideoHandler={openVideo}
-                alertHandler={handleAlert}
-                selectedHandler={handleSelected}
-                selected={selected === v.video_id}
-              />
-            </Grid>
+            <VisibilityCard
+              key={v.video_id}
+              video={v}
+              handleAlert={handleAlert}
+              handleSelected={handleSelected}
+              openVideo={openVideo}
+              selected={selected}
+            />
           ))}
         </Grid>
       )}
