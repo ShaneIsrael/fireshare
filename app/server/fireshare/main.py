@@ -5,7 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
 
-main = Blueprint('main', __name__, template_folder='/app/server/fireshare/templates')
+template_folder = '/app/server/fireshare/templates' if current_app.config["ENVIRONMENT"] == "production" else 'templates'
+
+main = Blueprint('main', __name__, template_folder=template_folder)
 
 CORS(main, supports_credentials=True)
 

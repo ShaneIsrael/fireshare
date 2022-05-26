@@ -7,7 +7,9 @@ from . import db
 from pathlib import Path
 from .models import Video, VideoInfo
 
-api = Blueprint('api', __name__, template_folder='/app/server/fireshare/templates')
+template_folder = '/app/server/fireshare/templates' if current_app.config["ENVIRONMENT"] == "production" else 'templates'
+
+api = Blueprint('api', __name__, template_folder=template_folder)
 
 CORS(api, supports_credentials=True)
 
