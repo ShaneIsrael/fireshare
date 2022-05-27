@@ -75,12 +75,7 @@ const Dashboard = () => {
   }
 
   const handleScan = async () => {
-    try {
-      await VideoService.scan()
-      console.log('scan completed')
-    } catch (err) {
-      console.error(err)
-    }
+    VideoService.scan().catch((err) => console.error(err))
   }
 
   const handleListStyleChange = (e, style) => {

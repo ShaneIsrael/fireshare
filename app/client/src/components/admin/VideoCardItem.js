@@ -3,7 +3,8 @@ import { Box, Button, Card, CardActionArea, CardActions, CardContent, Grid, Text
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
 import VideoService from '../../services/VideoService'
-import HoverVideoPlayer from 'react-hover-video-player'
+
+import _ from 'lodash'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -13,6 +14,17 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
+  const [hover, setHover] = React.useState(false)
+  const debouncedMouseEnter = React.useRef(
+    _.debounce(() => {
+      setHover(true)
+    }, 1000),
+  ).current
+
+  const handleMouseLeave = () => {
+    debouncedMouseEnter.cancel()
+    setHover(false)
+  }
 
   React.useEffect(() => {
     async function update() {
@@ -50,44 +62,51 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
           openVideoHandler(video)
         }}
         sx={{ overflow: 'hidden' }}
+        onMouseEnter={debouncedMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
-        <HoverVideoPlayer
-          style={{
-            width: 375,
-            height: 208,
-          }}
-          preload="none"
-          unloadVideoOnPaused
-          videoSrc={[
-            {
-              src: `${
+        <div style={{ position: 'relative', top: 0, left: 0 }}>
+          <img
+            src={`${
+              SERVED_BY === 'nginx'
+                ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
+                : `${URL}/api/video/poster?id=${video.video_id}`
+            }`}
+            style={{
+              width: 375,
+              height: 208,
+              position: 'relative',
+              top: 0,
+              left: 0,
+            }}
+          />
+          {hover && (
+            <video
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                opacity: 0,
+                animationName: 'fadeIn',
+                animationDuration: '1.5s',
+                animationFillMode: 'both',
+                WebkitAnimationName: 'fadeIn',
+                WebkitAnimationDuration: '1.5s',
+                WebkitAnimationFillMode: 'both',
+              }}
+              width={375}
+              height={208}
+              src={`${
                 SERVED_BY === 'nginx'
                   ? `${URL}/_content/video/${video.video_id}.mp4`
                   : `${URL}/api/video?id=${video.video_id}`
-              }`,
-              type: 'video/mp4',
-            },
-          ]}
-          pausedOverlay={
-            <img
-              src={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
-                  : `${URL}/api/video/poster?id=${video.video_id}`
               }`}
-              alt="video-thumbnail"
-              style={{
-                width: 375,
-                height: 211,
-              }}
+              muted
+              autoPlay
+              disablePictureInPicture
             />
-          }
-          loadingOverlay={
-            <div className="loading-overlay">
-              <div className="loading-spinner" />
-            </div>
-          }
-        />
+          )}
+        </div>
       </CardActionArea>
       <CardContent sx={{ height: 55 }}>
         <TextField
