@@ -41,7 +41,7 @@ const Navbar = ({ children, options }) => {
 
   return (
     <>
-      <AppBar position="fixed" elevation={0} sx={{ height: 64 }}>
+      <AppBar position="fixed" elevation={0} sx={{ height: 64, background: 'rgba(0, 0, 0, 0.13)' }}>
         <Toolbar>
           <Box
             component="img"

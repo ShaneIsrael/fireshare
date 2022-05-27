@@ -92,7 +92,7 @@ const Dashboard = () => {
   ]
   return (
     <Navbar options={options}>
-      <Paper square sx={{ overflow: 'auto', height: '100%' }}>
+      <Box sx={{ overflow: 'auto', height: '100%' }}>
         <Grid sx={{}} container direction="row" justifyContent="center">
           <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
             <Grid item xs={12}>
@@ -131,16 +131,19 @@ const Dashboard = () => {
               </Grid>
               <Divider sx={{ mb: 2 }} light />
               <Grid container justifyContent="center">
-                <Box sx={{ maxWidth: { xs: 350, sm: 600, md: 1000 }, bgcolor: 'background.paper' }}>
+                <Box sx={{ maxWidth: { xs: 465, sm: 600, md: 1000 }, bgcolor: 'background.paper' }}>
                   <Tabs
                     value={tab}
                     onChange={(e, value) => setTab(value)}
                     variant="scrollable"
                     scrollButtons="auto"
                     aria-label="wrapped label tabs example"
+                    sx={{
+                      background: '#001E3C',
+                    }}
                   >
                     {folders.map((f, i) => (
-                      <Tab key={f} value={i} label={f} wrapped />
+                      <Tab key={f} value={i} label={f} wrapped sx={{ fontSize: 14 }} />
                     ))}
                   </Tabs>
                 </Box>
@@ -186,7 +189,7 @@ const Dashboard = () => {
             </Grid>
           </Grid>
         </Grid>
-      </Paper>
+      </Box>
     </Navbar>
   )
 }
