@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid, Paper, Typography, Divider, ToggleButtonGroup, ToggleButton, Tabs, Tab } from '@mui/material'
+import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Tabs, Tab } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
@@ -131,7 +131,7 @@ const Dashboard = () => {
               </Grid>
               <Divider sx={{ mb: 2 }} light />
               <Grid container justifyContent="center">
-                <Box sx={{ maxWidth: { xs: 465, sm: 600, md: 1000 }, bgcolor: 'background.paper' }}>
+                <Box sx={{ maxWidth: { xs: 350, sm: 600, md: 820, lg: 1000 }, bgcolor: 'background.paper' }}>
                   <Tabs
                     value={tab}
                     onChange={(e, value) => setTab(value)}

@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthService } from '../services'
 import Navbar from '../components/nav/Navbar'
-import { Box, Grid, Paper, Typography } from '@mui/material'
+import { Grid, Paper, Typography } from '@mui/material'
 
 const NotFound = ({ title, body }) => {
   const [loggedIn, setLoggedIn] = React.useState(false)

@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { Box, Grid, Paper } from '@mui/material'
+import { Box, Grid } from '@mui/material'
 
 import LoginForm from '../components/forms/LoginForm'
 import { AuthService } from '../services'

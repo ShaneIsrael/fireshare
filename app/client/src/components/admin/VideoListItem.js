@@ -33,7 +33,7 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler }) => {
     if (debouncedTitle && debouncedTitle !== title) {
       update()
     }
-  }, [debouncedTitle, title, video.video_id])
+  }, [debouncedTitle, title, video.video_id, alertHandler])
 
   return (
     <Paper square sx={{ height: 70, bgcolor: '#0b132b', borderBottom: '1px solid #046595' }}>

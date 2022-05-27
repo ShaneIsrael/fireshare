@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Button, Card, CardActionArea, CardActions, CardContent, Grid, TextField, Typography } from '@mui/material'
+import { Button, Card, CardActions, CardContent, Grid, TextField, Typography } from '@mui/material'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
 import VideoService from '../../services/VideoService'
@@ -46,12 +46,21 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
     if (debouncedTitle && debouncedTitle !== title) {
       update()
     }
-  }, [debouncedTitle, title, video.video_id])
+  }, [debouncedTitle, title, video.video_id, alertHandler])
 
   if (!visible) return <div style={{ width: 375, height: 316 }} />
 
   return (
-    <Card sx={{ width: 375, bgcolor: '#0b132b', border: selected ? '3px solid #fffc31' : '1px solid #046595' }} square>
+    <Card
+      sx={{
+        width: 375,
+        height: '100%',
+        bgcolor: '#0b132b',
+        border: selected ? '3px solid #fffc31' : '1px solid #046595',
+        m: 1,
+      }}
+      square
+    >
       <div
         style={{ position: 'relative', cursor: 'pointer', width: '100%', overflow: 'hidden' }}
         onClick={() => {
@@ -67,6 +76,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
               ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
               : `${URL}/api/video/poster?id=${video.video_id}`
           }`}
+          alt=""
           style={{
             width: 375,
             height: 'auto',

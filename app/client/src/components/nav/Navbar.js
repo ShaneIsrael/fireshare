@@ -6,7 +6,6 @@ import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import Menu from '@mui/material/Menu'
 import MenuIcon from '@mui/icons-material/Menu'
-import Container from '@mui/material/Container'
 import Avatar from '@mui/material/Avatar'
 import Button from '@mui/material/Button'
 import Tooltip from '@mui/material/Tooltip'
@@ -16,7 +15,7 @@ import GitHubIcon from '@mui/icons-material/GitHub'
 import { lightBlue } from '@mui/material/colors'
 
 import logo from '../../assets/logo.png'
-import { Grid, Paper, Stack } from '@mui/material'
+import { Paper, Stack } from '@mui/material'
 
 const pages = []
 
