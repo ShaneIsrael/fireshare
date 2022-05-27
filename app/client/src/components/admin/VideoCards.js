@@ -1,10 +1,8 @@
-import React, { useRef } from 'react'
+import React, { useCallback } from 'react'
 import { Box, Grid, Modal, Typography } from '@mui/material'
 import ReactPlayer from 'react-player'
 import { getServedBy, getUrl } from '../../common/utils'
 import SnackbarAlert from '../alert/SnackbarAlert'
-import VideoCardItem from './VideoCardItem'
-import VisibilitySensor from 'react-visibility-sensor'
 import VisibilityCard from './VisibilityCard'
 
 const URL = getUrl()
@@ -57,9 +55,12 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
     setVideoModal({ open: false })
   }
 
-  const handleAlert = (alert) => {
+  // const handleAlert = (alert) => {
+  //   setAlert(alert)
+  // }
+  const memoizedHandleAlert = useCallback((alert) => {
     setAlert(alert)
-  }
+  }, [])
 
   const handleSelected = (id) => {
     setSelected(id)
@@ -103,7 +104,7 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
             <VisibilityCard
               key={v.video_id}
               video={v}
-              handleAlert={handleAlert}
+              handleAlert={memoizedHandleAlert}
               handleSelected={handleSelected}
               openVideo={openVideo}
               selected={selected}

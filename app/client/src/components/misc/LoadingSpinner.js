@@ -1,8 +1,6 @@
 import * as React from 'react'
-import { styled } from '@mui/material/styles'
 import Box from '@mui/material/Box'
 import CircularProgress, { circularProgressClasses } from '@mui/material/CircularProgress'
-import LinearProgress, { linearProgressClasses } from '@mui/material/LinearProgress'
 
 function LoadingProgress({ size, ...rest }) {
   return (

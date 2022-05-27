@@ -8,6 +8,7 @@ import Navbar from '../components/nav/Navbar'
 import { Box } from '@mui/system'
 
 import { Helmet } from 'react-helmet'
+import NotFound from './NotFound'
 
 const URL = getUrl()
 const SERVED_BY = getServedBy()
@@ -24,13 +25,28 @@ const Watch = () => {
   const time = query.get('t')
   const [details, setDetails] = React.useState(null)
   const [loggedIn, setLoggedIn] = React.useState(false)
+  const [notFound, setNotFound] = React.useState(false)
   const navigate = useNavigate()
   const videoPlayerRef = useRef(null)
 
   React.useEffect(() => {
     async function fetch() {
-      const resp = (await VideoService.getDetails(id)).data
-      setDetails(resp)
+      try {
+        const resp = (await VideoService.getDetails(id)).data
+        setDetails(resp)
+      } catch (err) {
+        if (err.response && err.response.status === 404342) {
+          setNotFound({
+            title: "We're Sorry...",
+            body: "But the video you're looking for was not found.",
+          })
+        } else {
+          setNotFound({
+            title: 'Oops!',
+            body: 'Something somewhere went wrong.',
+          })
+        }
+      }
     }
     if (details == null) fetch()
   }, [details, id])
@@ -61,6 +77,8 @@ const Watch = () => {
       console.error(err)
     }
   }
+
+  if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
 
   const options = [{ name: loggedIn ? 'Logout' : 'Login', handler: loggedIn ? handleLogout : handleLogin }]
 

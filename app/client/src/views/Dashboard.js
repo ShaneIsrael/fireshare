@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid, Paper, Typography, Divider, ToggleButtonGroup, ToggleButton, Tabs, Tab } from '@mui/material'
+import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Tabs, Tab } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
@@ -75,12 +75,7 @@ const Dashboard = () => {
   }
 
   const handleScan = async () => {
-    try {
-      await VideoService.scan()
-      console.log('scan completed')
-    } catch (err) {
-      console.error(err)
-    }
+    VideoService.scan().catch((err) => console.error(err))
   }
 
   const handleListStyleChange = (e, style) => {
@@ -97,102 +92,103 @@ const Dashboard = () => {
   ]
   return (
     <Navbar options={options}>
-      <Box component="main">
-        <Paper square sx={{ overflow: 'auto' }}>
-          <Grid sx={{ height: 'calc(100vh - 64px)' }} container direction="row" justifyContent="center">
-            <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
-              <Grid item xs={12}>
-                <Grid container sx={{ pr: 4, pl: 4 }}>
-                  <Grid item xs>
-                    <Typography
-                      variant="h4"
-                      sx={{
-                        fontFamily: 'monospace',
-                        fontWeight: 500,
-                        letterSpacing: '.2rem',
-                        color: 'inherit',
-                        textDecoration: 'none',
-                        ml: 1,
-                      }}
-                    >
-                      MY VIDEOS
-                    </Typography>
-                  </Grid>
-                  <Grid item>
-                    <ToggleButtonGroup
-                      size="small"
-                      sx={{ mt: -0.5 }}
-                      value={listStyle}
-                      exclusive
-                      onChange={handleListStyleChange}
-                    >
-                      <ToggleButton value="card">
-                        <AppsIcon />
-                      </ToggleButton>
-                      <ToggleButton value="list">
-                        <TableRowsIcon />
-                      </ToggleButton>
-                    </ToggleButtonGroup>
-                  </Grid>
+      <Box sx={{ overflow: 'auto', height: '100%' }}>
+        <Grid sx={{}} container direction="row" justifyContent="center">
+          <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
+            <Grid item xs={12}>
+              <Grid container sx={{ pr: 4, pl: 4 }}>
+                <Grid item xs>
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontFamily: 'monospace',
+                      fontWeight: 500,
+                      letterSpacing: '.2rem',
+                      color: 'inherit',
+                      textDecoration: 'none',
+                      ml: 1,
+                    }}
+                  >
+                    MY VIDEOS
+                  </Typography>
                 </Grid>
-                <Divider sx={{ mb: 2 }} light />
-                <Grid container justifyContent="center">
-                  <Box sx={{ maxWidth: { xs: 350, sm: 600, md: 1000 }, bgcolor: 'background.paper' }}>
-                    <Tabs
-                      value={tab}
-                      onChange={(e, value) => setTab(value)}
-                      variant="scrollable"
-                      scrollButtons="auto"
-                      aria-label="wrapped label tabs example"
-                    >
-                      {folders.map((f, i) => (
-                        <Tab key={f} value={i} label={f} wrapped />
-                      ))}
-                    </Tabs>
-                  </Box>
-                  <Grid item xs={12}>
+                <Grid item>
+                  <ToggleButtonGroup
+                    size="small"
+                    sx={{ mt: -0.5 }}
+                    value={listStyle}
+                    exclusive
+                    onChange={handleListStyleChange}
+                  >
+                    <ToggleButton value="card">
+                      <AppsIcon />
+                    </ToggleButton>
+                    <ToggleButton value="list">
+                      <TableRowsIcon />
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </Grid>
+              </Grid>
+              <Divider sx={{ mb: 2 }} light />
+              <Grid container justifyContent="center">
+                <Box sx={{ maxWidth: { xs: 350, sm: 600, md: 820, lg: 1000 }, bgcolor: 'background.paper' }}>
+                  <Tabs
+                    value={tab}
+                    onChange={(e, value) => setTab(value)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    aria-label="wrapped label tabs example"
+                    sx={{
+                      background: '#001E3C',
+                    }}
+                  >
                     {folders.map((f, i) => (
-                      <TabPanel key={f} value={tab} index={i}>
-                        {listStyle === 'list' && (
-                          <VideoList
-                            loadingIcon={loading ? <LoadingSpinner /> : null}
-                            videos={
-                              i === 0
-                                ? videos
-                                : videos?.filter(
-                                    (v) =>
-                                      v.path
-                                        .split('/')
-                                        .slice(0, -1)
-                                        .filter((f) => f !== '')[0] === f,
-                                  )
-                            }
-                          />
-                        )}
-                        {listStyle === 'card' && (
-                          <VideoCards
-                            loadingIcon={loading ? <LoadingSpinner /> : null}
-                            videos={
-                              i === 0
-                                ? videos
-                                : videos?.filter(
-                                    (v) =>
-                                      v.path
-                                        .split('/')
-                                        .slice(0, -1)
-                                        .filter((f) => f !== '')[0] === f,
-                                  )
-                            }
-                          />
-                        )}
-                      </TabPanel>
+                      <Tab key={f} value={i} label={f} wrapped sx={{ fontSize: 14 }} />
                     ))}
-                  </Grid>
+                  </Tabs>
+                </Box>
+                <Grid item xs={12}>
+                  {folders.map((f, i) => (
+                    <TabPanel key={f} value={tab} index={i}>
+                      {listStyle === 'list' && (
+                        <VideoList
+                          loadingIcon={loading ? <LoadingSpinner /> : null}
+                          videos={
+                            i === 0
+                              ? videos
+                              : videos?.filter(
+                                  (v) =>
+                                    v.path
+                                      .split('/')
+                                      .slice(0, -1)
+                                      .filter((f) => f !== '')[0] === f,
+                                )
+                          }
+                        />
+                      )}
+                      {listStyle === 'card' && (
+                        <VideoCards
+                          loadingIcon={loading ? <LoadingSpinner /> : null}
+                          videos={
+                            i === 0
+                              ? videos
+                              : videos?.filter(
+                                  (v) =>
+                                    v.path
+                                      .split('/')
+                                      .slice(0, -1)
+                                      .filter((f) => f !== '')[0] === f,
+                                )
+                          }
+                        />
+                      )}
+                    </TabPanel>
+                  ))}
                 </Grid>
               </Grid>
             </Grid>
           </Grid>
-        </Paper>
+        </Grid>
       </Box>
     </Navbar>
   )

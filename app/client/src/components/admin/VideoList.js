@@ -1,5 +1,5 @@
 import { Box, Grid, Modal, Paper, Typography } from '@mui/material'
-import React from 'react'
+import React, { useCallback } from 'react'
 import ReactPlayer from 'react-player'
 import { getServedBy, getUrl } from '../../common/utils'
 import SnackbarAlert from '../alert/SnackbarAlert'
@@ -43,9 +43,9 @@ const VideoList = ({ videos, loadingIcon = null }) => {
     })
   }
 
-  const handleAlert = (alert) => {
+  const memoizedHandleAlert = useCallback((alert) => {
     setAlert(alert)
-  }
+  }, [])
 
   return (
     <Box>
@@ -83,7 +83,7 @@ const VideoList = ({ videos, loadingIcon = null }) => {
           <Grid container>
             {videos.map((v) => (
               <Grid key={v.video_id} item xs={12}>
-                <VideoListItem video={v} openVideoHandler={openVideo} alertHandler={handleAlert} />
+                <VideoListItem video={v} openVideoHandler={openVideo} alertHandler={memoizedHandleAlert} />
               </Grid>
             ))}
           </Grid>
