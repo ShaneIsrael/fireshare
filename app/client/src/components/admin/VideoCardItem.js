@@ -52,12 +52,12 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
 
   return (
     <Card sx={{ width: 375, bgcolor: '#0b132b', border: selected ? '3px solid #fffc31' : '1px solid #046595' }} square>
-      <CardActionArea
+      <div
+        style={{ position: 'relative', cursor: 'pointer', width: '100%', overflow: 'hidden' }}
         onClick={() => {
           selectedHandler(video.video_id)
           openVideoHandler(video)
         }}
-        sx={{ overflow: 'hidden' }}
         onMouseEnter={debouncedMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -68,8 +68,8 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
               : `${URL}/api/video/poster?id=${video.video_id}`
           }`}
           style={{
-            width: '100%',
-            height: '100%',
+            width: 375,
+            height: 'auto',
             position: 'relative',
             top: 0,
             left: 0,
@@ -90,7 +90,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
               WebkitAnimationFillMode: 'both',
             }}
             width={'100%'}
-            height={'98%'}
+            height={'auto'}
             src={`${
               SERVED_BY === 'nginx'
                 ? `${URL}/_content/video/${video.video_id}.mp4`
@@ -101,7 +101,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
             disablePictureInPicture
           />
         )}
-      </CardActionArea>
+      </div>
       <CardContent sx={{ height: 50 }}>
         <TextField
           fullWidth
