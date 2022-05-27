@@ -48,14 +48,10 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
     }
   }, [debouncedTitle, title, video.video_id])
 
-  if (!visible) return <div style={{ width: 375, height: 315 }} />
+  if (!visible) return <div style={{ width: 375, height: 316 }} />
 
   return (
-    <Card
-      sx={{ width: 375, bgcolor: '#0b132b', border: selected ? '3px solid #fffc31' : '1px solid #046595' }}
-      square
-      elevation={2}
-    >
+    <Card sx={{ width: 375, bgcolor: '#0b132b', border: selected ? '3px solid #fffc31' : '1px solid #046595' }} square>
       <CardActionArea
         onClick={() => {
           selectedHandler(video.video_id)
@@ -65,50 +61,48 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
         onMouseEnter={debouncedMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        <div style={{ position: 'relative', top: 0, left: 0 }}>
-          <img
-            src={`${
-              SERVED_BY === 'nginx'
-                ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
-                : `${URL}/api/video/poster?id=${video.video_id}`
-            }`}
+        <img
+          src={`${
+            SERVED_BY === 'nginx'
+              ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
+              : `${URL}/api/video/poster?id=${video.video_id}`
+          }`}
+          style={{
+            width: '100%',
+            height: '100%',
+            position: 'relative',
+            top: 0,
+            left: 0,
+          }}
+        />
+        {hover && (
+          <video
             style={{
-              width: 375,
-              height: 208,
-              position: 'relative',
+              position: 'absolute',
               top: 0,
               left: 0,
+              opacity: 0,
+              animationName: 'fadeIn',
+              animationDuration: '1.5s',
+              animationFillMode: 'both',
+              WebkitAnimationName: 'fadeIn',
+              WebkitAnimationDuration: '1.5s',
+              WebkitAnimationFillMode: 'both',
             }}
+            width={'100%'}
+            height={'98%'}
+            src={`${
+              SERVED_BY === 'nginx'
+                ? `${URL}/_content/video/${video.video_id}.mp4`
+                : `${URL}/api/video?id=${video.video_id}`
+            }`}
+            muted
+            autoPlay
+            disablePictureInPicture
           />
-          {hover && (
-            <video
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                opacity: 0,
-                animationName: 'fadeIn',
-                animationDuration: '1.5s',
-                animationFillMode: 'both',
-                WebkitAnimationName: 'fadeIn',
-                WebkitAnimationDuration: '1.5s',
-                WebkitAnimationFillMode: 'both',
-              }}
-              width={375}
-              height={208}
-              src={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/video/${video.video_id}.mp4`
-                  : `${URL}/api/video?id=${video.video_id}`
-              }`}
-              muted
-              autoPlay
-              disablePictureInPicture
-            />
-          )}
-        </div>
+        )}
       </CardActionArea>
-      <CardContent sx={{ height: 55 }}>
+      <CardContent sx={{ height: 50 }}>
         <TextField
           fullWidth
           size="small"
