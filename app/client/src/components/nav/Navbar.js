@@ -40,7 +40,7 @@ const Navbar = ({ children, options }) => {
 
   return (
     <>
-      <AppBar position="static">
+      <AppBar position="static" sx={{ height: 64 }}>
         <Container maxWidth="100%">
           <Toolbar disableGutters>
             <Box
@@ -48,7 +48,7 @@ const Navbar = ({ children, options }) => {
               src={logo}
               height={32}
               alt="fireshare logo"
-              sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }}
+              sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}
             />
             <Typography
               variant="div"
@@ -57,7 +57,8 @@ const Navbar = ({ children, options }) => {
               href="/"
               sx={{
                 mr: 2,
-                display: { xs: 'none', md: 'flex' },
+                display: { xs: 'none', sm: 'flex' },
+                flexGrow: 1,
                 fontFamily: 'monospace',
                 fontWeight: 700,
                 fontSize: 22,
@@ -112,7 +113,7 @@ const Navbar = ({ children, options }) => {
               src={logo}
               height={32}
               alt="fireshare logo"
-              sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }}
+              sx={{ display: { xs: 'flex', sm: 'none' }, mr: 1 }}
             />
             <Typography
               variant="div"
@@ -121,7 +122,7 @@ const Navbar = ({ children, options }) => {
               href="/"
               sx={{
                 mr: 2,
-                display: { xs: 'flex', md: 'none' },
+                display: { xs: 'flex', sm: 'none' },
                 flexGrow: 1,
                 fontFamily: 'monospace',
                 fontWeight: 700,
