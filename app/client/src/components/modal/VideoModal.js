@@ -73,7 +73,7 @@ const VideoModal = ({ open, onClose, video }) => {
             <ReactPlayer
               url={`${
                 SERVED_BY === 'nginx'
-                  ? `${URL}/_content/video/${vid.video_id}.${vid.extension}`
+                  ? `${URL}/_content/video/${vid.video_id}${vid.extension}`
                   : `${URL}/api/video?id=${vid.video_id}`
               }`}
               width="100%"

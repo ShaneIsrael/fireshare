@@ -118,7 +118,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
             height={previewVideoHeight}
             src={`${
               SERVED_BY === 'nginx'
-                ? `${URL}/_content/video/${video.video_id}.${video.extension}`
+                ? `${URL}/_content/video/${video.video_id}${video.extension}`
                 : `${URL}/api/video?id=${video.video_id}`
             }`}
             muted

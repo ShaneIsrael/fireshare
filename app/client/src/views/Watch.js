@@ -99,7 +99,7 @@ const Watch = () => {
           property="og:video"
           value={
             SERVED_BY === 'nginx'
-              ? `${URL}/_content/video/${id}.${details?.extension || '.mp4'}`
+              ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
               : `${URL}/api/video?id=${id}`
           }
         />
@@ -113,7 +113,7 @@ const Watch = () => {
             ref={videoPlayerRef}
             url={`${
               SERVED_BY === 'nginx'
-                ? `${URL}/_content/video/${id}.${details?.extension || '.mp4'}`
+                ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
                 : `${URL}/api/video?id=${id}`
             }`}
             width="100%"
