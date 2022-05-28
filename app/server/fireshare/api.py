@@ -1,7 +1,7 @@
 import os, re
 import random
 from subprocess import Popen
-from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file
+from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import logout_user, current_user
 from flask_cors import CORS
 from . import db
@@ -30,7 +30,7 @@ def video_metadata(video_id):
     if video:
         return render_template('metadata.html', video=video.json())
     else:
-        return Response("not found"), 404
+        return redirect('/#/w/{}'.format(video_id))
 
 @api.route('/api/manual/scan')
 def manual_scan():
