@@ -35,6 +35,12 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler }) => {
     }
   }, [debouncedTitle, title, video.video_id, alertHandler])
 
+  const handleMouseDown = (e) => {
+    if (e.button === 1) {
+      window.open(`${URL}${video.video_id}`, '_blank')
+    }
+  }
+
   return (
     <Paper square sx={{ height: 70, bgcolor: '#0b132b', borderBottom: '1px solid #046595' }}>
       <Grid container direction="column" sx={{ width: '100%', height: '100%' }}>
@@ -43,6 +49,7 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler }) => {
             <IconButton
               aria-label="play video"
               sx={{ width: 30, height: 30 }}
+              onMouseDown={handleMouseDown}
               onClick={() =>
                 alertHandler({
                   open: true,
@@ -60,7 +67,6 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler }) => {
             <TextField
               fullWidth
               size="small"
-              label="Title"
               defaultValue={updatedTitle || title}
               onChange={(e) => setUpdatedTitle(e.target.value)}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}

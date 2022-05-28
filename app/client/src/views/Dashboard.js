@@ -10,6 +10,9 @@ import { AuthService, VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSettings, setSetting } from '../common/utils'
 
+import Select from 'react-select'
+import SnackbarAlert from '../components/alert/SnackbarAlert'
+
 function TabPanel(props) {
   const { children, value, index, ...other } = props
 
@@ -21,12 +24,63 @@ function TabPanel(props) {
 }
 const settings = getSettings()
 
+const createSelectFolders = (folders) => {
+  return folders.map((f) => ({ value: f, label: f }))
+}
+
+const colourStyles = {
+  control: (styles) => ({
+    ...styles,
+    backgroundColor: '#001E3C',
+    borderColor: '#2684FF',
+    '&:hover': {
+      borderColor: '#2684FF',
+    },
+    color: '#fff',
+  }),
+  menu: (styles) => ({
+    ...styles,
+    borderRadius: 0,
+    marginTop: 0,
+    backgroundColor: '#001E3C',
+  }),
+  menuList: (styles) => ({
+    ...styles,
+    backgroundColor: '#001E3C',
+    padding: 0,
+  }),
+  singleValue: (styles) => ({
+    ...styles,
+    color: '#fff',
+    '&:hover': {
+      backgroundColor: '#3399FF',
+    },
+  }),
+  option: (styles, { data, isDisabled, isFocused, isSelected }) => {
+    return {
+      backgroundColor: '#003366',
+      boxSizing: 'border-box',
+      display: 'block',
+      fontSize: 'inherit',
+      label: 'option',
+      padding: '8px 12px',
+      userSelect: 'none',
+      width: '100%',
+      '&:hover': {
+        backgroundColor: '#3399FF',
+      },
+    }
+  },
+}
+
 const Dashboard = () => {
   const [authenticated, setAuthenticated] = React.useState(false)
   const [videos, setVideos] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
-  const [tab, setTab] = React.useState(0)
+  const [selectedFolder, setSelectedFolder] = React.useState({ value: 'All Videos', label: 'All Videos' })
+  const [alert, setAlert] = React.useState({ open: false })
+
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
   const navigate = useNavigate()
 
@@ -52,7 +106,7 @@ const Dashboard = () => {
             tfolders.push(split[0])
           }
         })
-        tfolders.sort().unshift('All Videos')
+        tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
         setFolders(tfolders)
         setLoading(false)
       }
@@ -76,22 +130,29 @@ const Dashboard = () => {
 
   const handleScan = async () => {
     VideoService.scan().catch((err) => console.error(err))
+    setAlert({
+      open: true,
+      type: 'info',
+      message: 'Scan initiated. This could take a few minutes.',
+    })
   }
 
   const handleListStyleChange = (e, style) => {
     if (style !== null) {
       setListStyle(style)
       setSetting({ listStyle: style })
-      console.log(style)
     }
   }
 
   const options = [
     { name: 'Logout', handler: handleLogout },
-    { name: 'Scan', handler: handleScan },
+    { name: 'Scan Library', handler: handleScan },
   ]
   return (
     <Navbar options={options}>
+      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+        {alert.message}
+      </SnackbarAlert>
       <Box sx={{ overflow: 'auto', height: '100%' }}>
         <Grid sx={{}} container direction="row" justifyContent="center">
           <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
@@ -131,59 +192,47 @@ const Dashboard = () => {
               </Grid>
               <Divider sx={{ mb: 2 }} light />
               <Grid container justifyContent="center">
-                <Box sx={{ maxWidth: { xs: 350, sm: 600, md: 820, lg: 1000 }, bgcolor: 'background.paper' }}>
-                  <Tabs
-                    value={tab}
-                    onChange={(e, value) => setTab(value)}
-                    variant="scrollable"
-                    scrollButtons="auto"
-                    aria-label="wrapped label tabs example"
-                    sx={{
-                      background: '#001E3C',
-                    }}
-                  >
-                    {folders.map((f, i) => (
-                      <Tab key={f} value={i} label={f} wrapped sx={{ fontSize: 14 }} />
-                    ))}
-                  </Tabs>
-                </Box>
+                <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 3 }}>
+                  <Select
+                    value={selectedFolder}
+                    options={createSelectFolders(folders)}
+                    onChange={(newValue) => setSelectedFolder(newValue)}
+                    styles={colourStyles}
+                  />
+                </Grid>
                 <Grid item xs={12}>
-                  {folders.map((f, i) => (
-                    <TabPanel key={f} value={tab} index={i}>
-                      {listStyle === 'list' && (
-                        <VideoList
-                          loadingIcon={loading ? <LoadingSpinner /> : null}
-                          videos={
-                            i === 0
-                              ? videos
-                              : videos?.filter(
-                                  (v) =>
-                                    v.path
-                                      .split('/')
-                                      .slice(0, -1)
-                                      .filter((f) => f !== '')[0] === f,
-                                )
-                          }
-                        />
-                      )}
-                      {listStyle === 'card' && (
-                        <VideoCards
-                          loadingIcon={loading ? <LoadingSpinner /> : null}
-                          videos={
-                            i === 0
-                              ? videos
-                              : videos?.filter(
-                                  (v) =>
-                                    v.path
-                                      .split('/')
-                                      .slice(0, -1)
-                                      .filter((f) => f !== '')[0] === f,
-                                )
-                          }
-                        />
-                      )}
-                    </TabPanel>
-                  ))}
+                  {listStyle === 'list' && (
+                    <VideoList
+                      loadingIcon={loading ? <LoadingSpinner /> : null}
+                      videos={
+                        selectedFolder.value === 'All Videos'
+                          ? videos
+                          : videos?.filter(
+                              (v) =>
+                                v.path
+                                  .split('/')
+                                  .slice(0, -1)
+                                  .filter((f) => f !== '')[0] === selectedFolder.value,
+                            )
+                      }
+                    />
+                  )}
+                  {listStyle === 'card' && (
+                    <VideoCards
+                      loadingIcon={loading ? <LoadingSpinner /> : null}
+                      videos={
+                        selectedFolder.value === 'All Videos'
+                          ? videos
+                          : videos?.filter(
+                              (v) =>
+                                v.path
+                                  .split('/')
+                                  .slice(0, -1)
+                                  .filter((f) => f !== '')[0] === selectedFolder.value,
+                            )
+                      }
+                    />
+                  )}
                 </Grid>
               </Grid>
             </Grid>

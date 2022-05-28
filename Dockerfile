@@ -1,4 +1,4 @@
-FROM node:18.2-slim as client
+FROM node:16.15-slim as client
 WORKDIR /app
 ENV PATH /app/node_modules/.bin:$PATH
 COPY app/client/package.json ./
