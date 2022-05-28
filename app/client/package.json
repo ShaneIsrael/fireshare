@@ -17,7 +17,8 @@
     "react-router-dom": "^6.3.0",
     "react-scripts": "5.0.1",
     "react-select": "^5.3.2",
-    "react-visibility-sensor": "^5.1.1"
+    "react-visibility-sensor": "^5.1.1",
+    "typeface-roboto": "^1.1.13"
   },
   "scripts": {
     "start": "react-scripts start",

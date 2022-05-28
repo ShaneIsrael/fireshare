@@ -1,4 +1,5 @@
 import os, re
+import random
 from subprocess import Popen
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file
 from flask_login import logout_user, current_user
@@ -12,6 +13,10 @@ templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
 api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
+
+SCAN_COMMAND = "python /app/server/fireshare/cli.py scan-videos"
+SYNC_COMMAND = "python /app/server/fireshare/cli.py sync-metadata"
+POSTER_COMMAND = "python /app/server/fireshare/cli.py create-posters"
 
 def get_video_path(id):
     # db lookup to get path to mp4
@@ -34,16 +39,22 @@ def manual_scan():
     if not current_user.is_authenticated:
         return Response(response='You do not have access to this resource.', status=401)
     else:
-        Popen(['python', '/app/server/fireshare/cli.py', 'scan-videos', 
-            '&&', 'python', '/app/server/fireshare/cli.py', 'sync-metadata', 
-            '&&', 'python', '/app/server/fireshare/cli.py', 'create-posters'])
-        return Response(status=200)
+        Popen("{}; {}; {};".format(SCAN_COMMAND, SYNC_COMMAND, POSTER_COMMAND), shell=True)
+    return Response(status=200)
 
 @api.route('/api/videos')
 def get_videos():
     if not current_user.is_authenticated:
         return Response(response='You do not have access to this resource.', status=401)
     return jsonify({"videos": [v.json() for v in Video.query.all()]})
+
+@api.route('/api/video/random')
+def get_random_video():
+    if not current_user.is_authenticated:
+        return Response(response='You do not have access to this resource.', status=401)
+    row_count = Video.query.count()
+    random_video = Video.query.offset(int(row_count * random.random())).first()
+    return jsonify(random_video.json())
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):

@@ -7,6 +7,9 @@ const service = {
   getDetails(id) {
     return Api().get(`/api/video/details/${id}`)
   },
+  getRandomVideo() {
+    return Api().get('/api/video/random')
+  },
   updateTitle(id, title) {
     return Api().put(`/api/video/details/${id}`, {
       title,
