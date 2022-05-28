@@ -60,7 +60,6 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
     <Card
       sx={{
         width: 375,
-        height: '100%',
         bgcolor: '#0b132b',
         border: selected ? '3px solid #fffc31' : '1px solid #046595',
         m: 1,

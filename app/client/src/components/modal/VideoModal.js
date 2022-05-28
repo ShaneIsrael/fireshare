@@ -41,7 +41,7 @@ const VideoModal = ({ open, onClose, video }) => {
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: '95%',
+          width: '80%',
         }}
       >
         <Grid container justifyContent="center">
