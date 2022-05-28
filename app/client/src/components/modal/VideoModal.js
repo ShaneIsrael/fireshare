@@ -34,7 +34,16 @@ const VideoModal = ({ open, onClose, video }) => {
   if (!vid) return null
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      disableAutoFocus={true}
+      BackdropProps={{
+        sx: {
+          background: 'rgba(0, 0, 0, 0.7)',
+        },
+      }}
+    >
       <Box
         sx={{
           position: 'absolute',
@@ -45,7 +54,7 @@ const VideoModal = ({ open, onClose, video }) => {
         }}
       >
         <Grid container justifyContent="center">
-          <Grid item xs={12} sx={{ background: 'rgba(0, 0, 0, 0.7)' }}>
+          <Grid item xs={12} sx={{ background: 'rgba(0, 0, 0, 1)' }}>
             <Typography
               align="center"
               noWrap
@@ -60,11 +69,11 @@ const VideoModal = ({ open, onClose, video }) => {
               {vid?.info.title}
             </Typography>
           </Grid>
-          <Grid item xs={12} sx={{ boxShadow: 24 }}>
+          <Grid item xs={12}>
             <ReactPlayer
               url={`${
                 SERVED_BY === 'nginx'
-                  ? `${URL}/_content/video/${vid.video_id}.mp4`
+                  ? `${URL}/_content/video/${vid.video_id}.${vid.extension}`
                   : `${URL}/api/video?id=${vid.video_id}`
               }`}
               width="100%"
@@ -79,7 +88,7 @@ const VideoModal = ({ open, onClose, video }) => {
                 Play Random
               </Button>
               <CopyToClipboard text={`${PURL}${vid.video_id}`}>
-                <Button onClick={(e) => console.log(e.which)} onMouseDown={handleMouseDown}>
+                <Button onMouseDown={handleMouseDown}>
                   <LinkIcon />
                 </Button>
               </CopyToClipboard>

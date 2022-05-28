@@ -1,29 +1,38 @@
-import { Box, Grid, Paper, Typography } from '@mui/material'
+import { Box, Button, Grid, Paper, Typography } from '@mui/material'
 import React, { useCallback } from 'react'
-import { getServedBy, getUrl } from '../../common/utils'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoModal from '../modal/VideoModal'
 import VideoListItem from './VideoListItem'
+import SensorsIcon from '@mui/icons-material/Sensors'
+import { VideoService } from '../../services'
 
-const EMPTY_STATE = (loadingIcon) => (
-  <Grid sx={{ height: '100%' }} container direction="row" justifyContent="center">
-    <Grid container item justifyContent="center" sx={{ mt: 10 }}>
-      {!loadingIcon && (
-        <Typography
-          variant="h4"
-          sx={{
-            fontFamily: 'monospace',
-            fontWeight: 500,
-            letterSpacing: '.2rem',
-            color: 'inherit',
-            textDecoration: 'none',
-          }}
-        >
-          NO VIDEOS
-        </Typography>
-      )}
-      {loadingIcon}
-    </Grid>
+const EMPTY_STATE = (loadingIcon, handleScan) => (
+  <Grid sx={{ height: 200 }} container item spacing={2} direction="column" justifyContent="center" alignItems="center">
+    {!loadingIcon && (
+      <>
+        <Grid item>
+          <Typography
+            variant="h4"
+            align="center"
+            color="primary"
+            sx={{
+              fontFamily: 'monospace',
+              fontWeight: 500,
+              letterSpacing: '.2rem',
+              textDecoration: 'none',
+            }}
+          >
+            NO VIDEOS FOUND
+          </Typography>
+        </Grid>
+        <Grid item>
+          <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
+            Scan Library
+          </Button>
+        </Grid>
+      </>
+    )}
+    {loadingIcon}
   </Grid>
 )
 
@@ -44,6 +53,21 @@ const VideoList = ({ videos, loadingIcon = null }) => {
     setAlert(alert)
   }, [])
 
+  const handleScan = () => {
+    VideoService.scan().catch((err) =>
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data || 'Unknown Error',
+      }),
+    )
+    setAlert({
+      open: true,
+      type: 'info',
+      message: 'Scan initiated. This could take a few minutes.',
+    })
+  }
+
   return (
     <Box sx={{ pl: 3, pr: 3 }}>
       <VideoModal open={videoModal.open} onClose={() => setVideoModal({ open: false })} video={videoModal.video} />
@@ -51,7 +75,7 @@ const VideoList = ({ videos, loadingIcon = null }) => {
         {alert.message}
       </SnackbarAlert>
       <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-        {!videos && EMPTY_STATE(loadingIcon)}
+        {!videos && EMPTY_STATE(loadingIcon, handleScan)}
         {videos && (
           <Grid container>
             {videos.map((v) => (

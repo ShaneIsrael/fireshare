@@ -10,7 +10,7 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler, selected, visible }) => {
+const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler, selected, visible, cardWidth }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
@@ -54,14 +54,27 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
     }
   }
 
-  if (!visible) return <div style={{ width: 375, height: 316 }} />
+  const previewVideoWidth = cardWidth
+  const previewVideoHeight =
+    video.info?.width && video.info?.height ? previewVideoWidth * (video.info.height / video.info.width) : 216
+  if (!visible)
+    return (
+      <div
+        // calculate the rendered cards height based on the video dimesions and our css styling heights
+        style={{
+          width: previewVideoWidth,
+          background: 'black',
+          height: video.info?.width && video.info?.height ? previewVideoHeight + 100 : 316,
+        }}
+      />
+    )
 
   return (
     <Card
       sx={{
-        width: 375,
+        width: previewVideoWidth,
         bgcolor: '#0b132b',
-        border: selected ? '3px solid #fffc31' : '1px solid #046595',
+        border: selected ? '2px solid #fffc31' : '1px solid #3399FF',
         m: 1,
       }}
       square
@@ -84,11 +97,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
           }`}
           alt=""
           style={{
-            width: 375,
-            height: 'auto',
-            position: 'relative',
-            top: 0,
-            left: 0,
+            width: previewVideoWidth,
           }}
         />
         {hover && (
@@ -105,11 +114,11 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
               WebkitAnimationDuration: '1.5s',
               WebkitAnimationFillMode: 'both',
             }}
-            width={'100%'}
-            height={'auto'}
+            width={previewVideoWidth}
+            height={previewVideoHeight}
             src={`${
               SERVED_BY === 'nginx'
-                ? `${URL}/_content/video/${video.video_id}.mp4`
+                ? `${URL}/_content/video/${video.video_id}.${video.extension}`
                 : `${URL}/api/video?id=${video.video_id}`
             }`}
             muted
@@ -127,7 +136,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
         />
       </CardContent>
-      <CardActions>
+      <CardActions sx={{ height: 50 }}>
         <Grid container>
           <Grid item xs>
             <CopyToClipboard text={`${PURL}${video.video_id}`}>
@@ -147,12 +156,14 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
               </Button>
             </CopyToClipboard>
           </Grid>
-          <Grid item>
-            <Typography
-              variant="div"
-              color="primary"
-              sx={{ mr: 1.1, fontWeight: 700, fontSize: 12, fontFamily: 'monospace' }}
-            >
+          <Grid
+            item
+            sx={{
+              mr: 1.1,
+              mt: 0.5,
+            }}
+          >
+            <Typography variant="div" color="primary" sx={{ fontWeight: 700, fontSize: 12, fontFamily: 'monospace' }}>
               {new Date(video.info.duration * 1000).toISOString().substr(11, 8)}
             </Typography>
           </Grid>
