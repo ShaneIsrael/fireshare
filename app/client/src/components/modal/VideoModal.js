@@ -25,6 +25,12 @@ const VideoModal = ({ open, onClose, video }) => {
 
   React.useEffect(() => setVideo(video), [video])
 
+  const handleMouseDown = (e) => {
+    if (e.button === 1) {
+      window.open(`${PURL}${vid.video_id}`, '_blank')
+    }
+  }
+
   if (!vid) return null
 
   return (
@@ -73,7 +79,7 @@ const VideoModal = ({ open, onClose, video }) => {
                 Play Random
               </Button>
               <CopyToClipboard text={`${PURL}${vid.video_id}`}>
-                <Button>
+                <Button onClick={(e) => console.log(e.which)} onMouseDown={handleMouseDown}>
                   <LinkIcon />
                 </Button>
               </CopyToClipboard>
