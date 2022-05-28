@@ -48,6 +48,12 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
     }
   }, [debouncedTitle, title, video.video_id, alertHandler])
 
+  const handleMouseDown = (e) => {
+    if (e.button === 1) {
+      window.open(`${PURL}${video.video_id}`, '_blank')
+    }
+  }
+
   if (!visible) return <div style={{ width: 375, height: 316 }} />
 
   return (
@@ -69,6 +75,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
         }}
         onMouseEnter={debouncedMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onMouseDown={handleMouseDown}
       >
         <img
           src={`${
@@ -135,6 +142,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
                     open: true,
                   })
                 }
+                onMouseDown={handleMouseDown}
               >
                 Copy Link
               </Button>

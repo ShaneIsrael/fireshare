@@ -61,6 +61,7 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
   const handleSelected = (id) => {
     setSelected(id)
   }
+
   return (
     <Box>
       <VideoModal open={videoModal.open} onClose={onModalClose} video={videoModal.video} />
