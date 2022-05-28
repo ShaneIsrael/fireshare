@@ -166,7 +166,12 @@ const Navbar = ({ children, options }) => {
               onClose={handleCloseUserMenu}
             >
               {options.map((option) => (
-                <MenuItem key={option.name} onClick={option.handler}>
+                <MenuItem
+                  key={option.name}
+                  onClick={() => {
+                    return option.handler() && handleCloseUserMenu()
+                  }}
+                >
                   <Typography textAlign="center">{option.name}</Typography>
                 </MenuItem>
               ))}

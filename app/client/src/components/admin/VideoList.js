@@ -48,7 +48,7 @@ const VideoList = ({ videos, loadingIcon = null }) => {
   }, [])
 
   return (
-    <Box>
+    <Box sx={{ pl: 3, pr: 3 }}>
       <Modal open={videoModal.open} onClose={() => setVideoModal({ open: false })}>
         <Box
           sx={{

@@ -30,7 +30,7 @@ def get_media_info(path):
         return None
 
 def create_poster(video_path, out_path):
-    sp.call(['ffmpeg', '-i', video_path, '-ss', '00:00:00.000', '-vframes', '1', out_path])
+    sp.call(['ffmpeg', '-v', 'quiet' '-i', video_path, '-ss', '00:00:00.000', '-vframes', '1', out_path])
 
 def dur_string_to_seconds(dur: str) -> float:
     if type(dur) == int: return float(dur)

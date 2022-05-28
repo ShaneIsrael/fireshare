@@ -1,5 +1,5 @@
 import os, re
-import subprocess as sp
+from subprocess import Popen
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file
 from flask_login import logout_user, current_user
 from flask_cors import CORS
@@ -34,9 +34,9 @@ def manual_scan():
     if not current_user.is_authenticated:
         return Response(response='You do not have access to this resource.', status=401)
     else:
-        sp.call(['python', '/app/server/fireshare/cli.py', 'scan-videos'])
-        sp.call(['python', '/app/server/fireshare/cli.py', 'sync-metadata'])
-        sp.call(['python', '/app/server/fireshare/cli.py', 'create-posters'])
+        Popen(['python', '/app/server/fireshare/cli.py', 'scan-videos', 
+            '&&', 'python', '/app/server/fireshare/cli.py', 'sync-metadata', 
+            '&&', 'python', '/app/server/fireshare/cli.py', 'create-posters'])
         return Response(status=200)
 
 @api.route('/api/videos')
