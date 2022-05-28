@@ -30,7 +30,7 @@ def video_metadata(video_id):
     if video:
         return render_template('metadata.html', video=video.json())
     else:
-        return redirect('/#/w/{}'.format(video_id), code=404)
+        return redirect('/#/w/{}'.format(video_id), code=302)
 
 @api.route('/api/manual/scan')
 def manual_scan():
