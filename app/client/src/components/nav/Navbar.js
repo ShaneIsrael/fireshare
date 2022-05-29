@@ -199,17 +199,23 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
       >
         {children}
       </Box>
-      <Box sx={{ position: 'fixed', left: 0, bottom: 0, width: '100%' }}>
+      <Box sx={{ pointerEvents: 'none', position: 'fixed', left: 0, bottom: 0, width: '100%' }}>
         <Paper
           square
           elevation={0}
-          sx={{ height: 35, width: '100%', borderRight: 0, borderLeft: 0, background: 'rgba(0, 0, 0, 0.13)' }}
+          sx={{
+            height: 35,
+            width: '100%',
+            borderRight: 0,
+            borderLeft: 0,
+            background: 'rgba(0, 0, 0, 0.13)',
+          }}
         >
           <Stack direction="row" alignItems="center" justifyContent="center">
             <IconButton
               aria-label="github-link"
               size="medium"
-              sx={{ p: 0, mt: 0.5 }}
+              sx={{ p: 0, mt: 0.5, pointerEvents: 'all' }}
               onClick={() => window.open('https://github.com/ShaneIsrael/fireshare', '_blank')}
             >
               <GitHubIcon fontSize="inherit" />
