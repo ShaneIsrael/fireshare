@@ -63,7 +63,7 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
         // calculate the rendered cards height based on the video dimesions and our css styling heights
         style={{
           width: previewVideoWidth,
-          background: 'black',
+          background: '#000e393b',
           height: video.info?.width && video.info?.height ? previewVideoHeight + 100 : 316,
         }}
       />
