@@ -1,21 +1,23 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import VideoCardItem from './VideoCardItem'
-import VisibilitySensor from 'react-visibility-sensor'
+import { useIsVisible } from 'react-is-visible'
+import { Grid } from '@mui/material'
 
-const VisibilityCard = ({ video, openVideo, handleAlert, handleSelected, selected }) => {
-  const [visible, setVisible] = React.useState(false)
+const VisibilityCard = ({ video, openVideo, handleAlert, handleSelected, selected, cardWidth }) => {
+  const nodeRef = useRef()
+  const isVisible = useIsVisible(nodeRef)
   return (
-    <VisibilitySensor onChange={setVisible} partialVisibility={true}>
+    <Grid item xs="auto" ref={nodeRef}>
       <VideoCardItem
-        sx={{ position: 'relative' }}
-        visible={visible}
+        visible={isVisible}
         video={video}
         openVideoHandler={openVideo}
         alertHandler={handleAlert}
         selectedHandler={handleSelected}
         selected={selected === video.video_id}
+        cardWidth={cardWidth}
       />
-    </VisibilitySensor>
+    </Grid>
   )
 }
 export default VisibilityCard

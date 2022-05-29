@@ -35,7 +35,7 @@ const Watch = () => {
         const resp = (await VideoService.getDetails(id)).data
         setDetails(resp)
       } catch (err) {
-        if (err.response && err.response.status === 404342) {
+        if (err.response && err.response.status === 404) {
           setNotFound({
             title: "We're Sorry...",
             body: "But the video you're looking for was not found.",
@@ -97,7 +97,11 @@ const Watch = () => {
         />
         <meta
           property="og:video"
-          value={SERVED_BY === 'nginx' ? `${URL}/_content/video/${id}.mp4` : `${URL}/api/video?id=${id}`}
+          value={
+            SERVED_BY === 'nginx'
+              ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
+              : `${URL}/api/video?id=${id}`
+          }
         />
         <meta property="og:video:width" value={details?.info?.width} />
         <meta property="og:video:height" value={details?.info?.height} />
@@ -107,7 +111,11 @@ const Watch = () => {
         <Grid item xs={12}>
           <ReactPlayer
             ref={videoPlayerRef}
-            url={`${SERVED_BY === 'nginx' ? `${URL}/_content/video/${id}.mp4` : `${URL}/api/video?id=${id}`}`}
+            url={`${
+              SERVED_BY === 'nginx'
+                ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
+                : `${URL}/api/video?id=${id}`
+            }`}
             width="100%"
             height="auto"
             playing

@@ -36,12 +36,13 @@ export const useDebounce = (value, delay) => {
 }
 
 export const getSettings = () => JSON.parse(localStorage.getItem('settings'))
+export const getSetting = (setting) => JSON.parse(localStorage.getItem('settings'))[setting]
 export const setSettings = (settings) => localStorage.setItem('settings', JSON.stringify(settings))
-export const setSetting = (setting) => {
+export const setSetting = (setting, value) => {
   const settings = JSON.parse(localStorage.getItem('settings'))
   if (settings) {
-    localStorage.setItem('settings', JSON.stringify({ ...settings, ...setting }))
+    localStorage.setItem('settings', JSON.stringify({ ...settings, [setting]: value }))
   } else {
-    localStorage.setItem('settings', JSON.stringify(setting))
+    localStorage.setItem('settings', JSON.stringify({ [setting]: value }))
   }
 }

@@ -1,29 +1,49 @@
 import React, { useCallback } from 'react'
-import { Box, Grid, Typography } from '@mui/material'
+import { Box, Button, Grid, Paper, Typography } from '@mui/material'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VisibilityCard from './VisibilityCard'
 import VideoModal from '../modal/VideoModal'
+import SensorsIcon from '@mui/icons-material/Sensors'
+import { VideoService } from '../../services'
 
-const EMPTY_STATE = (loadingIcon) => (
-  <Grid sx={{ height: '100%' }} container direction="row" justifyContent="center">
-    <Grid container item justifyContent="center" sx={{ mt: 10 }}>
+const EMPTY_STATE = (loadingIcon, handleScan) => (
+  <Paper variant="outlined" sx={{ mr: 3, ml: 3, overflow: 'hidden' }}>
+    <Grid
+      sx={{ height: 200 }}
+      container
+      item
+      spacing={2}
+      direction="column"
+      justifyContent="center"
+      alignItems="center"
+    >
       {!loadingIcon && (
-        <Typography
-          variant="h4"
-          sx={{
-            fontFamily: 'monospace',
-            fontWeight: 500,
-            letterSpacing: '.2rem',
-            color: 'inherit',
-            textDecoration: 'none',
-          }}
-        >
-          NO VIDEOS
-        </Typography>
+        <>
+          <Grid item>
+            <Typography
+              variant="h4"
+              align="center"
+              color="primary"
+              sx={{
+                fontFamily: 'monospace',
+                fontWeight: 500,
+                letterSpacing: '.2rem',
+                textDecoration: 'none',
+              }}
+            >
+              NO VIDEOS FOUND
+            </Typography>
+          </Grid>
+          <Grid item>
+            <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
+              Scan Library
+            </Button>
+          </Grid>
+        </>
       )}
       {loadingIcon}
     </Grid>
-  </Grid>
+  </Paper>
 )
 
 const VideoCards = ({ videos, loadingIcon = null }) => {
@@ -51,9 +71,6 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
     setVideoModal({ open: false })
   }
 
-  // const handleAlert = (alert) => {
-  //   setAlert(alert)
-  // }
   const memoizedHandleAlert = useCallback((alert) => {
     setAlert(alert)
   }, [])
@@ -62,29 +79,47 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
     setSelected(id)
   }
 
-  return (
-    <Box>
-      <VideoModal open={videoModal.open} onClose={onModalClose} video={videoModal.video} />
-      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
-        {alert.message}
-      </SnackbarAlert>
+  const handleScan = () => {
+    VideoService.scan().catch((err) =>
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data || 'Unknown Error',
+      }),
+    )
+    setAlert({
+      open: true,
+      type: 'info',
+      message: 'Scan initiated. This could take a few minutes.',
+    })
+  }
 
-      {!videos && EMPTY_STATE(loadingIcon)}
-      {videos && (
-        <Grid container spacing={2} justifyContent="center">
-          {videos.map((v) => (
-            <VisibilityCard
-              key={v.video_id}
-              video={v}
-              handleAlert={memoizedHandleAlert}
-              handleSelected={handleSelected}
-              openVideo={openVideo}
-              selected={selected}
-            />
-          ))}
-        </Grid>
-      )}
-    </Box>
+  return (
+    <>
+      <VideoModal open={videoModal.open} onClose={onModalClose} video={videoModal.video} />
+      <Box>
+        <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+          {alert.message}
+        </SnackbarAlert>
+
+        {!videos && EMPTY_STATE(loadingIcon, handleScan)}
+        {videos && (
+          <Grid container spacing={1} justifyContent="center" alignItems="flex-start">
+            {videos.map((v) => (
+              <VisibilityCard
+                key={v.video_id}
+                video={v}
+                handleAlert={memoizedHandleAlert}
+                handleSelected={handleSelected}
+                openVideo={openVideo}
+                selected={selected}
+                cardWidth={375}
+              />
+            ))}
+          </Grid>
+        )}
+      </Box>
+    </>
   )
 }
 

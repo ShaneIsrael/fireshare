@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Tabs, Tab } from '@mui/material'
+import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
@@ -8,69 +8,17 @@ import VideoList from '../components/admin/VideoList'
 import Navbar from '../components/nav/Navbar'
 import { AuthService, VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
-import { getSettings, setSetting } from '../common/utils'
+import { getSetting, getSettings, setSetting } from '../common/utils'
 
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
-function TabPanel(props) {
-  const { children, value, index, ...other } = props
+import selectTheme from '../common/reactSelectTheme'
 
-  return (
-    <div role="tabpanel" hidden={value !== index} {...other}>
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  )
-}
 const settings = getSettings()
 
 const createSelectFolders = (folders) => {
   return folders.map((f) => ({ value: f, label: f }))
-}
-
-const colourStyles = {
-  control: (styles) => ({
-    ...styles,
-    backgroundColor: '#001E3C',
-    borderColor: '#2684FF',
-    '&:hover': {
-      borderColor: '#2684FF',
-    },
-    color: '#fff',
-  }),
-  menu: (styles) => ({
-    ...styles,
-    borderRadius: 0,
-    marginTop: 0,
-    backgroundColor: '#001E3C',
-  }),
-  menuList: (styles) => ({
-    ...styles,
-    backgroundColor: '#001E3C',
-    padding: 0,
-  }),
-  singleValue: (styles) => ({
-    ...styles,
-    color: '#fff',
-    '&:hover': {
-      backgroundColor: '#3399FF',
-    },
-  }),
-  option: (styles, { data, isDisabled, isFocused, isSelected }) => {
-    return {
-      backgroundColor: '#003366',
-      boxSizing: 'border-box',
-      display: 'block',
-      fontSize: 'inherit',
-      label: 'option',
-      padding: '8px 12px',
-      userSelect: 'none',
-      width: '100%',
-      '&:hover': {
-        backgroundColor: '#3399FF',
-      },
-    }
-  },
 }
 
 const Dashboard = () => {
@@ -78,7 +26,9 @@ const Dashboard = () => {
   const [videos, setVideos] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
-  const [selectedFolder, setSelectedFolder] = React.useState({ value: 'All Videos', label: 'All Videos' })
+  const [selectedFolder, setSelectedFolder] = React.useState(
+    getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
+  )
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
@@ -93,28 +43,40 @@ const Dashboard = () => {
           setAuthenticated(true)
         }
       }
-      async function fetchVideos() {
-        const res = (await VideoService.getVideos()).data
-        setVideos(res.videos)
-        const tfolders = []
-        res.videos.forEach((v) => {
-          const split = v.path
-            .split('/')
-            .slice(0, -1)
-            .filter((f) => f !== '')
-          if (split.length > 0 && !tfolders.includes(split[0])) {
-            tfolders.push(split[0])
-          }
-        })
-        tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
-        setFolders(tfolders)
-        setLoading(false)
-      }
+
       isLoggedIn()
-      fetchVideos()
     } catch (err) {
       console.error(err)
     }
+    function fetchVideos() {
+      VideoService.getVideos()
+        .then((res) => {
+          setVideos(res.data.videos)
+          const tfolders = []
+          res.data.videos.forEach((v) => {
+            const split = v.path
+              .split('/')
+              .slice(0, -1)
+              .filter((f) => f !== '')
+            if (split.length > 0 && !tfolders.includes(split[0])) {
+              tfolders.push(split[0])
+            }
+          })
+          tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
+          setFolders(tfolders)
+          setLoading(false)
+        })
+        .catch((err) => {
+          setLoading(false)
+          setAlert({
+            open: true,
+            type: 'error',
+            message: err.response?.data || 'Unknown Error',
+          })
+          console.log(err)
+        })
+    }
+    fetchVideos()
   }, [navigate])
 
   if (!authenticated) return null
@@ -129,7 +91,13 @@ const Dashboard = () => {
   }
 
   const handleScan = async () => {
-    VideoService.scan().catch((err) => console.error(err))
+    VideoService.scan().catch((err) =>
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data || 'Unknown Error',
+      }),
+    )
     setAlert({
       open: true,
       type: 'info',
@@ -140,8 +108,13 @@ const Dashboard = () => {
   const handleListStyleChange = (e, style) => {
     if (style !== null) {
       setListStyle(style)
-      setSetting({ listStyle: style })
+      setSetting('listStyle', style)
     }
+  }
+
+  const handleFolderSelection = (folder) => {
+    setSetting('folder', folder)
+    setSelectedFolder(folder)
   }
 
   const options = [
@@ -196,8 +169,8 @@ const Dashboard = () => {
                   <Select
                     value={selectedFolder}
                     options={createSelectFolders(folders)}
-                    onChange={(newValue) => setSelectedFolder(newValue)}
-                    styles={colourStyles}
+                    onChange={handleFolderSelection}
+                    styles={selectTheme}
                   />
                 </Grid>
                 <Grid item xs={12}>
