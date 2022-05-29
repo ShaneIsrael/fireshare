@@ -111,9 +111,9 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
             <TextField
               fullWidth
               size="small"
-              disabled={feedView}
               defaultValue={updatedTitle || title}
-              onChange={(e) => !feedView && setUpdatedTitle(e.target.value)}
+              disabled={!authenticated}
+              onChange={(e) => authenticated && setUpdatedTitle(e.target.value)}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
             />
           </Grid>
