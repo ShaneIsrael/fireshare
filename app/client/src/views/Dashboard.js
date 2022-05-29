@@ -38,7 +38,7 @@ const Dashboard = () => {
     try {
       async function isLoggedIn() {
         if (!(await AuthService.isLoggedIn()).data) {
-          navigate('/login')
+          navigate('/feed')
         } else {
           setAuthenticated(true)
         }
