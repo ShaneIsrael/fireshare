@@ -83,7 +83,7 @@ const Watch = () => {
   const options = [{ name: loggedIn ? 'Logout' : 'Login', handler: loggedIn ? handleLogout : handleLogin }]
 
   return (
-    <Navbar options={options}>
+    <Navbar options={options} pages={[{ name: 'View All Videos', href: '/feed' }]}>
       <Helmet>
         <title>{details?.info?.title}</title>
         <meta property="og:type" value="video" />
