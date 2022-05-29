@@ -35,7 +35,7 @@ const Watch = () => {
         const resp = (await VideoService.getDetails(id)).data
         setDetails(resp)
       } catch (err) {
-        if (err.response && err.response.status === 404342) {
+        if (err.response && err.response.status === 404) {
           setNotFound({
             title: "We're Sorry...",
             body: "But the video you're looking for was not found.",
