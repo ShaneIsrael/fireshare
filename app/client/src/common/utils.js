@@ -35,15 +35,15 @@ export const useDebounce = (value, delay) => {
   return debouncedValue
 }
 
-export const getSettings = () => localStorage.getItem('settings') && JSON.parse(localStorage.getItem('settings'))
+export const getSettings = () => localStorage.getItem('config') && JSON.parse(localStorage.getItem('config'))
 export const getSetting = (setting) =>
-  localStorage.getItem('settings') && JSON.parse(localStorage.getItem('settings'))[setting]
-export const setSettings = (settings) => localStorage.setItem('settings', JSON.stringify(settings))
+  localStorage.getItem('config') && JSON.parse(localStorage.getItem('config'))[setting]
+export const setSettings = (settings) => localStorage.setItem('config', JSON.stringify(settings))
 export const setSetting = (setting, value) => {
-  if (localStorage.getItem('settings')) {
-    const settings = localStorage.getItem('settings')
-    localStorage.setItem('settings', JSON.stringify({ ...settings, [setting]: value }))
+  if (localStorage.getItem('config')) {
+    const settings = JSON.parse(localStorage.getItem('config'))
+    localStorage.setItem('config', JSON.stringify({ ...settings, [setting]: value }))
   } else {
-    localStorage.setItem('settings', JSON.stringify({ [setting]: value }))
+    localStorage.setItem('config', JSON.stringify({ [setting]: value }))
   }
 }
