@@ -2,7 +2,7 @@ import os, re
 import random
 from subprocess import Popen
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
-from flask_login import logout_user, current_user
+from flask_login import logout_user, current_user, login_required
 from flask_cors import CORS
 from . import db
 from pathlib import Path
@@ -33,28 +33,35 @@ def video_metadata(video_id):
         return redirect('/#/w/{}'.format(video_id), code=302)
 
 @api.route('/api/manual/scan')
+@login_required
 def manual_scan():
     if not current_app.config["ENVIRONMENT"] == 'production':
         return Response(response='You must be running in production for this task to work.', status=400)
-    if not current_user.is_authenticated:
-        return Response(response='You do not have access to this resource.', status=401)
     else:
         Popen("{}; {}; {};".format(SCAN_COMMAND, SYNC_COMMAND, POSTER_COMMAND), shell=True)
     return Response(status=200)
 
 @api.route('/api/videos')
+@login_required
 def get_videos():
-    if not current_user.is_authenticated:
-        return Response(response='You do not have access to this resource.', status=401)
     return jsonify({"videos": [v.json() for v in Video.query.all()]})
 
 @api.route('/api/video/random')
+@login_required
 def get_random_video():
-    if not current_user.is_authenticated:
-        return Response(response='You do not have access to this resource.', status=401)
     row_count = Video.query.count()
     random_video = Video.query.offset(int(row_count * random.random())).first()
     return jsonify(random_video.json())
+
+@api.route('/api/video/public/random')
+def get_random_public_video():
+    row_count =  Video.query.filter(Video.info.has(private=False)).count()
+    random_video = Video.query.filter(Video.info.has(private=False)).offset(int(row_count * random.random())).first()
+    return jsonify(random_video.json())
+
+@api.route('/api/videos/public')
+def get_public_videos():
+    return jsonify({"videos": [v.json() for v in Video.query.filter(Video.info.has(private=False))]})
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
@@ -69,8 +76,9 @@ def handle_video_details(id):
                 'message': 'Video not found'
             }), 404
     if request.method == 'PUT':
+        if not current_user.is_authenticated:
+            return Response(response='You do not have access to this resource.', status=401)
         video_info = VideoInfo.query.filter_by(video_id=id).first()
-        print(request.json)
         if video_info:
             db.session.query(VideoInfo).filter_by(video_id=id).update(request.json)
             db.session.commit()

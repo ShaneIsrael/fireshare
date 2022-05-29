@@ -40,6 +40,7 @@ class VideoInfo(db.Model):
     duration    = db.Column(db.Float)
     width       = db.Column(db.Integer)
     height      = db.Column(db.Integer)
+    private     = db.Column(db.Boolean, default=True)
 
     video       = db.relationship("Video", back_populates="info", uselist=False, lazy="joined")
 
@@ -67,6 +68,7 @@ class VideoInfo(db.Model):
         return {
             "title": self.title,
             "description": self.description,
+            "private": self.private,
             "width": self.width,
             "height": self.height,
             "duration": round(self.duration) if self.duration else 0,

@@ -7,6 +7,7 @@ import Watch from './views/Watch'
 import Dashboard from './views/Dashboard'
 import NotFound from './views/NotFound'
 import darkTheme from './common/darkTheme'
+import Feed from './views/Feed'
 
 const muitheme = createTheme(darkTheme)
 
@@ -17,6 +18,7 @@ export default function App() {
         <CssBaseline />
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/feed" element={<Feed />} />
           <Route path="/login" element={<Login />} />
           <Route path="/w/:id" element={<Watch />} />
           <Route path="*" element={<NotFound />} />

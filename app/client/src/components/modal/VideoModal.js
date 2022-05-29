@@ -12,13 +12,15 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoModal = ({ open, onClose, video }) => {
+const VideoModal = ({ open, onClose, video, feedView }) => {
   const [vid, setVideo] = React.useState(video)
   const [alert, setAlert] = React.useState({ open: false })
 
   const getRandomVideo = async () => {
     try {
-      const res = (await VideoService.getRandomVideo()).data
+      const res = !feedView
+        ? (await VideoService.getRandomVideo()).data
+        : (await VideoService.getRandomPublicVideo()).data
       setVideo(res)
     } catch (err) {
       console.log(err)

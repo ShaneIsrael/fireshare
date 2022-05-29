@@ -6,47 +6,7 @@ import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
 
-const EMPTY_STATE = (loadingIcon, handleScan) => (
-  <Paper variant="outlined" sx={{ mr: 3, ml: 3, overflow: 'hidden' }}>
-    <Grid
-      sx={{ height: 200 }}
-      container
-      item
-      spacing={2}
-      direction="column"
-      justifyContent="center"
-      alignItems="center"
-    >
-      {!loadingIcon && (
-        <>
-          <Grid item>
-            <Typography
-              variant="h4"
-              align="center"
-              color="primary"
-              sx={{
-                fontFamily: 'monospace',
-                fontWeight: 500,
-                letterSpacing: '.2rem',
-                textDecoration: 'none',
-              }}
-            >
-              NO VIDEOS FOUND
-            </Typography>
-          </Grid>
-          <Grid item>
-            <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
-              Scan Library
-            </Button>
-          </Grid>
-        </>
-      )}
-      {loadingIcon}
-    </Grid>
-  </Paper>
-)
-
-const VideoCards = ({ videos, loadingIcon = null }) => {
+const VideoCards = ({ videos, loadingIcon = null, feedView = false }) => {
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
@@ -94,16 +54,58 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
     })
   }
 
+  const EMPTY_STATE = () => (
+    <Paper variant="outlined" sx={{ mr: 3, ml: 3, overflow: 'hidden' }}>
+      <Grid
+        sx={{ height: 200 }}
+        container
+        item
+        spacing={2}
+        direction="column"
+        justifyContent="center"
+        alignItems="center"
+      >
+        {!loadingIcon && (
+          <>
+            <Grid item>
+              <Typography
+                variant="h4"
+                align="center"
+                color="primary"
+                sx={{
+                  fontFamily: 'monospace',
+                  fontWeight: 500,
+                  letterSpacing: '.2rem',
+                  textDecoration: 'none',
+                }}
+              >
+                {!feedView ? 'NO VIDEOS FOUND' : 'THERE ARE NO PUBLIC VIDEOS'}
+              </Typography>
+            </Grid>
+            {!feedView && (
+              <Grid item>
+                <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
+                  Scan Library
+                </Button>
+              </Grid>
+            )}
+          </>
+        )}
+        {loadingIcon}
+      </Grid>
+    </Paper>
+  )
+
   return (
     <>
-      <VideoModal open={videoModal.open} onClose={onModalClose} video={videoModal.video} />
+      <VideoModal open={videoModal.open} onClose={onModalClose} video={videoModal.video} feedView={feedView} />
       <Box>
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
 
-        {!videos && EMPTY_STATE(loadingIcon, handleScan)}
-        {videos && (
+        {(!videos || videos.length === 0) && EMPTY_STATE()}
+        {videos && videos.length !== 0 && (
           <Grid container spacing={1} justifyContent="center" alignItems="flex-start">
             {videos.map((v) => (
               <VisibilityCard
@@ -114,6 +116,7 @@ const VideoCards = ({ videos, loadingIcon = null }) => {
                 openVideo={openVideo}
                 selected={selected}
                 cardWidth={375}
+                feedView={feedView}
               />
             ))}
           </Grid>

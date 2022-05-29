@@ -1,5 +1,5 @@
 from flask import Blueprint, redirect, request, Response, jsonify
-from flask_login import login_user, logout_user, current_user
+from flask_login import login_user, logout_user, current_user, login_required
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
@@ -22,6 +22,7 @@ def login():
     return Response(status=200)
 
 @auth.route('/api/signup', methods=['POST'])
+@login_required
 def signup():
     username = request.json['username']
     password = request.json['password']

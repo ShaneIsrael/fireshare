@@ -2,16 +2,19 @@ import React from 'react'
 import { Grid, IconButton, Paper, TextField, Typography } from '@mui/material'
 import PlayCircleIcon from '@mui/icons-material/PlayCircle'
 import LinkIcon from '@mui/icons-material/Link'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, useDebounce } from '../../common/utils'
 import { VideoService } from '../../services'
 
 const URL = getPublicWatchUrl()
 
-const VideoListItem = ({ video, openVideoHandler, alertHandler }) => {
+const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
+  const [privateView, setPrivateView] = React.useState(video.info?.private)
 
   React.useEffect(() => {
     async function update() {
@@ -41,34 +44,68 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler }) => {
     }
   }
 
+  const handlePrivacyChange = async () => {
+    try {
+      await VideoService.updatePrivacy(video.video_id, !privateView)
+      alertHandler({
+        type: privateView ? 'info' : 'warning',
+        message: privateView ? `Added to your public feed` : `Removed from your public feed`,
+        open: true,
+      })
+      setPrivateView(!privateView)
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
   return (
     <Paper square sx={{ height: 70, bgcolor: '#0b132b', borderBottom: '1px solid #046595' }}>
       <Grid container direction="column" sx={{ width: '100%', height: '100%' }}>
-        <Grid container sx={{ width: 25, height: '100%', pl: 1 }} justifyContent="center" alignItems="center">
-          <CopyToClipboard text={`${URL}${video.video_id}`}>
-            <IconButton
-              aria-label="play video"
-              sx={{ width: 30, height: 30 }}
-              onMouseDown={handleMouseDown}
-              onClick={() =>
-                alertHandler({
-                  open: true,
-                  message: 'Link copied to clipboard',
-                  type: 'info',
-                })
-              }
-            >
-              <LinkIcon sx={{ width: 25, height: 25, transform: 'rotate(-45deg)' }} color="primary" />
-            </IconButton>
-          </CopyToClipboard>
+        <Grid container sx={{ width: 25, height: '100%', pl: 2 }} justifyContent="center" alignItems="center">
+          <Grid item>
+            <CopyToClipboard text={`${URL}${video.video_id}`}>
+              <IconButton
+                aria-label="play video"
+                sx={{ width: 30, height: 30 }}
+                onMouseDown={handleMouseDown}
+                onClick={() =>
+                  alertHandler({
+                    open: true,
+                    message: 'Link copied to clipboard',
+                    type: 'info',
+                  })
+                }
+              >
+                <LinkIcon sx={{ width: 25, height: 25, transform: 'rotate(-45deg)' }} color="primary" />
+              </IconButton>
+            </CopyToClipboard>
+          </Grid>
         </Grid>
-        <Grid container sx={{ width: 'calc(100% - 75px)', height: '100%', pl: 1 }} alignItems="center">
+        {!feedView && (
+          <Grid container sx={{ width: 25, height: '100%', pl: 2 }} justifyContent="center" alignItems="center">
+            <IconButton
+              sx={{
+                color: privateView ? 'red' : '#2684FF',
+              }}
+              onClick={handlePrivacyChange}
+              edge="end"
+            >
+              {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+            </IconButton>
+          </Grid>
+        )}
+        <Grid
+          container
+          sx={{ width: `calc(100% - (75px + ${!feedView ? 25 : 0}px))`, height: '100%', pl: 3 }}
+          alignItems="center"
+        >
           <Grid item xs>
             <TextField
               fullWidth
               size="small"
+              disabled={feedView}
               defaultValue={updatedTitle || title}
-              onChange={(e) => setUpdatedTitle(e.target.value)}
+              onChange={(e) => !feedView && setUpdatedTitle(e.target.value)}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
             />
           </Grid>
