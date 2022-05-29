@@ -1,20 +1,45 @@
 import React from 'react'
-import { Button, Card, CardActions, CardContent, Grid, TextField, Typography } from '@mui/material'
+import {
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  Grid,
+  IconButton,
+  InputAdornment,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material'
+import Zoom from '@mui/material/Zoom'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
 import VideoService from '../../services/VideoService'
-
 import _ from 'lodash'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler, selected, visible, cardWidth }) => {
+const VideoCardItem = ({
+  video,
+  openVideoHandler,
+  alertHandler,
+  selectedHandler,
+  selected,
+  visible,
+  cardWidth,
+  feedView,
+  authenticated,
+}) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
   const [hover, setHover] = React.useState(false)
+  const [privateView, setPrivateView] = React.useState(video.info?.private)
+
   const debouncedMouseEnter = React.useRef(
     _.debounce(() => {
       setHover(true)
@@ -51,6 +76,20 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
   const handleMouseDown = (e) => {
     if (e.button === 1) {
       window.open(`${PURL}${video.video_id}`, '_blank')
+    }
+  }
+
+  const handlePrivacyChange = async () => {
+    try {
+      await VideoService.updatePrivacy(video.video_id, !privateView)
+      alertHandler({
+        type: privateView ? 'info' : 'warning',
+        message: privateView ? `Added to your public feed` : `Removed from your public feed`,
+        open: true,
+      })
+      setPrivateView(!privateView)
+    } catch (err) {
+      console.log(err)
     }
   }
 
@@ -132,8 +171,31 @@ const VideoCardItem = ({ video, openVideoHandler, alertHandler, selectedHandler,
           fullWidth
           size="small"
           defaultValue={updatedTitle || title}
-          onChange={(e) => setUpdatedTitle(e.target.value)}
+          disabled={feedView}
+          onChange={(e) => !feedView && setUpdatedTitle(e.target.value)}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
+          InputProps={{
+            endAdornment: authenticated && (
+              <InputAdornment position="end">
+                <Tooltip
+                  title="Toggle visibility on your public feed."
+                  placement="top"
+                  enterDelay={1000}
+                  TransitionComponent={Zoom}
+                >
+                  <IconButton
+                    sx={{
+                      color: privateView ? 'red' : '#2684FF',
+                    }}
+                    onClick={handlePrivacyChange}
+                    edge="end"
+                  >
+                    {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </IconButton>
+                </Tooltip>
+              </InputAdornment>
+            ),
+          }}
         />
       </CardContent>
       <CardActions sx={{ height: 50 }}>

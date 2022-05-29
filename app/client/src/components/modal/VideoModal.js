@@ -6,17 +6,21 @@ import ReactPlayer from 'react-player'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
 import { VideoService } from '../../services'
+import SnackbarAlert from '../alert/SnackbarAlert'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoModal = ({ open, onClose, video }) => {
+const VideoModal = ({ open, onClose, video, feedView }) => {
   const [vid, setVideo] = React.useState(video)
+  const [alert, setAlert] = React.useState({ open: false })
 
   const getRandomVideo = async () => {
     try {
-      const res = (await VideoService.getRandomVideo()).data
+      const res = !feedView
+        ? (await VideoService.getRandomVideo()).data
+        : (await VideoService.getRandomPublicVideo()).data
       setVideo(res)
     } catch (err) {
       console.log(err)
@@ -34,69 +38,83 @@ const VideoModal = ({ open, onClose, video }) => {
   if (!vid) return null
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      disableAutoFocus={true}
-      BackdropProps={{
-        sx: {
-          background: 'rgba(0, 0, 0, 0.7)',
-        },
-      }}
-    >
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '80%',
+    <>
+      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+        {alert.message}
+      </SnackbarAlert>
+      <Modal
+        open={open}
+        onClose={onClose}
+        disableAutoFocus={true}
+        BackdropProps={{
+          sx: {
+            background: 'rgba(0, 0, 0, 0.7)',
+          },
         }}
       >
-        <Grid container justifyContent="center">
-          <Grid item xs={12} sx={{ background: 'rgba(0, 0, 0, 1)' }}>
-            <Typography
-              align="center"
-              noWrap
-              sx={{
-                fontFamily: 'roboto',
-                textTransform: 'uppercase',
-                letterSpacing: '.1rem',
-                fontWeight: 800,
-                fontSize: 28,
-              }}
-            >
-              {vid?.info.title}
-            </Typography>
-          </Grid>
-          <Grid item xs={12}>
-            <ReactPlayer
-              url={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/video/${vid.video_id}${vid.extension}`
-                  : `${URL}/api/video?id=${vid.video_id}`
-              }`}
-              width="100%"
-              height="auto"
-              volume={0.5}
-              controls
-            />
-          </Grid>
-          <Grid item>
-            <ButtonGroup variant="contained">
-              <Button startIcon={<ShuffleIcon />} onClick={getRandomVideo}>
-                Play Random
-              </Button>
-              <CopyToClipboard text={`${PURL}${vid.video_id}`}>
-                <Button onMouseDown={handleMouseDown}>
-                  <LinkIcon />
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '80%',
+          }}
+        >
+          <Grid container justifyContent="center">
+            <Grid item xs={12} sx={{ background: 'rgba(0, 0, 0, 1)' }}>
+              <Typography
+                align="center"
+                noWrap
+                sx={{
+                  fontFamily: 'roboto',
+                  textTransform: 'uppercase',
+                  letterSpacing: '.1rem',
+                  fontWeight: 800,
+                  fontSize: 28,
+                }}
+              >
+                {vid?.info.title}
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <ReactPlayer
+                url={`${
+                  SERVED_BY === 'nginx'
+                    ? `${URL}/_content/video/${vid.video_id}${vid.extension}`
+                    : `${URL}/api/video?id=${vid.video_id}`
+                }`}
+                width="100%"
+                height="auto"
+                volume={0.5}
+                controls
+              />
+            </Grid>
+            <Grid item>
+              <ButtonGroup variant="contained">
+                <Button startIcon={<ShuffleIcon />} onClick={getRandomVideo}>
+                  Play Random
                 </Button>
-              </CopyToClipboard>
-            </ButtonGroup>
+                <CopyToClipboard text={`${PURL}${vid.video_id}`}>
+                  <Button
+                    onMouseDown={handleMouseDown}
+                    onClick={() =>
+                      setAlert({
+                        type: 'info',
+                        message: 'Link copied to clipboard',
+                        open: true,
+                      })
+                    }
+                  >
+                    <LinkIcon />
+                  </Button>
+                </CopyToClipboard>
+              </ButtonGroup>
+            </Grid>
           </Grid>
-        </Grid>
-      </Box>
-    </Modal>
+        </Box>
+      </Modal>
+    </>
   )
 }
 

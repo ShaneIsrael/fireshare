@@ -24,7 +24,6 @@ const LoginForm = function ({ sx }) {
         open: true,
       })
     }
-    setAlert({})
     try {
       await AuthService.login(username, password)
       navigate('/')

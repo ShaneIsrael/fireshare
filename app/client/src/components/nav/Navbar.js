@@ -16,12 +16,12 @@ import { lightBlue } from '@mui/material/colors'
 
 import logo from '../../assets/logo.png'
 import { Paper, Stack } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 
-const pages = []
-
-const Navbar = ({ children, options }) => {
+const Navbar = ({ children, options, pages, feedView = false }) => {
   const [anchorElNav, setAnchorElNav] = React.useState(null)
   const [anchorElUser, setAnchorElUser] = React.useState(null)
+  const navigate = useNavigate()
 
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget)
@@ -52,12 +52,11 @@ const Navbar = ({ children, options }) => {
           <Typography
             variant="div"
             noWrap
-            component="a"
-            href="/"
+            onClick={() => navigate(feedView ? '/feed' : '/')}
             sx={{
               mr: 2,
+              cursor: 'pointer',
               display: { xs: 'none', sm: 'flex' },
-              flexGrow: 1,
               fontFamily: 'monospace',
               fontWeight: 700,
               fontSize: 22,
@@ -70,7 +69,7 @@ const Navbar = ({ children, options }) => {
           </Typography>
 
           {pages.length > 0 && (
-            <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
+            <Box sx={{ flexGrow: 1, display: { xs: 'flex', sm: 'none', md: 'none' } }}>
               <IconButton
                 size="large"
                 aria-label="account of current user"
@@ -100,8 +99,13 @@ const Navbar = ({ children, options }) => {
                 }}
               >
                 {pages.map((page) => (
-                  <MenuItem key={page} onClick={handleCloseNavMenu}>
-                    <Typography textAlign="center">{page}</Typography>
+                  <MenuItem
+                    key={page.name}
+                    onClick={() => {
+                      return navigate(page.href)
+                    }}
+                  >
+                    <Typography textAlign="center">{page.name}</Typography>
                   </MenuItem>
                 ))}
               </Menu>
@@ -133,10 +137,16 @@ const Navbar = ({ children, options }) => {
           >
             FIRESHARE
           </Typography>
-          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', sm: 'flex' } }}>
             {pages.map((page) => (
-              <Button key={page} onClick={handleCloseNavMenu} sx={{ my: 2, color: 'white', display: 'block' }}>
-                {page}
+              <Button
+                key={page.name}
+                onClick={() => {
+                  return navigate(page.href)
+                }}
+                sx={{ my: 2, color: 'white', display: 'block' }}
+              >
+                {page.name}
               </Button>
             ))}
           </Box>

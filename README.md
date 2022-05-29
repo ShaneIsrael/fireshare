@@ -42,3 +42,8 @@ Navigate to `http://localhost:3000`
 
 In production, flask will serve the react app and it will be access at `http://localhost:5000` from within
 the docker container.
+
+# Migrations
+
+whenever new tables or columns are made/modified the "flask db migrate" command needs to be run to generate the migration from
+those changes.

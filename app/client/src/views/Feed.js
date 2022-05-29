@@ -21,7 +21,7 @@ const createSelectFolders = (folders) => {
   return folders.map((f) => ({ value: f, label: f }))
 }
 
-const Dashboard = () => {
+const Feed = () => {
   const [authenticated, setAuthenticated] = React.useState(false)
   const [videos, setVideos] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
@@ -38,7 +38,7 @@ const Dashboard = () => {
     try {
       async function isLoggedIn() {
         if (!(await AuthService.isLoggedIn()).data) {
-          navigate('/login')
+          setAuthenticated(false)
         } else {
           setAuthenticated(true)
         }
@@ -49,7 +49,7 @@ const Dashboard = () => {
       console.error(err)
     }
     function fetchVideos() {
-      VideoService.getVideos()
+      VideoService.getPublicVideos()
         .then((res) => {
           setVideos(res.data.videos)
           const tfolders = []
@@ -78,8 +78,6 @@ const Dashboard = () => {
     }
     fetchVideos()
   }, [navigate])
-
-  if (!authenticated) return null
 
   const handleLogout = async () => {
     try {
@@ -118,12 +116,16 @@ const Dashboard = () => {
   }
 
   const options = [
-    { name: 'Logout', handler: handleLogout },
-    { name: 'Scan Library', handler: handleScan },
+    { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : () => navigate('/login') },
   ]
-  const pages = [{ name: 'View Feed', href: '/feed' }]
+  const pages = []
+  if (authenticated) {
+    pages.push({ name: 'Admin View', href: '/' })
+    options.push({ name: 'Scan Library', handler: handleScan })
+  }
+
   return (
-    <Navbar options={options} pages={pages}>
+    <Navbar options={options} pages={pages} feedView={true}>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
@@ -144,7 +146,7 @@ const Dashboard = () => {
                       ml: 1,
                     }}
                   >
-                    MY VIDEOS
+                    PUBLIC FEED
                   </Typography>
                 </Grid>
                 <Grid item>
@@ -166,19 +168,22 @@ const Dashboard = () => {
               </Grid>
               <Divider sx={{ mb: 2 }} light />
               <Grid container justifyContent="center">
-                <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 3 }}>
-                  <Select
-                    value={selectedFolder}
-                    options={createSelectFolders(folders)}
-                    onChange={handleFolderSelection}
-                    styles={selectTheme}
-                  />
-                </Grid>
+                {videos && videos.length !== 0 && (
+                  <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 3 }}>
+                    <Select
+                      value={selectedFolder}
+                      options={createSelectFolders(folders)}
+                      onChange={handleFolderSelection}
+                      styles={selectTheme}
+                    />
+                  </Grid>
+                )}
                 <Grid item xs={12}>
                   {listStyle === 'list' && (
                     <VideoList
                       authenticated={authenticated}
                       loadingIcon={loading ? <LoadingSpinner /> : null}
+                      feedView
                       videos={
                         selectedFolder.value === 'All Videos'
                           ? videos
@@ -196,6 +201,7 @@ const Dashboard = () => {
                     <VideoCards
                       authenticated={authenticated}
                       loadingIcon={loading ? <LoadingSpinner /> : null}
+                      feedView={true}
                       videos={
                         selectedFolder.value === 'All Videos'
                           ? videos
@@ -219,4 +225,4 @@ const Dashboard = () => {
   )
 }
 
-export default Dashboard
+export default Feed

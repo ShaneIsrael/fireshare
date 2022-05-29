@@ -2,12 +2,14 @@ import os
 import os.path
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_cors import CORS
 from pathlib import Path
 
 # init SQLAlchemy so we can use it later in our models
 db = SQLAlchemy()
+migrate = Migrate()
 
 def create_app():
     app = Flask(__name__, static_url_path='', static_folder='build', template_folder='build')
@@ -43,6 +45,7 @@ def create_app():
             subpath.mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
+    migrate.init_app(app, db)
 
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -66,5 +69,5 @@ def create_app():
     app.register_blueprint(main_blueprint)
 
     with app.app_context():
-        db.create_all()
+        # db.create_all()
         return app

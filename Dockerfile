@@ -19,9 +19,11 @@ RUN mkdir /data && mkdir /processed
 COPY entrypoint.sh /
 COPY app/nginx/prod.conf /etc/nginx/nginx.conf
 COPY app/server/ /app/server
+COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
 RUN pip install /app/server
 
+ENV FLASK_APP /app/server/fireshare:create_app()
 ENV FLASK_ENV production
 ENV ENVIRONMENT production
 ENV DATA_DIRECTORY /data
