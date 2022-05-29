@@ -118,12 +118,14 @@ const Feed = () => {
   const options = [
     { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : () => navigate('/login') },
   ]
+  const pages = []
   if (authenticated) {
+    pages.push({ name: 'Admin View', href: '/' })
     options.push({ name: 'Scan Library', handler: handleScan })
   }
 
   return (
-    <Navbar options={options}>
+    <Navbar options={options} pages={pages} feedView={true}>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
@@ -179,6 +181,7 @@ const Feed = () => {
                 <Grid item xs={12}>
                   {listStyle === 'list' && (
                     <VideoList
+                      authenticated={authenticated}
                       loadingIcon={loading ? <LoadingSpinner /> : null}
                       feedView
                       videos={
@@ -196,6 +199,7 @@ const Feed = () => {
                   )}
                   {listStyle === 'card' && (
                     <VideoCards
+                      authenticated={authenticated}
                       loadingIcon={loading ? <LoadingSpinner /> : null}
                       feedView={true}
                       videos={

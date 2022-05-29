@@ -1,16 +1,17 @@
 import React from 'react'
-import { Grid, IconButton, Paper, TextField, Typography } from '@mui/material'
+import { Grid, IconButton, Paper, TextField, Tooltip, Typography } from '@mui/material'
 import PlayCircleIcon from '@mui/icons-material/PlayCircle'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import Zoom from '@mui/material/Zoom'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, useDebounce } from '../../common/utils'
 import { VideoService } from '../../services'
 
 const URL = getPublicWatchUrl()
 
-const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView }) => {
+const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authenticated }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
@@ -76,27 +77,34 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView }) => {
                   })
                 }
               >
-                <LinkIcon sx={{ width: 25, height: 25, transform: 'rotate(-45deg)' }} color="primary" />
+                <LinkIcon sx={{ width: 25, height: 25 }} color="primary" />
               </IconButton>
             </CopyToClipboard>
           </Grid>
         </Grid>
-        {!feedView && (
+        {authenticated && (
           <Grid container sx={{ width: 25, height: '100%', pl: 2 }} justifyContent="center" alignItems="center">
-            <IconButton
-              sx={{
-                color: privateView ? 'red' : '#2684FF',
-              }}
-              onClick={handlePrivacyChange}
-              edge="end"
+            <Tooltip
+              title="Toggle visibility on your public feed."
+              placement="top"
+              enterDelay={1000}
+              TransitionComponent={Zoom}
             >
-              {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
-            </IconButton>
+              <IconButton
+                sx={{
+                  color: privateView ? 'red' : '#2684FF',
+                }}
+                onClick={handlePrivacyChange}
+                edge="end"
+              >
+                {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+              </IconButton>
+            </Tooltip>
           </Grid>
         )}
         <Grid
           container
-          sx={{ width: `calc(100% - (75px + ${!feedView ? 25 : 0}px))`, height: '100%', pl: 3 }}
+          sx={{ width: `calc(100% - (75px + ${authenticated ? 25 : 0}px))`, height: '100%', pl: 3 }}
           alignItems="center"
         >
           <Grid item xs>

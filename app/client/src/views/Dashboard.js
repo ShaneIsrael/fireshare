@@ -121,8 +121,9 @@ const Dashboard = () => {
     { name: 'Logout', handler: handleLogout },
     { name: 'Scan Library', handler: handleScan },
   ]
+  const pages = [{ name: 'View Feed', href: '/feed' }]
   return (
-    <Navbar options={options}>
+    <Navbar options={options} pages={pages}>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
@@ -176,6 +177,7 @@ const Dashboard = () => {
                 <Grid item xs={12}>
                   {listStyle === 'list' && (
                     <VideoList
+                      authenticated={authenticated}
                       loadingIcon={loading ? <LoadingSpinner /> : null}
                       videos={
                         selectedFolder.value === 'All Videos'
@@ -192,6 +194,7 @@ const Dashboard = () => {
                   )}
                   {listStyle === 'card' && (
                     <VideoCards
+                      authenticated={authenticated}
                       loadingIcon={loading ? <LoadingSpinner /> : null}
                       videos={
                         selectedFolder.value === 'All Videos'

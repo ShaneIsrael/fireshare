@@ -6,7 +6,7 @@ import VideoListItem from './VideoListItem'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
 
-const VideoList = ({ videos, loadingIcon = null, feedView = false }) => {
+const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated }) => {
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
@@ -93,18 +93,21 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false }) => {
       </SnackbarAlert>
       {(!videos || videos.length === 0) && EMPTY_STATE()}
       {videos && videos.length !== 0 && (
-        <Grid container>
-          {videos.map((v) => (
-            <Grid key={v.video_id} item xs={12}>
-              <VideoListItem
-                video={v}
-                openVideoHandler={openVideo}
-                alertHandler={memoizedHandleAlert}
-                feedView={feedView}
-              />
-            </Grid>
-          ))}
-        </Grid>
+        <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+          <Grid container>
+            {videos.map((v) => (
+              <Grid key={v.video_id} item xs={12}>
+                <VideoListItem
+                  video={v}
+                  openVideoHandler={openVideo}
+                  alertHandler={memoizedHandleAlert}
+                  feedView={feedView}
+                  authenticated={authenticated}
+                />
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
       )}
     </Box>
   )

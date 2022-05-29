@@ -8,9 +8,10 @@ import {
   IconButton,
   InputAdornment,
   TextField,
-  ToggleButton,
+  Tooltip,
   Typography,
 } from '@mui/material'
+import Zoom from '@mui/material/Zoom'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
@@ -31,6 +32,7 @@ const VideoCardItem = ({
   visible,
   cardWidth,
   feedView,
+  authenticated,
 }) => {
   const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
@@ -173,17 +175,24 @@ const VideoCardItem = ({
           onChange={(e) => !feedView && setUpdatedTitle(e.target.value)}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
           InputProps={{
-            endAdornment: !feedView && (
+            endAdornment: authenticated && (
               <InputAdornment position="end">
-                <IconButton
-                  sx={{
-                    color: privateView ? 'red' : '#2684FF',
-                  }}
-                  onClick={handlePrivacyChange}
-                  edge="end"
+                <Tooltip
+                  title="Toggle visibility on your public feed."
+                  placement="top"
+                  enterDelay={1000}
+                  TransitionComponent={Zoom}
                 >
-                  {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                </IconButton>
+                  <IconButton
+                    sx={{
+                      color: privateView ? 'red' : '#2684FF',
+                    }}
+                    onClick={handlePrivacyChange}
+                    edge="end"
+                  >
+                    {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </IconButton>
+                </Tooltip>
               </InputAdornment>
             ),
           }}
