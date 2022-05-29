@@ -7,7 +7,7 @@ const VisibilityCard = ({ video, openVideo, handleAlert, handleSelected, selecte
   const nodeRef = useRef()
   const isVisible = useIsVisible(nodeRef)
   return (
-    <Grid item xs="auto" component="div" ref={nodeRef}>
+    <Grid item xs="auto" ref={nodeRef}>
       <VideoCardItem
         visible={isVisible}
         video={video}
