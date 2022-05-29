@@ -18,7 +18,7 @@ import logo from '../../assets/logo.png'
 import { Paper, Stack } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 
-const Navbar = ({ children, options, pages, feedView = false }) => {
+const Navbar = ({ children, options, pages = [], feedView = false }) => {
   const [anchorElNav, setAnchorElNav] = React.useState(null)
   const [anchorElUser, setAnchorElUser] = React.useState(null)
   const navigate = useNavigate()
