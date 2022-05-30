@@ -4,6 +4,8 @@ import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
 import SaveIcon from '@mui/icons-material/Save'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import ReactPlayer from 'react-player'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
@@ -17,6 +19,7 @@ const SERVED_BY = getServedBy()
 const VideoModal = ({ open, onClose, video, feedView }) => {
   const [title, setTitle] = React.useState('')
   const [updateable, setUpdatable] = React.useState(false)
+  const [privateView, setPrivateView] = React.useState(video?.info?.private)
   const [vid, setVideo] = React.useState(video)
 
   const [alert, setAlert] = React.useState({ open: false })
@@ -31,6 +34,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
       setVideo(res)
       setTitle(res.info?.title)
       setUpdatable(false)
+      setPrivateView(res.info?.private)
     } catch (err) {
       console.log(err)
     }
@@ -39,6 +43,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
   React.useEffect(() => {
     setVideo(video)
     setTitle(video?.info?.title)
+    setPrivateView(video?.info?.private)
     setUpdatable(false)
   }, [video])
 
@@ -68,8 +73,24 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
     }
   }
 
+  const handlePrivacyChange = async () => {
+    try {
+      await VideoService.updatePrivacy(video.video_id, !privateView)
+      setAlert({
+        type: privateView ? 'info' : 'warning',
+        message: privateView ? `Added to your public feed` : `Removed from your public feed`,
+        open: true,
+      })
+      setPrivateView(!privateView)
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
   const handleTitleChange = (newValue) => {
-    setUpdatable(newValue && newValue !== video.info?.title)
+    if (newValue) {
+      setUpdatable(newValue !== video.info?.title)
+    }
     setTitle(newValue)
   }
 
@@ -118,6 +139,9 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
               <ButtonGroup variant="contained">
                 <Button onClick={getRandomVideo}>
                   <ShuffleIcon />
+                </Button>
+                <Button onClick={handlePrivacyChange} edge="end">
+                  {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
                 </Button>
                 <TextField
                   sx={{
