@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactPlayer from 'react-player'
-import { Grid, Paper, Typography } from '@mui/material'
+import { Button, ButtonGroup, Grid, Paper, Typography } from '@mui/material'
 import { AuthService, VideoService } from '../services'
 import { getServedBy, getUrl } from '../common/utils'
 import Navbar from '../components/nav/Navbar'
@@ -9,6 +9,10 @@ import { Box } from '@mui/system'
 
 import { Helmet } from 'react-helmet'
 import NotFound from './NotFound'
+import CopyToClipboard from 'react-copy-to-clipboard'
+import LinkIcon from '@mui/icons-material/Link'
+import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import SnackbarAlert from '../components/alert/SnackbarAlert'
 
 const URL = getUrl()
 const SERVED_BY = getServedBy()
@@ -28,6 +32,7 @@ const Watch = () => {
   const [notFound, setNotFound] = React.useState(false)
   const navigate = useNavigate()
   const videoPlayerRef = useRef(null)
+  const [alert, setAlert] = React.useState({ open: false })
 
   React.useEffect(() => {
     async function fetch() {
@@ -82,8 +87,65 @@ const Watch = () => {
 
   const options = [{ name: loggedIn ? 'Logout' : 'Login', handler: loggedIn ? handleLogout : handleLogin }]
 
+  const controls = () => (
+    <ButtonGroup variant="contained" sx={{ maxWidth: '100%' }}>
+      <CopyToClipboard text={`${URL}${details?.video_id}`}>
+        <Button
+          onClick={() =>
+            setAlert({
+              type: 'info',
+              message: 'Link copied to clipboard',
+              open: true,
+            })
+          }
+        >
+          <LinkIcon />
+        </Button>
+      </CopyToClipboard>
+      <CopyToClipboard text={`${URL}${details?.video_id}?t=${videoPlayerRef.current?.getCurrentTime()}`}>
+        <Button
+          onClick={() =>
+            setAlert({
+              type: 'info',
+              message: 'Time stamped link copied to clipboard',
+              open: true,
+            })
+          }
+        >
+          <AccessTimeIcon />
+        </Button>
+      </CopyToClipboard>
+      <Button
+        disabled
+        sx={{
+          '&.Mui-disabled': {
+            borderRight: 'none',
+            borderTopRightRadius: 0,
+            borderBottomRightRadius: 0,
+            borderTop: 'none',
+          },
+        }}
+      >
+        <div
+          style={{
+            overflow: 'hidden',
+            color: 'white',
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {details?.info?.title}
+        </div>
+      </Button>
+    </ButtonGroup>
+  )
+
   return (
     <Navbar options={options} pages={[{ name: 'View All Videos', href: '/feed' }]}>
+      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+        {alert.message}
+      </SnackbarAlert>
       <Helmet>
         <title>{details?.info?.title}</title>
         <meta property="og:type" value="video" />
@@ -123,35 +185,22 @@ const Watch = () => {
               file: { forcedAudio: true, attributes: { onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) } },
             }}
             controls
+            volume={0.5}
           />
         </Grid>
         <Grid item xs={12}>
-          <Paper elevation={3} width="100%" square sx={{ p: 1, mt: -1 }}>
+          <Paper elevation={3} width="100%" square sx={{ p: 1, mt: '-6px' }}>
             <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
               <Grid container>
-                <Grid item xs sx={{ ml: 2 }}>
-                  <Typography variant="overline" noWrap sx={{ fontWeight: 600, fontSize: 16 }}>
-                    {details?.info.title}
-                  </Typography>
-                </Grid>
-                <Grid item sx={{ mr: 2 }}>
-                  <Typography variant="overline" color="primary" sx={{ fontWeight: 600, fontSize: 16 }}>
-                    Views: {details?.info.views || '9,439,998'}
-                  </Typography>
+                <Grid item xs>
+                  {controls()}
                 </Grid>
               </Grid>
             </Box>
             <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
               <Grid container>
                 <Grid item xs={12} sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" noWrap align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
-                    {details?.info.title}
-                  </Typography>
-                </Grid>
-                <Grid item xs={12} sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" color="primary" sx={{ fontWeight: 600, fontSize: 16 }}>
-                    Views: {details?.info.views || '9,439,998'}
-                  </Typography>
+                  {controls()}
                 </Grid>
               </Grid>
             </Box>
