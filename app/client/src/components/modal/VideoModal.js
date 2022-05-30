@@ -112,7 +112,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
                     <LinkIcon />
                   </Button>
                 </CopyToClipboard>
-                <CopyToClipboard text={`${PURL}${vid.video_id}?t=${playerRef.current.getCurrentTime()}`}>
+                <CopyToClipboard text={`${PURL}${vid.video_id}?t=${playerRef.current?.getCurrentTime()}`}>
                   <Button
                     onClick={() =>
                       setAlert({
