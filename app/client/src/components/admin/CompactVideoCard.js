@@ -104,10 +104,11 @@ const CompactVideoCard = ({
       sx={{
         width: previewVideoWidth,
         bgcolor: '#0b132b',
-        border: selected ? '2px solid #fffc31' : '1px solid #3399FF',
+        border: selected ? '1px solid #fffc31' : 'none',
         m: 1,
       }}
       square
+      elevation={5}
     >
       <Tooltip title={title} placement="bottom" enterDelay={1000} leaveDelay={500} enterNextDelay={1000} arrow>
         <TextField

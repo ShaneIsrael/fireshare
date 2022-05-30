@@ -6,7 +6,7 @@ import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
 
-const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticated }) => {
+const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticated, size }) => {
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
@@ -121,7 +121,7 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
                 handleSelected={handleSelected}
                 openVideo={openVideo}
                 selected={selected}
-                cardWidth={375}
+                cardWidth={size}
                 feedView={feedView}
                 authenticated={authenticated}
               />

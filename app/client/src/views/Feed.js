@@ -14,6 +14,7 @@ import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
 import selectTheme from '../common/reactSelectTheme'
+import SliderWrapper from '../components/misc/SliderWrapper'
 
 const settings = getSettings()
 
@@ -21,11 +22,15 @@ const createSelectFolders = (folders) => {
   return folders.map((f) => ({ value: f, label: f }))
 }
 
+const CARD_SIZE_DEFAULT = 375
+const CARD_SIZE_MULTIPLIER = 2
+
 const Feed = () => {
   const [authenticated, setAuthenticated] = React.useState(false)
   const [videos, setVideos] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
+  const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
   const [selectedFolder, setSelectedFolder] = React.useState(
     getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
@@ -115,6 +120,13 @@ const Feed = () => {
     setSelectedFolder(folder)
   }
 
+  const handleCardSizeChange = (e, value) => {
+    const modifier = value / 100
+    const newSize = CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER * modifier
+    setCardSize(newSize)
+    setSetting('cardSize', newSize)
+  }
+
   const options = [
     { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : () => navigate('/login') },
   ]
@@ -133,10 +145,10 @@ const Feed = () => {
         <Grid sx={{}} container direction="row" justifyContent="center">
           <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
             <Grid item xs={12}>
-              <Grid container sx={{ pr: 4, pl: 4 }}>
+              <Grid container sx={{ pr: 2, pl: 2 }}>
                 <Grid item xs>
                   <Typography
-                    variant="h4"
+                    variant="h5"
                     sx={{
                       fontFamily: 'monospace',
                       fontWeight: 500,
@@ -148,6 +160,15 @@ const Feed = () => {
                   >
                     PUBLIC FEED
                   </Typography>
+                </Grid>
+                <Grid item sx={{ pr: 2, pt: 0.25 }}>
+                  <SliderWrapper
+                    width={100}
+                    cardSize={cardSize}
+                    defaultCardSize={CARD_SIZE_DEFAULT}
+                    cardMultiplier={CARD_SIZE_MULTIPLIER}
+                    onChangeCommitted={handleCardSizeChange}
+                  />
                 </Grid>
                 <Grid item>
                   <ToggleButtonGroup
@@ -202,6 +223,7 @@ const Feed = () => {
                       authenticated={authenticated}
                       loadingIcon={loading ? <LoadingSpinner /> : null}
                       feedView={true}
+                      size={cardSize}
                       videos={
                         selectedFolder.value === 'All Videos'
                           ? videos
