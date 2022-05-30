@@ -84,17 +84,17 @@ const CompactVideoCard = ({
     }
   }
 
-  const previewVideoWidth = cardWidth
   const previewVideoHeight =
-    video.info?.width && video.info?.height ? previewVideoWidth * (video.info.height / video.info.width) : 216
+    video.info?.width && video.info?.height ? cardWidth * (video.info.height / video.info.width) : cardWidth / 1.77
+
   if (!visible)
     return (
       <div
         // calculate the rendered cards height based on the video dimesions and our css styling heights
         style={{
-          width: previewVideoWidth,
+          width: cardWidth,
           background: '#000e393b',
-          height: video.info?.width && video.info?.height ? previewVideoHeight + 100 : 316,
+          height: previewVideoHeight + 40,
         }}
       />
     )
@@ -102,10 +102,10 @@ const CompactVideoCard = ({
   return (
     <Card
       sx={{
-        width: previewVideoWidth,
+        width: '100%',
         bgcolor: '#0b132b',
         border: selected ? '1px solid #fffc31' : 'none',
-        m: 1,
+        // m: 1,
       }}
       square
       elevation={5}
@@ -168,7 +168,7 @@ const CompactVideoCard = ({
             }`}
             alt=""
             style={{
-              width: previewVideoWidth,
+              width: cardWidth,
             }}
           />
           {hover && (
@@ -185,7 +185,7 @@ const CompactVideoCard = ({
                 WebkitAnimationDuration: '1.5s',
                 WebkitAnimationFillMode: 'both',
               }}
-              width={previewVideoWidth}
+              width={cardWidth}
               height={previewVideoHeight}
               src={`${
                 SERVED_BY === 'nginx'
