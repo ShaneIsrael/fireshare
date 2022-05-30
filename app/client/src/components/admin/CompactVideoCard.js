@@ -109,41 +109,44 @@ const CompactVideoCard = ({
       }}
       square
     >
-      <TextField
-        fullWidth
-        size="small"
-        defaultValue={updatedTitle || title}
-        disabled={!authenticated}
-        onChange={(e) => authenticated && setUpdatedTitle(e.target.value)}
-        sx={{
-          '& .MuiOutlinedInput-root': { borderRadius: 0 },
-          '& .MuiInputBase-input.Mui-disabled': {
-            WebkitTextFillColor: '#fff',
-          },
-        }}
-        InputProps={{
-          endAdornment: authenticated && (
-            <InputAdornment position="end">
-              <Tooltip
-                title="Toggle visibility on your public feed."
-                placement="top"
-                enterDelay={1000}
-                TransitionComponent={Zoom}
-              >
-                <IconButton
-                  sx={{
-                    color: privateView ? 'red' : '#2684FF',
-                  }}
-                  onClick={handlePrivacyChange}
-                  edge="end"
+      <Tooltip title={title} placement="bottom" enterDelay={1000} leaveDelay={500} enterNextDelay={1000} arrow>
+        <TextField
+          fullWidth
+          size="small"
+          defaultValue={updatedTitle || title}
+          disabled={!authenticated}
+          onChange={(e) => authenticated && setUpdatedTitle(e.target.value)}
+          sx={{
+            border: 'none',
+            '& .MuiOutlinedInput-root': { borderRadius: 0 },
+            '& .MuiInputBase-input.Mui-disabled': {
+              WebkitTextFillColor: '#fff',
+            },
+          }}
+          InputProps={{
+            endAdornment: authenticated && (
+              <InputAdornment position="end">
+                <Tooltip
+                  title="Toggle visibility on your public feed."
+                  placement="top"
+                  enterDelay={1000}
+                  TransitionComponent={Zoom}
                 >
-                  {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                </IconButton>
-              </Tooltip>
-            </InputAdornment>
-          ),
-        }}
-      />
+                  <IconButton
+                    sx={{
+                      color: privateView ? 'red' : '#2684FF',
+                    }}
+                    onClick={handlePrivacyChange}
+                    edge="end"
+                  >
+                    {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </IconButton>
+                </Tooltip>
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Tooltip>
 
       <CardContent sx={{ lineHeight: 0, p: 0, '&:last-child': { p: 0 } }}>
         <div
