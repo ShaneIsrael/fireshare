@@ -15,7 +15,7 @@ import Zoom from '@mui/material/Zoom'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
+import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, useDebounce } from '../../common/utils'
 import VideoService from '../../services/VideoService'
 import _ from 'lodash'
 
@@ -226,7 +226,7 @@ const VideoCardItem = ({
             }}
           >
             <Typography variant="div" color="primary" sx={{ fontWeight: 700, fontSize: 12, fontFamily: 'monospace' }}>
-              {new Date(video.info.duration * 1000).toISOString().substr(11, 8)}
+              {toHHMMSS(video.info.duration)}
             </Typography>
           </Grid>
         </Grid>

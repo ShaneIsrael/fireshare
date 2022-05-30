@@ -6,7 +6,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import Zoom from '@mui/material/Zoom'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, useDebounce } from '../../common/utils'
+import { getPublicWatchUrl, toHHMMSS, useDebounce } from '../../common/utils'
 import { VideoService } from '../../services'
 
 const URL = getPublicWatchUrl()
@@ -119,7 +119,7 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
           </Grid>
           <Grid item sx={{ pl: 1, pr: 1 }}>
             <Typography sx={{ fontWeight: 400, fontSize: 20, fontFamily: 'monospace' }}>
-              {new Date(video.info.duration * 1000).toISOString().substr(11, 8)}
+              {toHHMMSS(video.info.duration)}
             </Typography>
           </Grid>
         </Grid>
