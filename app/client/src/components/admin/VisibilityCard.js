@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
-import VideoCardItem from './VideoCardItem'
 import { useIsVisible } from 'react-is-visible'
 import { Grid } from '@mui/material'
+import CompactVideoCard from './CompactVideoCard'
 
 const VisibilityCard = ({
   video,
@@ -17,7 +17,7 @@ const VisibilityCard = ({
   const isVisible = useIsVisible(nodeRef)
   return (
     <Grid item xs="auto" ref={nodeRef}>
-      <VideoCardItem
+      <CompactVideoCard
         visible={isVisible}
         video={video}
         openVideoHandler={openVideo}
