@@ -100,7 +100,8 @@ def sync_metadata():
 
 @cli.command()
 @click.option("--regenerate", "-r", help="Overwrite existing posters", is_flag=True)
-def create_posters(regenerate):
+@click.option("--skip", "-s", help="Amount to skip into the video before extracting a poster image, as a %, e.g. 0.05 for 5%", type=float, default=0)
+def create_posters(regenerate, skip):
     with create_app().app_context():
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
         vinfos = VideoInfo.query.all()
@@ -112,7 +113,7 @@ def create_posters(regenerate):
             if should_create_poster:
                 if not derived_path.exists():
                     derived_path.mkdir(parents=True)
-                poster_time = int(vi.duration * 0.07)
+                poster_time = int(vi.duration * skip)
                 util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
             else:
                 click.echo(f"Skipping creation of poster for video {vi.video_id} because it exists at {str(poster_path)}")
