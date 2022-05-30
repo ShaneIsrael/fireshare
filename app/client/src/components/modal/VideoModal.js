@@ -14,12 +14,12 @@ const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
 const VideoModal = ({ open, onClose, video, feedView }) => {
-  const [vid, setVideo] = React.useState(video)
+  const [title, setTitle] = React.useState(null)
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
+  const [vid, setVideo] = React.useState(video)
   const [alert, setAlert] = React.useState({ open: false })
   const playerRef = React.useRef(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
-  const title = video?.info?.title
 
   const getRandomVideo = async () => {
     try {
@@ -27,12 +27,17 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
         ? (await VideoService.getRandomVideo()).data
         : (await VideoService.getRandomPublicVideo()).data
       setVideo(res)
+      setTitle(res.info?.title)
+      setUpdatedTitle(null)
     } catch (err) {
       console.log(err)
     }
   }
 
-  React.useEffect(() => setVideo(video), [video])
+  React.useEffect(() => {
+    setVideo(video)
+    setTitle(video?.info?.title)
+  }, [video])
 
   const handleMouseDown = (e) => {
     if (e.button === 1) {
@@ -40,27 +45,29 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
     }
   }
 
-  React.useEffect(() => {
-    async function update() {
-      try {
-        await VideoService.updateTitle(video.video_id, debouncedTitle)
-        setAlert({
-          type: 'success',
-          message: 'Title Updated',
-          open: true,
-        })
-      } catch (err) {
-        setAlert({
-          type: 'error',
-          message: 'An error occurred trying to update the title',
-          open: true,
-        })
-      }
+  const update = async () => {
+    try {
+      await VideoService.updateTitle(video.video_id, debouncedTitle)
+      setAlert({
+        type: 'success',
+        message: 'Title Updated',
+        open: true,
+      })
+    } catch (err) {
+      setAlert({
+        type: 'error',
+        message: 'An error occurred trying to update the title',
+        open: true,
+      })
     }
+  }
+
+  React.useEffect(() => {
     if (debouncedTitle && debouncedTitle !== title) {
       update()
     }
-  }, [debouncedTitle, title, video, setAlert])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedTitle])
 
   if (!vid) return null
 
@@ -104,9 +111,9 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
               />
             </Grid>
             <Grid item>
-              <ButtonGroup variant="contained" sx={{ minWidth: 525 }}>
-                <Button startIcon={<ShuffleIcon />} onClick={getRandomVideo}>
-                  Play Random
+              <ButtonGroup variant="contained">
+                <Button onClick={getRandomVideo}>
+                  <ShuffleIcon />
                 </Button>
                 <TextField
                   sx={{
@@ -115,7 +122,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
                     background: 'rgba(50, 50, 50, 0.9)',
                   }}
                   size="small"
-                  defaultValue={updatedTitle || title}
+                  value={updatedTitle || title}
                   onChange={(e) => setUpdatedTitle(e.target.value)}
                 />
                 <CopyToClipboard text={`${PURL}${vid.video_id}`}>
