@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactPlayer from 'react-player'
-import { Button, ButtonGroup, Grid, Paper, Typography } from '@mui/material'
+import { Button, ButtonGroup, Grid, Paper } from '@mui/material'
 import { AuthService, VideoService } from '../services'
 import { getServedBy, getUrl } from '../common/utils'
 import Navbar from '../components/nav/Navbar'
