@@ -1,11 +1,12 @@
 import React from 'react'
-import { Box, Button, ButtonGroup, Grid, Modal, TextField } from '@mui/material'
+import { Box, Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
+import SaveIcon from '@mui/icons-material/Save'
 import ReactPlayer from 'react-player'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, getServedBy, getUrl, useDebounce } from '../../common/utils'
+import { getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
 import { VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 
@@ -14,12 +15,13 @@ const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
 const VideoModal = ({ open, onClose, video, feedView }) => {
-  const [title, setTitle] = React.useState(null)
-  const [updatedTitle, setUpdatedTitle] = React.useState(null)
+  const [title, setTitle] = React.useState('')
+  const [updateable, setUpdatable] = React.useState(false)
   const [vid, setVideo] = React.useState(video)
+
   const [alert, setAlert] = React.useState({ open: false })
+
   const playerRef = React.useRef(null)
-  const debouncedTitle = useDebounce(updatedTitle, 1500)
 
   const getRandomVideo = async () => {
     try {
@@ -28,7 +30,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
         : (await VideoService.getRandomPublicVideo()).data
       setVideo(res)
       setTitle(res.info?.title)
-      setUpdatedTitle(null)
+      setUpdatable(false)
     } catch (err) {
       console.log(err)
     }
@@ -37,6 +39,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
   React.useEffect(() => {
     setVideo(video)
     setTitle(video?.info?.title)
+    setUpdatable(false)
   }, [video])
 
   const handleMouseDown = (e) => {
@@ -46,28 +49,29 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
   }
 
   const update = async () => {
-    try {
-      await VideoService.updateTitle(video.video_id, debouncedTitle)
-      setAlert({
-        type: 'success',
-        message: 'Title Updated',
-        open: true,
-      })
-    } catch (err) {
-      setAlert({
-        type: 'error',
-        message: 'An error occurred trying to update the title',
-        open: true,
-      })
+    if (updateable) {
+      try {
+        await VideoService.updateTitle(video.video_id, title)
+        setUpdatable(false)
+        setAlert({
+          type: 'success',
+          message: 'Title Updated',
+          open: true,
+        })
+      } catch (err) {
+        setAlert({
+          type: 'error',
+          message: 'An error occurred trying to update the title',
+          open: true,
+        })
+      }
     }
   }
 
-  React.useEffect(() => {
-    if (debouncedTitle && debouncedTitle !== title) {
-      update()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedTitle])
+  const handleTitleChange = (newValue) => {
+    setUpdatable(newValue && newValue !== video.info?.title)
+    setTitle(newValue)
+  }
 
   if (!vid) return null
 
@@ -122,8 +126,29 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
                     background: 'rgba(50, 50, 50, 0.9)',
                   }}
                   size="small"
-                  value={updatedTitle || title}
-                  onChange={(e) => setUpdatedTitle(e.target.value)}
+                  value={title}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && update()}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          disabled={!updateable}
+                          sx={
+                            updateable
+                              ? {
+                                  animation: 'blink-blue 0.5s ease-in-out infinite alternate',
+                                }
+                              : {}
+                          }
+                          onClick={update}
+                          edge="end"
+                        >
+                          <SaveIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
                 <CopyToClipboard text={`${PURL}${vid.video_id}`}>
                   <Button
