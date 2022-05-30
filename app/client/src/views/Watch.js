@@ -98,7 +98,7 @@ const Watch = () => {
 
   const controls = () => (
     <ButtonGroup variant="contained" sx={{ maxWidth: '100%' }}>
-      <CopyToClipboard text={`${URL}${details?.video_id}`}>
+      <CopyToClipboard text={`${URL}/${details?.video_id}`}>
         <Button
           onClick={() =>
             setAlert({
