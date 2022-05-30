@@ -98,7 +98,13 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
 
   return (
     <>
-      <VideoModal open={videoModal.open} onClose={onModalClose} video={videoModal.video} feedView={feedView} />
+      <VideoModal
+        open={videoModal.open}
+        onClose={onModalClose}
+        video={videoModal.video}
+        feedView={feedView}
+        authenticated={authenticated}
+      />
       <Box>
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}

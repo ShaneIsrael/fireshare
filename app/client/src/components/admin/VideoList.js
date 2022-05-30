@@ -87,6 +87,7 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
         onClose={() => setVideoModal({ open: false })}
         video={videoModal.video}
         feedView={feedView}
+        authenticated={authenticated}
       />
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}

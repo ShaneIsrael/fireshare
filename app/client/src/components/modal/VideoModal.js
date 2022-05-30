@@ -16,7 +16,7 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoModal = ({ open, onClose, video, feedView }) => {
+const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
   const [title, setTitle] = React.useState('')
   const [updateable, setUpdatable] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(video?.info?.private)
@@ -54,7 +54,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
   }
 
   const update = async () => {
-    if (updateable) {
+    if (updateable && authenticated) {
       try {
         await VideoService.updateTitle(video.video_id, title)
         setUpdatable(false)
@@ -74,16 +74,18 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
   }
 
   const handlePrivacyChange = async () => {
-    try {
-      await VideoService.updatePrivacy(video.video_id, !privateView)
-      setAlert({
-        type: privateView ? 'info' : 'warning',
-        message: privateView ? `Added to your public feed` : `Removed from your public feed`,
-        open: true,
-      })
-      setPrivateView(!privateView)
-    } catch (err) {
-      console.log(err)
+    if (authenticated) {
+      try {
+        await VideoService.updatePrivacy(video.video_id, !privateView)
+        setAlert({
+          type: privateView ? 'info' : 'warning',
+          message: privateView ? `Added to your public feed` : `Removed from your public feed`,
+          open: true,
+        })
+        setPrivateView(!privateView)
+      } catch (err) {
+        console.log(err)
+      }
     }
   }
 
@@ -140,9 +142,11 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
                 <Button onClick={getRandomVideo}>
                   <ShuffleIcon />
                 </Button>
-                <Button onClick={handlePrivacyChange} edge="end">
-                  {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                </Button>
+                {authenticated && (
+                  <Button onClick={handlePrivacyChange} edge="end">
+                    {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                  </Button>
+                )}
                 <TextField
                   sx={{
                     textAlign: 'center',
@@ -154,7 +158,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
                   onChange={(e) => handleTitleChange(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && update()}
                   InputProps={{
-                    endAdornment: (
+                    endAdornment: authenticated && (
                       <InputAdornment position="end">
                         <IconButton
                           disabled={!updateable}
