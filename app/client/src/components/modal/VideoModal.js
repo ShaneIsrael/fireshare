@@ -56,7 +56,7 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
   const update = async () => {
     if (updateable && authenticated) {
       try {
-        await VideoService.updateTitle(video.video_id, title)
+        await VideoService.updateTitle(vid.video_id, title)
         setUpdatable(false)
         setAlert({
           type: 'success',
@@ -76,7 +76,7 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
   const handlePrivacyChange = async () => {
     if (authenticated) {
       try {
-        await VideoService.updatePrivacy(video.video_id, !privateView)
+        await VideoService.updatePrivacy(vid.video_id, !privateView)
         setAlert({
           type: privateView ? 'info' : 'warning',
           message: privateView ? `Added to your public feed` : `Removed from your public feed`,
@@ -91,7 +91,7 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
 
   const handleTitleChange = (newValue) => {
     if (newValue) {
-      setUpdatable(newValue !== video.info?.title)
+      setUpdatable(newValue !== vid.info?.title)
     }
     setTitle(newValue)
   }
