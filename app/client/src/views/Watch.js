@@ -83,6 +83,15 @@ const Watch = () => {
     }
   }
 
+  const copyTimestamp = () => {
+    navigator.clipboard.writeText(`${URL}${details?.video_id}?t=${videoPlayerRef.current?.getCurrentTime()}`)
+    setAlert({
+      type: 'info',
+      message: 'Time stamped link copied to clipboard',
+      open: true,
+    })
+  }
+
   if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
 
   const options = [{ name: loggedIn ? 'Logout' : 'Login', handler: loggedIn ? handleLogout : handleLogin }]
@@ -102,19 +111,9 @@ const Watch = () => {
           <LinkIcon />
         </Button>
       </CopyToClipboard>
-      <CopyToClipboard text={`${URL}${details?.video_id}?t=${videoPlayerRef.current?.getCurrentTime()}`}>
-        <Button
-          onClick={() =>
-            setAlert({
-              type: 'info',
-              message: 'Time stamped link copied to clipboard',
-              open: true,
-            })
-          }
-        >
-          <AccessTimeIcon />
-        </Button>
-      </CopyToClipboard>
+      <Button onClick={copyTimestamp}>
+        <AccessTimeIcon />
+      </Button>
       <Button
         disabled
         sx={{
