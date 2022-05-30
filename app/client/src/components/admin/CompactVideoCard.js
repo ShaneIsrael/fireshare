@@ -168,7 +168,6 @@ const CompactVideoCard = ({
               overflow: 'hidden',
               whiteSpace: 'nowrap',
               transition: '2s',
-              textOverflow: 'ellipsis',
             }}
           >
             {title}
