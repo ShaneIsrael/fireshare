@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Button, ButtonGroup, Grid, Modal, Typography } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
+import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
 import ReactPlayer from 'react-player'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
@@ -15,6 +16,7 @@ const SERVED_BY = getServedBy()
 const VideoModal = ({ open, onClose, video, feedView }) => {
   const [vid, setVideo] = React.useState(video)
   const [alert, setAlert] = React.useState({ open: false })
+  const playerRef = React.useRef(null)
 
   const getRandomVideo = async () => {
     try {
@@ -79,6 +81,7 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
             </Grid>
             <Grid item xs={12}>
               <ReactPlayer
+                ref={playerRef}
                 url={`${
                   SERVED_BY === 'nginx'
                     ? `${URL}/_content/video/${vid.video_id}${vid.extension}`
@@ -107,6 +110,19 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
                     }
                   >
                     <LinkIcon />
+                  </Button>
+                </CopyToClipboard>
+                <CopyToClipboard text={`${PURL}${vid.video_id}?t=${playerRef.current?.getCurrentTime()}`}>
+                  <Button
+                    onClick={() =>
+                      setAlert({
+                        type: 'info',
+                        message: 'Time stamped link copied to clipboard',
+                        open: true,
+                      })
+                    }
+                  >
+                    <AccessTimeIcon />
                   </Button>
                 </CopyToClipboard>
               </ButtonGroup>
