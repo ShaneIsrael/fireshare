@@ -29,8 +29,10 @@ def get_media_info(path):
         print('Could not extract video info', ex)
         return None
 
-def create_poster(video_path, out_path):
-    sp.call(['ffmpeg', '-v', 'quiet', '-i', video_path, '-ss', '00:00:00.000', '-vframes', '1', out_path])
+def create_poster(video_path, out_path, second=0):
+    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', str(out_path)]
+    print(f'Generating poster at {second}s: {" ".join(cmd)}')
+    sp.call(cmd)
 
 def dur_string_to_seconds(dur: str) -> float:
     if type(dur) == int: return float(dur)
@@ -48,3 +50,13 @@ def dur_string_to_seconds(dur: str) -> float:
     else:
         print(f'Could not parse duration in to total seconds from {dur}')
         return None
+
+def seconds_to_dur_string(sec):
+    sec = int(round(sec))
+    hours = sec // 60 // 60
+    mins = (sec - hours*60*60) // 60
+    s = (sec-hours*60*60-mins*60) % 60
+    if hours:
+        return ':'.join([str(hours), str(mins).zfill(2), str(s).zfill(2)])
+    else:
+        return ':'.join([str(mins), str(s).zfill(2)])
