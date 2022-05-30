@@ -150,11 +150,15 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
                 <TextField
                   sx={{
                     textAlign: 'center',
-                    '& .MuiOutlinedInput-root': { borderRadius: 0 },
                     background: 'rgba(50, 50, 50, 0.9)',
+                    '& .MuiOutlinedInput-root': { borderRadius: 0 },
+                    '& .MuiInputBase-input.Mui-disabled': {
+                      WebkitTextFillColor: '#fff',
+                    },
                   }}
                   size="small"
                   value={title}
+                  disabled={!authenticated}
                   onChange={(e) => handleTitleChange(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && update()}
                   InputProps={{
