@@ -31,3 +31,12 @@ video {
     opacity: 1;
   }
 }
+
+@keyframes blink-blue {
+  0% {
+    color: rgba(0, 219, 255, 0);
+  }
+  100% {
+    color: rgba(0, 219, 255, 1);
+  }
+}
