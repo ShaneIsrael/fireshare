@@ -109,7 +109,7 @@ const CompactVideoCard = ({
       }}
       square
     >
-      {authenticated ? (
+      <Tooltip title={title} placement="bottom" enterDelay={1000} leaveDelay={500} enterNextDelay={1000} arrow>
         <TextField
           fullWidth
           size="small"
@@ -146,34 +146,7 @@ const CompactVideoCard = ({
             ),
           }}
         />
-      ) : (
-        <Box
-          component="div"
-          sx={{
-            mt: '8.5px',
-            mb: '1px',
-            ml: '14px',
-            mr: '14px',
-            position: 'relative',
-            letterSpacing: 0,
-            overflow: 'hidden',
-            '&:hover span': {
-              transform: `translateX(calc(${cardWidth}px - 107%))`,
-            },
-          }}
-        >
-          <span
-            style={{
-              display: 'inline-block',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              transition: '2s',
-            }}
-          >
-            {title}
-          </span>
-        </Box>
-      )}
+      </Tooltip>
 
       <CardContent sx={{ lineHeight: 0, p: 0, '&:last-child': { p: 0 } }}>
         <div
