@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Button, ButtonGroup, Grid, Modal, TextField, Typography } from '@mui/material'
+import { Box, Button, ButtonGroup, Grid, Modal, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
@@ -89,21 +89,6 @@ const VideoModal = ({ open, onClose, video, feedView }) => {
           }}
         >
           <Grid container justifyContent="center">
-            {/* <Grid item xs={12} sx={{ background: 'rgba(0, 0, 0, 1)' }}>
-              <Typography
-                align="center"
-                noWrap
-                sx={{
-                  fontFamily: 'roboto',
-                  textTransform: 'uppercase',
-                  letterSpacing: '.1rem',
-                  fontWeight: 800,
-                  fontSize: 28,
-                }}
-              >
-                {vid?.info.title}
-              </Typography>
-            </Grid> */}
             <Grid item xs={12}>
               <ReactPlayer
                 ref={playerRef}
