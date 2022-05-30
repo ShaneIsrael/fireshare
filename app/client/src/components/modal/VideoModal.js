@@ -96,6 +96,15 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
     setTitle(newValue)
   }
 
+  const copyTimestamp = () => {
+    navigator.clipboard.writeText(`${PURL}${vid.video_id}?t=${playerRef.current?.getCurrentTime()}`)
+    setAlert({
+      type: 'info',
+      message: 'Time stamped link copied to clipboard',
+      open: true,
+    })
+  }
+
   if (!vid) return null
 
   return (
@@ -196,19 +205,9 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
                     <LinkIcon />
                   </Button>
                 </CopyToClipboard>
-                <CopyToClipboard text={`${PURL}${vid.video_id}?t=${playerRef.current?.getCurrentTime()}`}>
-                  <Button
-                    onClick={() =>
-                      setAlert({
-                        type: 'info',
-                        message: 'Time stamped link copied to clipboard',
-                        open: true,
-                      })
-                    }
-                  >
-                    <AccessTimeIcon />
-                  </Button>
-                </CopyToClipboard>
+                <Button onClick={copyTimestamp}>
+                  <AccessTimeIcon />
+                </Button>
               </ButtonGroup>
             </Grid>
           </Grid>
