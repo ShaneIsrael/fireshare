@@ -164,7 +164,7 @@ const Dashboard = () => {
                     width={100}
                     cardSize={cardSize}
                     defaultCardSize={CARD_SIZE_DEFAULT}
-                    cardMultiplier={CARD_SIZE_MULTIPLIER}
+                    cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
                     onChangeCommitted={handleCardSizeChange}
                   />
                 </Grid>

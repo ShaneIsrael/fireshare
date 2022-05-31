@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import VideoCards from '../components/admin/VideoCards'
@@ -22,17 +22,27 @@ const createSelectFolders = (folders) => {
   return folders.map((f) => ({ value: f, label: f }))
 }
 
+function useQuery() {
+  const { search } = useLocation()
+
+  return React.useMemo(() => new URLSearchParams(search), [search])
+}
+
 const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
 
 const Feed = () => {
+  const query = useQuery()
+  const category = query.get('category')
   const [authenticated, setAuthenticated] = React.useState(false)
   const [videos, setVideos] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
   const [selectedFolder, setSelectedFolder] = React.useState(
-    getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
+    category
+      ? { value: category, label: category }
+      : getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
   const [alert, setAlert] = React.useState({ open: false })
 
@@ -118,6 +128,11 @@ const Feed = () => {
   const handleFolderSelection = (folder) => {
     setSetting('folder', folder)
     setSelectedFolder(folder)
+    if ('URLSearchParams' in window) {
+      const searchParams = new URLSearchParams('')
+      searchParams.set('category', folder.value)
+      window.history.replaceState({ category: folder.value }, '', `/#/feed?${searchParams.toString()}`)
+    }
   }
 
   const handleCardSizeChange = (e, value) => {
@@ -166,7 +181,7 @@ const Feed = () => {
                     width={100}
                     cardSize={cardSize}
                     defaultCardSize={CARD_SIZE_DEFAULT}
-                    cardMultiplier={CARD_SIZE_MULTIPLIER}
+                    cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
                     onChangeCommitted={handleCardSizeChange}
                   />
                 </Grid>
