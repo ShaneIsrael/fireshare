@@ -104,11 +104,10 @@ const CompactVideoCard = ({
       sx={{
         width: '100%',
         bgcolor: '#0b132b',
-        border: selected ? '1px solid #fffc31' : 'none',
-        // m: 1,
+        border: selected ? '1px solid #fffc31' : '1px solid #3399FFAE',
       }}
       square
-      elevation={5}
+      // elevation={5}
     >
       <Tooltip title={title} placement="bottom" enterDelay={1000} leaveDelay={500} enterNextDelay={1000} arrow>
         <TextField
@@ -122,6 +121,13 @@ const CompactVideoCard = ({
             '& .MuiOutlinedInput-root': { borderRadius: 0 },
             '& .MuiInputBase-input.Mui-disabled': {
               WebkitTextFillColor: '#fff',
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderTop: '1px solid rgba(0, 0, 0, 0)',
+              borderLeft: '1px solid rgba(0, 0, 0, 0)',
+              borderRight: '1px solid rgba(0, 0, 0, 0)',
+              borderBottom: '1px solid #3399FFAE',
+              // background: 'rgba(255, 255, 255, 0.1)',
             },
           }}
           InputProps={{
