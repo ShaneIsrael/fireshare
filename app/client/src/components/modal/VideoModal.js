@@ -6,11 +6,11 @@ import ShuffleIcon from '@mui/icons-material/Shuffle'
 import SaveIcon from '@mui/icons-material/Save'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import ReactPlayer from 'react-player'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
 import { VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
+import ReactPlayer from 'react-player'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -24,7 +24,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
   const [alert, setAlert] = React.useState({ open: false })
 
-  const playerRef = React.useRef(null)
+  const playerRef = React.useRef()
 
   const getRandomVideo = async () => {
     try {
@@ -152,8 +152,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         >
           <Grid container justifyContent="center">
             <Grid item xs={12}>
-              {/* <ReactPlayer
-                // ref={playerRef}
+              <ReactPlayer
+                ref={playerRef}
                 stopOnUnmount
                 url={`${
                   SERVED_BY === 'nginx'
@@ -164,8 +164,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 height="auto"
                 volume={0.5}
                 controls
-              /> */}
-              <video
+              />
+              {/* <video
                 ref={playerRef}
                 width="100%"
                 height="auto"
@@ -176,7 +176,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 }`}
                 disablePictureInPicture
                 controls
-              />
+              /> */}
             </Grid>
             <Grid item>
               <ButtonGroup variant="contained">
