@@ -178,7 +178,14 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   sx={{
                     textAlign: 'center',
                     background: 'rgba(50, 50, 50, 0.9)',
-                    '& .MuiOutlinedInput-root': { borderRadius: 0 },
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 0,
+                      width: {
+                        xs: 'auto',
+                        sm: 350,
+                        md: 450,
+                      },
+                    },
                     '& .MuiInputBase-input.Mui-disabled': {
                       WebkitTextFillColor: '#fff',
                     },

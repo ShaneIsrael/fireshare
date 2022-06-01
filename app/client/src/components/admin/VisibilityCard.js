@@ -17,7 +17,7 @@ const VisibilityCard = ({
   const nodeRef = useRef()
   const isVisible = useIsVisible(nodeRef)
   return (
-    <Grid item sx={{ width: cardWidth, mr: 2, mb: 2 }} ref={nodeRef}>
+    <Grid item sx={{ width: cardWidth }} ref={nodeRef}>
       <CompactVideoCard
         visible={isVisible}
         video={video}
