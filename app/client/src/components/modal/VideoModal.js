@@ -6,11 +6,11 @@ import ShuffleIcon from '@mui/icons-material/Shuffle'
 import SaveIcon from '@mui/icons-material/Save'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import ReactPlayer from 'react-player'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
 import { VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
+import ReactPlayer from 'react-player'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -24,7 +24,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
   const [alert, setAlert] = React.useState({ open: false })
 
-  const playerRef = React.useRef(null)
+  const playerRef = React.useRef()
 
   const getRandomVideo = async () => {
     try {
@@ -151,16 +151,16 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         >
           <Grid container justifyContent="center">
             <Grid item xs={12}>
-              <ReactPlayer
+              <video
                 ref={playerRef}
-                url={`${
+                width="100%"
+                height="auto"
+                src={`${
                   SERVED_BY === 'nginx'
                     ? `${URL}/_content/video/${vid.video_id}${vid.extension}`
                     : `${URL}/api/video?id=${vid.video_id}`
                 }`}
-                width="100%"
-                height="auto"
-                volume={0.5}
+                disablePictureInPicture
                 controls
               />
             </Grid>
@@ -178,7 +178,14 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   sx={{
                     textAlign: 'center',
                     background: 'rgba(50, 50, 50, 0.9)',
-                    '& .MuiOutlinedInput-root': { borderRadius: 0 },
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 0,
+                      width: {
+                        xs: 'auto',
+                        sm: 350,
+                        md: 450,
+                      },
+                    },
                     '& .MuiInputBase-input.Mui-disabled': {
                       WebkitTextFillColor: '#fff',
                     },

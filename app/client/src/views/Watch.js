@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactPlayer from 'react-player'
-import { Button, ButtonGroup, Grid, Paper } from '@mui/material'
+import { Button, ButtonGroup, Grid, Paper, Typography } from '@mui/material'
 import { AuthService, VideoService } from '../services'
 import { getServedBy, getUrl } from '../common/utils'
 import Navbar from '../components/nav/Navbar'
@@ -119,8 +119,6 @@ const Watch = () => {
         sx={{
           '&.Mui-disabled': {
             borderRight: 'none',
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 0,
             borderTop: 'none',
           },
         }}
@@ -147,6 +145,7 @@ const Watch = () => {
       </SnackbarAlert>
       <Helmet>
         <title>{details?.info?.title}</title>
+        <meta name="description" value={details?.info?.description}></meta>
         <meta property="og:type" value="video" />
         <meta property="og:url" value={window.location.href} />
         <meta property="og:title" value={details?.info?.title} />
@@ -188,18 +187,28 @@ const Watch = () => {
           />
         </Grid>
         <Grid item xs={12}>
-          <Paper elevation={3} width="100%" square sx={{ p: 1, mt: '-6px' }}>
+          <Paper width="100%" square sx={{ p: 1, mt: '-6px', background: 'rgba(0, 0, 0, 0.1)' }}>
             <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
-              <Grid container>
-                <Grid item xs>
+              <Grid container spacing={1}>
+                <Grid item xs={12}>
                   {controls()}
+                </Grid>
+                <Grid item xs={12}>
+                  <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
+                    <Typography variant="subtitle2">{details?.info?.description}</Typography>
+                  </Paper>
                 </Grid>
               </Grid>
             </Box>
             <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
-              <Grid container>
-                <Grid item xs={12} sx={{ textAlign: 'center' }}>
+              <Grid container spacing={1}>
+                <Grid item xs={12}>
                   {controls()}
+                </Grid>
+                <Grid item xs={12}>
+                  <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
+                    <Typography variant="subtitle2">{details?.info?.description}</Typography>
+                  </Paper>
                 </Grid>
               </Grid>
             </Box>
