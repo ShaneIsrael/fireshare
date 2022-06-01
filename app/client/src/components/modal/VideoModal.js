@@ -61,6 +61,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     if (videoId) {
       fetch()
     }
+    console.log(videoId)
   }, [videoId])
 
   const handleMouseDown = (e) => {
@@ -151,8 +152,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         >
           <Grid container justifyContent="center">
             <Grid item xs={12}>
-              <ReactPlayer
-                ref={playerRef}
+              {/* <ReactPlayer
+                // ref={playerRef}
+                stopOnUnmount
                 url={`${
                   SERVED_BY === 'nginx'
                     ? `${URL}/_content/video/${vid.video_id}${vid.extension}`
@@ -161,6 +163,18 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 width="100%"
                 height="auto"
                 volume={0.5}
+                controls
+              /> */}
+              <video
+                ref={playerRef}
+                width="100%"
+                height="auto"
+                src={`${
+                  SERVED_BY === 'nginx'
+                    ? `${URL}/_content/video/${vid.video_id}${vid.extension}`
+                    : `${URL}/api/video?id=${vid.video_id}`
+                }`}
+                disablePictureInPicture
                 controls
               />
             </Grid>
