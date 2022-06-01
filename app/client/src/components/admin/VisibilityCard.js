@@ -12,6 +12,7 @@ const VisibilityCard = ({
   cardWidth,
   feedView,
   authenticated,
+  openDetailsModal,
 }) => {
   const nodeRef = useRef()
   const isVisible = useIsVisible(nodeRef)
@@ -27,6 +28,7 @@ const VisibilityCard = ({
         cardWidth={cardWidth}
         feedView={feedView}
         authenticated={authenticated}
+        openDetailsModal={openDetailsModal}
       />
     </Grid>
   )

@@ -7,15 +7,16 @@ import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
 
 const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated }) => {
+  const [vids, setVideos] = React.useState(videos)
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
   })
 
-  const openVideo = (video) => {
+  const openVideo = (id) => {
     setVideoModal({
       open: true,
-      video,
+      id,
     })
   }
 
@@ -36,6 +37,13 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
       type: 'info',
       message: 'Scan initiated. This could take a few minutes.',
     })
+  }
+
+  React.useEffect(() => setVideos(videos), [videos])
+
+  const handleUpdate = (update) => {
+    const { id, ...rest } = update
+    setVideos((vs) => vs.map((v) => (v.video_id === id ? { ...v, info: { ...v.info, ...rest } } : v)))
   }
 
   const EMPTY_STATE = () => (
@@ -85,18 +93,20 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
       <VideoModal
         open={videoModal.open}
         onClose={() => setVideoModal({ open: false })}
-        video={videoModal.video}
+        videoId={videoModal.id}
         feedView={feedView}
         authenticated={authenticated}
+        updateCallback={handleUpdate}
       />
+
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      {(!videos || videos.length === 0) && EMPTY_STATE()}
-      {videos && videos.length !== 0 && (
+      {(!vids || vids.length === 0) && EMPTY_STATE()}
+      {vids && vids.length !== 0 && (
         <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
           <Grid container>
-            {videos.map((v) => (
+            {vids.map((v) => (
               <Grid key={v.video_id} item xs={12}>
                 <VideoListItem
                   video={v}

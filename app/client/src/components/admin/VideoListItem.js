@@ -1,26 +1,40 @@
 import React from 'react'
-import { Grid, IconButton, Paper, TextField, Tooltip, Typography } from '@mui/material'
+import { Grid, IconButton, InputAdornment, Paper, TextField, Tooltip, Typography } from '@mui/material'
 import PlayCircleIcon from '@mui/icons-material/PlayCircle'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
+import EditIcon from '@mui/icons-material/Edit'
 import Zoom from '@mui/material/Zoom'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, toHHMMSS, useDebounce } from '../../common/utils'
 import { VideoService } from '../../services'
+import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 
 const URL = getPublicWatchUrl()
 
 const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authenticated }) => {
-  const title = video.info?.title
+  const [title, setTitle] = React.useState(video.info?.title)
+  const [description, setDescription] = React.useState(video.info?.description)
+
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
   const [privateView, setPrivateView] = React.useState(video.info?.private)
+
+  const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
+
+  React.useEffect(() => {
+    setTitle(video.info?.title)
+    setDescription(video.info?.description)
+    setPrivateView(video.info?.private)
+    setUpdatedTitle(null)
+  }, [video])
 
   React.useEffect(() => {
     async function update() {
       try {
         await VideoService.updateTitle(video.video_id, debouncedTitle)
+        setTitle(updatedTitle)
         alertHandler({
           type: 'success',
           message: 'Title Updated',
@@ -37,7 +51,8 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
     if (debouncedTitle && debouncedTitle !== title) {
       update()
     }
-  }, [debouncedTitle, title, video.video_id, alertHandler])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedTitle])
 
   const handleMouseDown = (e) => {
     if (e.button === 1) {
@@ -59,8 +74,24 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
     }
   }
 
+  const handleDetailsModalClose = (update) => {
+    setDetailsModalOpen(false)
+    if (update) {
+      if (update.title !== title) setTitle(update.title)
+      if (update.description !== description) setDescription(update.description)
+    }
+  }
+
   return (
     <Paper square sx={{ height: 70, bgcolor: '#0b132b', borderBottom: '1px solid #046595' }}>
+      <UpdateDetailsModal
+        open={detailsModalOpen}
+        close={handleDetailsModalClose}
+        videoId={video.video_id}
+        currentTitle={title || ''}
+        currentDescription={description || ''}
+        alertHandler={alertHandler}
+      />
       <Grid container direction="column" sx={{ width: '100%', height: '100%' }}>
         <Grid container sx={{ width: 25, height: '100%', pl: 2 }} justifyContent="center" alignItems="center">
           <Grid item>
@@ -111,10 +142,19 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
             <TextField
               fullWidth
               size="small"
-              defaultValue={updatedTitle || title}
+              value={updatedTitle !== null ? updatedTitle : title}
               disabled={!authenticated}
               onChange={(e) => authenticated && setUpdatedTitle(e.target.value)}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 0 } }}
+              InputProps={{
+                startAdornment: authenticated && (
+                  <InputAdornment position="start">
+                    <IconButton size="small" onClick={() => setDetailsModalOpen(true)} edge="start">
+                      <EditIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
           </Grid>
           <Grid item sx={{ pl: 1, pr: 1 }}>
@@ -124,7 +164,11 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
           </Grid>
         </Grid>
         <Grid container sx={{ width: 50, height: '100%' }} justifyContent="center" alignItems="center">
-          <IconButton aria-label="play video" sx={{ width: 50, height: 50 }} onClick={() => openVideoHandler(video)}>
+          <IconButton
+            aria-label="play video"
+            sx={{ width: 50, height: 50 }}
+            onClick={() => openVideoHandler(video.video_id)}
+          >
             <PlayCircleIcon sx={{ width: 40, height: 40 }} color="primary" />
           </IconButton>
         </Grid>

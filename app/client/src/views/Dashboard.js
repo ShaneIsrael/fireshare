@@ -39,6 +39,35 @@ const Dashboard = () => {
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
   const navigate = useNavigate()
 
+  function fetchVideos() {
+    VideoService.getVideos()
+      .then((res) => {
+        setVideos(res.data.videos)
+        const tfolders = []
+        res.data.videos.forEach((v) => {
+          const split = v.path
+            .split('/')
+            .slice(0, -1)
+            .filter((f) => f !== '')
+          if (split.length > 0 && !tfolders.includes(split[0])) {
+            tfolders.push(split[0])
+          }
+        })
+        tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
+        setFolders(tfolders)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setLoading(false)
+        setAlert({
+          open: true,
+          type: 'error',
+          message: err.response?.data || 'Unknown Error',
+        })
+        console.log(err)
+      })
+  }
+
   React.useEffect(() => {
     try {
       async function isLoggedIn() {
@@ -48,38 +77,9 @@ const Dashboard = () => {
           setAuthenticated(true)
         }
       }
-
       isLoggedIn()
     } catch (err) {
       console.error(err)
-    }
-    function fetchVideos() {
-      VideoService.getVideos()
-        .then((res) => {
-          setVideos(res.data.videos)
-          const tfolders = []
-          res.data.videos.forEach((v) => {
-            const split = v.path
-              .split('/')
-              .slice(0, -1)
-              .filter((f) => f !== '')
-            if (split.length > 0 && !tfolders.includes(split[0])) {
-              tfolders.push(split[0])
-            }
-          })
-          tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
-          setFolders(tfolders)
-          setLoading(false)
-        })
-        .catch((err) => {
-          setLoading(false)
-          setAlert({
-            open: true,
-            type: 'error',
-            message: err.response?.data || 'Unknown Error',
-          })
-          console.log(err)
-        })
     }
     fetchVideos()
   }, [navigate])
@@ -114,6 +114,7 @@ const Dashboard = () => {
     if (style !== null) {
       setListStyle(style)
       setSetting('listStyle', style)
+      fetchVideos()
     }
   }
 
