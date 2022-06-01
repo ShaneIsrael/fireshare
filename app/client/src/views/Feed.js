@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import VideoCards from '../components/admin/VideoCards'
@@ -14,6 +14,7 @@ import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
 import selectTheme from '../common/reactSelectTheme'
+import SliderWrapper from '../components/misc/SliderWrapper'
 
 const settings = getSettings()
 
@@ -21,18 +22,61 @@ const createSelectFolders = (folders) => {
   return folders.map((f) => ({ value: f, label: f }))
 }
 
+function useQuery() {
+  const { search } = useLocation()
+
+  return React.useMemo(() => new URLSearchParams(search), [search])
+}
+
+const CARD_SIZE_DEFAULT = 375
+const CARD_SIZE_MULTIPLIER = 2
+
 const Feed = () => {
+  const query = useQuery()
+  const category = query.get('category')
   const [authenticated, setAuthenticated] = React.useState(false)
   const [videos, setVideos] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
+  const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
   const [selectedFolder, setSelectedFolder] = React.useState(
-    getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
+    category
+      ? { value: category, label: category }
+      : getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
   const navigate = useNavigate()
+
+  function fetchVideos() {
+    VideoService.getPublicVideos()
+      .then((res) => {
+        setVideos(res.data.videos)
+        const tfolders = []
+        res.data.videos.forEach((v) => {
+          const split = v.path
+            .split('/')
+            .slice(0, -1)
+            .filter((f) => f !== '')
+          if (split.length > 0 && !tfolders.includes(split[0])) {
+            tfolders.push(split[0])
+          }
+        })
+        tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
+        setFolders(tfolders)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setLoading(false)
+        setAlert({
+          open: true,
+          type: 'error',
+          message: err.response?.data || 'Unknown Error',
+        })
+        console.log(err)
+      })
+  }
 
   React.useEffect(() => {
     try {
@@ -47,34 +91,6 @@ const Feed = () => {
       isLoggedIn()
     } catch (err) {
       console.error(err)
-    }
-    function fetchVideos() {
-      VideoService.getPublicVideos()
-        .then((res) => {
-          setVideos(res.data.videos)
-          const tfolders = []
-          res.data.videos.forEach((v) => {
-            const split = v.path
-              .split('/')
-              .slice(0, -1)
-              .filter((f) => f !== '')
-            if (split.length > 0 && !tfolders.includes(split[0])) {
-              tfolders.push(split[0])
-            }
-          })
-          tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
-          setFolders(tfolders)
-          setLoading(false)
-        })
-        .catch((err) => {
-          setLoading(false)
-          setAlert({
-            open: true,
-            type: 'error',
-            message: err.response?.data || 'Unknown Error',
-          })
-          console.log(err)
-        })
     }
     fetchVideos()
   }, [navigate])
@@ -107,12 +123,25 @@ const Feed = () => {
     if (style !== null) {
       setListStyle(style)
       setSetting('listStyle', style)
+      fetchVideos()
     }
   }
 
   const handleFolderSelection = (folder) => {
     setSetting('folder', folder)
     setSelectedFolder(folder)
+    if ('URLSearchParams' in window) {
+      const searchParams = new URLSearchParams('')
+      searchParams.set('category', folder.value)
+      window.history.replaceState({ category: folder.value }, '', `/#/feed?${searchParams.toString()}`)
+    }
+  }
+
+  const handleCardSizeChange = (e, value) => {
+    const modifier = value / 100
+    const newSize = CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER * modifier
+    setCardSize(newSize)
+    setSetting('cardSize', newSize)
   }
 
   const options = [
@@ -133,10 +162,10 @@ const Feed = () => {
         <Grid sx={{}} container direction="row" justifyContent="center">
           <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
             <Grid item xs={12}>
-              <Grid container sx={{ pr: 4, pl: 4 }}>
+              <Grid container sx={{ pr: 2, pl: 2 }}>
                 <Grid item xs>
                   <Typography
-                    variant="h4"
+                    variant="h5"
                     sx={{
                       fontFamily: 'monospace',
                       fontWeight: 500,
@@ -148,6 +177,15 @@ const Feed = () => {
                   >
                     PUBLIC FEED
                   </Typography>
+                </Grid>
+                <Grid item sx={{ pr: 2, pt: 0.25 }}>
+                  <SliderWrapper
+                    width={100}
+                    cardSize={cardSize}
+                    defaultCardSize={CARD_SIZE_DEFAULT}
+                    cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
+                    onChangeCommitted={handleCardSizeChange}
+                  />
                 </Grid>
                 <Grid item>
                   <ToggleButtonGroup
@@ -202,6 +240,7 @@ const Feed = () => {
                       authenticated={authenticated}
                       loadingIcon={loading ? <LoadingSpinner /> : null}
                       feedView={true}
+                      size={cardSize}
                       videos={
                         selectedFolder.value === 'All Videos'
                           ? videos

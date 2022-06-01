@@ -12,11 +12,12 @@ const VisibilityCard = ({
   cardWidth,
   feedView,
   authenticated,
+  openDetailsModal,
 }) => {
   const nodeRef = useRef()
   const isVisible = useIsVisible(nodeRef)
   return (
-    <Grid item xs="auto" ref={nodeRef}>
+    <Grid item sx={{ width: cardWidth, mr: 2, mb: 2 }} ref={nodeRef}>
       <CompactVideoCard
         visible={isVisible}
         video={video}
@@ -27,6 +28,7 @@ const VisibilityCard = ({
         cardWidth={cardWidth}
         feedView={feedView}
         authenticated={authenticated}
+        openDetailsModal={openDetailsModal}
       />
     </Grid>
   )

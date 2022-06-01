@@ -26,6 +26,11 @@ const service = {
       private: value,
     })
   },
+  updateDetails(id, details) {
+    return Api().put(`/api/video/details/${id}`, {
+      ...details,
+    })
+  },
   scan() {
     return Api().get('/api/manual/scan')
   },

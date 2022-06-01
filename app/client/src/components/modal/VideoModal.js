@@ -16,11 +16,11 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
+const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCallback }) => {
   const [title, setTitle] = React.useState('')
   const [updateable, setUpdatable] = React.useState(false)
-  const [privateView, setPrivateView] = React.useState(video?.info?.private)
-  const [vid, setVideo] = React.useState(video)
+  const [privateView, setPrivateView] = React.useState(false)
+  const [vid, setVideo] = React.useState(null)
 
   const [alert, setAlert] = React.useState({ open: false })
 
@@ -41,11 +41,27 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
   }
 
   React.useEffect(() => {
-    setVideo(video)
-    setTitle(video?.info?.title)
-    setPrivateView(video?.info?.private)
-    setUpdatable(false)
-  }, [video])
+    async function fetch() {
+      try {
+        const details = (await VideoService.getDetails(videoId)).data
+        setVideo(details)
+        setTitle(details.info?.title)
+        setPrivateView(details.info?.private)
+        setUpdatable(false)
+      } catch (err) {
+        setAlert(
+          setAlert({
+            type: 'error',
+            message: 'Unable to load video details',
+            open: true,
+          }),
+        )
+      }
+    }
+    if (videoId) {
+      fetch()
+    }
+  }, [videoId])
 
   const handleMouseDown = (e) => {
     if (e.button === 1) {
@@ -58,6 +74,7 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
       try {
         await VideoService.updateTitle(vid.video_id, title)
         setUpdatable(false)
+        updateCallback({ id: vid.video_id, title })
         setAlert({
           type: 'success',
           message: 'Title Updated',
@@ -77,6 +94,7 @@ const VideoModal = ({ open, onClose, video, feedView, authenticated }) => {
     if (authenticated) {
       try {
         await VideoService.updatePrivacy(vid.video_id, !privateView)
+        updateCallback({ id: vid.video_id, private: !privateView })
         setAlert({
           type: privateView ? 'info' : 'warning',
           message: privateView ? `Added to your public feed` : `Removed from your public feed`,

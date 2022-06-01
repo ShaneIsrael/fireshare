@@ -99,18 +99,34 @@ def sync_metadata():
                 click.echo(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
 
 @cli.command()
-def create_posters():
+@click.option("--regenerate", "-r", help="Overwrite existing posters", is_flag=True)
+@click.option("--skip", "-s", help="Amount to skip into the video before extracting a poster image, as a %, e.g. 0.05 for 5%", type=float, default=0)
+def create_posters(regenerate, skip):
     with create_app().app_context():
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
         vinfos = VideoInfo.query.all()
-        for v in vinfos:
-            derived_path = Path(processed_root, "derived", v.video_id)
-            video_path = Path(processed_root, "video_links", v.video_id + ".mp4")
-            if not Path(derived_path, "poster.jpg").exists():
-                print('Creating poster for {}'.format(v.video_id))
+        for vi in vinfos:
+            derived_path = Path(processed_root, "derived", vi.video_id)
+            video_path = Path(processed_root, "video_links", vi.video_id + ".mp4")
+            poster_path = Path(derived_path, "poster.jpg")
+            should_create_poster = (not poster_path.exists() or regenerate)
+            if should_create_poster:
                 if not derived_path.exists():
                     derived_path.mkdir(parents=True)
-                util.create_poster(video_path, derived_path / "poster.jpg")
+                poster_time = int(vi.duration * skip)
+                util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
+            else:
+                click.echo(f"Skipping creation of poster for video {vi.video_id} because it exists at {str(poster_path)}")
+
+@cli.command()
+@click.pass_context
+def bulk_import(ctx):
+    click.echo("Scanning for videos...")
+    ctx.invoke(scan_videos)
+    click.echo("Syncing metadata...")
+    ctx.invoke(sync_metadata)
+    click.echo("Creating posters...")
+    ctx.invoke(create_posters)
 
 if __name__=="__main__":
     cli()

@@ -6,19 +6,21 @@ import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
 
-const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticated }) => {
+const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticated, size }) => {
+  const [vids, setVideos] = React.useState(videos)
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
   })
+
   const [selectedTimeout, setSelectedTimeout] = React.useState(null)
   const [selected, setSelected] = React.useState(null)
 
-  const openVideo = (video) => {
+  const openVideo = (id) => {
     clearTimeout(selectedTimeout)
     setVideoModal({
       open: true,
-      video,
+      id,
     })
   }
 
@@ -52,6 +54,13 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
       type: 'info',
       message: 'Scan initiated. This could take a few minutes.',
     })
+  }
+
+  React.useEffect(() => setVideos(videos), [videos])
+
+  const handleUpdate = (update) => {
+    const { id, ...rest } = update
+    setVideos((vs) => vs.map((v) => (v.video_id === id ? { ...v, info: { ...v.info, ...rest } } : v)))
   }
 
   const EMPTY_STATE = () => (
@@ -101,19 +110,20 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
       <VideoModal
         open={videoModal.open}
         onClose={onModalClose}
-        video={videoModal.video}
+        videoId={videoModal.id}
         feedView={feedView}
         authenticated={authenticated}
+        updateCallback={handleUpdate}
       />
       <Box>
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
 
-        {(!videos || videos.length === 0) && EMPTY_STATE()}
-        {videos && videos.length !== 0 && (
-          <Grid container spacing={1} justifyContent="center" alignItems="flex-start">
-            {videos.map((v) => (
+        {(!vids || vids.length === 0) && EMPTY_STATE()}
+        {vids && vids.length !== 0 && (
+          <Grid container justifyContent="center" alignItems="flex-start">
+            {vids.map((v) => (
               <VisibilityCard
                 key={v.video_id}
                 video={v}
@@ -121,7 +131,7 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
                 handleSelected={handleSelected}
                 openVideo={openVideo}
                 selected={selected}
-                cardWidth={375}
+                cardWidth={size}
                 feedView={feedView}
                 authenticated={authenticated}
               />
