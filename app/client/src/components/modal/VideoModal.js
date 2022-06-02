@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, TextField } from '@mui/material'
+import { Box, Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
@@ -10,7 +10,6 @@ import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
 import { VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
-import ReactPlayer from 'react-player'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -18,6 +17,7 @@ const SERVED_BY = getServedBy()
 
 const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCallback }) => {
   const [title, setTitle] = React.useState('')
+  const [description, setDescription] = React.useState('')
   const [updateable, setUpdatable] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(false)
   const [vid, setVideo] = React.useState(null)
@@ -33,6 +33,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         : (await VideoService.getRandomPublicVideo()).data
       setVideo(res)
       setTitle(res.info?.title)
+      setDescription(res.info?.description)
       setUpdatable(false)
       setPrivateView(res.info?.private)
     } catch (err) {
@@ -46,6 +47,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         const details = (await VideoService.getDetails(videoId)).data
         setVideo(details)
         setTitle(details.info?.title)
+        setDescription(details.info?.description)
         setPrivateView(details.info?.private)
         setUpdatable(false)
       } catch (err) {
@@ -72,12 +74,12 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const update = async () => {
     if (updateable && authenticated) {
       try {
-        await VideoService.updateTitle(vid.video_id, title)
+        await VideoService.updateDetails(vid.video_id, { title, description })
         setUpdatable(false)
-        updateCallback({ id: vid.video_id, title })
+        updateCallback({ id: vid.video_id, title, description })
         setAlert({
           type: 'success',
-          message: 'Title Updated',
+          message: 'Details Updated',
           open: true,
         })
       } catch (err) {
@@ -109,13 +111,20 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
   const handleTitleChange = (newValue) => {
     if (newValue) {
-      setUpdatable(newValue !== vid.info?.title)
+      setUpdatable(newValue !== vid.info?.title || description !== vid.info?.description)
     }
     setTitle(newValue)
   }
 
+  const handleDescriptionChange = (newValue) => {
+    if (newValue) {
+      setUpdatable(newValue !== vid.info?.description || title !== vid.info?.title)
+    }
+    setDescription(newValue)
+  }
+
   const copyTimestamp = () => {
-    navigator.clipboard.writeText(`${PURL}${vid.video_id}?t=${playerRef.current?.getCurrentTime()}`)
+    navigator.clipboard.writeText(`${PURL}${vid.video_id}?t=${playerRef.current?.currentTime}`)
     setAlert({
       type: 'info',
       message: 'Time stamped link copied to clipboard',
@@ -192,6 +201,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   }}
                   size="small"
                   value={title}
+                  placeholder="Video Title"
                   disabled={!authenticated}
                   onChange={(e) => handleTitleChange(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && update()}
@@ -234,6 +244,25 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   <AccessTimeIcon />
                 </Button>
               </ButtonGroup>
+              <Paper sx={{ width: '100%', mt: 1, p: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
+                <TextField
+                  fullWidth
+                  disabled={!authenticated}
+                  sx={{
+                    '& .MuiInputBase-input.Mui-disabled': {
+                      WebkitTextFillColor: '#fff',
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      border: 'none',
+                    },
+                  }}
+                  size="small"
+                  placeholder="Enter a video description..."
+                  value={description || ''}
+                  onChange={(e) => handleDescriptionChange(e.target.value)}
+                  multiline
+                />
+              </Paper>
             </Grid>
           </Grid>
         </Box>
