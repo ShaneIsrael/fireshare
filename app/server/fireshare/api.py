@@ -18,12 +18,14 @@ SCAN_COMMAND = "python /app/server/fireshare/cli.py scan-videos"
 SYNC_COMMAND = "python /app/server/fireshare/cli.py sync-metadata"
 POSTER_COMMAND = "python /app/server/fireshare/cli.py create-posters"
 
-def get_video_path(id):
+def get_video_path(id, subid=None):
     video = Video.query.filter_by(video_id=id).first()
     if not video:
         raise Exception(f"No video found for {id}")
     paths = current_app.config['PATHS']
-    video_path = paths["processed"] / "video_links" / f"{id}{video.extension}"
+    subid_suffix = f"-{subid}" if subid else ""
+    ext = ".mp4" if subid else video.extension
+    video_path = paths["processed"] / "video_links" / f"{id}{subid_suffix}{ext}"
     return str(video_path)
 
 @api.route('/w/<video_id>')
@@ -101,7 +103,8 @@ def get_video():
     # for testing ids are just the name of the sample video until
     # we have the videos added to a db table
     video_id = request.args.get('id')
-    video_path = get_video_path(video_id)
+    subid = request.args.get('subid')
+    video_path = get_video_path(video_id, subid)
     file_size = os.stat(video_path).st_size
     start = 0
     length = 10240
