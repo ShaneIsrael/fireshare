@@ -244,8 +244,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   <AccessTimeIcon />
                 </Button>
               </ButtonGroup>
-              {authenticated ||
-                (description && (
+              {(authenticated ||
+                description) && (
                   <Paper sx={{ width: '100%', mt: 1, p: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
                     <TextField
                       fullWidth
@@ -265,7 +265,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       multiline
                     />
                   </Paper>
-                ))}
+                )}
             </Grid>
           </Grid>
         </Box>
