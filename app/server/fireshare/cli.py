@@ -32,7 +32,7 @@ def scan_videos():
             video_links.mkdir()
 
         click.echo(f"Scanning {str(raw_videos)} for videos")
-        video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix in ['.mp4']]
+        video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix.lower() in ['.mp4']]
 
         new_videos = []
         for vf in video_files:
@@ -107,7 +107,10 @@ def create_posters(regenerate, skip):
         vinfos = VideoInfo.query.all()
         for vi in vinfos:
             derived_path = Path(processed_root, "derived", vi.video_id)
-            video_path = Path(processed_root, "video_links", vi.video_id + ".mp4")
+            video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
+            if not video_path.exists():
+                click.echo(f"Skipping creation of poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+                continue
             poster_path = Path(derived_path, "poster.jpg")
             should_create_poster = (not poster_path.exists() or regenerate)
             if should_create_poster:
