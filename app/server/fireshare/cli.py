@@ -7,6 +7,8 @@ from fireshare import create_app, db, util
 from fireshare.models import User, Video, VideoInfo
 from werkzeug.security import generate_password_hash
 from pathlib import Path
+from sqlalchemy import func
+import subprocess as sp
 
 @click.group()
 def cli():
@@ -32,7 +34,7 @@ def scan_videos():
             video_links.mkdir()
 
         click.echo(f"Scanning {str(raw_videos)} for videos")
-        video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix.lower() in ['.mp4']]
+        video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix.lower() in ['.mp4', '.mov', '.mkv']]
 
         new_videos = []
         for vf in video_files:
@@ -95,6 +97,42 @@ def sync_metadata():
                 v.height = height
                 db.session.add(v)
                 db.session.commit()
+            else:
+                click.echo(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
+
+@cli.command()
+def create_web_videos():
+    with create_app().app_context():
+        paths = current_app.config['PATHS']
+        video_links = paths["processed"] / "video_links"
+        videos = Video.query.filter(func.lower(Video.extension)=='.mkv').all()
+        fd = os.open(str(video_links.absolute()), os.O_DIRECTORY)
+        for v in videos:
+            vpath = paths["processed"] / "video_links" / str(v.video_id + v.extension)
+            if Path(vpath).is_file():
+                click.echo(f"Found mkv video to process {v.video_id}: {v.path}")
+                out_mp4_fn = paths["processed"] / "derived" / v.video_id / f"{v.video_id}-1.mp4"
+                if not out_mp4_fn.exists():
+                    # TODO check video codec and if it's h264 already, just do a simple ffmpeg -i input.mkv -c copy output.mp4
+                    # Otherwise, transcode it
+                    cmd = ['ffmpeg', '-y', '-i', str(vpath), '-c:v', 'libx264', '-c:a', 'aac', str(out_mp4_fn)]
+                    click.echo(f"Transcoding video: {' '.join(cmd)}")
+                    sp.call(cmd)
+
+                    dst = Path(paths["processed"] / "video_links" / f"{v.video_id}-1.mp4")
+                    common_root = Path(*os.path.commonprefix([out_mp4_fn.parts, dst.parts]))
+                    num_up = len(dst.parts)-1 - len(common_root.parts)
+                    prefix = "../" * num_up
+                    rel_src = Path(prefix + str(out_mp4_fn).replace(str(common_root), ''))
+                    if not dst.exists():
+                        click.echo(f"Linking {str(rel_src)} --> {str(dst)}")
+                        try:
+                            os.symlink(out_mp4_fn, dst, dir_fd=fd)
+                        except FileExistsError:
+                            click.echo(f"{dst} exists already")
+                else:
+                    click.echo(f"Skipping {v.video_id} because {str(out_mp4_fn)} already exists")
+
             else:
                 click.echo(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
 
