@@ -244,25 +244,28 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   <AccessTimeIcon />
                 </Button>
               </ButtonGroup>
-              <Paper sx={{ width: '100%', mt: 1, p: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
-                <TextField
-                  fullWidth
-                  disabled={!authenticated}
-                  sx={{
-                    '& .MuiInputBase-input.Mui-disabled': {
-                      WebkitTextFillColor: '#fff',
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      border: 'none',
-                    },
-                  }}
-                  size="small"
-                  placeholder="Enter a video description..."
-                  value={description || ''}
-                  onChange={(e) => handleDescriptionChange(e.target.value)}
-                  multiline
-                />
-              </Paper>
+              {authenticated ||
+                (description && (
+                  <Paper sx={{ width: '100%', mt: 1, p: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
+                    <TextField
+                      fullWidth
+                      disabled={!authenticated}
+                      sx={{
+                        '& .MuiInputBase-input.Mui-disabled': {
+                          WebkitTextFillColor: '#fff',
+                        },
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          border: 'none',
+                        },
+                      }}
+                      size="small"
+                      placeholder="Enter a video description..."
+                      value={description || ''}
+                      onChange={(e) => handleDescriptionChange(e.target.value)}
+                      multiline
+                    />
+                  </Paper>
+                ))}
             </Grid>
           </Grid>
         </Box>
