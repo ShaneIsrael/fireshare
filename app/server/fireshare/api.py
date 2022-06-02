@@ -19,9 +19,11 @@ SYNC_COMMAND = "python /app/server/fireshare/cli.py sync-metadata"
 POSTER_COMMAND = "python /app/server/fireshare/cli.py create-posters"
 
 def get_video_path(id):
-    # db lookup to get path to mp4
+    video = Video.query.filter_by(video_id=id).first()
+    if not video:
+        raise Exception(f"No video found for {id}")
     paths = current_app.config['PATHS']
-    video_path = paths["processed"] / "video_links" / f"{id}.mp4"
+    video_path = paths["processed"] / "video_links" / f"{id}{video.extension}"
     return str(video_path)
 
 @api.route('/w/<video_id>')
