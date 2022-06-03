@@ -1,13 +1,8 @@
 from pathlib import Path
-import math
-import os
 import json
-import logging
 import subprocess as sp
-import time
-from hashlib import md5
-from binascii import b2a_hex
 import xxhash
+from fireshare import logger
 
 def video_id(path: Path, mb=16):
     """
@@ -19,19 +14,24 @@ def video_id(path: Path, mb=16):
 
 def get_media_info(path):
     try:
-        args = {'path': path}
-        # run this without the fields after stream to see all fields
-        cmd = 'ffprobe -v quiet -print_format json -show_entries stream {path}'.format(**args)
-        print('Executing {cmd}'.format(**vars()))
+        cmd = f'ffprobe -v quiet -print_format json -show_entries stream {path}'
+        logger.debug(f"$ {' '.join(cmd)}")
         data = json.loads(sp.check_output(cmd.split()).decode('utf-8'))
         return data['streams']
     except Exception as ex:
-        print('Could not extract video info', ex)
+        logger.warn('Could not extract video info', ex)
         return None
 
 def create_poster(video_path, out_path, second=0):
     cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', str(out_path)]
-    print(f'Generating poster at {second}s: {" ".join(cmd)}')
+    logger.info(f'Generating poster at {second}s')
+    logger.debug(f"$ {' '.join(cmd)}")
+    sp.call(cmd)
+
+def transcode_video(video_path, out_path):
+    logger.info(f"Transcoding video")
+    cmd = ['ffmpeg', '-y', '-i', str(video_path), '-c:v', 'libx264', '-c:a', 'aac', str(out_path)]
+    logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)
 
 def dur_string_to_seconds(dur: str) -> float:
@@ -48,7 +48,7 @@ def dur_string_to_seconds(dur: str) -> float:
         h, m, s = int(h), int(m), int(s.split('.')[0])
         return s + m*60 + h*60*60
     else:
-        print(f'Could not parse duration in to total seconds from {dur}')
+        logger.warn(f'Could not parse duration in to total seconds from {dur}')
         return None
 
 def seconds_to_dur_string(sec):

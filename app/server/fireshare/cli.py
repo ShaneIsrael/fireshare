@@ -3,7 +3,7 @@ import os
 import json
 import click
 from flask import current_app
-from fireshare import create_app, db, util
+from fireshare import create_app, db, util, logger
 from fireshare.models import User, Video, VideoInfo
 from werkzeug.security import generate_password_hash
 from pathlib import Path
@@ -33,7 +33,7 @@ def scan_videos():
         if not video_links.is_dir():
             video_links.mkdir()
 
-        click.echo(f"Scanning {str(raw_videos)} for videos")
+        logger.info(f"Scanning {str(raw_videos)} for videos")
         video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix.lower() in ['.mp4', '.mov', '.mkv']]
 
         new_videos = []
@@ -43,17 +43,17 @@ def scan_videos():
 
             existing = Video.query.filter_by(video_id=video_id).first()
             if existing:
-                click.echo(f"Skipping Video {video_id} at {str(path)} because it already exists at {existing.path}")
+                logger.info(f"Skipping Video {video_id} at {str(path)} because it already exists at {existing.path}")
             else:
                 v = Video(video_id=video_id, extension=vf.suffix, path=path)
-                click.echo(f"Adding Video {video_id} at {str(path)}")
+                logger.info(f"Adding Video {video_id} at {str(path)}")
                 new_videos.append(v)
         
         if new_videos:
             db.session.add_all(new_videos)
             db.session.commit()
         else:
-            click.echo(f"No new videos found")
+            logger.info(f"No new videos found")
 
         fd = os.open(str(video_links.absolute()), os.O_DIRECTORY)
         for nv in new_videos:
@@ -64,11 +64,11 @@ def scan_videos():
             prefix = "../" * num_up
             rel_src = Path(prefix + str(src).replace(str(common_root), ''))
             if not dst.exists():
-                click.echo(f"Linking {str(rel_src)} --> {str(dst)}")
+                logger.info(f"Linking {str(rel_src)} --> {str(dst)}")
                 try:
                     os.symlink(src, dst, dir_fd=fd)
                 except FileExistsError:
-                    click.echo(f"{dst} exists already")
+                    logger.info(f"{dst} exists already")
             info = VideoInfo(video_id=nv.video_id, title=Path(nv.path).stem)
             db.session.add(info)
         db.session.commit()
@@ -79,7 +79,7 @@ def sync_metadata():
         paths = current_app.config['PATHS']
         videos = VideoInfo.query.filter(VideoInfo.info==None).all()
         if not videos:
-            click.echo('Video metadata up to date')
+            logger.info('Video metadata up to date')
         for v in videos:
             vpath = paths["processed"] / "video_links" / str(v.video_id + v.video.extension)
             if Path(vpath).is_file():
@@ -90,7 +90,7 @@ def sync_metadata():
                 elif 'tags' in vcodec:
                     duration = util.dur_string_to_seconds(vcodec['tags']['DURATION'])
                 width, height = int(vcodec['width']), int(vcodec['height'])
-                click.echo(f'Scanned {v.video_id} duration={duration}s, resolution={width}x{height}: {v.video.path}')
+                logger.info(f'Scanned {v.video_id} duration={duration}s, resolution={width}x{height}: {v.video.path}')
                 v.info = json.dumps(info)
                 v.duration = duration
                 v.width = width
@@ -98,7 +98,7 @@ def sync_metadata():
                 db.session.add(v)
                 db.session.commit()
             else:
-                click.echo(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
+                logger.info(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
 
 @cli.command()
 def create_web_videos():
@@ -110,14 +110,12 @@ def create_web_videos():
         for v in videos:
             vpath = paths["processed"] / "video_links" / str(v.video_id + v.extension)
             if Path(vpath).is_file():
-                click.echo(f"Found mkv video to process {v.video_id}: {v.path}")
+                logger.info(f"Found mkv video to process {v.video_id}: {v.path}")
                 out_mp4_fn = paths["processed"] / "derived" / v.video_id / f"{v.video_id}-1.mp4"
                 if not out_mp4_fn.exists():
                     # TODO check video codec and if it's h264 already, just do a simple ffmpeg -i input.mkv -c copy output.mp4
                     # Otherwise, transcode it
-                    cmd = ['ffmpeg', '-y', '-i', str(vpath), '-c:v', 'libx264', '-c:a', 'aac', str(out_mp4_fn)]
-                    click.echo(f"Transcoding video: {' '.join(cmd)}")
-                    sp.call(cmd)
+                    util.transcode_video(vpath, out_mp4_fn)
 
                     dst = Path(paths["processed"] / "video_links" / f"{v.video_id}-1.mp4")
                     common_root = Path(*os.path.commonprefix([out_mp4_fn.parts, dst.parts]))
@@ -125,16 +123,16 @@ def create_web_videos():
                     prefix = "../" * num_up
                     rel_src = Path(prefix + str(out_mp4_fn).replace(str(common_root), ''))
                     if not dst.exists():
-                        click.echo(f"Linking {str(rel_src)} --> {str(dst)}")
+                        logger.info(f"Linking {str(rel_src)} --> {str(dst)}")
                         try:
                             os.symlink(out_mp4_fn, dst, dir_fd=fd)
                         except FileExistsError:
-                            click.echo(f"{dst} exists already")
+                            logger.info(f"{dst} exists already")
                 else:
-                    click.echo(f"Skipping {v.video_id} because {str(out_mp4_fn)} already exists")
+                    logger.info(f"Skipping {v.video_id} because {str(out_mp4_fn)} already exists")
 
             else:
-                click.echo(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
+                logger.info(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
 
 @cli.command()
 @click.option("--regenerate", "-r", help="Overwrite existing posters", is_flag=True)
@@ -147,7 +145,7 @@ def create_posters(regenerate, skip):
             derived_path = Path(processed_root, "derived", vi.video_id)
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
             if not video_path.exists():
-                click.echo(f"Skipping creation of poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+                logger.info(f"Skipping creation of poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
                 continue
             poster_path = Path(derived_path, "poster.jpg")
             should_create_poster = (not poster_path.exists() or regenerate)
@@ -157,7 +155,7 @@ def create_posters(regenerate, skip):
                 poster_time = int(vi.duration * skip)
                 util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
             else:
-                click.echo(f"Skipping creation of poster for video {vi.video_id} because it exists at {str(poster_path)}")
+                logger.info(f"Skipping creation of poster for video {vi.video_id} because it exists at {str(poster_path)}")
 
 @cli.command()
 @click.pass_context

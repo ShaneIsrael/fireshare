@@ -42,6 +42,7 @@ def manual_scan():
     if not current_app.config["ENVIRONMENT"] == 'production':
         return Response(response='You must be running in production for this task to work.', status=400)
     else:
+        current_app.logger.info(f"Executed manual scan")
         Popen("{}; {}; {};".format(SCAN_COMMAND, SYNC_COMMAND, POSTER_COMMAND), shell=True)
     return Response(status=200)
 
@@ -55,12 +56,14 @@ def get_videos():
 def get_random_video():
     row_count = Video.query.count()
     random_video = Video.query.offset(int(row_count * random.random())).first()
+    current_app.logger.info(f"Fetched random video {random_video.video_id}: {random_video.info.title}")
     return jsonify(random_video.json())
 
 @api.route('/api/video/public/random')
 def get_random_public_video():
     row_count =  Video.query.filter(Video.info.has(private=False)).count()
     random_video = Video.query.filter(Video.info.has(private=False)).offset(int(row_count * random.random())).first()
+    current_app.logger.info(f"Fetched public random video {random_video.video_id}: {random_video.info.title}")
     return jsonify(random_video.json())
 
 @api.route('/api/videos/public')
