@@ -12,9 +12,7 @@ FROM python:3.9-slim-buster
 WORKDIR /
 RUN apt-get update && apt-get install -y \
     nginx nginx-extras supervisor build-essential \
-    gcc libc-dev libffi-dev python3-pip git yasm \
-    cmake libtool libc6 libc6-dev unzip wget libnuma1 \
-    libnuma-dev
+    gcc libc-dev libffi-dev python3-pip git
 
 RUN adduser --disabled-password --gecos '' nginx
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
@@ -27,13 +25,22 @@ COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
 RUN pip install /app/server
 
+# Install NVENC dependencies
+RUN  yasm cmake libtool libc6 libc6-dev unzip wget libnuma1 libnuma-dev
 RUN git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git
-RUN cd nv-codec-headers && sudo make install && cd /
+WORKDIR /nv-codec-headers
+RUN make install
+
+# Install FFMPEG
+WORKDIR /
 RUN git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg/
+WORKDIR /ffmpeg
 RUN ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64 --disable-static --enable-shared
 RUN make -j 8
-RUN sudo make install
+RUN make install
 
+
+WORKDIR /
 ENV FLASK_APP /app/server/fireshare:create_app()
 ENV FLASK_ENV production
 ENV ENVIRONMENT production
