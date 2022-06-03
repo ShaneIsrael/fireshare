@@ -22,7 +22,6 @@ const CompactVideoCard = ({
   alertHandler,
   selectedHandler,
   selected,
-  visible,
   cardWidth,
   feedView,
   authenticated,
@@ -110,18 +109,6 @@ const CompactVideoCard = ({
   const previewVideoHeight =
     video.info?.width && video.info?.height ? cardWidth * (video.info.height / video.info.width) : cardWidth / 1.77
 
-  if (!visible)
-    return (
-      <div
-        // calculate the rendered cards height based on the video dimesions and our css styling heights
-        style={{
-          width: cardWidth,
-          background: '#000e393b',
-          height: previewVideoHeight + 40,
-        }}
-      />
-    )
-
   return (
     <>
       <UpdateDetailsModal
@@ -205,7 +192,7 @@ const CompactVideoCard = ({
             onMouseLeave={handleMouseLeave}
             onMouseDown={handleMouseDown}
           >
-            <img
+            {/* <img
               src={`${
                 SERVED_BY === 'nginx'
                   ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
@@ -215,6 +202,20 @@ const CompactVideoCard = ({
               style={{
                 width: cardWidth,
               }}
+            /> */}
+            <video
+              style={{
+                width: cardWidth,
+              }}
+              src={`${
+                SERVED_BY === 'nginx'
+                  ? `${URL}/_content/derived/${video.video_id}/boomerang-preview.webm`
+                  : `${URL}/api/video/poster?id=${video.video_id}&animated=true`
+              }`}
+              muted
+              autoPlay
+              loop
+              disablePictureInPicture
             />
             {hover && (
               <video
