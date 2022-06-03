@@ -48,9 +48,10 @@ def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
     # ffmpeg -ss 0 -t 1.5 -i in.mp4 -y -filter_complex "[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:720" -an out.mp4
     s = time.time()
     boomerang_filter_720p = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:720'
+    boomerang_filter_480p = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:480'
     boomerang_filter = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat'
     cmd = ['ffmpeg', '-v', 'quiet', '-ss', '0', '-t', str(clip_duration),
-        '-i', str(video_path), '-y', '-filter_complex', boomerang_filter_720p, '-an', str(out_path)]
+        '-i', str(video_path), '-y', '-filter_complex', boomerang_filter_480p, '-an', str(out_path)]
     logger.info(f"Creating boomering preview")
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)
