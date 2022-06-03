@@ -169,7 +169,7 @@ def create_boomerang_posters(regenerate):
             if not video_path.exists():
                 logger.info(f"Skipping creation of boomerang poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
                 continue
-            poster_path = Path(derived_path, "boomerang-preview.gif")
+            poster_path = Path(derived_path, "boomerang-preview.webm")
             should_create_poster = (not poster_path.exists() or regenerate)
             if should_create_poster:
                 if not derived_path.exists():
