@@ -197,7 +197,21 @@ const CompactVideoCard = ({
             onMouseLeave={handleMouseLeave}
             onMouseDown={handleMouseDown}
           >
-            {showBoomerang ? (
+            <video
+              width={cardWidth}
+              height={previewVideoHeight}
+              src={`${
+                SERVED_BY === 'nginx'
+                  ? `${URL}/_content/derived/${video.video_id}/boomerang-preview.webm`
+                  : `${URL}/api/video/poster?id=${video.video_id}&animated=true`
+              }`}
+              // onError={handleBoomerangError}
+              muted
+              autoPlay
+              loop
+              disablePictureInPicture
+            />
+            {/* {showBoomerang ? (
               <video
                 width={cardWidth}
                 height={previewVideoHeight}
@@ -224,7 +238,7 @@ const CompactVideoCard = ({
                   width: cardWidth,
                 }}
               />
-            )}
+            )} */}
             {hover && (
               <video
                 style={{
