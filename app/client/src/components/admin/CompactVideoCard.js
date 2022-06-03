@@ -28,6 +28,7 @@ const CompactVideoCard = ({
 }) => {
   const [title, setTitle] = React.useState(video.info?.title)
   const [description, setDescription] = React.useState(video.info?.description)
+  const [showBoomerang, setShowBoomerang] = React.useState(true)
   // const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
@@ -104,6 +105,10 @@ const CompactVideoCard = ({
       if (update.title !== title) setTitle(update.title)
       if (update.description !== description) setDescription(update.description)
     }
+  }
+
+  const handleBoomerangError = (e) => {
+    setShowBoomerang(false)
   }
 
   const previewVideoHeight =
@@ -192,31 +197,34 @@ const CompactVideoCard = ({
             onMouseLeave={handleMouseLeave}
             onMouseDown={handleMouseDown}
           >
-            {/* <img
-              src={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
-                  : `${URL}/api/video/poster?id=${video.video_id}`
-              }`}
-              alt=""
-              style={{
-                width: cardWidth,
-              }}
-            /> */}
-            <video
-              style={{
-                width: cardWidth,
-              }}
-              src={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/boomerang-preview.webm`
-                  : `${URL}/api/video/poster?id=${video.video_id}&animated=true`
-              }`}
-              muted
-              autoPlay
-              loop
-              disablePictureInPicture
-            />
+            {showBoomerang ? (
+              <video
+                width={cardWidth}
+                height={previewVideoHeight}
+                src={`${
+                  SERVED_BY === 'nginx'
+                    ? `${URL}/_content/derived/${video.video_id}/boomerang-preview.webm`
+                    : `${URL}/api/video/poster?id=${video.video_id}&animated=true`
+                }`}
+                onError={handleBoomerangError}
+                muted
+                autoPlay
+                loop
+                disablePictureInPicture
+              />
+            ) : (
+              <img
+                src={`${
+                  SERVED_BY === 'nginx'
+                    ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
+                    : `${URL}/api/video/poster?id=${video.video_id}`
+                }`}
+                alt=""
+                style={{
+                  width: cardWidth,
+                }}
+              />
+            )}
             {hover && (
               <video
                 style={{
