@@ -158,6 +158,28 @@ def create_posters(regenerate, skip):
                 logger.info(f"Skipping creation of poster for video {vi.video_id} because it exists at {str(poster_path)}")
 
 @cli.command()
+@click.option("--regenerate", "-r", help="Overwrite existing posters", is_flag=True)
+def create_boomerang_posters(regenerate):
+    with create_app().app_context():
+        processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+        vinfos = VideoInfo.query.all()
+        for vi in vinfos:
+            derived_path = Path(processed_root, "derived", vi.video_id)
+            video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
+            if not video_path.exists():
+                logger.info(f"Skipping creation of boomerang poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+                continue
+            poster_path = Path(derived_path, "boomerang-preview.gif")
+            should_create_poster = (not poster_path.exists() or regenerate)
+            if should_create_poster:
+                if not derived_path.exists():
+                    derived_path.mkdir(parents=True)
+                util.create_boomerang_preview(video_path, poster_path)
+            else:
+                logger.info(f"Skipping creation of boomerang poster for video {vi.video_id} because it exists at {str(poster_path)}")
+
+
+@cli.command()
 @click.pass_context
 def bulk_import(ctx):
     click.echo("Scanning for videos...")

@@ -98,8 +98,12 @@ def handle_video_details(id):
 @api.route('/api/video/poster', methods=['GET'])
 def get_video_poster():
     video_id = request.args['id']
-    poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "poster.jpg")
-    return send_file(poster_path, mimetype='image/jpg')
+    webm_poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "boomerang-preview.webm")
+    jpg_poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "poster.jpg")
+    if request.args.get('animated'):
+        return send_file(webm_poster_path, mimetype='video/webm')
+    else:
+        return send_file(jpg_poster_path, mimetype='image/jpg')
 
 @api.route('/api/video')
 def get_video():

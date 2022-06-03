@@ -3,6 +3,7 @@ import json
 import subprocess as sp
 import xxhash
 from fireshare import logger
+import time
 
 def video_id(path: Path, mb=16):
     """
@@ -23,16 +24,38 @@ def get_media_info(path):
         return None
 
 def create_poster(video_path, out_path, second=0):
+    s = time.time()
     cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', str(out_path)]
     logger.info(f'Generating poster at {second}s')
     logger.debug(f"$ {' '.join(cmd)}")
     sp.call(cmd)
+    e = time.time()
+    logger.info(f'Generated poster {str(out_path)} in {e-s}s')
 
 def transcode_video(video_path, out_path):
+    s = time.time()
     logger.info(f"Transcoding video")
-    cmd = ['ffmpeg', '-y', '-i', str(video_path), '-c:v', 'libx264', '-c:a', 'aac', str(out_path)]
+    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-c:v', 'libx264', '-c:a', 'aac', str(out_path)]
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)
+    e = time.time()
+    logger.info(f'Transcoded {str(out_path)} in {e-s}s')
+
+def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
+    # https://stackoverflow.com/questions/65874316/trim-a-video-and-add-the-boomerang-effect-on-it-with-ffmpeg
+    # https://ffmpeg.org/ffmpeg-filters.html#reverse
+    # https://ffmpeg.org/ffmpeg-filters.html#Examples-148
+    # ffmpeg -ss 0 -t 1.5 -i in.mp4 -y -filter_complex "[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:720" -an out.mp4
+    s = time.time()
+    boomerang_filter_720p = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:720'
+    boomerang_filter = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat'
+    cmd = ['ffmpeg', '-v', 'quiet', '-ss', '0', '-t', str(clip_duration),
+        '-i', str(video_path), '-y', '-filter_complex', boomerang_filter, '-an', str(out_path)]
+    logger.info(f"Creating boomering preview")
+    logger.debug(f"$: {' '.join(cmd)}")
+    sp.call(cmd)
+    e = time.time()
+    logger.info(f'Generated boomerang preview {str(out_path)} in {e-s}s')
 
 def dur_string_to_seconds(dur: str) -> float:
     if type(dur) == int: return float(dur)
