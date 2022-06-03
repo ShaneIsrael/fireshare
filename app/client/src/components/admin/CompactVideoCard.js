@@ -26,16 +26,29 @@ const CompactVideoCard = ({
   feedView,
   authenticated,
 }) => {
+  const [videoId, setVideoId] = React.useState(video.video_id)
   const [title, setTitle] = React.useState(video.info?.title)
   const [description, setDescription] = React.useState(video.info?.description)
   const [showBoomerang, setShowBoomerang] = React.useState(true)
-  // const title = video.info?.title
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
   const [hover, setHover] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(video.info?.private)
 
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
+
+  const previousVideoIdRef = React.useRef()
+  const previousVideoId = previousVideoIdRef.current
+  if (video.video_id !== previousVideoId && video.video_id !== videoId) {
+    setVideoId(video.video_id)
+    setTitle(video.info?.title)
+    setDescription(video.info?.description)
+    setPrivateView(video.info?.private)
+    setUpdatedTitle(null)
+  }
+  React.useEffect(() => {
+    previousVideoIdRef.current = video.video_id
+  })
 
   const debouncedMouseEnter = React.useRef(
     _.debounce(() => {
@@ -47,13 +60,6 @@ const CompactVideoCard = ({
     debouncedMouseEnter.cancel()
     setHover(false)
   }
-
-  React.useEffect(() => {
-    setTitle(video.info?.title)
-    setDescription(video.info?.description)
-    setPrivateView(video.info?.private)
-    setUpdatedTitle(null)
-  }, [video])
 
   React.useEffect(() => {
     async function update() {
@@ -197,21 +203,7 @@ const CompactVideoCard = ({
             onMouseLeave={handleMouseLeave}
             onMouseDown={handleMouseDown}
           >
-            <video
-              width={cardWidth}
-              height={previewVideoHeight}
-              src={`${
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/boomerang-preview.webm`
-                  : `${URL}/api/video/poster?id=${video.video_id}&animated=true`
-              }`}
-              // onError={handleBoomerangError}
-              muted
-              autoPlay
-              loop
-              disablePictureInPicture
-            />
-            {/* {showBoomerang ? (
+            {showBoomerang === true ? (
               <video
                 width={cardWidth}
                 height={previewVideoHeight}
@@ -238,7 +230,7 @@ const CompactVideoCard = ({
                   width: cardWidth,
                 }}
               />
-            )} */}
+            )}
             {hover && (
               <video
                 style={{

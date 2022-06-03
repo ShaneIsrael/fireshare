@@ -16,6 +16,7 @@ const VisibilityCard = ({
 }) => {
   const nodeRef = useRef()
   const isVisible = useIsVisible(nodeRef)
+
   const previewVideoHeight =
     video.info?.width && video.info?.height ? cardWidth * (video.info.height / video.info.width) : cardWidth / 1.77
   return (

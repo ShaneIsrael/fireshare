@@ -14,6 +14,7 @@ import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 const URL = getPublicWatchUrl()
 
 const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authenticated }) => {
+  const [videoId, setVideoId] = React.useState(video.video_id)
   const [title, setTitle] = React.useState(video.info?.title)
   const [description, setDescription] = React.useState(video.info?.description)
 
@@ -23,12 +24,18 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
 
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
 
-  React.useEffect(() => {
+  const previousVideoIdRef = React.useRef()
+  const previousVideoId = previousVideoIdRef.current
+  if (video.video_id !== previousVideoId && video.video_id !== videoId) {
+    setVideoId(video.video_id)
     setTitle(video.info?.title)
     setDescription(video.info?.description)
     setPrivateView(video.info?.private)
     setUpdatedTitle(null)
-  }, [video])
+  }
+  React.useEffect(() => {
+    previousVideoIdRef.current = video.video_id
+  })
 
   React.useEffect(() => {
     async function update() {
