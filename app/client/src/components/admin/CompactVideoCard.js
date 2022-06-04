@@ -184,8 +184,6 @@ const CompactVideoCard = ({
           >
             <InputBase
               sx={{
-                pl: 1,
-                pr: 1.5,
                 width: cardWidth,
                 bgcolor: 'rgba(0,0,0,0)',
               }}
