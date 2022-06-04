@@ -1,6 +1,6 @@
 import React from 'react'
-import { Card, CardContent, IconButton, InputAdornment, TextField, Tooltip, Typography } from '@mui/material'
-import Zoom from '@mui/material/Zoom'
+import { Button, ButtonGroup, Card, CardContent, IconButton, InputBase, Typography } from '@mui/material'
+import Tooltip, { tooltipClasses } from '@mui/material/Tooltip'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
@@ -11,10 +11,22 @@ import VideoService from '../../services/VideoService'
 import _ from 'lodash'
 import { Box } from '@mui/system'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
+import styled from '@emotion/styled'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
+
+const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} classes={{ popper: className }} />)(
+  ({ theme }) => ({
+    [`& .${tooltipClasses.tooltip}`]: {
+      backgroundColor: '#ffffff',
+      color: 'rgba(0, 0, 0, 0.87)',
+      boxShadow: theme.shadows[1],
+      fontSize: 11,
+    },
+  }),
+)
 
 const CompactVideoCard = ({
   video,
@@ -126,70 +138,95 @@ const CompactVideoCard = ({
         alertHandler={alertHandler}
       />
 
-      <Card
+      <Box
         sx={{
           width: '100%',
-          bgcolor: '#0b132b',
-          border: selected ? '1px solid #fffc31' : '1px solid #3399FFAE',
+          bgcolor: 'rgba(0, 0, 0, 0)',
+          lineHeight: 0,
         }}
-        square
+        // square
       >
-        <Tooltip title={title || ''} placement="bottom" enterDelay={1000} leaveDelay={500} enterNextDelay={1000} arrow>
-          <TextField
-            fullWidth
-            size="small"
-            value={updatedTitle !== null ? updatedTitle : title}
-            disabled={!authenticated}
-            onChange={(e) => authenticated && setUpdatedTitle(e.target.value)}
-            sx={{
+        <ButtonGroup
+          variant="contained"
+          size="small"
+          sx={{
+            width: '100%',
+            background: '#130A40',
+
+            borderRadius: '6px',
+            borderBottomLeftRadius: 0,
+            borderBottomRightRadius: 0,
+            borderLeft: '1px solid #3399FFAE',
+            borderTop: '1px solid #3399FFAE',
+            borderRight: '1px solid #3399FFAE',
+            '.MuiButtonGroup-grouped:not(:last-of-type)': {
               border: 'none',
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 0,
-              },
-              '& .MuiInputBase-input.Mui-disabled': {
-                WebkitTextFillColor: '#fff',
-              },
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderTop: '1px solid rgba(0, 0, 0, 0)',
-                borderLeft: '1px solid rgba(0, 0, 0, 0)',
-                borderRight: '1px solid rgba(0, 0, 0, 0)',
-                borderBottom: '1px solid #3399FFAE',
+            },
+          }}
+        >
+          <Button
+            onClick={() => setDetailsModalOpen(true)}
+            sx={{
+              bgcolor: 'rgba(0,0,0,0)',
+              borderBottomLeftRadius: 0,
+              borderTopLeftRadius: '6px',
+              m: 0,
+            }}
+          >
+            <EditIcon />
+          </Button>
+          <LightTooltip
+            title={title || ''}
+            placement="bottom"
+            enterDelay={1000}
+            leaveDelay={500}
+            enterNextDelay={1000}
+            arrow
+          >
+            <InputBase
+              sx={{
+                pl: 1,
+                pr: 1.5,
+                // flex: 1,
+                width: cardWidth,
+                // bgcolor: '#0b132b',
+                bgcolor: 'rgba(0,0,0,0)',
+                // borderTop: '1px solid #3399FFAE',
+              }}
+              placeholder="Video Title..."
+              value={updatedTitle !== null ? updatedTitle : title}
+              onChange={(e) => authenticated && setUpdatedTitle(e.target.value)}
+              disabled={!authenticated}
+              inputProps={{ 'aria-label': 'search google maps' }}
+            />
+          </LightTooltip>
+          <Button
+            onClick={handlePrivacyChange}
+            edge="end"
+            sx={{
+              // bgcolor: '#0b132b',
+              borderBottomRightRadius: 0,
+              borderTopRightRadius: '6px',
+              bgcolor: 'rgba(0,0,0,0)',
+              color: privateView ? '#FF2323B2' : '#2382FFB7',
+              ':hover': {
+                bgcolor: privateView ? '#FF232340' : '#2382FF40',
               },
             }}
-            InputProps={{
-              startAdornment: authenticated && (
-                <InputAdornment position="start">
-                  <IconButton size="small" onClick={() => setDetailsModalOpen(true)} edge="start">
-                    <EditIcon />
-                  </IconButton>
-                </InputAdornment>
-              ),
-              endAdornment: authenticated && (
-                <InputAdornment position="end">
-                  <Tooltip
-                    title="Toggle visibility on your public feed."
-                    placement="top"
-                    enterDelay={1000}
-                    TransitionComponent={Zoom}
-                  >
-                    <IconButton
-                      sx={{
-                        color: privateView ? 'red' : '#2684FF',
-                      }}
-                      onClick={handlePrivacyChange}
-                      edge="end"
-                    >
-                      {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                    </IconButton>
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            }}
-          />
-        </Tooltip>
-        <CardContent sx={{ lineHeight: 0, p: 0, '&:last-child': { p: 0 } }}>
+          >
+            {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+          </Button>
+        </ButtonGroup>
+        <Box
+          sx={{
+            lineHeight: 0,
+            bgcolor: 'rgba(0,0,0,0)',
+            p: 0,
+            '&:last-child': { p: 0 },
+          }}
+        >
           <div
-            style={{ position: 'relative', cursor: 'pointer', width: '100%', overflow: 'hidden' }}
+            style={{ position: 'relative', cursor: 'pointer' }}
             onClick={() => {
               selectedHandler(video.video_id)
               openVideoHandler(video.video_id)
@@ -207,6 +244,10 @@ const CompactVideoCard = ({
               alt=""
               style={{
                 width: cardWidth,
+                border: '1px solid #3399FFAE',
+                borderBottomRightRadius: '6px',
+                borderBottomLeftRadius: '6px',
+                borderTop: 'none',
               }}
             />
             {hover && (
@@ -222,6 +263,10 @@ const CompactVideoCard = ({
                   WebkitAnimationName: 'fadeIn',
                   WebkitAnimationDuration: '1.5s',
                   WebkitAnimationFillMode: 'both',
+                  border: '1px solid #3399FFAE',
+                  borderBottomRightRadius: '6px',
+                  borderBottomLeftRadius: '6px',
+                  borderTop: 'none',
                 }}
                 width={cardWidth}
                 height={previewVideoHeight}
@@ -260,7 +305,7 @@ const CompactVideoCard = ({
                 </IconButton>
               </CopyToClipboard>
             </Box>
-            <Box sx={{ position: 'absolute', bottom: 15, right: 3 }}>
+            <Box sx={{ position: 'absolute', bottom: 14, right: 3 }}>
               <Typography
                 variant="div"
                 color="white"
@@ -270,14 +315,15 @@ const CompactVideoCard = ({
                   fontSize: 12,
                   fontFamily: 'monospace',
                   background: 'rgba(0, 0, 0, 0.6)',
+                  borderRadius: '4px',
                 }}
               >
                 {toHHMMSS(video.info.duration)}
               </Typography>
             </Box>
           </div>
-        </CardContent>
-      </Card>
+        </Box>
+      </Box>
     </>
   )
 }

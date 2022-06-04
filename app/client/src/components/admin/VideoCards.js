@@ -128,7 +128,7 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
 
         {(!vids || vids.length === 0) && EMPTY_STATE()}
         {vids && vids.length !== 0 && (
-          <Grid container justifyContent="center" spacing={1}>
+          <Grid container justifyContent="center">
             {vids.map((v) => (
               <VisibilityCard
                 key={v.video_id}
