@@ -194,6 +194,8 @@ const Dashboard = () => {
                     options={createSelectFolders(folders)}
                     onChange={handleFolderSelection}
                     styles={selectTheme}
+                    blurInputOnSelect
+                    isSearchable={false}
                   />
                 </Grid>
                 <Grid item xs={12}>

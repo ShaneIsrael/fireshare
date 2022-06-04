@@ -213,6 +213,8 @@ const Feed = () => {
                       options={createSelectFolders(folders)}
                       onChange={handleFolderSelection}
                       styles={selectTheme}
+                      blurInputOnSelect
+                      isSearchable={false}
                     />
                   </Grid>
                 )}
