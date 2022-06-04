@@ -178,15 +178,17 @@ const Feed = () => {
                     PUBLIC FEED
                   </Typography>
                 </Grid>
-                <Grid item sx={{ pr: 2, pt: 0.25 }}>
-                  <SliderWrapper
-                    width={100}
-                    cardSize={cardSize}
-                    defaultCardSize={CARD_SIZE_DEFAULT}
-                    cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
-                    onChangeCommitted={handleCardSizeChange}
-                  />
-                </Grid>
+                {!isMobile && (
+                  <Grid item sx={{ pr: 2, pt: 0.25 }}>
+                    <SliderWrapper
+                      width={100}
+                      cardSize={cardSize}
+                      defaultCardSize={CARD_SIZE_DEFAULT}
+                      cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
+                      onChangeCommitted={handleCardSizeChange}
+                    />
+                  </Grid>
+                )}
                 <Grid item>
                   <ToggleButtonGroup
                     size="small"

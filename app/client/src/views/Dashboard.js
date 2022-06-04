@@ -9,7 +9,7 @@ import Navbar from '../components/nav/Navbar'
 import { AuthService, VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, getSettings, setSetting } from '../common/utils'
-
+import { isMobile } from 'react-device-detect'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
@@ -160,15 +160,17 @@ const Dashboard = () => {
                     MY VIDEOS
                   </Typography>
                 </Grid>
-                <Grid item sx={{ pr: 2, pt: 0.25 }}>
-                  <SliderWrapper
-                    width={100}
-                    cardSize={cardSize}
-                    defaultCardSize={CARD_SIZE_DEFAULT}
-                    cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
-                    onChangeCommitted={handleCardSizeChange}
-                  />
-                </Grid>
+                {!isMobile && (
+                  <Grid item sx={{ pr: 2, pt: 0.25 }}>
+                    <SliderWrapper
+                      width={100}
+                      cardSize={cardSize}
+                      defaultCardSize={CARD_SIZE_DEFAULT}
+                      cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
+                      onChangeCommitted={handleCardSizeChange}
+                    />
+                  </Grid>
+                )}
                 <Grid item>
                   <ToggleButtonGroup
                     size="small"
