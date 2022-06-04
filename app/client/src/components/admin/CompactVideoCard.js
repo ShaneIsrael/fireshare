@@ -144,14 +144,13 @@ const CompactVideoCard = ({
           bgcolor: 'rgba(0, 0, 0, 0)',
           lineHeight: 0,
         }}
-        // square
       >
         <ButtonGroup
           variant="contained"
           size="small"
           sx={{
             width: '100%',
-            background: '#130A40',
+            background: '#001a34',
 
             borderRadius: '6px',
             borderBottomLeftRadius: 0,
@@ -187,11 +186,8 @@ const CompactVideoCard = ({
               sx={{
                 pl: 1,
                 pr: 1.5,
-                // flex: 1,
                 width: cardWidth,
-                // bgcolor: '#0b132b',
                 bgcolor: 'rgba(0,0,0,0)',
-                // borderTop: '1px solid #3399FFAE',
               }}
               placeholder="Video Title..."
               value={updatedTitle !== null ? updatedTitle : title}
@@ -204,7 +200,6 @@ const CompactVideoCard = ({
             onClick={handlePrivacyChange}
             edge="end"
             sx={{
-              // bgcolor: '#0b132b',
               borderBottomRightRadius: 0,
               borderTopRightRadius: '6px',
               bgcolor: 'rgba(0,0,0,0)',
