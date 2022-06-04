@@ -163,17 +163,19 @@ const CompactVideoCard = ({
             },
           }}
         >
-          <Button
-            onClick={() => setDetailsModalOpen(true)}
-            sx={{
-              bgcolor: 'rgba(0,0,0,0)',
-              borderBottomLeftRadius: 0,
-              borderTopLeftRadius: '6px',
-              m: 0,
-            }}
-          >
-            <EditIcon />
-          </Button>
+          {authenticated && (
+            <Button
+              onClick={() => setDetailsModalOpen(true)}
+              sx={{
+                bgcolor: 'rgba(0,0,0,0)',
+                borderBottomLeftRadius: 0,
+                borderTopLeftRadius: '6px',
+                m: 0,
+              }}
+            >
+              <EditIcon />
+            </Button>
+          )}
           <LightTooltip
             title={title || ''}
             placement="bottom"
@@ -184,9 +186,16 @@ const CompactVideoCard = ({
           >
             <InputBase
               sx={{
+                pl: authenticated ? 0 : 1.5,
                 pr: 1.5,
                 width: cardWidth,
                 bgcolor: 'rgba(0,0,0,0)',
+                WebkitTextFillColor: '#fff',
+                fontWeight: 650,
+                '& .MuiInputBase-input.Mui-disabled': {
+                  WebkitTextFillColor: '#fff',
+                  fontWeight: 650,
+                },
               }}
               placeholder="Video Title..."
               value={updatedTitle !== null ? updatedTitle : title}
