@@ -21,7 +21,7 @@ const VisibilityCard = ({
     video.info?.width && video.info?.height ? cardWidth * (video.info.height / video.info.width) : cardWidth / 1.77
 
   return (
-    <Grid item sx={{ width: cardWidth, ml: 1, mr: 1, mb: 2 }} ref={nodeRef}>
+    <Grid item sx={{ width: cardWidth, ml: 0.75, mr: 0.75, mb: 1.5 }} ref={nodeRef}>
       {isVisible ? (
         <CompactVideoCard
           visible={false}
