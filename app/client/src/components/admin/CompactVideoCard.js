@@ -11,7 +11,7 @@ import VideoService from '../../services/VideoService'
 import _ from 'lodash'
 import { Box } from '@mui/system'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
-import ReactPlayer from 'react-player'
+import { isMobile } from 'react-device-detect'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -30,7 +30,7 @@ const CompactVideoCard = ({
   const [videoId, setVideoId] = React.useState(video.video_id)
   const [title, setTitle] = React.useState(video.info?.title)
   const [description, setDescription] = React.useState(video.info?.description)
-  const [showBoomerang, setShowBoomerang] = React.useState(true)
+  const [showBoomerang, setShowBoomerang] = React.useState(isMobile)
   const [updatedTitle, setUpdatedTitle] = React.useState(null)
   const debouncedTitle = useDebounce(updatedTitle, 1500)
   const [hover, setHover] = React.useState(false)
@@ -205,33 +205,21 @@ const CompactVideoCard = ({
             onMouseDown={handleMouseDown}
           >
             {showBoomerang === true ? (
-              <ReactPlayer
-                url={`${
+              <video
+                width={cardWidth}
+                height={previewVideoHeight}
+                src={`${
                   SERVED_BY === 'nginx'
                     ? `${URL}/_content/derived/${video.video_id}/boomerang-preview.webm`
                     : `${URL}/api/video/poster?id=${video.video_id}&animated=true`
                 }`}
-                width={cardWidth}
-                height={previewVideoHeight}
-                playing
+                onError={handleBoomerangError}
+                muted
+                autoPlay
                 loop
                 disablePictureInPicture
               />
             ) : (
-              // <video
-              //   width={cardWidth}
-              //   height={previewVideoHeight}
-              //   src={`${
-              //     SERVED_BY === 'nginx'
-              //       ? `${URL}/_content/derived/${video.video_id}/boomerang-preview.webm`
-              //       : `${URL}/api/video/poster?id=${video.video_id}&animated=true`
-              //   }`}
-              //   onError={handleBoomerangError}
-              //   muted
-              //   autoPlay
-              //   loop
-              //   disablePictureInPicture
-              // />
               <img
                 src={`${
                   SERVED_BY === 'nginx'
