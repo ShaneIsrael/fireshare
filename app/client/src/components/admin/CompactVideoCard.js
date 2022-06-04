@@ -191,10 +191,10 @@ const CompactVideoCard = ({
                 width: cardWidth,
                 bgcolor: 'rgba(0,0,0,0)',
                 WebkitTextFillColor: '#fff',
-                fontWeight: 650,
+                fontWeight: 575,
                 '& .MuiInputBase-input.Mui-disabled': {
                   WebkitTextFillColor: '#fff',
-                  fontWeight: 650,
+                  fontWeight: 575,
                 },
               }}
               placeholder="Video Title..."
