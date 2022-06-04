@@ -150,7 +150,7 @@ const CompactVideoCard = ({
           size="small"
           sx={{
             width: '100%',
-            background: '#001a34',
+            background: '#0b132b',
 
             borderRadius: '6px',
             borderBottomLeftRadius: 0,
