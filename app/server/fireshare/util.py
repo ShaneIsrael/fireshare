@@ -1,9 +1,36 @@
+import os
 from pathlib import Path
 import json
 import subprocess as sp
 import xxhash
 from fireshare import logger
 import time
+
+def lock_exists(path: Path):
+    """
+    Checks if a lockfile currently exists
+    """
+    lockfile = path / "fireshare.lock"
+    return lockfile.exists()
+
+def create_lock(path: Path):
+    """
+    Creates the lock file
+    """
+    lockfile = path / "fireshare.lock"
+    if not lockfile.exists():
+        logger.info(f"A lockfile has been created at {str(lockfile)}")
+        fp = open(lockfile, 'x')
+        fp.close()
+
+def remove_lock(path: Path):
+    """
+    Deletes the lock file
+    """
+    lockfile = path / "fireshare.lock"
+    if lockfile.exists():
+        logger.info(f"A lockfile has been removed at {str(lockfile)}")
+        os.remove(lockfile)
 
 def video_id(path: Path, mb=16):
     """

@@ -30,6 +30,12 @@ def scan_videos():
         paths = current_app.config['PATHS']
         raw_videos = paths["video"]
         video_links = paths["processed"] / "video_links"
+
+        if util.lock_exists(paths["data"]):
+            return logger.info("A scan process is currently active... Aborting")
+
+        util.create_lock(paths["data"])
+
         if not video_links.is_dir():
             video_links.mkdir()
 
@@ -45,7 +51,7 @@ def scan_videos():
             if existing:
                 logger.info(f"Skipping Video {video_id} at {str(path)} because it already exists at {existing.path}")
             else:
-                v = Video(video_id=video_id, extension=vf.suffix, path=path)
+                v = Video(video_id=video_id, extension=vf.suffix, path=path, available=True)
                 logger.info(f"Adding Video {video_id} at {str(path)}")
                 new_videos.append(v)
         
@@ -72,11 +78,17 @@ def scan_videos():
             info = VideoInfo(video_id=nv.video_id, title=Path(nv.path).stem)
             db.session.add(info)
         db.session.commit()
+    util.remove_lock(path["data"])
 
 @cli.command()
 def sync_metadata():
     with create_app().app_context():
         paths = current_app.config['PATHS']
+
+        if util.lock_exists(paths["data"]):
+            return logger.info("A scan process is currently active... Aborting.")
+        util.create_lock(paths["data"])
+
         videos = VideoInfo.query.filter(VideoInfo.info==None).all()
         if not videos:
             logger.info('Video metadata up to date')
@@ -99,11 +111,17 @@ def sync_metadata():
                 db.session.commit()
             else:
                 logger.info(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
+        util.remove_lock(paths["data"])
 
 @cli.command()
 def create_web_videos():
     with create_app().app_context():
         paths = current_app.config['PATHS']
+
+        if util.lock_exists(paths["data"]):
+            return logger.info("A scan process is currently active... Aborting.")
+        util.create_lock(paths["data"])
+
         video_links = paths["processed"] / "video_links"
         videos = Video.query.filter(func.lower(Video.extension)=='.mkv').all()
         fd = os.open(str(video_links.absolute()), os.O_DIRECTORY)
@@ -133,12 +151,19 @@ def create_web_videos():
 
             else:
                 logger.info(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
+        
+        util.remove_lock(paths["data"])
 
 @cli.command()
 @click.option("--regenerate", "-r", help="Overwrite existing posters", is_flag=True)
 @click.option("--skip", "-s", help="Amount to skip into the video before extracting a poster image, as a %, e.g. 0.05 for 5%", type=float, default=0)
 def create_posters(regenerate, skip):
     with create_app().app_context():
+        paths = current_app.config['PATHS']
+        if util.lock_exists(paths["data"]):
+            return logger.info("A scan process is currently active... Aborting.")
+        util.create_lock(paths["data"])
+
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
         vinfos = VideoInfo.query.all()
         for vi in vinfos:
@@ -156,11 +181,18 @@ def create_posters(regenerate, skip):
                 util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
             else:
                 logger.info(f"Skipping creation of poster for video {vi.video_id} because it exists at {str(poster_path)}")
+        util.remove_lock(paths["data"])
 
 @cli.command()
 @click.option("--regenerate", "-r", help="Overwrite existing posters", is_flag=True)
 def create_boomerang_posters(regenerate):
     with create_app().app_context():
+        paths = current_app.config['PATHS']
+
+        if util.lock_exists(paths["data"]):
+            return logger.info("A scan process is currently active... Aborting.")
+        util.create_lock(paths["data"])
+
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
         vinfos = VideoInfo.query.all()
         for vi in vinfos:
@@ -177,6 +209,7 @@ def create_boomerang_posters(regenerate):
                 util.create_boomerang_preview(video_path, poster_path)
             else:
                 logger.info(f"Skipping creation of boomerang poster for video {vi.video_id} because it exists at {str(poster_path)}")
+        util.remove_lock(paths["data"])
 
 
 @cli.command()
