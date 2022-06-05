@@ -52,7 +52,7 @@ The goal of Fireshare is to provide a very simple and easy way for you to share 
 
 ![login-screen]
 
-<h4 align="center">The Dashboard</h4>
+<h2 align="center">The Dashboard</h2>
 <p align="center">Here you can see all of your videos and edit their details such as title, description and whether or not you want them to show up on the public feed.</p>
 
 ![card-view]
@@ -61,27 +61,27 @@ The goal of Fireshare is to provide a very simple and easy way for you to share 
 
 ![list-view]
 
-<h4 align="center">Foldered Sorting</h4>
+<h2 align="center">Foldered Sorting</h2>
 <p align="center">Fireshare will use the top most directory that your videos are in as an easy and simple way for you to organize your videos into categories of your choosing.</p>
 
 ![folders]
 
-<h4 align="center">Edit Video Details</h4>
+<h2 align="center">Edit Video Details</h2>
 <p align="center">Access a basic modal for editing the title and description of videos by clicking on the "pencil" icon.</p>
 
 ![edit-details]
 
-<h4 align="center">Video Preview Modal</h4>
+<h2 align="center">Video Preview Modal</h2>
 <p align="center">Videos opened when on the public feed or admin dashboard show up in a modal. This modal gives you direct link and timestamped link sharing buttons as well as the ability to "shuffle" randomly to another video. As an admin, you can also edit the details of the video from this modal. </p>
 
 ![preview-modal]
 
-<h4 align="center">The Watch Page</h4>
+<h2 align="center">The Watch Page</h2>
 <p align="center">This is what people will see when given a Fireshare link. </p>
 
 ![watch-page]
 
-<h4 align="center">Open Graph Support</h4>
+<h2 align="center">Open Graph Support</h2>
 <p align="center">
 Direct links copied from the link copy buttons in Fireshare will allow websites and messaging apps to read the open graph data and show title, description and video thumbnails in your posts.
 </p>
