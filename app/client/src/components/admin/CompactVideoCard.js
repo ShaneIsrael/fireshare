@@ -249,8 +249,6 @@ const CompactVideoCard = ({
                       width: '100%',
                       fontSize: 28,
                       fontWeight: 750,
-                      WebkitTextFillColor: 'white',
-                      WebkitTextStroke: '1px black',
                     }}
                     align="center"
                   >
