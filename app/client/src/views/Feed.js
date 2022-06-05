@@ -2,6 +2,7 @@ import React from 'react'
 import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
+import { isMobile } from 'react-device-detect'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import VideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
@@ -178,15 +179,17 @@ const Feed = () => {
                     PUBLIC FEED
                   </Typography>
                 </Grid>
-                <Grid item sx={{ pr: 2, pt: 0.25 }}>
-                  <SliderWrapper
-                    width={100}
-                    cardSize={cardSize}
-                    defaultCardSize={CARD_SIZE_DEFAULT}
-                    cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
-                    onChangeCommitted={handleCardSizeChange}
-                  />
-                </Grid>
+                {!isMobile && (
+                  <Grid item sx={{ pr: 2, pt: 0.25 }}>
+                    <SliderWrapper
+                      width={100}
+                      cardSize={cardSize}
+                      defaultCardSize={CARD_SIZE_DEFAULT}
+                      cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
+                      onChangeCommitted={handleCardSizeChange}
+                    />
+                  </Grid>
+                )}
                 <Grid item>
                   <ToggleButtonGroup
                     size="small"
@@ -213,6 +216,8 @@ const Feed = () => {
                       options={createSelectFolders(folders)}
                       onChange={handleFolderSelection}
                       styles={selectTheme}
+                      blurInputOnSelect
+                      isSearchable={false}
                     />
                   </Grid>
                 )}

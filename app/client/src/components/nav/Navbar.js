@@ -8,15 +8,29 @@ import Menu from '@mui/material/Menu'
 import MenuIcon from '@mui/icons-material/Menu'
 import Avatar from '@mui/material/Avatar'
 import Button from '@mui/material/Button'
-import Tooltip from '@mui/material/Tooltip'
+import Tooltip, { tooltipClasses } from '@mui/material/Tooltip'
 import MenuItem from '@mui/material/MenuItem'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import GitHubIcon from '@mui/icons-material/GitHub'
+import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
+import BugReportIcon from '@mui/icons-material/BugReport'
 import { lightBlue } from '@mui/material/colors'
 
 import logo from '../../assets/logo.png'
 import { Paper, Stack } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+import styled from '@emotion/styled'
+
+const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} classes={{ popper: className }} />)(
+  ({ theme }) => ({
+    [`& .${tooltipClasses.tooltip}`]: {
+      backgroundColor: '#ffffff',
+      color: 'rgba(0, 0, 0, 0.87)',
+      boxShadow: theme.shadows[1],
+      fontSize: 11,
+    },
+  }),
+)
 
 const Navbar = ({ children, options, pages = [], feedView = false }) => {
   const [anchorElNav, setAnchorElNav] = React.useState(null)
@@ -211,15 +225,37 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
             background: 'rgba(0, 0, 0, 0.13)',
           }}
         >
-          <Stack direction="row" alignItems="center" justifyContent="center">
-            <IconButton
-              aria-label="github-link"
-              size="medium"
-              sx={{ p: 0, mt: 0.5, pointerEvents: 'all' }}
-              onClick={() => window.open('https://github.com/ShaneIsrael/fireshare', '_blank')}
-            >
-              <GitHubIcon fontSize="inherit" />
-            </IconButton>
+          <Stack direction="row" alignItems="center" justifyContent="center" sx={{ pt: '1px' }} spacing={3}>
+            <LightTooltip arrow title="Found a bug? Report it here.">
+              <IconButton
+                aria-label="report-bug-link"
+                size="medium"
+                sx={{ p: 0.5, pointerEvents: 'all' }}
+                onClick={() => window.open('https://github.com/ShaneIsrael/fireshare/issues', '_blank')}
+              >
+                <BugReportIcon fontSize="inherit" />
+              </IconButton>
+            </LightTooltip>
+            <LightTooltip arrow title="View Fireshare on Github">
+              <IconButton
+                aria-label="github-link"
+                size="medium"
+                sx={{ p: 0.5, pointerEvents: 'all' }}
+                onClick={() => window.open('https://github.com/ShaneIsrael/fireshare', '_blank')}
+              >
+                <GitHubIcon fontSize="inherit" />
+              </IconButton>
+            </LightTooltip>
+            <LightTooltip arrow title="Buy us a coffee!">
+              <IconButton
+                aria-label="paypal-link"
+                size="medium"
+                sx={{ p: 0.5, pointerEvents: 'all' }}
+                onClick={() => window.open('https://www.paypal.com/paypalme/shaneisrael', '_blank')}
+              >
+                <VolunteerActivismIcon fontSize="inherit" />
+              </IconButton>
+            </LightTooltip>
           </Stack>
         </Paper>
       </Box>

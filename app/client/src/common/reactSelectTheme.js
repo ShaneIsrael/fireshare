@@ -13,6 +13,9 @@ const selectTheme = {
     borderRadius: 0,
     marginTop: 0,
     backgroundColor: '#001E3C',
+    '&:hover': {
+      borderColor: '#2684FF',
+    },
   }),
   menuList: (styles) => ({
     ...styles,
@@ -22,9 +25,6 @@ const selectTheme = {
   singleValue: (styles) => ({
     ...styles,
     color: '#fff',
-    '&:hover': {
-      backgroundColor: '#3399FF',
-    },
   }),
   option: (styles, { data, isDisabled, isFocused, isSelected }) => {
     return {

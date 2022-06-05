@@ -13,6 +13,15 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
     open: false,
   })
 
+  const previousVideosRef = React.useRef()
+  const previousVideos = previousVideosRef.current
+  if (videos !== previousVideos && videos !== vids) {
+    setVideos(videos)
+  }
+  React.useEffect(() => {
+    previousVideosRef.current = videos
+  })
+
   const openVideo = (id) => {
     setVideoModal({
       open: true,
@@ -38,8 +47,6 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
       message: 'Scan initiated. This could take a few minutes.',
     })
   }
-
-  React.useEffect(() => setVideos(videos), [videos])
 
   const handleUpdate = (update) => {
     const { id, ...rest } = update

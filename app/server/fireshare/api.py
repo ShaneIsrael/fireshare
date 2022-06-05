@@ -18,10 +18,14 @@ SCAN_COMMAND = "python /app/server/fireshare/cli.py scan-videos"
 SYNC_COMMAND = "python /app/server/fireshare/cli.py sync-metadata"
 POSTER_COMMAND = "python /app/server/fireshare/cli.py create-posters"
 
-def get_video_path(id):
-    # db lookup to get path to mp4
+def get_video_path(id, subid=None):
+    video = Video.query.filter_by(video_id=id).first()
+    if not video:
+        raise Exception(f"No video found for {id}")
     paths = current_app.config['PATHS']
-    video_path = paths["processed"] / "video_links" / f"{id}.mp4"
+    subid_suffix = f"-{subid}" if subid else ""
+    ext = ".mp4" if subid else video.extension
+    video_path = paths["processed"] / "video_links" / f"{id}{subid_suffix}{ext}"
     return str(video_path)
 
 @api.route('/w/<video_id>')
@@ -38,6 +42,7 @@ def manual_scan():
     if not current_app.config["ENVIRONMENT"] == 'production':
         return Response(response='You must be running in production for this task to work.', status=400)
     else:
+        current_app.logger.info(f"Executed manual scan")
         Popen("{}; {}; {};".format(SCAN_COMMAND, SYNC_COMMAND, POSTER_COMMAND), shell=True)
     return Response(status=200)
 
@@ -51,12 +56,14 @@ def get_videos():
 def get_random_video():
     row_count = Video.query.count()
     random_video = Video.query.offset(int(row_count * random.random())).first()
+    current_app.logger.info(f"Fetched random video {random_video.video_id}: {random_video.info.title}")
     return jsonify(random_video.json())
 
 @api.route('/api/video/public/random')
 def get_random_public_video():
     row_count =  Video.query.filter(Video.info.has(private=False)).count()
     random_video = Video.query.filter(Video.info.has(private=False)).offset(int(row_count * random.random())).first()
+    current_app.logger.info(f"Fetched public random video {random_video.video_id}: {random_video.info.title}")
     return jsonify(random_video.json())
 
 @api.route('/api/videos/public')
@@ -91,15 +98,20 @@ def handle_video_details(id):
 @api.route('/api/video/poster', methods=['GET'])
 def get_video_poster():
     video_id = request.args['id']
-    poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "poster.jpg")
-    return send_file(poster_path, mimetype='image/jpg')
+    webm_poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "boomerang-preview.webm")
+    jpg_poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "poster.jpg")
+    if request.args.get('animated'):
+        return send_file(webm_poster_path, mimetype='video/webm')
+    else:
+        return send_file(jpg_poster_path, mimetype='image/jpg')
 
 @api.route('/api/video')
 def get_video():
     # for testing ids are just the name of the sample video until
     # we have the videos added to a db table
     video_id = request.args.get('id')
-    video_path = get_video_path(video_id)
+    subid = request.args.get('subid')
+    video_path = get_video_path(video_id, subid)
     file_size = os.stat(video_path).st_size
     start = 0
     length = 10240

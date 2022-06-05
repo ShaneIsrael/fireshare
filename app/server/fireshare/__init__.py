@@ -6,6 +6,14 @@ from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_cors import CORS
 from pathlib import Path
+import logging
+
+logger = logging.getLogger('fireshare')
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName)s:%(lineno)d | %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 # init SQLAlchemy so we can use it later in our models
 db = SQLAlchemy()
