@@ -64,7 +64,7 @@ def get_random_public_video():
 
 @api.route('/api/videos/public')
 def get_public_videos():
-    return jsonify({"videos": [v.json() for v in Video.query.filter(Video.info.has(private=False))]})
+    return jsonify({"videos": [v.json() for v in Video.query.filter(Video.info.has(private=False, available=True))]})
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
