@@ -2,6 +2,8 @@
 
 # Remove any lockfiles on startup
 rm $DATA_DIRECTORY/*.lock
+# Remove job db on start
+rm /jobs.sqlite
 
 nginx -g 'daemon on;'
 flask db upgrade
