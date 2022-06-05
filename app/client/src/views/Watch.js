@@ -180,7 +180,10 @@ const Watch = () => {
             height="auto"
             playing
             config={{
-              file: { forcedAudio: true, attributes: { onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) } },
+              file: {
+                forcedAudio: true,
+                attributes: { preload: 'auto', onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) },
+              },
             }}
             controls
             volume={0.5}
