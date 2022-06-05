@@ -57,14 +57,14 @@ def get_random_video():
 
 @api.route('/api/video/public/random')
 def get_random_public_video():
-    row_count =  Video.query.filter(Video.info.has(private=False), available=True).count()
-    random_video = Video.query.filter(Video.info.has(private=False), available=True).offset(int(row_count * random.random())).first()
+    row_count =  Video.query.filter(Video.info.has(private=False)).filter_by(available=True).count()
+    random_video = Video.query.filter(Video.info.has(private=False)).filter_by(available=True).offset(int(row_count * random.random())).first()
     current_app.logger.info(f"Fetched public random video {random_video.video_id}: {random_video.info.title}")
     return jsonify(random_video.json())
 
 @api.route('/api/videos/public')
 def get_public_videos():
-    return jsonify({"videos": [v.json() for v in Video.query.filter(Video.info.has(private=False), available=True)]})
+    return jsonify({"videos": [v.json() for v in Video.query.filter(Video.info.has(private=False)).filter_by(available=True)]})
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
