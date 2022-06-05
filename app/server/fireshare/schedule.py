@@ -16,3 +16,4 @@ def init_schedule(dburl):
     logger.info('Initializing scheduled video scan. minutes=5')
     scheduler = BackgroundScheduler(jobstores={'default': SQLAlchemyJobStore(url=dburl)})
     scheduler.add_job(fireshare_scan, 'interval', minutes=5, id='fireshare_scan')
+    scheduler.start()
