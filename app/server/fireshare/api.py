@@ -14,10 +14,6 @@ api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
 
-SCAN_COMMAND = "python /app/server/fireshare/cli.py scan-videos"
-SYNC_COMMAND = "python /app/server/fireshare/cli.py sync-metadata"
-POSTER_COMMAND = "python /app/server/fireshare/cli.py create-posters"
-
 def get_video_path(id, subid=None):
     video = Video.query.filter_by(video_id=id).first()
     if not video:
@@ -43,7 +39,7 @@ def manual_scan():
         return Response(response='You must be running in production for this task to work.', status=400)
     else:
         current_app.logger.info(f"Executed manual scan")
-        Popen("{}; {}; {};".format(SCAN_COMMAND, SYNC_COMMAND, POSTER_COMMAND), shell=True)
+        Popen("fireshare bulk-import", shell=True)
     return Response(status=200)
 
 @api.route('/api/videos')

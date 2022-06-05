@@ -23,6 +23,7 @@ class Video(db.Model):
             "video_id": self.video_id,
             "extension": self.extension,
             "path": self.path,
+            "available": self.available,
             "info": self.info.json(),
         }
         return j

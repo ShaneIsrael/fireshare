@@ -19,3 +19,4 @@ Werkzeug==2.1.2
 WTForms==3.0.1
 zipp==3.8.0
 xxhash==3.0.0
+apscheduler==3.6.3
