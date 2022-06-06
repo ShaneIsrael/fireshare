@@ -127,7 +127,7 @@ Once running, navigate to `localhost:8080` in your browser.
 
 ## Local Development
 
-If you would like to run Apollo via the source code in order to contribute you will need to have npm and Node.js installed. I reccommend installing Node.js with NVM so that you can easily switch between Node versions. This project currently uses Node 16.x but will likely change.
+If you would like to run Fireshare via the source code in order to contribute you will need to have npm, Node.js and Python installed. I reccommend installing Node.js with NVM so that you can easily switch between Node versions.
 
 ## Setup
 
