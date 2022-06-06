@@ -11,6 +11,7 @@ import Button from '@mui/material/Button'
 import Tooltip, { tooltipClasses } from '@mui/material/Tooltip'
 import MenuItem from '@mui/material/MenuItem'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import GitHubIcon from '@mui/icons-material/GitHub'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'
@@ -37,6 +38,7 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
   const [anchorElUser, setAnchorElUser] = React.useState(null)
   const navigate = useNavigate()
 
+  const handleFileUpload = (event) => {}
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget)
   }
@@ -164,6 +166,15 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
               </Button>
             ))}
           </Box>
+	  <Box sx={{ flexGrow: 0 }}>
+		<Tooltip title="Upload">
+		 <IconButton onClick={} sx={{ p:0 }}>
+		  <Avatar alt="Upload" sx={{ bgcolor: lightBlue[500] }}>
+		   <CloudUploadIcon />
+		  </Avatar>
+		 </IconButton>
+		</Tooltip>
+	  </Box>
 
           <Box sx={{ flexGrow: 0 }}>
             <Tooltip title="Open Options">
