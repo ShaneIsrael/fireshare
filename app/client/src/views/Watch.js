@@ -196,11 +196,13 @@ const Watch = () => {
                 <Grid item xs={12}>
                   {controls()}
                 </Grid>
-                <Grid item xs={12}>
-                  <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
-                    <Typography variant="subtitle2">{details?.info?.description}</Typography>
-                  </Paper>
-                </Grid>
+                {details?.info?.description && (
+                  <Grid item xs={12}>
+                    <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
+                      <Typography variant="subtitle2">{details?.info?.description}</Typography>
+                    </Paper>
+                  </Grid>
+                )}
               </Grid>
             </Box>
             <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
@@ -208,11 +210,13 @@ const Watch = () => {
                 <Grid item xs={12}>
                   {controls()}
                 </Grid>
-                <Grid item xs={12}>
-                  <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
-                    <Typography variant="subtitle2">{details?.info?.description}</Typography>
-                  </Paper>
-                </Grid>
+                {details?.info?.description && (
+                  <Grid item xs={12}>
+                    <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
+                      <Typography variant="subtitle2">{details?.info?.description}</Typography>
+                    </Paper>
+                  </Grid>
+                )}
               </Grid>
             </Box>
           </Paper>
