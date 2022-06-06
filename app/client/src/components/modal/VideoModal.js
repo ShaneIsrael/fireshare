@@ -172,7 +172,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 }`}
                 disablePictureInPicture
                 controls
-                preload="auto"
               />
             </Grid>
             <Grid item>

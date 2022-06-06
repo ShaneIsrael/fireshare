@@ -182,7 +182,7 @@ const Watch = () => {
             config={{
               file: {
                 forcedAudio: true,
-                attributes: { preload: 'auto', onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) },
+                attributes: { onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) },
               },
             }}
             controls
