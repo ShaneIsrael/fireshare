@@ -1,7 +1,7 @@
 services:
   fireshare:
     container_name: fireshare
-    image: fireshare:latest
+    image: shaneisrael/fireshare:latest
     ports:
       - "8080:80"
     volumes:
