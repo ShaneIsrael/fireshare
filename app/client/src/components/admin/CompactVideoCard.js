@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button, ButtonGroup, Card, CardContent, IconButton, InputBase, Typography } from '@mui/material'
+import { Button, ButtonGroup, Card, CardContent, Grid, IconButton, InputBase, Typography } from '@mui/material'
 import Tooltip, { tooltipClasses } from '@mui/material/Tooltip'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -238,6 +238,25 @@ const CompactVideoCard = ({
             onMouseLeave={handleMouseLeave}
             onMouseDown={handleMouseDown}
           >
+            {!video.available && (
+              <Box
+                sx={{ position: 'absolute', top: 0, left: 0, background: '#FF000060', width: '100%', height: '100%' }}
+              >
+                <Grid container direction="row" alignItems="center" sx={{ width: '100%', height: '100%' }}>
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      width: '100%',
+                      fontSize: 28,
+                      fontWeight: 750,
+                    }}
+                    align="center"
+                  >
+                    File Missing
+                  </Typography>
+                </Grid>
+              </Box>
+            )}
             <img
               src={`${
                 SERVED_BY === 'nginx'
@@ -253,6 +272,7 @@ const CompactVideoCard = ({
                 borderTop: 'none',
               }}
             />
+
             {hover && (
               <video
                 style={{

@@ -8,6 +8,8 @@ from flask_cors import CORS
 from pathlib import Path
 import logging
 
+
+
 logger = logging.getLogger('fireshare')
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName)s:%(lineno)d | %(message)s')
@@ -19,7 +21,7 @@ logger.setLevel(logging.DEBUG)
 db = SQLAlchemy()
 migrate = Migrate()
 
-def create_app():
+def create_app(init_schedule=False):
     app = Flask(__name__, static_url_path='', static_folder='build', template_folder='build')
     CORS(app, supports_credentials=True)
     if 'DATA_DIRECTORY' not in os.environ:
@@ -32,7 +34,9 @@ def create_app():
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/db.sqlite'
+    app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///jobs.sqlite'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['INIT_SCHEDULE'] = init_schedule
 
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
@@ -76,6 +80,10 @@ def create_app():
     # blueprint for non-auth parts of app
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
+
+    if init_schedule:
+        from .schedule import init_schedule
+        init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'])
 
     with app.app_context():
         # db.create_all()

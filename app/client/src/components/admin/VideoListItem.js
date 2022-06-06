@@ -1,17 +1,31 @@
 import React from 'react'
-import { Grid, IconButton, InputAdornment, Paper, TextField, Tooltip, Typography } from '@mui/material'
+import { Grid, IconButton, InputAdornment, Paper, TextField, Typography } from '@mui/material'
+import Tooltip, { tooltipClasses } from '@mui/material/Tooltip'
 import PlayCircleIcon from '@mui/icons-material/PlayCircle'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
+import ErrorIcon from '@mui/icons-material/Error'
 import Zoom from '@mui/material/Zoom'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, toHHMMSS, useDebounce } from '../../common/utils'
 import { VideoService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
+import styled from '@emotion/styled'
 
 const URL = getPublicWatchUrl()
+
+const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} classes={{ popper: className }} />)(
+  ({ theme }) => ({
+    [`& .${tooltipClasses.tooltip}`]: {
+      backgroundColor: '#ffffff',
+      color: 'rgba(0, 0, 0, 0.87)',
+      boxShadow: theme.shadows[1],
+      fontSize: 11,
+    },
+  }),
+)
 
 const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authenticated }) => {
   const [videoId, setVideoId] = React.useState(video.video_id)
@@ -171,13 +185,21 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
           </Grid>
         </Grid>
         <Grid container sx={{ width: 50, height: '100%' }} justifyContent="center" alignItems="center">
-          <IconButton
-            aria-label="play video"
-            sx={{ width: 50, height: 50 }}
-            onClick={() => openVideoHandler(video.video_id)}
-          >
-            <PlayCircleIcon sx={{ width: 40, height: 40 }} color="primary" />
-          </IconButton>
+          {!video.available ? (
+            <LightTooltip title="File Missing">
+              <IconButton aria-label="play video" sx={{ width: 50, height: 50, color: 'red' }}>
+                <ErrorIcon sx={{ width: 40, height: 40 }} />
+              </IconButton>
+            </LightTooltip>
+          ) : (
+            <IconButton
+              aria-label="play video"
+              sx={{ width: 50, height: 50 }}
+              onClick={() => openVideoHandler(video.video_id)}
+            >
+              <PlayCircleIcon sx={{ width: 40, height: 40 }} color="primary" />
+            </IconButton>
+          )}
         </Grid>
       </Grid>
     </Paper>

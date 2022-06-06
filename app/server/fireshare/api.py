@@ -14,10 +14,6 @@ api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
 
-SCAN_COMMAND = "python /app/server/fireshare/cli.py scan-videos"
-SYNC_COMMAND = "python /app/server/fireshare/cli.py sync-metadata"
-POSTER_COMMAND = "python /app/server/fireshare/cli.py create-posters"
-
 def get_video_path(id, subid=None):
     video = Video.query.filter_by(video_id=id).first()
     if not video:
@@ -43,7 +39,7 @@ def manual_scan():
         return Response(response='You must be running in production for this task to work.', status=400)
     else:
         current_app.logger.info(f"Executed manual scan")
-        Popen("{}; {}; {};".format(SCAN_COMMAND, SYNC_COMMAND, POSTER_COMMAND), shell=True)
+        Popen("fireshare bulk-import", shell=True)
     return Response(status=200)
 
 @api.route('/api/videos')
@@ -61,14 +57,14 @@ def get_random_video():
 
 @api.route('/api/video/public/random')
 def get_random_public_video():
-    row_count =  Video.query.filter(Video.info.has(private=False)).count()
-    random_video = Video.query.filter(Video.info.has(private=False)).offset(int(row_count * random.random())).first()
+    row_count =  Video.query.filter(Video.info.has(private=False)).filter_by(available=True).count()
+    random_video = Video.query.filter(Video.info.has(private=False)).filter_by(available=True).offset(int(row_count * random.random())).first()
     current_app.logger.info(f"Fetched public random video {random_video.video_id}: {random_video.info.title}")
     return jsonify(random_video.json())
 
 @api.route('/api/videos/public')
 def get_public_videos():
-    return jsonify({"videos": [v.json() for v in Video.query.filter(Video.info.has(private=False))]})
+    return jsonify({"videos": [v.json() for v in Video.query.filter(Video.info.has(private=False)).filter_by(available=True)]})
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
