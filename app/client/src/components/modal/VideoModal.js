@@ -7,7 +7,7 @@ import SaveIcon from '@mui/icons-material/Save'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
+import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
 import { VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 
@@ -124,7 +124,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const copyTimestamp = () => {
-    navigator.clipboard.writeText(`${PURL}${vid.video_id}?t=${playerRef.current?.currentTime}`)
+    copyToClipboard(`${PURL}${vid.video_id}?t=${playerRef.current?.currentTime}`)
     setAlert({
       type: 'info',
       message: 'Time stamped link copied to clipboard',

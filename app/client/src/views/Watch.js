@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactPlayer from 'react-player'
 import { Button, ButtonGroup, Grid, Paper, Typography } from '@mui/material'
 import { AuthService, VideoService } from '../services'
-import { getServedBy, getUrl } from '../common/utils'
+import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard } from '../common/utils'
 import Navbar from '../components/nav/Navbar'
 import { Box } from '@mui/system'
 
@@ -15,6 +15,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
 const URL = getUrl()
+const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
 function useQuery() {
@@ -84,7 +85,7 @@ const Watch = () => {
   }
 
   const copyTimestamp = () => {
-    navigator.clipboard.writeText(`${URL}${details?.video_id}?t=${videoPlayerRef.current?.getCurrentTime()}`)
+    copyToClipboard(`${PURL}${details?.video_id}?t=${videoPlayerRef.current?.getCurrentTime()}`)
     setAlert({
       type: 'info',
       message: 'Time stamped link copied to clipboard',
@@ -98,7 +99,7 @@ const Watch = () => {
 
   const controls = () => (
     <ButtonGroup variant="contained" sx={{ maxWidth: '100%' }}>
-      <CopyToClipboard text={`${URL}/${details?.video_id}`}>
+      <CopyToClipboard text={`${PURL}${details?.video_id}`}>
         <Button
           onClick={() =>
             setAlert({
