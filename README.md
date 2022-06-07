@@ -2,13 +2,28 @@
 <br />
 <p align="center">
   <a href="https://github.com/ShaneIsrael/fireshare">
-    <img src="app/client/src/assets/logo.png" alt="Logo" width="160" height="225">
+    <img src="app/client/src/assets/logo.png" alt="Logo" width="120" height="160">
   </a>
 
   <h1 align="center">Fireshare</h1>
 
   <p align="center">
     Share your game clips, videos, or other media via unique links.
+    <br />
+    <br />
+    <a href="https://github.com/shaneisrael/fireshare/actions">
+      <img alt="Docker Build" src="https://img.shields.io/github/workflow/status/shaneisrael/fireshare/Publish%20Docker%20Image" />
+    </a>
+    <a href="https://github.com/shaneisrael/fireshare/stargazers">
+      <img alt="GitHub stars" src="https://img.shields.io/github/stars/shaneisrael/fireshare">
+    </a>
+    <a href="https://github.com/shaneisrael/fireshare/issues">
+      <img alt="Issues" src="https://img.shields.io/github/issues/shaneisrael/fireshare?color=0088ff" />
+    </a>
+    <a href="https://github.com/shaneisrael/fireshare/pulls">
+      <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/shaneisrael/fireshare?color=0088ff" />
+    </a>
+    <br />
     <br />
     <a href="https://v.fireshare.net">Live Demo</a>
     ·
