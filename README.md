@@ -135,7 +135,7 @@ docker-compose up -d
 #### Docker
 
 ```
-docker run --name fireshare -v $(pwd)/fireshare:/data -v $(pwd)/fireshare_processed:/processed -v /path/to/my_game_clips:/videos -p 8080:80 -e ADMIN_PASSWORD=your-admin-password -d shaneisrael/fireshare:latest
+docker run --name fireshare -v $(pwd)/fireshare:/data:rw -v $(pwd)/fireshare_processed:/processed:rw -v /path/to/my_game_clips:/videos:rw -p 8080:80 -e ADMIN_PASSWORD=your-admin-password -d shaneisrael/fireshare:latest
 ```
 
 Once running, navigate to `localhost:8080` in your browser.
