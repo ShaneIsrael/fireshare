@@ -36,7 +36,7 @@ class VideoInfo(db.Model):
     __tablename__ = "video_info"
 
     id          = db.Column(db.Integer, primary_key=True)
-    video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id"), nullable=False)
+    video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id", ondelete='CASCADE'), nullable=False)
     title       = db.Column(db.String(256), index=True)
     description = db.Column(db.String(2048))
     info        = db.Column(db.Text)
