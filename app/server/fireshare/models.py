@@ -1,3 +1,4 @@
+from enum import unique
 import json
 from flask_login import UserMixin
 from . import db
@@ -16,7 +17,7 @@ class Video(db.Model):
     path      = db.Column(db.String(2048), index=True, nullable=False)
     available = db.Column(db.Boolean, default=True)
 
-    info      = db.relationship("VideoInfo", back_populates="video", uselist=False, lazy="joined")
+    info      = db.relationship("VideoInfo", back_populates="video", cascade="all, delete", uselist=False, lazy="joined")
 
     def json(self):
         j = {
@@ -35,7 +36,7 @@ class VideoInfo(db.Model):
     __tablename__ = "video_info"
 
     id          = db.Column(db.Integer, primary_key=True)
-    video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id"), nullable=False)
+    video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id", ondelete='CASCADE'), nullable=False)
     title       = db.Column(db.String(256), index=True)
     description = db.Column(db.String(2048))
     info        = db.Column(db.Text)
