@@ -7,10 +7,17 @@ from flask_cors import CORS
 from . import db
 from pathlib import Path
 from .models import Video, VideoInfo
+from werkzeug.utils import secure_filename
 
 templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
+upload_path = os.environ.get('UPLOAD_PATH') or 'fireshare_uploads'
+allowed_exts = {'mp4','webm','mov','avi'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.',1)[1].lower() in allowed_exts
 
 api = Blueprint('api', __name__, template_folder=templates_path)
+api.config['UPLOAD_PATH'] = upload_path
 
 CORS(api, supports_credentials=True)
 
@@ -140,3 +147,13 @@ def get_video():
 def after_request(response):
     response.headers.add('Accept-Ranges', 'bytes')
     return response
+
+@api.route('/api/upload')
+@login_required
+def upload_video():
+    # remember to add folder option in UI
+    if request.method == 'POST':
+        file =  request.files['file']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(api.config['UPLOAD_FOLDER'], filename)

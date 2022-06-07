@@ -22,6 +22,8 @@ import { Paper, Stack } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import styled from '@emotion/styled'
 
+import { AuthService } from '../../services'
+
 const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} classes={{ popper: className }} />)(
   ({ theme }) => ({
     [`& .${tooltipClasses.tooltip}`]: {
@@ -33,12 +35,39 @@ const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} cla
   }),
 )
 
+
 const Navbar = ({ children, options, pages = [], feedView = false }) => {
   const [anchorElNav, setAnchorElNav] = React.useState(null)
   const [anchorElUser, setAnchorElUser] = React.useState(null)
+  const [uploadVisible, setUploadVisible] = React.useState(null)
   const navigate = useNavigate()
+  const inputFile = React.useRef(null)
 
-  const handleFileUpload = (event) => {}
+  const handleFileUpload = (event) => {
+    inputFile.current.click();
+}
+  React.useEffect(() => {
+  async function isLoggedIn(){
+    try{
+       const login = await AuthService.isLoggedIn();
+       if(login.data){
+        setUploadVisible(<Box sx={{ flexGrow: 1 }}>
+                <Tooltip title="Upload">
+                 <IconButton onClick={handleFileUpload} sx={{ p:0 }}>
+                  <Avatar alt="Upload" sx={{ bgcolor: lightBlue[500] }}>
+                   <CloudUploadIcon />
+                   <input type='file' id='file' ref={inputFile} style={{display: 'none'}}/>
+                  </Avatar>
+                 </IconButton>
+                </Tooltip>
+          </Box>)
+       }else{
+        setUploadVisible(null)}
+    }catch (err) {
+        console.log(err)
+    }
+}
+ isLoggedIn()},[uploadVisible])
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget)
   }
@@ -166,16 +195,7 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
               </Button>
             ))}
           </Box>
-	  <Box sx={{ flexGrow: 0 }}>
-		<Tooltip title="Upload">
-		 <IconButton onClick={} sx={{ p:0 }}>
-		  <Avatar alt="Upload" sx={{ bgcolor: lightBlue[500] }}>
-		   <CloudUploadIcon />
-		  </Avatar>
-		 </IconButton>
-		</Tooltip>
-	  </Box>
-
+	  {uploadVisible}
           <Box sx={{ flexGrow: 0 }}>
             <Tooltip title="Open Options">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
