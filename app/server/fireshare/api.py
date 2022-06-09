@@ -17,7 +17,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.',1)[1].lower() in allowed_exts
 
 api = Blueprint('api', __name__, template_folder=templates_path)
-api.config['UPLOAD_PATH'] = upload_path
+
 
 CORS(api, supports_credentials=True)
 
@@ -156,4 +156,9 @@ def upload_video():
         file =  request.files['file']
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            file.save(os.path.join(api.config['UPLOAD_FOLDER'], filename)
+            file.save(os.path.join(upload_path, filename))
+            return Response(status=200)
+        else:
+            return Response(status=400)
+    else:
+        return Response(status=400)

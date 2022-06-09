@@ -45,7 +45,12 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
 
   const handleFileUpload = (event) => {
     inputFile.current.click();
+
 }
+  const onFileUpdate = (event) => {
+    console.log(inputFile.current.files[0])
+} 
+
   React.useEffect(() => {
   async function isLoggedIn(){
     try{
@@ -56,7 +61,7 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
                  <IconButton onClick={handleFileUpload} sx={{ p:0 }}>
                   <Avatar alt="Upload" sx={{ bgcolor: lightBlue[500] }}>
                    <CloudUploadIcon />
-                   <input type='file' id='file' ref={inputFile} style={{display: 'none'}}/>
+                   <input type='file' id='file' ref={inputFile} onInput={onFileUpdate} style={{display: 'none'}}/>
                   </Avatar>
                  </IconButton>
                 </Tooltip>
@@ -67,7 +72,7 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
         console.log(err)
     }
 }
- isLoggedIn()},[uploadVisible])
+ isLoggedIn()},[])
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget)
   }
