@@ -31,6 +31,9 @@ const service = {
       ...details,
     })
   },
+  delete(id) {
+    return Api().delete(`/api/video/delete/${id}`)
+  },
   scan() {
     return Api().get('/api/manual/scan')
   },

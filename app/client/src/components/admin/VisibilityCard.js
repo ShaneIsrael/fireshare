@@ -8,11 +8,10 @@ const VisibilityCard = ({
   openVideo,
   handleAlert,
   handleSelected,
-  selected,
   cardWidth,
-  feedView,
   authenticated,
   openDetailsModal,
+  deleted,
 }) => {
   const nodeRef = useRef()
   const isVisible = useIsVisible(nodeRef)
@@ -29,11 +28,10 @@ const VisibilityCard = ({
           openVideoHandler={openVideo}
           alertHandler={handleAlert}
           selectedHandler={handleSelected}
-          selected={selected === video.video_id}
           cardWidth={cardWidth}
-          feedView={feedView}
           authenticated={authenticated}
           openDetailsModal={openDetailsModal}
+          deleted={deleted}
         />
       ) : (
         <div

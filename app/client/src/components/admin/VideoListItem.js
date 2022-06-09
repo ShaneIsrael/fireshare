@@ -27,7 +27,7 @@ const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} cla
   }),
 )
 
-const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authenticated }) => {
+const VideoListItem = ({ video, openVideoHandler, alertHandler, authenticated, deleted }) => {
   const [videoId, setVideoId] = React.useState(video.video_id)
   const [title, setTitle] = React.useState(video.info?.title)
   const [description, setDescription] = React.useState(video.info?.description)
@@ -98,8 +98,12 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, feedView, authen
   const handleDetailsModalClose = (update) => {
     setDetailsModalOpen(false)
     if (update) {
-      if (update.title !== title) setTitle(update.title)
-      if (update.description !== description) setDescription(update.description)
+      if (update === 'delete') {
+        deleted(videoId)
+      } else {
+        if (update.title !== title) setTitle(update.title)
+        if (update.description !== description) setDescription(update.description)
+      }
     }
   }
 

@@ -1,6 +1,5 @@
 import React from 'react'
 import { Button, ButtonGroup, Card, CardContent, Grid, IconButton, InputBase, Typography } from '@mui/material'
-import Tooltip, { tooltipClasses } from '@mui/material/Tooltip'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
@@ -11,32 +10,20 @@ import VideoService from '../../services/VideoService'
 import _ from 'lodash'
 import { Box } from '@mui/system'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
-import styled from '@emotion/styled'
+import LightTooltip from '../misc/LightTooltip'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
-
-const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} classes={{ popper: className }} />)(
-  ({ theme }) => ({
-    [`& .${tooltipClasses.tooltip}`]: {
-      backgroundColor: '#ffffff',
-      color: 'rgba(0, 0, 0, 0.87)',
-      boxShadow: theme.shadows[1],
-      fontSize: 11,
-    },
-  }),
-)
 
 const CompactVideoCard = ({
   video,
   openVideoHandler,
   alertHandler,
   selectedHandler,
-  selected,
   cardWidth,
-  feedView,
   authenticated,
+  deleted,
 }) => {
   const [videoId, setVideoId] = React.useState(video.video_id)
   const [title, setTitle] = React.useState(video.info?.title)
@@ -119,8 +106,12 @@ const CompactVideoCard = ({
   const handleDetailsModalClose = (update) => {
     setDetailsModalOpen(false)
     if (update) {
-      if (update.title !== title) setTitle(update.title)
-      if (update.description !== description) setDescription(update.description)
+      if (update === 'delete') {
+        deleted(videoId)
+      } else {
+        if (update.title !== title) setTitle(update.title)
+        if (update.description !== description) setDescription(update.description)
+      }
     }
   }
 

@@ -4,6 +4,7 @@ from subprocess import Popen
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import logout_user, current_user, login_required
 from flask_cors import CORS
+import logging
 from . import db
 from pathlib import Path
 from .models import Video, VideoInfo
@@ -13,6 +14,14 @@ templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
 api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
+
+
+logger = logging.getLogger('fireshare')
+handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName)s:%(lineno)d | %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 def get_video_path(id, subid=None):
     video = Video.query.filter_by(video_id=id).first()
@@ -54,6 +63,27 @@ def get_random_video():
     random_video = Video.query.offset(int(row_count * random.random())).first()
     current_app.logger.info(f"Fetched random video {random_video.video_id}: {random_video.info.title}")
     return jsonify(random_video.json())
+
+@api.route('/api/video/delete/<id>', methods=["DELETE"])
+@login_required
+def delete_video(id):
+    video = Video.query.filter_by(video_id=id).first()
+    if video:
+        logging.info(f"Deleting video: {video.video_id}")
+        VideoInfo.query.filter_by(video_id=id).delete()
+        Video.query.filter_by(video_id=id).delete()
+        try:
+            os.remove(f"{current_app.config['VIDEO_DIRECTORY']}/{video.path}")
+            os.remove(f"{current_app.config['PROCESSED_DIRECTORY']}/video_links/{id}.{video.extension}")
+            os.rmdir(f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{id}")
+            db.session.commit()
+        except OSError as e:
+            logging.error(f"Error deleting: {e.strerror}")
+        return Response(status=200)
+        
+    else:
+        return Response(status=404, response=f"A video with id: {id}, does not exist.")
+
 
 @api.route('/api/video/public/random')
 def get_random_public_video():
