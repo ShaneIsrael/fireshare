@@ -51,7 +51,12 @@
       </ul>
     </li>
     <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#contact">Contact</a></li>
+    <li>
+      <a href="#frequently-asked-questions">FAQ / Troubleshooting</a>
+      <ul>
+        <li><a href="#playback-issues">Playback Issues</a></li>
+      </ul>
+    </li>
   </ol>
 </details>
 
@@ -174,6 +179,23 @@ If this project is at all interesting to you please feel free to contribute or c
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
+
+# Frequently Asked Questions
+
+### Playback Issues
+
+If you are experiencing playback issues there could be a number of reasons as to why. These are the most common causes.
+
+1. **File Size** - Fireshare serves your videos as they are. If your videos are very large anybody trying to watch will need to have a fast enough download speed to play them back. This also means you will need to have an upload speed fast enough to serve your large files. Consider using a tool like Handbrake to compress your videos down to a smaller size.
+
+2. **Upload Speed** - You're upload speed matters. If you have a slow upload speed, depending the file sizes that you are trying to serve it may not be possible for people to stream your videos. Consider compressing your videos with Handbrake.
+
+3. **Browsers** - In my testing I have noticed that Firefox struggles to playback very large files, however Chome and Edge do not seem to have the same problem.
+
+4. **Unsupported File Type** - At the moment, Fireshare only support MP4 and MOV files. It's reccommended to use MP4 where possible, while MOV is supported we have noticed that some MOV files play just fine while others do not. If your MOV file does not play, consider transcoding it to an MP4 file with a tool like Handbrake.
+
+
+
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
