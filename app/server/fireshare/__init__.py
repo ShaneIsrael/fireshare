@@ -8,8 +8,6 @@ from flask_cors import CORS
 from pathlib import Path
 import logging
 
-
-
 logger = logging.getLogger('fireshare')
 handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName)s:%(lineno)d | %(message)s')

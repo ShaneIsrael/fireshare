@@ -69,6 +69,10 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
     setVideos((vs) => vs.map((v) => (v.video_id === id ? { ...v, info: { ...v.info, ...rest } } : v)))
   }
 
+  const handleDelete = (id) => {
+    setVideos((vs) => vs.filter((v) => v.video_id !== id))
+  }
+
   const EMPTY_STATE = () => (
     <Paper variant="outlined" sx={{ mr: 3, ml: 3, overflow: 'hidden' }}>
       <Grid
@@ -136,10 +140,9 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
                 handleAlert={memoizedHandleAlert}
                 handleSelected={handleSelected}
                 openVideo={openVideo}
-                selected={selected}
                 cardWidth={size}
-                feedView={feedView}
                 authenticated={authenticated}
+                deleted={handleDelete}
               />
             ))}
           </Grid>

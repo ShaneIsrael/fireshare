@@ -17,7 +17,7 @@ class Video(db.Model):
     path      = db.Column(db.String(2048), index=True, nullable=False)
     available = db.Column(db.Boolean, default=True)
 
-    info      = db.relationship("VideoInfo", back_populates="video", cascade="all, delete", uselist=False, lazy="joined")
+    info      = db.relationship("VideoInfo", back_populates="video", cascade="all,delete", uselist=False, lazy="joined")
 
     def json(self):
         j = {

@@ -2,8 +2,12 @@ import * as React from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Modal from '@mui/material/Modal'
-import { Stack, TextField } from '@mui/material'
+import CancelIcon from '@mui/icons-material/Cancel'
+import DeleteIcon from '@mui/icons-material/Delete'
+
+import { ButtonGroup, Stack, TextField } from '@mui/material'
 import { VideoService } from '../../services'
+import LightTooltip from '../misc/LightTooltip'
 
 //
 const style = {
@@ -21,9 +25,15 @@ const style = {
 const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescription, alertHandler }) => {
   const [title, setTitle] = React.useState(currentTitle)
   const [description, setDescription] = React.useState(currentDescription)
+  const [confirmDelete, setConfirmDelete] = React.useState(false)
 
   const onTitleChange = (e) => setTitle(e.target.value)
   const onDescriptionChange = (e) => setDescription(e.target.value)
+
+  const handleClose = (update) => {
+    setConfirmDelete(false)
+    close(update)
+  }
 
   const handleSave = async () => {
     const update = {
@@ -44,7 +54,25 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
         message: `${err.respnose?.data || 'An unknown error occurred attempting to save video details'}`,
       })
     }
-    close(update)
+    handleClose(update)
+  }
+
+  const handleDelete = async () => {
+    try {
+      await VideoService.delete(videoId)
+      alertHandler({
+        open: true,
+        type: 'success',
+        message: 'Video has been deleted.',
+      })
+      handleClose('delete')
+    } catch (err) {
+      alertHandler({
+        open: true,
+        type: 'error',
+        message: `${err.respnose?.data || 'An unknown error occurred attempting to delete the video'}`,
+      })
+    }
   }
 
   React.useEffect(() => {
@@ -58,7 +86,7 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
   return (
     <Modal
       open={open}
-      onClose={() => close(null)}
+      onClose={() => handleClose(null)}
       aria-labelledby="modal-update-details-title"
       aria-describedby="modal-update-details-description"
     >
@@ -81,6 +109,35 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
           <Button variant="contained" onClick={handleSave}>
             Save
           </Button>
+
+          {confirmDelete ? (
+            <ButtonGroup fullWidth>
+              <Button variant="outlined" startIcon={<CancelIcon />} onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </Button>
+              <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={handleDelete}>
+                Delete
+              </Button>
+            </ButtonGroup>
+          ) : (
+            <LightTooltip
+              title="This will delete the associated file, this action is not reverseable."
+              placement="bottom"
+              enterDelay={1000}
+              leaveDelay={500}
+              enterNextDelay={1000}
+              arrow
+            >
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete File
+              </Button>
+            </LightTooltip>
+          )}
         </Stack>
       </Box>
     </Modal>
