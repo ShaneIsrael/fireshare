@@ -83,7 +83,7 @@ def delete_video(id):
             if path.exists(link_path):
                 os.remove(link_path)
             if path.exists(derived_path):
-                os.rmdir()
+                os.rmdir(derived_path)
         except OSError as e:
             logging.error(f"Error deleting: {e.strerror}")
         return Response(status=200)
