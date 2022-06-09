@@ -1,5 +1,6 @@
 import os, re
 import random
+from os import path
 from subprocess import Popen
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import logout_user, current_user, login_required
@@ -72,11 +73,17 @@ def delete_video(id):
         logging.info(f"Deleting video: {video.video_id}")
         VideoInfo.query.filter_by(video_id=id).delete()
         Video.query.filter_by(video_id=id).delete()
+        db.session.commit()
+        file_path = f"{current_app.config['VIDEO_DIRECTORY']}/{video.path}"
+        link_path = f"{current_app.config['PROCESSED_DIRECTORY']}/video_links/{id}.{video.extension}"
+        derived_path = f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{id}"
         try:
-            os.remove(f"{current_app.config['VIDEO_DIRECTORY']}/{video.path}")
-            os.remove(f"{current_app.config['PROCESSED_DIRECTORY']}/video_links/{id}.{video.extension}")
-            os.rmdir(f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{id}")
-            db.session.commit()
+            if path.exists(file_path):
+                os.remove(file_path)
+            if path.exists(link_path):
+                os.remove(link_path)
+            if path.exists(derived_path):
+                os.rmdir()
         except OSError as e:
             logging.error(f"Error deleting: {e.strerror}")
         return Response(status=200)
