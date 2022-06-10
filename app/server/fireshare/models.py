@@ -1,6 +1,7 @@
 from enum import unique
 import json
 from flask_login import UserMixin
+from pytz import timezone
 from . import db
 
 class User(UserMixin, db.Model):
@@ -16,8 +17,9 @@ class Video(db.Model):
     extension = db.Column(db.String(8), nullable=False)
     path      = db.Column(db.String(2048), index=True, nullable=False)
     available = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime())
 
-    info      = db.relationship("VideoInfo", back_populates="video", cascade="all,delete", uselist=False, lazy="joined")
+    info      = db.relationship("VideoInfo", back_populates="video", uselist=False, lazy="joined")
 
     def json(self):
         j = {
@@ -36,7 +38,7 @@ class VideoInfo(db.Model):
     __tablename__ = "video_info"
 
     id          = db.Column(db.Integer, primary_key=True)
-    video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id", ondelete='CASCADE'), nullable=False)
+    video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id"), nullable=False)
     title       = db.Column(db.String(256), index=True)
     description = db.Column(db.String(2048))
     info        = db.Column(db.Text)
