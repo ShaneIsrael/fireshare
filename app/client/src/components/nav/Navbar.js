@@ -8,6 +8,8 @@ import Menu from '@mui/material/Menu'
 import MenuIcon from '@mui/icons-material/Menu'
 import Avatar from '@mui/material/Avatar'
 import Button from '@mui/material/Button'
+import Autocomplete, { createFilterOptions } from  '@mui/material/Autocomplete'
+import TextField from '@mui/material/TextField'
 import Tooltip, { tooltipClasses } from '@mui/material/Tooltip'
 import MenuItem from '@mui/material/MenuItem'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
@@ -42,6 +44,7 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
   const [uploadVisible, setUploadVisible] = React.useState(null)
   const navigate = useNavigate()
   const inputFile = React.useRef(null)
+  const [folder, setFolder] = React.useState(null)
 
   const handleFileUpload = (event) => {
     inputFile.current.click();
@@ -49,7 +52,7 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
 }
   const onFileUpdate = (event) => {
     console.log(inputFile.current.files[0])
-} 
+}
 
   React.useEffect(() => {
   async function isLoggedIn(){
@@ -62,6 +65,7 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
                   <Avatar alt="Upload" sx={{ bgcolor: lightBlue[500] }}>
                    <CloudUploadIcon />
                    <input type='file' id='file' ref={inputFile} onInput={onFileUpdate} style={{display: 'none'}}/>
+                   <Autocomplete />
                   </Avatar>
                  </IconButton>
                 </Tooltip>
