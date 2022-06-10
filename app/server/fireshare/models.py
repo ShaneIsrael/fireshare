@@ -1,7 +1,5 @@
-from enum import unique
 import json
 from flask_login import UserMixin
-from pytz import timezone
 from . import db
 
 class User(UserMixin, db.Model):
