@@ -16,6 +16,7 @@ class Video(db.Model):
     path      = db.Column(db.String(2048), index=True, nullable=False)
     available = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime())
+    updated_at = db.Column(db.DateTime())
 
     info      = db.relationship("VideoInfo", back_populates="video", uselist=False, lazy="joined")
 

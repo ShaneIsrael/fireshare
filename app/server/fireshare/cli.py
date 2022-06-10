@@ -46,6 +46,7 @@ def scan_videos():
             path = str(vf.relative_to(raw_videos))
             video_id = util.video_id(vf)
             created_at = datetime.fromtimestamp(os.path.getctime(f"{raw_videos}/{path}"))
+            updated_at = datetime.fromtimestamp(os.path.getmtime(f"{raw_videos}/{path}"))
             existing = next((vr for vr in video_rows if vr.video_id == video_id), None)
             if existing:
                 logger.info(f"Skipping Video {video_id} at {str(path)} because it already exists at {existing.path}")
@@ -55,8 +56,11 @@ def scan_videos():
                 if not existing.created_at:
                     logger.info(f"Setting Video {video_id}, created_at={created_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "created_at": created_at })
+                if not existing.updated_at:
+                    logger.info(f"Setting Video {video_id}, updated_at={created_at}")
+                    db.session.query(Video).filter_by(video_id=existing.video_id).update({ "updated_at": updated_at })
             else:
-                v = Video(video_id=video_id, extension=vf.suffix, path=path, available=True, created_at=created_at)
+                v = Video(video_id=video_id, extension=vf.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at)
                 logger.info(f"Adding Video {video_id} at {str(path)}")
                 new_videos.append(v)
         
