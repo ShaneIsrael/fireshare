@@ -18,10 +18,6 @@ CORS(api, supports_credentials=True)
 
 
 logger = logging.getLogger('fireshare')
-handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName)s:%(lineno)d | %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 def get_video_path(id, subid=None):
