@@ -57,7 +57,7 @@ def scan_videos():
                     logger.info(f"Setting Video {video_id}, created_at={created_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "created_at": created_at })
                 if not existing.updated_at:
-                    logger.info(f"Setting Video {video_id}, updated_at={created_at}")
+                    logger.info(f"Setting Video {video_id}, updated_at={updated_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "updated_at": updated_at })
             else:
                 v = Video(video_id=video_id, extension=vf.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at)
