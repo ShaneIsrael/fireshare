@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton } from '@mui/material'
+import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import { isMobile } from 'react-device-detect'
@@ -14,8 +14,12 @@ import { getSetting, getSettings, setSetting } from '../common/utils'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
-import selectTheme from '../common/reactSelectTheme'
+import selectFolderTheme from '../common/reactSelectFolderTheme'
+import selectSortTheme from '../common/reactSelectSortTheme'
+
 import SliderWrapper from '../components/misc/SliderWrapper'
+import Search from '../components/search/Search'
+import { SORT_OPTIONS } from '../common/constants'
 
 const settings = getSettings()
 
@@ -36,7 +40,8 @@ const Feed = () => {
   const query = useQuery()
   const category = query.get('category')
   const [authenticated, setAuthenticated] = React.useState(false)
-  const [videos, setVideos] = React.useState(null)
+  const [videos, setVideos] = React.useState([])
+  const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
@@ -45,15 +50,18 @@ const Feed = () => {
       ? { value: category, label: category }
       : getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
+  const [selectedSort, setSelectedSort] = React.useState(SORT_OPTIONS[0])
+
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
   const navigate = useNavigate()
 
   function fetchVideos() {
-    VideoService.getPublicVideos()
+    VideoService.getPublicVideos(selectedSort.value)
       .then((res) => {
         setVideos(res.data.videos)
+        setFilteredVideos(res.data.videos)
         const tfolders = []
         res.data.videos.forEach((v) => {
           const split = v.path
@@ -88,13 +96,16 @@ const Feed = () => {
           setAuthenticated(true)
         }
       }
-
       isLoggedIn()
+      fetchVideos()
     } catch (err) {
       console.error(err)
     }
-    fetchVideos()
   }, [navigate])
+
+  React.useEffect(() => {
+    fetchVideos()
+  }, [selectedSort])
 
   const handleLogout = async () => {
     try {
@@ -145,6 +156,10 @@ const Feed = () => {
     setSetting('cardSize', newSize)
   }
 
+  const handleSearch = (search) => {
+    setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(search, 'i')) >= 0))
+  }
+
   const options = [
     { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : () => navigate('/login') },
   ]
@@ -164,7 +179,7 @@ const Feed = () => {
           <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
             <Grid item xs={12}>
               <Grid container sx={{ pr: 2, pl: 2 }}>
-                <Grid item xs>
+                <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }}>
                   <Typography
                     variant="h5"
                     sx={{
@@ -176,8 +191,30 @@ const Feed = () => {
                       ml: 1,
                     }}
                   >
-                    PUBLIC FEED
+                    PUBLIC VIDEOS
                   </Typography>
+                </Grid>
+                <Grid item sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontFamily: 'monospace',
+                      fontWeight: 500,
+                      letterSpacing: '.2rem',
+                      color: 'inherit',
+                      textDecoration: 'none',
+                      ml: 1,
+                    }}
+                  >
+                    PUBLIC VIDEOS
+                  </Typography>
+                </Grid>
+                <Grid item xs sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                  <Search
+                    placeholder={`Search ${selectedFolder.label}`}
+                    searchHandler={handleSearch}
+                    sx={{ pl: 4, pr: 4, width: '100%' }}
+                  />
                 </Grid>
                 {!isMobile && (
                   <Grid item sx={{ pr: 2, pt: 0.25 }}>
@@ -211,13 +248,48 @@ const Feed = () => {
               <Grid container justifyContent="center">
                 {videos && videos.length !== 0 && (
                   <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 3 }}>
-                    <Select
-                      value={selectedFolder}
-                      options={createSelectFolders(folders)}
-                      onChange={handleFolderSelection}
-                      styles={selectTheme}
-                      blurInputOnSelect
-                      isSearchable={false}
+                    <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Select
+                          value={selectedFolder}
+                          options={createSelectFolders(folders)}
+                          onChange={handleFolderSelection}
+                          styles={selectFolderTheme}
+                          blurInputOnSelect
+                          isSearchable={false}
+                        />
+                      </Box>
+                      <Select
+                        value={selectedSort}
+                        options={SORT_OPTIONS}
+                        onChange={(option) => setSelectedSort(option)}
+                        styles={selectSortTheme}
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                    </Stack>
+                    <Stack sx={{ display: { xs: 'block', sm: 'none' } }} spacing={1}>
+                      <Select
+                        value={selectedFolder}
+                        options={createSelectFolders(folders)}
+                        onChange={handleFolderSelection}
+                        styles={selectFolderTheme}
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                      <Select
+                        value={selectedSort}
+                        options={SORT_OPTIONS}
+                        onChange={(option) => setSelectedSort(option)}
+                        styles={selectSortTheme}
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                    </Stack>
+                    <Search
+                      placeholder={`Search ${selectedFolder.label}`}
+                      searchHandler={(search) => console.log(search)}
+                      sx={{ width: '100%', mt: 1, display: { xs: 'flex', sm: 'none' } }}
                     />
                   </Grid>
                 )}
@@ -229,8 +301,8 @@ const Feed = () => {
                       feedView
                       videos={
                         selectedFolder.value === 'All Videos'
-                          ? videos
-                          : videos?.filter(
+                          ? filteredVideos
+                          : filteredVideos?.filter(
                               (v) =>
                                 v.path
                                   .split('/')
@@ -248,8 +320,8 @@ const Feed = () => {
                       size={cardSize}
                       videos={
                         selectedFolder.value === 'All Videos'
-                          ? videos
-                          : videos?.filter(
+                          ? filteredVideos
+                          : filteredVideos?.filter(
                               (v) =>
                                 v.path
                                   .split('/')

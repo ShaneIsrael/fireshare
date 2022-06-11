@@ -5,6 +5,8 @@ from subprocess import Popen
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import logout_user, current_user, login_required
 from flask_cors import CORS
+from sqlalchemy.sql import text
+
 import logging
 from . import db
 from pathlib import Path
@@ -51,7 +53,8 @@ def manual_scan():
 @api.route('/api/videos')
 @login_required
 def get_videos():
-    return jsonify({"videos": [v.json() for v in Video.query.all()]})
+    sort = request.args.get('sort')
+    return jsonify({"videos": [v.json() for v in Video.query.join(VideoInfo).order_by(text(sort)).all()]})
 
 @api.route('/api/video/random')
 @login_required
@@ -97,7 +100,8 @@ def get_random_public_video():
 
 @api.route('/api/videos/public')
 def get_public_videos():
-    return jsonify({"videos": [v.json() for v in Video.query.filter(Video.info.has(private=False)).filter_by(available=True)]})
+    sort = request.args.get('sort')
+    return jsonify({"videos": [v.json() for v in Video.query.filter_by(available=True).join(VideoInfo).filter(Video.info.has(private=False)).order_by(text(sort))]})
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):

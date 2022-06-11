@@ -118,7 +118,7 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
         <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
           <Grid container>
             {vids.map((v) => (
-              <Grid key={v.video_id} item xs={12}>
+              <Grid key={v.path + v.video_id} item xs={12}>
                 <VideoListItem
                   video={v}
                   openVideoHandler={openVideo}
