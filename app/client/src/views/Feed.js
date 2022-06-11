@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton } from '@mui/material'
+import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import { isMobile } from 'react-device-detect'
@@ -14,9 +14,12 @@ import { getSetting, getSettings, setSetting } from '../common/utils'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
-import selectTheme from '../common/reactSelectTheme'
+import selectFolderTheme from '../common/reactSelectFolderTheme'
+import selectSortTheme from '../common/reactSelectSortTheme'
+
 import SliderWrapper from '../components/misc/SliderWrapper'
 import Search from '../components/search/Search'
+import { SORT_OPTIONS } from '../common/constants'
 
 const settings = getSettings()
 
@@ -47,13 +50,15 @@ const Feed = () => {
       ? { value: category, label: category }
       : getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
+  const [selectedSort, setSelectedSort] = React.useState(SORT_OPTIONS[0])
+
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
   const navigate = useNavigate()
 
   function fetchVideos() {
-    VideoService.getPublicVideos()
+    VideoService.getPublicVideos(selectedSort.value)
       .then((res) => {
         setVideos(res.data.videos)
         setFilteredVideos(res.data.videos)
@@ -91,13 +96,16 @@ const Feed = () => {
           setAuthenticated(true)
         }
       }
-
       isLoggedIn()
+      fetchVideos()
     } catch (err) {
       console.error(err)
     }
-    fetchVideos()
   }, [navigate])
+
+  React.useEffect(() => {
+    fetchVideos()
+  }, [selectedSort])
 
   const handleLogout = async () => {
     try {
@@ -240,14 +248,44 @@ const Feed = () => {
               <Grid container justifyContent="center">
                 {videos && videos.length !== 0 && (
                   <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 3 }}>
-                    <Select
-                      value={selectedFolder}
-                      options={createSelectFolders(folders)}
-                      onChange={handleFolderSelection}
-                      styles={selectTheme}
-                      blurInputOnSelect
-                      isSearchable={false}
-                    />
+                    <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Select
+                          value={selectedFolder}
+                          options={createSelectFolders(folders)}
+                          onChange={handleFolderSelection}
+                          styles={selectFolderTheme}
+                          blurInputOnSelect
+                          isSearchable={false}
+                        />
+                      </Box>
+                      <Select
+                        value={selectedSort}
+                        options={SORT_OPTIONS}
+                        onChange={(option) => setSelectedSort(option)}
+                        styles={selectSortTheme}
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                    </Stack>
+                    <Stack sx={{ display: { xs: 'block', sm: 'none' } }} spacing={1}>
+                      <Select
+                        value={selectedFolder}
+                        options={createSelectFolders(folders)}
+                        onChange={handleFolderSelection}
+                        styles={selectFolderTheme}
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                      <Select
+                        value={selectedSort}
+                        options={SORT_OPTIONS}
+                        onChange={(option) => setSelectedSort(option)}
+                        styles={selectSortTheme}
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                    </Stack>
                     <Search
                       placeholder={`Search ${selectedFolder.label}`}
                       searchHandler={(search) => console.log(search)}
@@ -263,8 +301,8 @@ const Feed = () => {
                       feedView
                       videos={
                         selectedFolder.value === 'All Videos'
-                          ? videos
-                          : videos?.filter(
+                          ? filteredVideos
+                          : filteredVideos?.filter(
                               (v) =>
                                 v.path
                                   .split('/')
@@ -282,8 +320,8 @@ const Feed = () => {
                       size={cardSize}
                       videos={
                         selectedFolder.value === 'All Videos'
-                          ? videos
-                          : videos?.filter(
+                          ? filteredVideos
+                          : filteredVideos?.filter(
                               (v) =>
                                 v.path
                                   .split('/')

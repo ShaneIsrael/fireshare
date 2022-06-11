@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button, ButtonGroup, Card, CardContent, Grid, IconButton, InputBase, Typography } from '@mui/material'
+import { Button, ButtonGroup, Grid, IconButton, InputBase, Typography } from '@mui/material'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
@@ -16,15 +16,7 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-const CompactVideoCard = ({
-  video,
-  openVideoHandler,
-  alertHandler,
-  selectedHandler,
-  cardWidth,
-  authenticated,
-  deleted,
-}) => {
+const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, authenticated, deleted }) => {
   const [videoId, setVideoId] = React.useState(video.video_id)
   const [title, setTitle] = React.useState(video.info?.title)
   const [description, setDescription] = React.useState(video.info?.description)
@@ -221,10 +213,7 @@ const CompactVideoCard = ({
         >
           <div
             style={{ position: 'relative', cursor: 'pointer' }}
-            onClick={() => {
-              selectedHandler(video.video_id)
-              openVideoHandler(video.video_id)
-            }}
+            onClick={() => openVideoHandler(video.video_id)}
             onMouseEnter={debouncedMouseEnter}
             onMouseLeave={handleMouseLeave}
             onMouseDown={handleMouseDown}

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton } from '@mui/material'
+import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
@@ -13,9 +13,11 @@ import { isMobile } from 'react-device-detect'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
-import selectTheme from '../common/reactSelectTheme'
+import selectFolderTheme from '../common/reactSelectFolderTheme'
+import selectSortTheme from '../common/reactSelectSortTheme'
 import SliderWrapper from '../components/misc/SliderWrapper'
 import Search from '../components/search/Search'
+import { SORT_OPTIONS } from '../common/constants'
 
 const settings = getSettings()
 
@@ -36,13 +38,15 @@ const Dashboard = () => {
   const [selectedFolder, setSelectedFolder] = React.useState(
     getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
+  const [selectedSort, setSelectedSort] = React.useState(SORT_OPTIONS[0])
+
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
   const navigate = useNavigate()
 
   function fetchVideos() {
-    VideoService.getVideos()
+    VideoService.getVideos(selectedSort.value)
       .then((res) => {
         setVideos(res.data.videos)
         setFilteredVideos(res.data.videos)
@@ -81,11 +85,15 @@ const Dashboard = () => {
         }
       }
       isLoggedIn()
+      fetchVideos()
     } catch (err) {
       console.error(err)
     }
-    fetchVideos()
   }, [navigate])
+
+  React.useEffect(() => {
+    fetchVideos()
+  }, [selectedSort])
 
   if (!authenticated) return null
 
@@ -221,14 +229,44 @@ const Dashboard = () => {
               <Divider sx={{ mb: 2 }} light />
               <Grid container justifyContent="center">
                 <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 3 }}>
-                  <Select
-                    value={selectedFolder}
-                    options={createSelectFolders(folders)}
-                    onChange={handleFolderSelection}
-                    styles={selectTheme}
-                    blurInputOnSelect
-                    isSearchable={false}
-                  />
+                  <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Select
+                        value={selectedFolder}
+                        options={createSelectFolders(folders)}
+                        onChange={handleFolderSelection}
+                        styles={selectFolderTheme}
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                    </Box>
+                    <Select
+                      value={selectedSort}
+                      options={SORT_OPTIONS}
+                      onChange={(option) => setSelectedSort(option)}
+                      styles={selectSortTheme}
+                      blurInputOnSelect
+                      isSearchable={false}
+                    />
+                  </Stack>
+                  <Stack sx={{ display: { xs: 'block', sm: 'none' } }} spacing={1}>
+                    <Select
+                      value={selectedFolder}
+                      options={createSelectFolders(folders)}
+                      onChange={handleFolderSelection}
+                      styles={selectFolderTheme}
+                      blurInputOnSelect
+                      isSearchable={false}
+                    />
+                    <Select
+                      value={selectedSort}
+                      options={SORT_OPTIONS}
+                      onChange={(option) => setSelectedSort(option)}
+                      styles={selectSortTheme}
+                      blurInputOnSelect
+                      isSearchable={false}
+                    />
+                  </Stack>
                   <Search
                     placeholder={`Search ${selectedFolder.label}`}
                     searchHandler={(search) => console.log(search)}

@@ -12,8 +12,6 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
   const [videoModal, setVideoModal] = React.useState({
     open: false,
   })
-  const [selectedTimeout, setSelectedTimeout] = React.useState(null)
-  const [selected, setSelected] = React.useState(null)
 
   const previousVideosRef = React.useRef()
   const previousVideos = previousVideosRef.current
@@ -25,7 +23,6 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
   })
 
   const openVideo = (id) => {
-    clearTimeout(selectedTimeout)
     setVideoModal({
       open: true,
       id,
@@ -33,21 +30,12 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
   }
 
   const onModalClose = () => {
-    setSelectedTimeout(
-      setTimeout(() => {
-        setSelected(null)
-      }, 5000),
-    )
     setVideoModal({ open: false })
   }
 
   const memoizedHandleAlert = useCallback((alert) => {
     setAlert(alert)
   }, [])
-
-  const handleSelected = (id) => {
-    setSelected(id)
-  }
 
   const handleScan = () => {
     VideoService.scan().catch((err) =>
@@ -138,7 +126,6 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
                 key={v.video_id}
                 video={v}
                 handleAlert={memoizedHandleAlert}
-                handleSelected={handleSelected}
                 openVideo={openVideo}
                 cardWidth={size}
                 authenticated={authenticated}

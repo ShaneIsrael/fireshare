@@ -3,16 +3,7 @@ import { useIsVisible } from 'react-is-visible'
 import { Grid } from '@mui/material'
 import CompactVideoCard from './CompactVideoCard'
 
-const VisibilityCard = ({
-  video,
-  openVideo,
-  handleAlert,
-  handleSelected,
-  cardWidth,
-  authenticated,
-  openDetailsModal,
-  deleted,
-}) => {
+const VisibilityCard = ({ video, openVideo, handleAlert, cardWidth, authenticated, openDetailsModal, deleted }) => {
   const nodeRef = useRef()
   const isVisible = useIsVisible(nodeRef)
 
@@ -27,7 +18,6 @@ const VisibilityCard = ({
           video={video}
           openVideoHandler={openVideo}
           alertHandler={handleAlert}
-          selectedHandler={handleSelected}
           cardWidth={cardWidth}
           authenticated={authenticated}
           openDetailsModal={openDetailsModal}
