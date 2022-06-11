@@ -16,6 +16,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 
 import selectTheme from '../common/reactSelectTheme'
 import SliderWrapper from '../components/misc/SliderWrapper'
+import Search from '../components/search/Search'
 
 const settings = getSettings()
 
@@ -36,7 +37,8 @@ const Feed = () => {
   const query = useQuery()
   const category = query.get('category')
   const [authenticated, setAuthenticated] = React.useState(false)
-  const [videos, setVideos] = React.useState(null)
+  const [videos, setVideos] = React.useState([])
+  const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
@@ -54,6 +56,7 @@ const Feed = () => {
     VideoService.getPublicVideos()
       .then((res) => {
         setVideos(res.data.videos)
+        setFilteredVideos(res.data.videos)
         const tfolders = []
         res.data.videos.forEach((v) => {
           const split = v.path
@@ -145,6 +148,10 @@ const Feed = () => {
     setSetting('cardSize', newSize)
   }
 
+  const handleSearch = (search) => {
+    setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(search, 'i')) >= 0))
+  }
+
   const options = [
     { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : () => navigate('/login') },
   ]
@@ -164,7 +171,7 @@ const Feed = () => {
           <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
             <Grid item xs={12}>
               <Grid container sx={{ pr: 2, pl: 2 }}>
-                <Grid item xs>
+                <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }}>
                   <Typography
                     variant="h5"
                     sx={{
@@ -176,8 +183,30 @@ const Feed = () => {
                       ml: 1,
                     }}
                   >
-                    PUBLIC FEED
+                    PUBLIC VIDEOS
                   </Typography>
+                </Grid>
+                <Grid item sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontFamily: 'monospace',
+                      fontWeight: 500,
+                      letterSpacing: '.2rem',
+                      color: 'inherit',
+                      textDecoration: 'none',
+                      ml: 1,
+                    }}
+                  >
+                    PUBLIC VIDEOS
+                  </Typography>
+                </Grid>
+                <Grid item xs sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                  <Search
+                    placeholder={`Search ${selectedFolder.label}`}
+                    searchHandler={handleSearch}
+                    sx={{ pl: 4, pr: 4, width: '100%' }}
+                  />
                 </Grid>
                 {!isMobile && (
                   <Grid item sx={{ pr: 2, pt: 0.25 }}>
@@ -218,6 +247,11 @@ const Feed = () => {
                       styles={selectTheme}
                       blurInputOnSelect
                       isSearchable={false}
+                    />
+                    <Search
+                      placeholder={`Search ${selectedFolder.label}`}
+                      searchHandler={(search) => console.log(search)}
+                      sx={{ width: '100%', mt: 1, display: { xs: 'flex', sm: 'none' } }}
                     />
                   </Grid>
                 )}
