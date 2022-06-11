@@ -96,6 +96,13 @@ The goal of Fireshare is to provide a very simple and easy way for you to share 
 
 ![watch-page]
 
+<h2 align="center">Mobile Support</h2>
+<p align="center">
+Prefer to browse on your mobile device? No problem. Fireshare has you covered.
+</p>
+
+![mobile-view]
+
 <h2 align="center">Open Graph Support</h2>
 <p align="center">
 Direct links copied from the link copy buttons in Fireshare will allow websites and messaging apps to read the open graph data and show title, description and video thumbnails in your posts.
@@ -194,3 +201,4 @@ If this project is at all interesting to you please feel free to contribute or c
 [preview-modal]: .github/images/preview-modal.png
 [watch-page]: .github/images/watch-page.png
 [ogg-data]: .github/images/ogg-data.png
+[mobile-view]: .github/images/mobile-view.png
