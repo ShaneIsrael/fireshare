@@ -101,11 +101,20 @@ const Feed = () => {
     } catch (err) {
       console.error(err)
     }
+    // eslint-disable-next-line
   }, [navigate])
 
   React.useEffect(() => {
     fetchVideos()
+    // eslint-disable-next-line
   }, [selectedSort])
+
+  const handleSearch = React.useCallback(
+    (search) => {
+      setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(search, 'i')) >= 0))
+    },
+    [videos],
+  )
 
   const handleLogout = async () => {
     try {
@@ -156,10 +165,6 @@ const Feed = () => {
     setSetting('cardSize', newSize)
   }
 
-  const handleSearch = (search) => {
-    setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(search, 'i')) >= 0))
-  }
-
   const options = [
     { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : () => navigate('/login') },
   ]
@@ -176,7 +181,7 @@ const Feed = () => {
       </SnackbarAlert>
       <Box sx={{ overflow: 'auto', height: '100%' }}>
         <Grid sx={{}} container direction="row" justifyContent="center">
-          <Grid container item justifyContent="center" spacing={2} sx={{ mt: 5 }}>
+          <Grid container item justifyContent="center" spacing={2} sx={{ mt: 2 }}>
             <Grid item xs={12}>
               <Grid container sx={{ pr: 2, pl: 2 }}>
                 <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }}>
@@ -194,7 +199,7 @@ const Feed = () => {
                     PUBLIC VIDEOS
                   </Typography>
                 </Grid>
-                <Grid item sx={{ display: { xs: 'none', sm: 'flex' } }}>
+                <Grid item xs sx={{ display: { xs: 'none', sm: 'flex' } }}>
                   <Typography
                     variant="h5"
                     sx={{
@@ -208,13 +213,6 @@ const Feed = () => {
                   >
                     PUBLIC VIDEOS
                   </Typography>
-                </Grid>
-                <Grid item xs sx={{ display: { xs: 'none', sm: 'flex' } }}>
-                  <Search
-                    placeholder={`Search ${selectedFolder.label}`}
-                    searchHandler={handleSearch}
-                    sx={{ pl: 4, pr: 4, width: '100%' }}
-                  />
                 </Grid>
                 {!isMobile && (
                   <Grid item sx={{ pr: 2, pt: 0.25 }}>
@@ -248,6 +246,11 @@ const Feed = () => {
               <Grid container justifyContent="center">
                 {videos && videos.length !== 0 && (
                   <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 3 }}>
+                    <Search
+                      placeholder={`Search ${selectedFolder.label}`}
+                      searchHandler={handleSearch}
+                      sx={{ mb: 2, width: '100%' }}
+                    />
                     <Stack direction="row" spacing={1} sx={{ display: { xs: 'none', sm: 'flex' } }}>
                       <Box sx={{ flexGrow: 1 }}>
                         <Select
@@ -286,11 +289,6 @@ const Feed = () => {
                         isSearchable={false}
                       />
                     </Stack>
-                    <Search
-                      placeholder={`Search ${selectedFolder.label}`}
-                      searchHandler={(search) => console.log(search)}
-                      sx={{ width: '100%', mt: 1, display: { xs: 'flex', sm: 'none' } }}
-                    />
                   </Grid>
                 )}
                 <Grid item xs={12}>
