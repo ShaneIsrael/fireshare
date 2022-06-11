@@ -5,7 +5,7 @@ import { useDebounce } from '../../common/utils'
 
 const Search = ({ searchHandler, placeholder, sx }) => {
   const [search, setSearch] = React.useState('')
-  const debouncedSearch = useDebounce(search, 750)
+  const debouncedSearch = useDebounce(search, 500)
 
   React.useEffect(() => searchHandler(debouncedSearch), [debouncedSearch])
 

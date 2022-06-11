@@ -123,7 +123,7 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
           <Grid container justifyContent="center">
             {vids.map((v) => (
               <VisibilityCard
-                key={v.video_id}
+                key={v.path + v.video_id}
                 video={v}
                 handleAlert={memoizedHandleAlert}
                 openVideo={openVideo}
