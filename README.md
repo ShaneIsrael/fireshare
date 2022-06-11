@@ -106,7 +106,7 @@ The goal of Fireshare is to provide a very simple and easy way for you to share 
 Prefer to browse on your mobile device? No problem. Fireshare has you covered.
 </p>
 
-![mobile-view]
+<p align="center"><img src=".github/images/mobile-view.png" width="400px"/></p>
 
 <h2 align="center">Open Graph Support</h2>
 <p align="center">
@@ -138,7 +138,9 @@ If you have all of your game clips stored in a folder **my_game_clips** then in 
 
 #### Docker Compose
 
-If you have docker compose installed, at the root of this project you can simply do. **make sure you edit the docker-compose.yml** file with your volume locations and admin password.
+If you have docker compose installed, at the root of this project you can simply run this command. 
+
+> **make sure you edit the docker-compose.yml** file with your volume locations and admin password.
 
 ```
 docker-compose up -d
