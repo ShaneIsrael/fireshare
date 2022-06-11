@@ -1,6 +1,8 @@
 import os, re
+import shutil
 import random
 from os import path
+from reprlib import recursive_repr
 from subprocess import Popen
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import logout_user, current_user, login_required
@@ -82,7 +84,7 @@ def delete_video(id):
             if path.exists(link_path):
                 os.remove(link_path)
             if path.exists(derived_path):
-                os.rmdir(derived_path)
+                shutil.rmtree(derived_path)
         except OSError as e:
             logging.error(f"Error deleting: {e.strerror}")
         return Response(status=200)
