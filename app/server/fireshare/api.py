@@ -1,23 +1,22 @@
 import os, re
+import shutil
 import random
-from os import path
+import logging
+
 from subprocess import Popen
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
-from flask_login import logout_user, current_user, login_required
+from flask_login import current_user, login_required
 from flask_cors import CORS
 from sqlalchemy.sql import text
-
-import logging
-from . import db
 from pathlib import Path
+
+from . import db
 from .models import Video, VideoInfo
 
 templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
-
 api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
-
 
 logger = logging.getLogger('fireshare')
 logger.setLevel(logging.DEBUG)
@@ -77,12 +76,12 @@ def delete_video(id):
         link_path = f"{current_app.config['PROCESSED_DIRECTORY']}/video_links/{id}.{video.extension}"
         derived_path = f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{id}"
         try:
-            if path.exists(file_path):
+            if os.path.exists(file_path):
                 os.remove(file_path)
-            if path.exists(link_path):
+            if os.path.exists(link_path):
                 os.remove(link_path)
-            if path.exists(derived_path):
-                os.rmdir(derived_path)
+            if os.path.exists(derived_path):
+                shutil.rmtree(derived_path)
         except OSError as e:
             logging.error(f"Error deleting: {e.strerror}")
         return Response(status=200)
@@ -140,8 +139,6 @@ def get_video_poster():
 
 @api.route('/api/video')
 def get_video():
-    # for testing ids are just the name of the sample video until
-    # we have the videos added to a db table
     video_id = request.args.get('id')
     subid = request.args.get('subid')
     video_path = get_video_path(video_id, subid)
