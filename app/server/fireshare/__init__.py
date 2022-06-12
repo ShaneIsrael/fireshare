@@ -10,6 +10,7 @@ import logging
 
 logger = logging.getLogger('fireshare')
 handler = logging.StreamHandler()
+handler.setLevel(os.getenv('FS_LOGLEVEL', 'INFO').upper())
 formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName)s:%(lineno)d | %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -44,7 +45,7 @@ def create_app(init_schedule=False):
     app.config['PATHS'] = paths
     for k, path in paths.items():
         if not path.is_dir():
-            print(f"Creating {k} directory at {str(path)}")
+            logger.info(f"Creating {k} directory at {str(path)}")
             path.mkdir(parents=True, exist_ok=True)
     subpaths = [
         paths['processed'] / 'video_links',
@@ -52,7 +53,7 @@ def create_app(init_schedule=False):
     ]
     for subpath in subpaths:
         if not subpath.is_dir():
-            print(f"Creating subpath directory at {str(subpath.absolute())}")
+            logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
