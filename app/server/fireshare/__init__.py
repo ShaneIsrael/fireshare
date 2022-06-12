@@ -36,6 +36,7 @@ def create_app(init_schedule=False):
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///jobs.sqlite'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['INIT_SCHEDULE'] = init_schedule
+    app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = int(os.getenv('MINUTES_BETWEEN_VIDEO_SCANS', '5'))
 
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
@@ -82,7 +83,8 @@ def create_app(init_schedule=False):
 
     if init_schedule:
         from .schedule import init_schedule
-        init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'])
+        init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'],
+            app.config['MINUTES_BETWEEN_VIDEO_SCANS'])
 
     with app.app_context():
         # db.create_all()
