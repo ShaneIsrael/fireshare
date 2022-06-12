@@ -91,9 +91,9 @@ def scan_videos():
         existing_videos = Video.query.filter_by(available=True).all()
         for ev in existing_videos:
             file_path = Path((paths["video"] / ev.path).absolute())
-            logger.info(f"Verifying video at {ev.video_id} is available")
+            logger.info(f"Verifying video {ev.video_id} at {file_path} is available")
             if not file_path.exists():
-                logger.info(f"Video at {ev.video_id} was not found")
+                logger.info(f"Video {ev.video_id} at {file_path} was not found")
                 db.session.query(Video).filter_by(video_id=ev.video_id).update({ "available": False})
         db.session.commit()
 
@@ -122,7 +122,7 @@ def sync_metadata():
                 db.session.add(v)
                 db.session.commit()
             else:
-                logger.info(f"Path to video {v.video_id} is not at symlink {vpath} (original location: {v.video.path})")
+                logger.warn(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
 
 @cli.command()
 def create_web_videos():
@@ -210,7 +210,8 @@ def bulk_import(ctx):
     with create_app().app_context():
         paths = current_app.config['PATHS']
         if util.lock_exists(paths["data"]):
-            return logger.info("A scan process is currently active... Aborting.")
+            logger.info("A scan process is currently active... Aborting.")
+            return
         util.create_lock(paths["data"])
         
         click.echo("Scanning for videos...")
