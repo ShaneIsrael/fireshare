@@ -39,6 +39,15 @@ def video_metadata(video_id):
     else:
         return redirect('/#/w/{}'.format(video_id), code=302)
 
+@api.route('/api/config')
+def config():
+    paths = current_app.config['PATHS']
+    ui_config_path = paths['data'] / 'ui-config.json'
+    if ui_config_path.exists():
+        return send_file(ui_config_path, mimetype='application/json')
+    else:
+        return jsonify({})
+
 @api.route('/api/manual/scan')
 @login_required
 def manual_scan():

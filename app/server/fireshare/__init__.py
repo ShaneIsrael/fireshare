@@ -7,6 +7,8 @@ from flask_login import LoginManager
 from flask_cors import CORS
 from pathlib import Path
 import logging
+import json
+import secrets
 
 logger = logging.getLogger('fireshare')
 handler = logging.StreamHandler()
@@ -27,7 +29,7 @@ def create_app(init_schedule=False):
         raise Exception("DATA_DIRECTORY not found in environment")
 
     app.config['ENVIRONMENT'] = os.getenv('ENVIRONMENT')
-    app.config['SECRET_KEY'] = 'secret-key-goes-here'
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32)) 
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
     app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
@@ -56,6 +58,10 @@ def create_app(init_schedule=False):
         if not subpath.is_dir():
             logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
+    ui_config = paths['data'] / 'ui-config.json'
+    if not ui_config.exists():
+        default_ui_config = {}
+        ui_config.write_text(json.dumps(default_ui_config, indent=2))
 
     db.init_app(app)
     migrate.init_app(app, db)
