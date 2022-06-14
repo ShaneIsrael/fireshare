@@ -15,7 +15,7 @@ export const getUrl = () => {
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}`
 }
 export const getPublicWatchUrl = () => {
-  const shareableLinkDomain = getSetting('ui_config')['shareable_link_domain']
+  const shareableLinkDomain = getSetting('ui_config')?.['shareable_link_domain']
   if (shareableLinkDomain) {
     return `${shareableLinkDomain}/w/`
   }
