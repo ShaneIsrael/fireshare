@@ -1,3 +1,4 @@
+import json
 import os, re
 import shutil
 import random
@@ -42,9 +43,12 @@ def video_metadata(video_id):
 @api.route('/api/config')
 def config():
     paths = current_app.config['PATHS']
-    ui_config_path = paths['data'] / 'ui-config.json'
-    if ui_config_path.exists():
-        return send_file(ui_config_path, mimetype='application/json')
+    config_path = paths['data'] / 'config.json'
+    file = open(config_path)
+    config = json.load(file)
+    file.close()
+    if config_path.exists():
+        return config["ui_config"]
     else:
         return jsonify({})
 

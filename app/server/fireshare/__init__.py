@@ -58,10 +58,10 @@ def create_app(init_schedule=False):
         if not subpath.is_dir():
             logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
-    ui_config = paths['data'] / 'ui-config.json'
-    if not ui_config.exists():
-        default_ui_config = {}
-        ui_config.write_text(json.dumps(default_ui_config, indent=2))
+    config = paths['data'] / 'config.json'
+    if not config.exists():
+        from .constants import DEFAULT_CONFIG
+        config.write_text(json.dumps(DEFAULT_CONFIG, indent=2))
 
     db.init_app(app)
     migrate.init_app(app, db)

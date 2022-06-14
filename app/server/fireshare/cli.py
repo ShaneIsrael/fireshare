@@ -37,7 +37,11 @@ def scan_videos():
         paths = current_app.config['PATHS']
         raw_videos = paths["video"]
         video_links = paths["processed"] / "video_links"
-
+        
+        config_file = open(paths["data"] / "config.json")
+        video_config = json.load(config_file)["app_config"]["video_defaults"]
+        config_file.close()
+        
         if not video_links.is_dir():
             video_links.mkdir()
 
@@ -90,7 +94,7 @@ def scan_videos():
                     os.symlink(src, dst, dir_fd=fd)
                 except FileExistsError:
                     logger.info(f"{dst} exists already")
-            info = VideoInfo(video_id=nv.video_id, title=Path(nv.path).stem)
+            info = VideoInfo(video_id=nv.video_id, title=Path(nv.path).stem, private=video_config["private"])
             db.session.add(info)
         db.session.commit()
 
