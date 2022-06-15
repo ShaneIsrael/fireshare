@@ -19,9 +19,6 @@ api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
 
-logger = logging.getLogger('fireshare')
-logger.setLevel(logging.DEBUG)
-
 def get_video_path(id, subid=None):
     video = Video.query.filter_by(video_id=id).first()
     if not video:
