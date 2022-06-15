@@ -1,18 +1,16 @@
 import React, { useRef } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ReactPlayer from 'react-player'
-import { Button, ButtonGroup, Grid, Paper, Typography } from '@mui/material'
-import { AuthService, VideoService } from '../services'
-import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard } from '../common/utils'
-import Navbar from '../components/nav/Navbar'
-import { Box } from '@mui/system'
-
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Button, ButtonGroup, Grid, Paper, Typography, Box } from '@mui/material'
 import { Helmet } from 'react-helmet'
-import NotFound from './NotFound'
 import CopyToClipboard from 'react-copy-to-clipboard'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
+import Navbar from '../components/nav/Navbar'
+import NotFound from './NotFound'
+import { AuthService, VideoService } from '../services'
+import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard } from '../common/utils'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()

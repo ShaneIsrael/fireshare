@@ -19,7 +19,7 @@ def create_lock(path: Path):
     """
     lockfile = path / "fireshare.lock"
     if not lockfile.exists():
-        logger.info(f"A lockfile has been created at {str(lockfile)}")
+        logger.debug(f"A lockfile has been created at {str(lockfile)}")
         fp = open(lockfile, 'x')
         fp.close()
 
@@ -29,7 +29,7 @@ def remove_lock(path: Path):
     """
     lockfile = path / "fireshare.lock"
     if lockfile.exists():
-        logger.info(f"A lockfile has been removed at {str(lockfile)}")
+        logger.debug(f"A lockfile has been removed at {str(lockfile)}")
         os.remove(lockfile)
 
 def video_id(path: Path, mb=16):
@@ -43,7 +43,7 @@ def video_id(path: Path, mb=16):
 def get_media_info(path):
     try:
         cmd = f'ffprobe -v quiet -print_format json -show_entries stream {path}'
-        logger.debug(f"$ {' '.join(cmd)}")
+        logger.debug(f"$ {cmd}")
         data = json.loads(sp.check_output(cmd.split()).decode('utf-8'))
         return data['streams']
     except Exception as ex:
@@ -53,7 +53,6 @@ def get_media_info(path):
 def create_poster(video_path, out_path, second=0):
     s = time.time()
     cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', str(out_path)]
-    logger.info(f'Generating poster at {second}s')
     logger.debug(f"$ {' '.join(cmd)}")
     sp.call(cmd)
     e = time.time()

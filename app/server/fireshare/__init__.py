@@ -7,9 +7,12 @@ from flask_login import LoginManager
 from flask_cors import CORS
 from pathlib import Path
 import logging
+import json
+import secrets
 
 logger = logging.getLogger('fireshare')
 handler = logging.StreamHandler()
+handler.setLevel(os.getenv('FS_LOGLEVEL', 'INFO').upper())
 formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName)s:%(lineno)d | %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -26,7 +29,7 @@ def create_app(init_schedule=False):
         raise Exception("DATA_DIRECTORY not found in environment")
 
     app.config['ENVIRONMENT'] = os.getenv('ENVIRONMENT')
-    app.config['SECRET_KEY'] = 'secret-key-goes-here'
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32)) 
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
     app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
@@ -35,6 +38,7 @@ def create_app(init_schedule=False):
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///jobs.sqlite'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['INIT_SCHEDULE'] = init_schedule
+    app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = int(os.getenv('MINUTES_BETWEEN_VIDEO_SCANS', '5'))
 
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
@@ -44,7 +48,7 @@ def create_app(init_schedule=False):
     app.config['PATHS'] = paths
     for k, path in paths.items():
         if not path.is_dir():
-            print(f"Creating {k} directory at {str(path)}")
+            logger.info(f"Creating {k} directory at {str(path)}")
             path.mkdir(parents=True, exist_ok=True)
     subpaths = [
         paths['processed'] / 'video_links',
@@ -52,8 +56,12 @@ def create_app(init_schedule=False):
     ]
     for subpath in subpaths:
         if not subpath.is_dir():
-            print(f"Creating subpath directory at {str(subpath.absolute())}")
+            logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
+    config = paths['data'] / 'config.json'
+    if not config.exists():
+        from .constants import DEFAULT_CONFIG
+        config.write_text(json.dumps(DEFAULT_CONFIG, indent=2))
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -81,7 +89,8 @@ def create_app(init_schedule=False):
 
     if init_schedule:
         from .schedule import init_schedule
-        init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'])
+        init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'],
+            app.config['MINUTES_BETWEEN_VIDEO_SCANS'])
 
     with app.app_context():
         # db.create_all()

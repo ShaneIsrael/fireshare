@@ -15,6 +15,10 @@ export const getUrl = () => {
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}`
 }
 export const getPublicWatchUrl = () => {
+  const shareableLinkDomain = getSetting('ui_config')?.['shareable_link_domain']
+  if (shareableLinkDomain) {
+    return `${shareableLinkDomain}/w/`
+  }
   const portWithColon = window.location.port ? `:${window.location.port}` : ''
   return window.location.port === 3000 ||
     (window.location.hostname.indexOf('localhost') >= 0 && window.location.port !== '')

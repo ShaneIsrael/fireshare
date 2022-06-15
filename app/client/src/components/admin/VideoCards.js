@@ -104,7 +104,7 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
   )
 
   return (
-    <>
+    <Box>
       <VideoModal
         open={videoModal.open}
         onClose={onModalClose}
@@ -113,29 +113,27 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
         authenticated={authenticated}
         updateCallback={handleUpdate}
       />
-      <Box>
-        <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
-          {alert.message}
-        </SnackbarAlert>
+      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+        {alert.message}
+      </SnackbarAlert>
 
-        {(!vids || vids.length === 0) && EMPTY_STATE()}
-        {vids && vids.length !== 0 && (
-          <Grid container justifyContent="center">
-            {vids.map((v) => (
-              <VisibilityCard
-                key={v.path + v.video_id}
-                video={v}
-                handleAlert={memoizedHandleAlert}
-                openVideo={openVideo}
-                cardWidth={size}
-                authenticated={authenticated}
-                deleted={handleDelete}
-              />
-            ))}
-          </Grid>
-        )}
-      </Box>
-    </>
+      {(!vids || vids.length === 0) && EMPTY_STATE()}
+      {vids && vids.length !== 0 && (
+        <Grid container justifyContent="center">
+          {vids.map((v) => (
+            <VisibilityCard
+              key={v.path + v.video_id}
+              video={v}
+              handleAlert={memoizedHandleAlert}
+              openVideo={openVideo}
+              cardWidth={size}
+              authenticated={authenticated}
+              deleted={handleDelete}
+            />
+          ))}
+        </Grid>
+      )}
+    </Box>
   )
 }
 

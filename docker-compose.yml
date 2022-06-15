@@ -10,3 +10,4 @@ services:
       - ./dev_root/fireshare_videos:/videos
     environment:
       - ADMIN_PASSWORD=admin
+      - MINUTES_BETWEEN_VIDEO_SCANS=5

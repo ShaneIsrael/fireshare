@@ -1,3 +1,4 @@
+import json
 import os, re
 import shutil
 import random
@@ -18,9 +19,6 @@ api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
 
-logger = logging.getLogger('fireshare')
-logger.setLevel(logging.DEBUG)
-
 def get_video_path(id, subid=None):
     video = Video.query.filter_by(video_id=id).first()
     if not video:
@@ -38,6 +36,18 @@ def video_metadata(video_id):
         return render_template('metadata.html', video=video.json())
     else:
         return redirect('/#/w/{}'.format(video_id), code=302)
+
+@api.route('/api/config')
+def config():
+    paths = current_app.config['PATHS']
+    config_path = paths['data'] / 'config.json'
+    file = open(config_path)
+    config = json.load(file)
+    file.close()
+    if config_path.exists():
+        return config["ui_config"]
+    else:
+        return jsonify({})
 
 @api.route('/api/manual/scan')
 @login_required

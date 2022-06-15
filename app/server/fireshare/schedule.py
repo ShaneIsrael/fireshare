@@ -12,8 +12,9 @@ def fireshare_scan():
     logger.info('Starting scheduled scan...')
     Popen("fireshare bulk-import", shell=True)
 
-def init_schedule(dburl):
-    logger.info('Initializing scheduled video scan. minutes=5')
-    scheduler = BackgroundScheduler(jobstores={'default': SQLAlchemyJobStore(url=dburl)})
-    scheduler.add_job(fireshare_scan, 'interval', minutes=5, id='fireshare_scan')
-    scheduler.start()
+def init_schedule(dburl, mins_between_scan=5):
+    if mins_between_scan > 0:
+        logger.info(f'Initializing scheduled video scan. minutes={mins_between_scan}')
+        scheduler = BackgroundScheduler(jobstores={'default': SQLAlchemyJobStore(url=dburl)})
+        scheduler.add_job(fireshare_scan, 'interval', minutes=mins_between_scan, id='fireshare_scan')
+        scheduler.start()
