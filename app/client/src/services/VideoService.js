@@ -34,6 +34,9 @@ const service = {
   scan() {
     return Api().get('/api/manual/scan')
   },
+  upload(file) {
+    return Api().post('/api/upload', file)
+  }
 }
 
 export default service

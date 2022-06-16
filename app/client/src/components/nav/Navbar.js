@@ -8,12 +8,9 @@ import Menu from '@mui/material/Menu'
 import MenuIcon from '@mui/icons-material/Menu'
 import Avatar from '@mui/material/Avatar'
 import Button from '@mui/material/Button'
-import Autocomplete, { createFilterOptions } from  '@mui/material/Autocomplete'
-import TextField from '@mui/material/TextField'
 import Tooltip, { tooltipClasses } from '@mui/material/Tooltip'
 import MenuItem from '@mui/material/MenuItem'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
-import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import GitHubIcon from '@mui/icons-material/GitHub'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'
@@ -23,8 +20,6 @@ import logo from '../../assets/logo.png'
 import { Paper, Stack } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import styled from '@emotion/styled'
-
-import { AuthService } from '../../services'
 
 const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} classes={{ popper: className }} />)(
   ({ theme }) => ({
@@ -41,42 +36,9 @@ const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} cla
 const Navbar = ({ children, options, pages = [], feedView = false }) => {
   const [anchorElNav, setAnchorElNav] = React.useState(null)
   const [anchorElUser, setAnchorElUser] = React.useState(null)
-  const [uploadVisible, setUploadVisible] = React.useState(null)
+
   const navigate = useNavigate()
-  const inputFile = React.useRef(null)
-  const [folder, setFolder] = React.useState(null)
 
-  const handleFileUpload = (event) => {
-    inputFile.current.click();
-
-}
-  const onFileUpdate = (event) => {
-    console.log(inputFile.current.files[0])
-}
-
-  React.useEffect(() => {
-  async function isLoggedIn(){
-    try{
-       const login = await AuthService.isLoggedIn();
-       if(login.data){
-        setUploadVisible(<Box sx={{ flexGrow: 1 }}>
-                <Tooltip title="Upload">
-                 <IconButton onClick={handleFileUpload} sx={{ p:0 }}>
-                  <Avatar alt="Upload" sx={{ bgcolor: lightBlue[500] }}>
-                   <CloudUploadIcon />
-                   <input type='file' id='file' ref={inputFile} onInput={onFileUpdate} style={{display: 'none'}}/>
-                   <Autocomplete />
-                  </Avatar>
-                 </IconButton>
-                </Tooltip>
-          </Box>)
-       }else{
-        setUploadVisible(null)}
-    }catch (err) {
-        console.log(err)
-    }
-}
- isLoggedIn()},[])
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget)
   }
@@ -204,7 +166,6 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
               </Button>
             ))}
           </Box>
-	  {uploadVisible}
           <Box sx={{ flexGrow: 0 }}>
             <Tooltip title="Open Options">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>

@@ -10,7 +10,6 @@ import Navbar from '../components/nav/Navbar'
 import { AuthService, VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, getSettings, setSetting } from '../common/utils'
-
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
@@ -155,7 +154,7 @@ const Feed = () => {
   }
 
   return (
-    <Navbar options={options} pages={pages} feedView={true}>
+    <Navbar options={options} pages={pages} feedView={true} >
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
@@ -179,6 +178,7 @@ const Feed = () => {
                     PUBLIC FEED
                   </Typography>
                 </Grid>
+
                 {!isMobile && (
                   <Grid item sx={{ pr: 2, pt: 0.25 }}>
                     <SliderWrapper
@@ -231,12 +231,12 @@ const Feed = () => {
                         selectedFolder.value === 'All Videos'
                           ? videos
                           : videos?.filter(
-                              (v) =>
-                                v.path
-                                  .split('/')
-                                  .slice(0, -1)
-                                  .filter((f) => f !== '')[0] === selectedFolder.value,
-                            )
+                            (v) =>
+                              v.path
+                                .split('/')
+                                .slice(0, -1)
+                                .filter((f) => f !== '')[0] === selectedFolder.value,
+                          )
                       }
                     />
                   )}
@@ -250,12 +250,12 @@ const Feed = () => {
                         selectedFolder.value === 'All Videos'
                           ? videos
                           : videos?.filter(
-                              (v) =>
-                                v.path
-                                  .split('/')
-                                  .slice(0, -1)
-                                  .filter((f) => f !== '')[0] === selectedFolder.value,
-                            )
+                            (v) =>
+                              v.path
+                                .split('/')
+                                .slice(0, -1)
+                                .filter((f) => f !== '')[0] === selectedFolder.value,
+                          )
                       }
                     />
                   )}

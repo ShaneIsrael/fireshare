@@ -10,7 +10,7 @@ from .models import Video, VideoInfo
 from werkzeug.utils import secure_filename
 
 templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
-upload_path = os.environ.get('UPLOAD_PATH') or 'fireshare_uploads'
+upload_path = os.environ.get('VIDEO_DIRECTORY') or '.'
 allowed_exts = {'mp4','webm','mov','avi'}
 
 def allowed_file(filename):
@@ -148,15 +148,17 @@ def after_request(response):
     response.headers.add('Accept-Ranges', 'bytes')
     return response
 
-@api.route('/api/upload')
+@api.route('/api/upload', methods=['POST'])
 @login_required
 def upload_video():
     # remember to add folder option in UI
     if request.method == 'POST':
+        print(request.files.keys())
         file =  request.files['file']
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(upload_path, filename))
+            #filename = secure_filename(file.filename)
+            filename = file.filename
+            file.save(os.path.join(upload_path,filename))
             return Response(status=200)
         else:
             return Response(status=400)

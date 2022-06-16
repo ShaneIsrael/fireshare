@@ -12,6 +12,7 @@ import { getSetting, getSettings, setSetting } from '../common/utils'
 import { isMobile } from 'react-device-detect'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
+import UploadModal from '../components/modal/UploadModal'
 
 import selectTheme from '../common/reactSelectTheme'
 import SliderWrapper from '../components/misc/SliderWrapper'
@@ -160,6 +161,7 @@ const Dashboard = () => {
                     MY VIDEOS
                   </Typography>
                 </Grid>
+                {authenticated && <UploadModal folders={folders} />}
                 {!isMobile && (
                   <Grid item sx={{ pr: 2, pt: 0.25 }}>
                     <SliderWrapper
@@ -171,6 +173,7 @@ const Dashboard = () => {
                     />
                   </Grid>
                 )}
+
                 <Grid item>
                   <ToggleButtonGroup
                     size="small"
@@ -209,12 +212,12 @@ const Dashboard = () => {
                         selectedFolder.value === 'All Videos'
                           ? videos
                           : videos?.filter(
-                              (v) =>
-                                v.path
-                                  .split('/')
-                                  .slice(0, -1)
-                                  .filter((f) => f !== '')[0] === selectedFolder.value,
-                            )
+                            (v) =>
+                              v.path
+                                .split('/')
+                                .slice(0, -1)
+                                .filter((f) => f !== '')[0] === selectedFolder.value,
+                          )
                       }
                     />
                   )}
@@ -227,12 +230,12 @@ const Dashboard = () => {
                         selectedFolder.value === 'All Videos'
                           ? videos
                           : videos?.filter(
-                              (v) =>
-                                v.path
-                                  .split('/')
-                                  .slice(0, -1)
-                                  .filter((f) => f !== '')[0] === selectedFolder.value,
-                            )
+                            (v) =>
+                              v.path
+                                .split('/')
+                                .slice(0, -1)
+                                .filter((f) => f !== '')[0] === selectedFolder.value,
+                          )
                       }
                     />
                   )}
