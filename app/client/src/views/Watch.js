@@ -10,7 +10,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import Navbar from '../components/nav/Navbar'
 import NotFound from './NotFound'
 import { AuthService, VideoService } from '../services'
-import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard } from '../common/utils'
+import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath } from '../common/utils'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -172,8 +172,8 @@ const Watch = () => {
             ref={videoPlayerRef}
             url={`${
               SERVED_BY === 'nginx'
-                ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
-                : `${URL}/api/video?id=${id}`
+                ? `${URL}/_content/video/${getVideoPath(id, details?.extension || '.mp4')}`
+                : `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`
             }`}
             width="100%"
             height="auto"
