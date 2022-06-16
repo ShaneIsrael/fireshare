@@ -13,6 +13,7 @@ import { getPublicWatchUrl, toHHMMSS, useDebounce } from '../../common/utils'
 import { VideoService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import styled from '@emotion/styled'
+import _ from 'lodash'
 
 const URL = getPublicWatchUrl()
 
@@ -28,6 +29,7 @@ const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} cla
 )
 
 const VideoListItem = ({ video, openVideoHandler, alertHandler, authenticated, deleted }) => {
+  const [intVideo, setIntVideo] = React.useState(video)
   const [videoId, setVideoId] = React.useState(video.video_id)
   const [title, setTitle] = React.useState(video.info?.title)
   const [description, setDescription] = React.useState(video.info?.description)
@@ -38,9 +40,10 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, authenticated, d
 
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
 
-  const previousVideoIdRef = React.useRef()
-  const previousVideoId = previousVideoIdRef.current
-  if (video.video_id !== previousVideoId && video.video_id !== videoId) {
+  const previousVideoRef = React.useRef()
+  const previousVideo = previousVideoRef.current
+  if (!_.isEqual(video, previousVideo) && !_.isEqual(video, intVideo)) {
+    setIntVideo(video)
     setVideoId(video.video_id)
     setTitle(video.info?.title)
     setDescription(video.info?.description)
@@ -48,7 +51,7 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, authenticated, d
     setUpdatedTitle(null)
   }
   React.useEffect(() => {
-    previousVideoIdRef.current = video.video_id
+    previousVideoRef.current = video
   })
 
   React.useEffect(() => {
