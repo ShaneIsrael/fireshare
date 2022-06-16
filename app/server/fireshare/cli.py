@@ -144,10 +144,14 @@ def sync_metadata():
             if Path(vpath).is_file():
                 info = util.get_media_info(vpath)
                 vcodec = [i for i in info if i['codec_type'] == 'video'][0]
+                duration = 0
                 if 'duration' in vcodec:
                     duration = float(vcodec['duration'])
                 elif 'tags' in vcodec:
-                    duration = util.dur_string_to_seconds(vcodec['tags']['DURATION'])
+                    if 'DURATION' in vcodec['tags']:
+                        duration = util.dur_string_to_seconds(vcodec['tags']['DURATION'])
+                    else:
+                        duration = 0
                 width, height = int(vcodec['width']), int(vcodec['height'])
                 logger.info(f'Scanned {v.video_id} duration={duration}s, resolution={width}x{height}: {v.video.path}')
                 v.info = json.dumps(info)
