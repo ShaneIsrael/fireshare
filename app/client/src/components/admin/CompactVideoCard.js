@@ -16,6 +16,7 @@ const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
 const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, authenticated, deleted }) => {
+  const [intVideo, setIntVideo] = React.useState(video)
   const [videoId, setVideoId] = React.useState(video.video_id)
   const [title, setTitle] = React.useState(video.info?.title)
   const [description, setDescription] = React.useState(video.info?.description)
@@ -26,9 +27,10 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
 
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
 
-  const previousVideoIdRef = React.useRef()
-  const previousVideoId = previousVideoIdRef.current
-  if (video.video_id !== previousVideoId && video.video_id !== videoId) {
+  const previousVideoRef = React.useRef()
+  const previousVideo = previousVideoRef.current
+  if (!_.isEqual(video, previousVideo) && !_.isEqual(video, intVideo)) {
+    setIntVideo(video)
     setVideoId(video.video_id)
     setTitle(video.info?.title)
     setDescription(video.info?.description)
@@ -36,7 +38,7 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
     setUpdatedTitle(null)
   }
   React.useEffect(() => {
-    previousVideoIdRef.current = video.video_id
+    previousVideoRef.current = video
   })
 
   const debouncedMouseEnter = React.useRef(
