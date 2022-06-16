@@ -5,6 +5,8 @@ on:
     paths:
       - ".github/**"
       - "app/**"
+    tags:
+      - "*"
   workflow_dispatch:
     inputs:
       tag:
