@@ -13,6 +13,7 @@ import { getPublicWatchUrl, toHHMMSS, useDebounce } from '../../common/utils'
 import { VideoService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import styled from '@emotion/styled'
+import _ from 'lodash'
 
 const URL = getPublicWatchUrl()
 
