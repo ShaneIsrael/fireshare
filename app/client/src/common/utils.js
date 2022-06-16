@@ -14,6 +14,7 @@ export const getUrl = () => {
     ? 'http://localhost:5000'
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}`
 }
+
 export const getPublicWatchUrl = () => {
   const shareableLinkDomain = getSetting('ui_config')?.['shareable_link_domain']
   if (shareableLinkDomain) {
@@ -24,6 +25,13 @@ export const getPublicWatchUrl = () => {
     (window.location.hostname.indexOf('localhost') >= 0 && window.location.port !== '')
     ? `http://localhost:${window.location.port}/#/w/`
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}/w/`
+}
+
+export const getVideoPath = (id, extension) => {
+  if (extension === '.mkv') {
+    return `${id}-1.mp4`
+  }
+  return `${id}${extension}`
 }
 
 export const useDebounce = (value, delay) => {

@@ -45,7 +45,7 @@ def scan_videos():
         if not video_links.is_dir():
             video_links.mkdir()
 
-        extensions = ['.mp4', '.mov', '.mkv', '.webm']
+        extensions = ['.mp4', '.mov', '.webm']
         logger.info(f"Scanning {str(raw_videos)} for {', '.join(extensions)} video files")
         video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix.lower() in extensions]
         video_rows = Video.query.all()

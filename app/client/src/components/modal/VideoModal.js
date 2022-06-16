@@ -7,7 +7,7 @@ import SaveIcon from '@mui/icons-material/Save'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl } from '../../common/utils'
+import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoPath } from '../../common/utils'
 import { VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 
@@ -167,8 +167,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 autoPlay
                 src={`${
                   SERVED_BY === 'nginx'
-                    ? `${URL}/_content/video/${vid.video_id}${vid.extension}`
-                    : `${URL}/api/video?id=${vid.video_id}`
+                    ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
+                    : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
                 }`}
                 disablePictureInPicture
                 controls

@@ -5,7 +5,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
 import LinkIcon from '@mui/icons-material/Link'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, useDebounce } from '../../common/utils'
+import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, useDebounce, getVideoPath } from '../../common/utils'
 import VideoService from '../../services/VideoService'
 import _ from 'lodash'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
@@ -274,8 +274,8 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
                 height={previewVideoHeight}
                 src={`${
                   SERVED_BY === 'nginx'
-                    ? `${URL}/_content/video/${video.video_id}${video.extension}`
-                    : `${URL}/api/video?id=${video.video_id}`
+                    ? `${URL}/_content/video/${getVideoPath(video.video_id, video.extension)}`
+                    : `${URL}/api/video?id=${video.extension === '.mkv' ? `${video.video_id}&subid=1` : video.video_id}`
                 }`}
                 muted
                 autoPlay
