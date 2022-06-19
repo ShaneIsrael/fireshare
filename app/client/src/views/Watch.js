@@ -30,6 +30,9 @@ const Watch = () => {
   const [loggedIn, setLoggedIn] = React.useState(false)
   const [notFound, setNotFound] = React.useState(false)
   const [views, setViews] = React.useState()
+  const [viewAdded, setViewAdded] = React.useState(false)
+  const [videoDuration, setVideoDuration] = React.useState()
+
   const videoPlayerRef = useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
   const navigate = useNavigate()
@@ -37,7 +40,6 @@ const Watch = () => {
   React.useEffect(() => {
     async function fetch() {
       try {
-        VideoService.addView(id).catch((err) => console.error(err))
         const resp = (await VideoService.getDetails(id)).data
         const videoViews = (await VideoService.getViews(id)).data
         setDetails(resp)
@@ -93,6 +95,24 @@ const Watch = () => {
       message: 'Time stamped link copied to clipboard',
       open: true,
     })
+  }
+
+  React.useEffect(() => {
+    if (videoPlayerRef.current) {
+      setVideoDuration(videoPlayerRef.current.duration)
+    }
+  }, [videoPlayerRef.current])
+
+  const handleTimeUpdate = (e) => {
+    if (!viewAdded) {
+      if (videoDuration < 10) {
+        setViewAdded(true)
+        VideoService.addView(id).catch((err) => console.error(err))
+      } else if (e.playedSeconds >= 10) {
+        setViewAdded(true)
+        VideoService.addView(id).catch((err) => console.error(err))
+      }
+    }
   }
 
   if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
@@ -205,11 +225,14 @@ const Watch = () => {
             config={{
               file: {
                 forcedAudio: true,
-                attributes: { onLoadedMetadata: () => videoPlayerRef.current.seekTo(time) },
+                attributes: {
+                  onLoadedMetadata: () => videoPlayerRef.current.seekTo(time),
+                },
               },
             }}
             controls
             volume={0.5}
+            onProgress={handleTimeUpdate}
           />
         </Grid>
         <Grid item xs={12}>

@@ -22,7 +22,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [privateView, setPrivateView] = React.useState(false)
   const [vid, setVideo] = React.useState(null)
   const [views, setViews] = React.useState()
-
+  const [viewAdded, setViewAdded] = React.useState(false)
+  const [videoDuration, setVideoDuration] = React.useState()
   const [alert, setAlert] = React.useState({ open: false })
 
   const playerRef = React.useRef()
@@ -33,9 +34,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         ? (await VideoService.getRandomVideo()).data
         : (await VideoService.getRandomPublicVideo()).data
 
-      VideoService.addView(res.video_id).catch((err) => console.error(err))
       const videoViews = (await VideoService.getViews(res.video_id)).data
       setViews(videoViews)
+      setViewAdded(false)
       setVideo(res)
       setTitle(res.info?.title)
       setDescription(res.info?.description)
@@ -49,10 +50,10 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   React.useEffect(() => {
     async function fetch() {
       try {
-        VideoService.addView(videoId).catch((err) => console.error(err))
         const details = (await VideoService.getDetails(videoId)).data
         const videoViews = (await VideoService.getViews(videoId)).data
         setViews(videoViews)
+        setViewAdded(false)
         setVideo(details)
         setTitle(details.info?.title)
         setDescription(details.info?.description)
@@ -74,9 +75,10 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }, [videoId])
 
   React.useEffect(() => {
-    if (vid) {
+    if (playerRef.current) {
+      setVideoDuration(playerRef.current.duration)
     }
-  }, [vid])
+  }, [playerRef.current])
 
   const handleMouseDown = (e) => {
     if (e.button === 1) {
@@ -145,6 +147,18 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     })
   }
 
+  const handleTimeUpdate = (e) => {
+    if (!viewAdded) {
+      if (videoDuration < 10) {
+        setViewAdded(true)
+        VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
+      } else if (e.target.currentTime >= 10) {
+        setViewAdded(true)
+        VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
+      }
+    }
+  }
+
   if (!vid) return null
 
   return (
@@ -185,6 +199,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 }`}
                 disablePictureInPicture
                 controls
+                onTimeUpdate={handleTimeUpdate}
               />
             </Grid>
             <Grid item>
