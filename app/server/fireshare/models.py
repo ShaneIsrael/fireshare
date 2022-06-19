@@ -83,3 +83,34 @@ class VideoInfo(db.Model):
 
     def __repr__(self):
         return "<VideoInfo {} {}>".format(self.video_id, self.title)
+
+class VideoView(db.Model):
+    __tablename__ = "video_view"
+    __table_args__ = (
+        db.UniqueConstraint('video_id', 'ip_address'),
+    )
+
+    id          = db.Column(db.Integer, primary_key=True)
+    video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id"), nullable=False)
+    ip_address  = db.Column(db.String(256), nullable=False)
+
+
+    def json(self):
+        return {
+            "video_id": self.video_id,
+            "ip_address": self.ip_address,
+        }
+
+    @classmethod
+    def count(cls, video_id):
+        return cls.query.filter_by(video_id=video_id).count()
+    @classmethod
+    def add_view(cls, video_id, ip_address):
+        exists = cls.query.filter_by(video_id=video_id, ip_address=ip_address).first()
+        if not exists:
+            db.session.add(cls(video_id=video_id, ip_address=ip_address))
+            db.session.commit()
+
+    def __repr__(self):
+        return "<VideoViews {} {}>".format(self.video_id, self.ip_address)
+    
