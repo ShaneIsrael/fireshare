@@ -21,6 +21,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [updateable, setUpdatable] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(false)
   const [vid, setVideo] = React.useState(null)
+  const [views, setViews] = React.useState()
 
   const [alert, setAlert] = React.useState({ open: false })
 
@@ -31,6 +32,10 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       const res = !feedView
         ? (await VideoService.getRandomVideo()).data
         : (await VideoService.getRandomPublicVideo()).data
+
+      VideoService.addView(res.video_id).catch((err) => console.error(err))
+      const videoViews = (await VideoService.getViews(res.video_id)).data
+      setViews(videoViews)
       setVideo(res)
       setTitle(res.info?.title)
       setDescription(res.info?.description)
@@ -44,7 +49,10 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   React.useEffect(() => {
     async function fetch() {
       try {
+        VideoService.addView(videoId).catch((err) => console.error(err))
         const details = (await VideoService.getDetails(videoId)).data
+        const videoViews = (await VideoService.getViews(videoId)).data
+        setViews(videoViews)
         setVideo(details)
         setTitle(details.info?.title)
         setDescription(details.info?.description)
@@ -64,6 +72,11 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       fetch()
     }
   }, [videoId])
+
+  React.useEffect(() => {
+    if (vid) {
+    }
+  }, [vid])
 
   const handleMouseDown = (e) => {
     if (e.button === 1) {

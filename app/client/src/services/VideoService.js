@@ -24,6 +24,9 @@ const service = {
   getRandomPublicVideo() {
     return Api().get('/api/video/public/random')
   },
+  getViews(id) {
+    return Api().get(`/api/video/${id}/views`)
+  },
   updateTitle(id, title) {
     return Api().put(`/api/video/details/${id}`, {
       title,
@@ -37,6 +40,11 @@ const service = {
   updateDetails(id, details) {
     return Api().put(`/api/video/details/${id}`, {
       ...details,
+    })
+  },
+  addView(id) {
+    return Api().post(`/api/video/view`, {
+      video_id: id,
     })
   },
   delete(id) {

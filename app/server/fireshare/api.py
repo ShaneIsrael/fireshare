@@ -12,7 +12,7 @@ from sqlalchemy.sql import text
 from pathlib import Path
 
 from . import db
-from .models import Video, VideoInfo
+from .models import Video, VideoInfo, VideoView
 
 templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
 api = Blueprint('api', __name__, template_folder=templates_path)
@@ -146,6 +146,22 @@ def get_video_poster():
         return send_file(webm_poster_path, mimetype='video/webm')
     else:
         return send_file(jpg_poster_path, mimetype='image/jpg')
+
+@api.route('/api/video/view', methods=['POST'])
+def add_video_view():
+    video_id = request.json['video_id']
+    ip_address = request.remote_addr
+    VideoView.addView(video_id, ip_address)
+    # db.session.add(VideoView(video_id=video_id, ip_address=ip_address))
+    # db.session.commit()
+    return Response(status=200)
+
+@api.route('/api/video/<video_id>/views', methods=['GET'])
+def get_video_views(video_id):
+    views = VideoView.count(video_id)
+    return str(views)
+
+
 
 @api.route('/api/video')
 def get_video():

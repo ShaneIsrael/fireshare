@@ -29,15 +29,19 @@ const Watch = () => {
   const [details, setDetails] = React.useState(null)
   const [loggedIn, setLoggedIn] = React.useState(false)
   const [notFound, setNotFound] = React.useState(false)
-  const navigate = useNavigate()
+  const [views, setViews] = React.useState()
   const videoPlayerRef = useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
+  const navigate = useNavigate()
 
   React.useEffect(() => {
     async function fetch() {
       try {
+        VideoService.addView(id).catch((err) => console.error(err))
         const resp = (await VideoService.getDetails(id)).data
+        const videoViews = (await VideoService.getViews(id)).data
         setDetails(resp)
+        setViews(videoViews)
       } catch (err) {
         if (err.response && err.response.status === 404) {
           setNotFound({
@@ -112,6 +116,27 @@ const Watch = () => {
       </CopyToClipboard>
       <Button onClick={copyTimestamp}>
         <AccessTimeIcon />
+      </Button>
+      <Button
+        disabled
+        sx={{
+          '&.Mui-disabled': {
+            borderRight: 'none',
+            borderTop: 'none',
+          },
+        }}
+      >
+        <div
+          style={{
+            overflow: 'hidden',
+            color: '#2AA9F2',
+            // textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {`${views} ${views === 1 ? 'view' : 'views'}`}
+        </div>
       </Button>
       <Button
         disabled
