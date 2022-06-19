@@ -130,7 +130,6 @@ const Watch = () => {
           style={{
             overflow: 'hidden',
             color: '#2AA9F2',
-            // textTransform: 'uppercase',
             whiteSpace: 'nowrap',
             textOverflow: 'ellipsis',
           }}
