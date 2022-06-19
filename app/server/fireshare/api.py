@@ -151,7 +151,7 @@ def get_video_poster():
 def add_video_view():
     video_id = request.json['video_id']
     ip_address = request.remote_addr
-    VideoView.addView(video_id, ip_address)
+    VideoView.add_view(video_id, ip_address)
     return Response(status=200)
 
 @api.route('/api/video/<video_id>/views', methods=['GET'])

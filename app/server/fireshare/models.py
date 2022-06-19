@@ -105,7 +105,7 @@ class VideoView(db.Model):
     def count(cls, video_id):
         return cls.query.filter_by(video_id=video_id).count()
     @classmethod
-    def addView(cls, video_id, ip_address):
+    def add_view(cls, video_id, ip_address):
         exists = cls.query.filter_by(video_id=video_id, ip_address=ip_address).first()
         if not exists:
             db.session.add(cls(video_id=video_id, ip_address=ip_address))
