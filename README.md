@@ -161,11 +161,7 @@ Once running, navigate to `localhost:8080` in your browser.
 
 ### Configurable Settings
 
-|      Environment Variables      	| Default Value 	|                                                                               	|
-|:-------------------------------:	|:-------------:	|-------------------------------------------------------------------------------	|
-|        **ADMIN_PASSWORD**       	|      admin    	| The password used to log into the admin account.                              	|
-|          **SECRET_KEY**         	|       	        | The secret used to generate your session cookies.                             	|
-| **MINUTES_BETWEEN_VIDEO_SCANS** 	|       5       	| The time in minutes Fireshare waits before running the scheduled video scans. 	|
+See the Fireshare Configuration Wiki: <a href="https://github.com/ShaneIsrael/fireshare/wiki/Fireshare-Configurables">Link</a>
 
 
 
