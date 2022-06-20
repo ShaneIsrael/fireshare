@@ -102,12 +102,7 @@ const Feed = () => {
       console.error(err)
     }
     // eslint-disable-next-line
-  }, [navigate])
-
-  React.useEffect(() => {
-    fetchVideos()
-    // eslint-disable-next-line
-  }, [selectedSort])
+  }, [navigate, selectedSort])
 
   const handleSearch = React.useCallback(
     (search) => {

@@ -154,7 +154,7 @@ const Watch = () => {
             textOverflow: 'ellipsis',
           }}
         >
-          {`${views} ${views === 1 ? 'view' : 'views'}`}
+          {`${views} ${views === 1 ? 'View' : 'Views'}`}
         </div>
       </Button>
       <Button

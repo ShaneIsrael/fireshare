@@ -90,12 +90,12 @@ const Dashboard = () => {
       console.error(err)
     }
     // eslint-disable-next-line
-  }, [navigate])
+  }, [navigate, selectedSort])
 
-  React.useEffect(() => {
-    fetchVideos()
-    // eslint-disable-next-line
-  }, [selectedSort])
+  // React.useEffect(() => {
+  //   fetchVideos()
+  //   // eslint-disable-next-line
+  // }, [selectedSort])
 
   const handleSearch = React.useCallback(
     (search) => {
