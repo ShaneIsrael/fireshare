@@ -49,6 +49,23 @@ def config():
     else:
         return jsonify({})
 
+@api.route('/api/admin/config', methods=["GET", "PUT"])
+@login_required
+def get_or_update_config():
+    if request.method == 'GET':
+        paths = current_app.config['PATHS']
+        config_path = paths['data'] / 'config.json'
+        file = open(config_path)
+        config = json.load(file)
+        file.close()
+        if config_path.exists():
+            return config
+        else:
+            return jsonify({})
+    if request.method == 'PUT':
+        print('updated config')
+
+
 @api.route('/api/manual/scan')
 @login_required
 def manual_scan():

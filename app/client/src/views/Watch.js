@@ -31,7 +31,6 @@ const Watch = () => {
   const [notFound, setNotFound] = React.useState(false)
   const [views, setViews] = React.useState()
   const [viewAdded, setViewAdded] = React.useState(false)
-  const [videoDuration, setVideoDuration] = React.useState()
 
   const videoPlayerRef = useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
@@ -44,7 +43,7 @@ const Watch = () => {
         const videoViews = (await VideoService.getViews(id)).data
         setDetails(resp)
         setViews(videoViews)
-        if (resp?.info?.duration && resp?.info?.duration < 10) {
+        if (!resp.info?.duration || resp.info?.duration < 10) {
           setViewAdded(true)
           VideoService.addView(id).catch((err) => console.error(err))
         }
@@ -100,12 +99,6 @@ const Watch = () => {
       open: true,
     })
   }
-
-  React.useEffect(() => {
-    if (videoPlayerRef.current) {
-      setVideoDuration(videoPlayerRef.current.duration)
-    }
-  }, [videoPlayerRef.current])
 
   const handleTimeUpdate = (e) => {
     if (!viewAdded) {
