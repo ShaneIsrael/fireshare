@@ -21,7 +21,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [updateable, setUpdatable] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(false)
   const [vid, setVideo] = React.useState(null)
-  const [views, setViews] = React.useState()
   const [viewAdded, setViewAdded] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
 
@@ -33,8 +32,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         ? (await VideoService.getRandomVideo()).data
         : (await VideoService.getRandomPublicVideo()).data
 
-      const videoViews = (await VideoService.getViews(res.video_id)).data
-      setViews(videoViews)
       setViewAdded(false)
       setVideo(res)
       setTitle(res.info?.title)
@@ -50,8 +47,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     async function fetch() {
       try {
         const details = (await VideoService.getDetails(videoId)).data
-        const videoViews = (await VideoService.getViews(videoId)).data
-        setViews(videoViews)
         setViewAdded(false)
         setVideo(details)
         setTitle(details.info?.title)
