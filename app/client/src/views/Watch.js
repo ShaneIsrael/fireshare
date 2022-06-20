@@ -44,6 +44,10 @@ const Watch = () => {
         const videoViews = (await VideoService.getViews(id)).data
         setDetails(resp)
         setViews(videoViews)
+        if (resp?.info?.duration && resp?.info?.duration < 10) {
+          setViewAdded(true)
+          VideoService.addView(id).catch((err) => console.error(err))
+        }
       } catch (err) {
         if (err.response && err.response.status === 404) {
           setNotFound({
@@ -105,10 +109,7 @@ const Watch = () => {
 
   const handleTimeUpdate = (e) => {
     if (!viewAdded) {
-      if (videoDuration < 10) {
-        setViewAdded(true)
-        VideoService.addView(id).catch((err) => console.error(err))
-      } else if (e.playedSeconds >= 10) {
+      if (e.playedSeconds >= 10) {
         setViewAdded(true)
         VideoService.addView(id).catch((err) => console.error(err))
       }
