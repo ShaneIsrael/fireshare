@@ -150,7 +150,10 @@ def get_video_poster():
 @api.route('/api/video/view', methods=['POST'])
 def add_video_view():
     video_id = request.json['video_id']
-    ip_address = request.remote_addr
+    if request.headers.getlist("X-Forwarded-For"):
+        ip_address = request.headers.getlist("X-Forwarded-For")[0]
+    else:
+        ip_address = request.remote_addr
     VideoView.add_view(video_id, ip_address)
     return Response(status=200)
 
