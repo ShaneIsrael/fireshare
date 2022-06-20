@@ -76,8 +76,6 @@ class VideoInfo(db.Model):
             "width": self.width,
             "height": self.height,
             "duration": round(self.duration) if self.duration else 0,
-            "vcodec": self.vcodec,
-            "acodec": self.acodec,
             "framerate": self.framerate
         }
 
@@ -94,7 +92,6 @@ class VideoView(db.Model):
     video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id"), nullable=False)
     ip_address  = db.Column(db.String(256), nullable=False)
 
-
     def json(self):
         return {
             "video_id": self.video_id,
@@ -104,6 +101,7 @@ class VideoView(db.Model):
     @classmethod
     def count(cls, video_id):
         return cls.query.filter_by(video_id=video_id).count()
+
     @classmethod
     def add_view(cls, video_id, ip_address):
         exists = cls.query.filter_by(video_id=video_id, ip_address=ip_address).first()
