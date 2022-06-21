@@ -28,8 +28,7 @@ const createSelectFolders = (folders) => {
 const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
 
-const Dashboard = () => {
-  const [authenticated, setAuthenticated] = React.useState(false)
+const Dashboard = ({ authenticated }) => {
   const [videos, setVideos] = React.useState([])
   const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
@@ -76,26 +75,9 @@ const Dashboard = () => {
   }
 
   React.useEffect(() => {
-    try {
-      async function isLoggedIn() {
-        if (!(await AuthService.isLoggedIn()).data) {
-          navigate('/feed')
-        } else {
-          setAuthenticated(true)
-        }
-      }
-      isLoggedIn()
-      fetchVideos()
-    } catch (err) {
-      console.error(err)
-    }
+    fetchVideos()
     // eslint-disable-next-line
-  }, [navigate, selectedSort])
-
-  // React.useEffect(() => {
-  //   fetchVideos()
-  //   // eslint-disable-next-line
-  // }, [selectedSort])
+  }, [selectedSort])
 
   const handleSearch = React.useCallback(
     (search) => {
@@ -105,30 +87,6 @@ const Dashboard = () => {
   )
 
   if (!authenticated) return null
-
-  const handleLogout = async () => {
-    try {
-      await AuthService.logout()
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const handleScan = async () => {
-    VideoService.scan().catch((err) =>
-      setAlert({
-        open: true,
-        type: 'error',
-        message: err.response?.data || 'Unknown Error',
-      }),
-    )
-    setAlert({
-      open: true,
-      type: 'info',
-      message: 'Scan initiated. This could take a few minutes.',
-    })
-  }
 
   const handleListStyleChange = (e, style) => {
     if (style !== null) {
@@ -150,13 +108,9 @@ const Dashboard = () => {
     setSetting('cardSize', newSize)
   }
 
-  const options = [
-    { name: 'Logout', handler: handleLogout },
-    { name: 'Scan Library', handler: handleScan },
-  ]
   const pages = [{ name: 'View Feed', href: '/feed' }]
   return (
-    <Navbar options={options} pages={pages}>
+    <Navbar pages={pages} authenticated={authenticated}>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>

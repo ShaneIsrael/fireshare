@@ -24,3 +24,5 @@ export const SORT_OPTIONS = [
     label: 'Views Asc',
   },
 ]
+
+export const AUTH_REQUIRED_PAGES = ['/', '/settings']

@@ -22,12 +22,11 @@ function useQuery() {
   return React.useMemo(() => new URLSearchParams(search), [search])
 }
 
-const Watch = () => {
+const Watch = ({ authenticated }) => {
   const { id } = useParams()
   const query = useQuery()
   const time = query.get('t')
   const [details, setDetails] = React.useState(null)
-  const [loggedIn, setLoggedIn] = React.useState(false)
   const [notFound, setNotFound] = React.useState(false)
   const [views, setViews] = React.useState()
   const [viewAdded, setViewAdded] = React.useState(false)
@@ -64,17 +63,6 @@ const Watch = () => {
     if (details == null) fetch()
   }, [details, id])
 
-  React.useEffect(() => {
-    try {
-      async function isLoggedIn() {
-        setLoggedIn((await AuthService.isLoggedIn()).data)
-      }
-      isLoggedIn()
-    } catch (err) {
-      console.error(err)
-    }
-  }, [])
-
   const handleLogout = async () => {
     try {
       await AuthService.logout()
@@ -110,8 +98,6 @@ const Watch = () => {
   }
 
   if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
-
-  const options = [{ name: loggedIn ? 'Logout' : 'Login', handler: loggedIn ? handleLogout : handleLogin }]
 
   const controls = () => (
     <ButtonGroup variant="contained" sx={{ maxWidth: '100%' }}>
@@ -176,7 +162,7 @@ const Watch = () => {
   )
 
   return (
-    <Navbar options={options} pages={[{ name: 'View All Videos', href: '/feed' }]}>
+    <Navbar pages={[{ name: 'View All Videos', href: '/feed' }]} authenticated={authenticated}>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>

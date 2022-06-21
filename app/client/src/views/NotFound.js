@@ -4,41 +4,9 @@ import { AuthService } from '../services'
 import Navbar from '../components/nav/Navbar'
 import { Grid, Paper, Typography } from '@mui/material'
 
-const NotFound = ({ title, body }) => {
-  const [loggedIn, setLoggedIn] = React.useState(false)
-  const navigate = useNavigate()
-
-  React.useEffect(() => {
-    try {
-      async function isLoggedIn() {
-        setLoggedIn((await AuthService.isLoggedIn()).data)
-      }
-      isLoggedIn()
-    } catch (err) {
-      console.error(err)
-    }
-  }, [])
-
-  const handleLogout = async () => {
-    try {
-      await AuthService.logout()
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-  const handleLogin = async () => {
-    try {
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const options = [{ name: loggedIn ? 'Logout' : 'Login', handler: loggedIn ? handleLogout : handleLogin }]
-
+const NotFound = ({ title, body, authenticated }) => {
   return (
-    <Navbar options={options}>
+    <Navbar authenticated={authenticated}>
       <Paper square sx={{ overflow: 'auto' }}>
         <Grid
           sx={{ height: 'calc(100vh - 65px)' }}

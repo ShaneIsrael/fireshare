@@ -17,9 +17,11 @@ import BugReportIcon from '@mui/icons-material/BugReport'
 import { lightBlue } from '@mui/material/colors'
 
 import logo from '../../assets/logo.png'
-import { Paper, Stack, TextField } from '@mui/material'
+import { Paper, Stack } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import styled from '@emotion/styled'
+import { AuthService, VideoService } from '../../services'
+import SnackbarAlert from '../alert/SnackbarAlert'
 
 const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} classes={{ popper: className }} />)(
   ({ theme }) => ({
@@ -32,9 +34,11 @@ const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} cla
   }),
 )
 
-const Navbar = ({ children, options, pages = [], feedView = false }) => {
+const Navbar = ({ children, options = [], pages = [], feedView = false, authenticated }) => {
   const [anchorElNav, setAnchorElNav] = React.useState(null)
   const [anchorElUser, setAnchorElUser] = React.useState(null)
+  const [alert, setAlert] = React.useState({ open: false })
+
   const navigate = useNavigate()
 
   const handleOpenNavMenu = (event) => {
@@ -52,8 +56,48 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
     setAnchorElUser(null)
   }
 
+  const handleLogout = async () => {
+    try {
+      await AuthService.logout()
+      navigate('/login')
+    } catch (err) {
+      console.error(err)
+    }
+  }
+  const handleLogin = async () => {
+    try {
+      navigate('/login')
+    } catch (err) {
+      console.error(err)
+    }
+  }
+  const handleScan = async () => {
+    VideoService.scan().catch((err) =>
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data || 'Unknown Error',
+      }),
+    )
+    setAlert({
+      open: true,
+      type: 'info',
+      message: 'Scan initiated. This could take a few minutes.',
+    })
+  }
+
+  const menuOptions = options.concat([
+    { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : handleLogin },
+  ])
+  if (authenticated) {
+    menuOptions.push({ name: 'Scan Library', handler: handleScan })
+  }
+
   return (
     <>
+      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+        {alert.message}
+      </SnackbarAlert>
       <AppBar position="fixed" elevation={0} sx={{ height: 64, background: 'rgba(0, 0, 0, 0.13)' }}>
         <Toolbar>
           <Box
@@ -189,7 +233,7 @@ const Navbar = ({ children, options, pages = [], feedView = false }) => {
               open={Boolean(anchorElUser)}
               onClose={handleCloseUserMenu}
             >
-              {options.map((option) => (
+              {menuOptions.map((option) => (
                 <MenuItem
                   key={option.name}
                   onClick={() => {
