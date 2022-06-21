@@ -3,24 +3,10 @@ import React from 'react'
 import { Box, Grid } from '@mui/material'
 
 import LoginForm from '../components/forms/LoginForm'
-import { AuthService } from '../services'
-import { useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 
-const Login = function () {
-  const navigate = useNavigate()
-
-  React.useEffect(() => {
-    async function isLoggedIn() {
-      try {
-        if ((await AuthService.isLoggedIn()).data) {
-          navigate('/')
-        }
-      } catch (err) {
-        console.log(err)
-      }
-    }
-    isLoggedIn()
-  }, [navigate])
+const Login = function ({ authenticated }) {
+  if (authenticated) return <Navigate to="/" />
 
   return (
     <Box component="main" sx={{ height: '100vh' }}>

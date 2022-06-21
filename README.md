@@ -43,7 +43,12 @@
         <li><a href="#built-with">Built With</a></li>
       </ul>
     </li>
-    <li><a href="#installation">Installation</a></li>
+    <li>
+      <a href="#installation">Installation</a>
+      <ul>
+        <li><a href="#configurable-settings">Configurable Settings</a></li>
+      </ul>
+    </li>
     <li>
       <a href="#local-development">Local Development</a>
       <ul>
@@ -136,7 +141,7 @@ Fireshare needs 3 volume mounts.
 
 If you have all of your game clips stored in a folder **my_game_clips** then in your docker compose file (or docker run command) you will need to volume mount that folder to the **/videos** folder that fireshare watches.
 
-#### Docker Compose
+### Docker Compose
 
 If you have docker compose installed, at the root of this project you can simply run this command. 
 
@@ -146,13 +151,19 @@ If you have docker compose installed, at the root of this project you can simply
 docker-compose up -d
 ```
 
-#### Docker
+### Docker
 
 ```
 docker run --name fireshare -v $(pwd)/fireshare:/data:rw -v $(pwd)/fireshare_processed:/processed:rw -v /path/to/my_game_clips:/videos:rw -p 8080:80 -e ADMIN_PASSWORD=your-admin-password -d shaneisrael/fireshare:latest
 ```
 
 Once running, navigate to `localhost:8080` in your browser.
+
+### Configurable Settings
+
+See the Fireshare Configuration Wiki: <a href="https://github.com/ShaneIsrael/fireshare/wiki/Fireshare-Configurables">Link</a>
+
+
 
 ## Local Development
 

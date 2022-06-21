@@ -3,10 +3,12 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - ".github/**"
       - "app/**"
+      - "migrations/**"
+      - "Dockerfile"
+      - "entrypoint.sh"
     tags:
-      - "*"
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -41,7 +43,7 @@ jobs:
           images: |
             shaneisrael/fireshare
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,enable={{is_default_branch}}
 
       - name: Build and push Docker images
         uses: docker/build-push-action@v2

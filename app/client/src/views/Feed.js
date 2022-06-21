@@ -1,13 +1,13 @@
 import React from 'react'
 import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import { isMobile } from 'react-device-detect'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import VideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
 import Navbar from '../components/nav/Navbar'
-import { AuthService, VideoService } from '../services'
+import { VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, getSettings, setSetting } from '../common/utils'
 
@@ -36,10 +36,9 @@ function useQuery() {
 const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
 
-const Feed = () => {
+const Feed = ({ authenticated }) => {
   const query = useQuery()
   const category = query.get('category')
-  const [authenticated, setAuthenticated] = React.useState(false)
   const [videos, setVideos] = React.useState([])
   const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
@@ -55,7 +54,6 @@ const Feed = () => {
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
-  const navigate = useNavigate()
 
   function fetchVideos() {
     VideoService.getPublicVideos(selectedSort.value)
@@ -88,23 +86,6 @@ const Feed = () => {
   }
 
   React.useEffect(() => {
-    try {
-      async function isLoggedIn() {
-        if (!(await AuthService.isLoggedIn()).data) {
-          setAuthenticated(false)
-        } else {
-          setAuthenticated(true)
-        }
-      }
-      isLoggedIn()
-      fetchVideos()
-    } catch (err) {
-      console.error(err)
-    }
-    // eslint-disable-next-line
-  }, [navigate])
-
-  React.useEffect(() => {
     fetchVideos()
     // eslint-disable-next-line
   }, [selectedSort])
@@ -115,30 +96,6 @@ const Feed = () => {
     },
     [videos],
   )
-
-  const handleLogout = async () => {
-    try {
-      await AuthService.logout()
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const handleScan = async () => {
-    VideoService.scan().catch((err) =>
-      setAlert({
-        open: true,
-        type: 'error',
-        message: err.response?.data || 'Unknown Error',
-      }),
-    )
-    setAlert({
-      open: true,
-      type: 'info',
-      message: 'Scan initiated. This could take a few minutes.',
-    })
-  }
 
   const handleListStyleChange = (e, style) => {
     if (style !== null) {
@@ -165,17 +122,13 @@ const Feed = () => {
     setSetting('cardSize', newSize)
   }
 
-  const options = [
-    { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : () => navigate('/login') },
-  ]
   const pages = []
   if (authenticated) {
     pages.push({ name: 'Admin View', href: '/' })
-    options.push({ name: 'Scan Library', handler: handleScan })
   }
 
   return (
-    <Navbar options={options} pages={pages} feedView={true}>
+    <Navbar pages={pages} feedView={true} authenticated={authenticated}>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>

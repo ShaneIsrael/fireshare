@@ -15,4 +15,14 @@ export const SORT_OPTIONS = [
     value: 'video_info.title asc',
     label: 'Title Asc',
   },
+  {
+    value: 'views desc',
+    label: 'Views Desc',
+  },
+  {
+    value: 'views asc',
+    label: 'Views Asc',
+  },
 ]
+
+export const AUTH_REQUIRED_PAGES = ['/', '/settings']

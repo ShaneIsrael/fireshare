@@ -1,4 +1,4 @@
-import os
+import os, sys
 import os.path
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -21,6 +21,38 @@ logger.setLevel(logging.DEBUG)
 # init SQLAlchemy so we can use it later in our models
 db = SQLAlchemy()
 migrate = Migrate()
+
+def update_config(path):
+    logger.info("Validating configuration file...")
+    def combine(dict1, dict2):
+        for key in dict2:
+            if key in dict1:
+                if isinstance(dict1[key], list): # If value is a list, we want special logic
+                    if isinstance(dict2[key], list): # if the "input" is a list, just do list + list
+                        dict1[key] = dict1[key] + dict2[key]
+                    else:
+                        dict1[key].append(dict2[key])
+                elif isinstance(dict1[key], dict): # calling itself recursively
+                    dict1[key] = combine(dict1[key], dict2[key])
+                else: # Overwrites all other values
+                    dict1[key] = dict2[key]
+            else: # Creates the values that doesn't exist.
+                dict1[key] = dict2[key]
+        return dict1
+
+    from .constants import DEFAULT_CONFIG
+    if not path.exists():
+        path.write_text(json.dumps(DEFAULT_CONFIG, indent=2))
+
+    with open(path, 'r+') as configfile:
+        try:
+            current = json.load(configfile)
+        except:
+            logger.error(f"Invalid config.json file at {str(path)}, exiting...")
+            sys.exit()
+        updated = combine(DEFAULT_CONFIG, current)
+        path.write_text(json.dumps(updated, indent=2))
+        configfile.close()
 
 def create_app(init_schedule=False):
     app = Flask(__name__, static_url_path='', static_folder='build', template_folder='build')
@@ -58,10 +90,9 @@ def create_app(init_schedule=False):
         if not subpath.is_dir():
             logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
+    
     config = paths['data'] / 'config.json'
-    if not config.exists():
-        from .constants import DEFAULT_CONFIG
-        config.write_text(json.dumps(DEFAULT_CONFIG, indent=2))
+    update_config(config)
 
     db.init_app(app)
     migrate.init_app(app, db)

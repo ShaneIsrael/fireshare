@@ -5,6 +5,7 @@ import random
 import logging
 
 from subprocess import Popen
+from textwrap import indent
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import current_user, login_required
 from flask_cors import CORS
@@ -49,6 +50,30 @@ def config():
     else:
         return jsonify({})
 
+@api.route('/api/admin/config', methods=["GET", "PUT"])
+@login_required
+def get_or_update_config():
+    paths = current_app.config['PATHS']
+    if request.method == 'GET':
+        config_path = paths['data'] / 'config.json'
+        file = open(config_path)
+        config = json.load(file)
+        file.close()
+        if config_path.exists():
+            return config
+        else:
+            return jsonify({})
+    if request.method == 'PUT':
+        config = request.json["config"]
+        config_path = paths['data'] / 'config.json'
+        if not config:
+            return Response(status=400, response='A config must be provided.')
+        if not config_path.exists():
+            return Response(status=500, response='Could not find a config to update.')
+        config_path.write_text(json.dumps(config, indent=2))
+        return Response(status=200)
+
+
 @api.route('/api/manual/scan')
 @login_required
 def manual_scan():
@@ -63,7 +88,23 @@ def manual_scan():
 @login_required
 def get_videos():
     sort = request.args.get('sort')
-    return jsonify({"videos": [v.json() for v in Video.query.join(VideoInfo).order_by(text(sort)).all()]})
+    if "views" in sort:
+        videos = Video.query.join(VideoInfo).all()
+    else:
+        videos = Video.query.join(VideoInfo).order_by(text(sort)).all()
+
+    videos_json = []
+    for v in videos:
+        vjson = v.json()
+        vjson["view_count"] = VideoView.count(v.video_id)
+        videos_json.append(vjson)
+
+    if sort == "views asc":
+        videos_json = sorted(videos_json, key=lambda d: d['view_count'])
+    if sort == 'views desc':
+        videos_json = sorted(videos_json, key=lambda d: d['view_count'], reverse=True)
+
+    return jsonify({"videos": videos_json})
 
 @api.route('/api/video/random')
 @login_required
@@ -72,6 +113,34 @@ def get_random_video():
     random_video = Video.query.offset(int(row_count * random.random())).first()
     current_app.logger.info(f"Fetched random video {random_video.video_id}: {random_video.info.title}")
     return jsonify(random_video.json())
+
+@api.route('/api/video/public/random')
+def get_random_public_video():
+    row_count =  Video.query.filter(Video.info.has(private=False)).filter_by(available=True).count()
+    random_video = Video.query.filter(Video.info.has(private=False)).filter_by(available=True).offset(int(row_count * random.random())).first()
+    current_app.logger.info(f"Fetched public random video {random_video.video_id}: {random_video.info.title}")
+    return jsonify(random_video.json())
+
+@api.route('/api/videos/public')
+def get_public_videos():
+    sort = request.args.get('sort')
+    if "views" in sort:
+        videos = Video.query.filter_by(available=True).join(VideoInfo).filter(Video.info.has(private=False))
+    else:
+        videos = Video.query.filter_by(available=True).join(VideoInfo).filter(Video.info.has(private=False)).order_by(text(sort))
+    
+    videos_json = []
+    for v in videos:
+        vjson = v.json()
+        vjson["view_count"] = VideoView.count(v.video_id)
+        videos_json.append(vjson)
+
+    if sort == "views asc":
+        videos_json = sorted(videos_json, key=lambda d: d['view_count'])
+    if sort == 'views desc':
+        videos_json = sorted(videos_json, key=lambda d: d['view_count'], reverse=True)
+
+    return jsonify({"videos": videos_json})
 
 @api.route('/api/video/delete/<id>', methods=["DELETE"])
 @login_required
@@ -98,19 +167,6 @@ def delete_video(id):
         
     else:
         return Response(status=404, response=f"A video with id: {id}, does not exist.")
-
-
-@api.route('/api/video/public/random')
-def get_random_public_video():
-    row_count =  Video.query.filter(Video.info.has(private=False)).filter_by(available=True).count()
-    random_video = Video.query.filter(Video.info.has(private=False)).filter_by(available=True).offset(int(row_count * random.random())).first()
-    current_app.logger.info(f"Fetched public random video {random_video.video_id}: {random_video.info.title}")
-    return jsonify(random_video.json())
-
-@api.route('/api/videos/public')
-def get_public_videos():
-    sort = request.args.get('sort')
-    return jsonify({"videos": [v.json() for v in Video.query.filter_by(available=True).join(VideoInfo).filter(Video.info.has(private=False)).order_by(text(sort))]})
 
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
@@ -150,7 +206,10 @@ def get_video_poster():
 @api.route('/api/video/view', methods=['POST'])
 def add_video_view():
     video_id = request.json['video_id']
-    ip_address = request.remote_addr
+    if request.headers.getlist("X-Forwarded-For"):
+        ip_address = request.headers.getlist("X-Forwarded-For")[0].split(",")[0]
+    else:
+        ip_address = request.remote_addr
     VideoView.add_view(video_id, ip_address)
     return Response(status=200)
 
@@ -158,8 +217,6 @@ def add_video_view():
 def get_video_views(video_id):
     views = VideoView.count(video_id)
     return str(views)
-
-
 
 @api.route('/api/video')
 def get_video():

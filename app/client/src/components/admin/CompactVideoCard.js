@@ -188,21 +188,23 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
               inputProps={{ 'aria-label': 'search google maps' }}
             />
           </LightTooltip>
-          <Button
-            onClick={handlePrivacyChange}
-            edge="end"
-            sx={{
-              borderBottomRightRadius: 0,
-              borderTopRightRadius: '6px',
-              bgcolor: 'rgba(0,0,0,0)',
-              color: privateView ? '#FF2323B2' : '#2382FFB7',
-              ':hover': {
-                bgcolor: privateView ? '#FF232340' : '#2382FF40',
-              },
-            }}
-          >
-            {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
-          </Button>
+          {authenticated && (
+            <Button
+              onClick={handlePrivacyChange}
+              edge="end"
+              sx={{
+                borderBottomRightRadius: 0,
+                borderTopRightRadius: '6px',
+                bgcolor: 'rgba(0,0,0,0)',
+                color: privateView ? '#FF2323B2' : '#2382FFB7',
+                ':hover': {
+                  bgcolor: privateView ? '#FF232340' : '#2382FF40',
+                },
+              }}
+            >
+              {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+            </Button>
+          )}
         </ButtonGroup>
         <Box
           sx={{
@@ -309,7 +311,7 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
                 </IconButton>
               </CopyToClipboard>
             </Box>
-            <Box sx={{ position: 'absolute', bottom: 14, right: 3 }}>
+            <Box sx={{ position: 'absolute', bottom: 39, right: 3 }}>
               <Typography
                 variant="div"
                 color="white"
@@ -323,6 +325,22 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
                 }}
               >
                 {toHHMMSS(video.info.duration)}
+              </Typography>
+            </Box>
+            <Box sx={{ position: 'absolute', bottom: 14, right: 3 }}>
+              <Typography
+                variant="div"
+                color="white"
+                sx={{
+                  p: 0.5,
+                  fontWeight: 700,
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                  background: 'rgba(0, 0, 0, 0.6)',
+                  borderRadius: '4px',
+                }}
+              >
+                {`${video.view_count} ${video.view_count === 1 ? 'View' : 'Views'}`}
               </Typography>
             </Box>
           </div>

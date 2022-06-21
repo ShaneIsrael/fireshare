@@ -21,9 +21,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [updateable, setUpdatable] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(false)
   const [vid, setVideo] = React.useState(null)
-  const [views, setViews] = React.useState()
   const [viewAdded, setViewAdded] = React.useState(false)
-  const [videoDuration, setVideoDuration] = React.useState()
   const [alert, setAlert] = React.useState({ open: false })
 
   const playerRef = React.useRef()
@@ -34,8 +32,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         ? (await VideoService.getRandomVideo()).data
         : (await VideoService.getRandomPublicVideo()).data
 
-      const videoViews = (await VideoService.getViews(res.video_id)).data
-      setViews(videoViews)
       setViewAdded(false)
       setVideo(res)
       setTitle(res.info?.title)
@@ -51,8 +47,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     async function fetch() {
       try {
         const details = (await VideoService.getDetails(videoId)).data
-        const videoViews = (await VideoService.getViews(videoId)).data
-        setViews(videoViews)
         setViewAdded(false)
         setVideo(details)
         setTitle(details.info?.title)
@@ -73,12 +67,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       fetch()
     }
   }, [videoId])
-
-  React.useEffect(() => {
-    if (playerRef.current) {
-      setVideoDuration(playerRef.current.duration)
-    }
-  }, [playerRef.current])
 
   const handleMouseDown = (e) => {
     if (e.button === 1) {
@@ -149,7 +137,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
   const handleTimeUpdate = (e) => {
     if (!viewAdded) {
-      if (videoDuration < 10) {
+      if (!vid.info?.duration || vid.info?.duration < 10) {
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
       } else if (e.target.currentTime >= 10) {

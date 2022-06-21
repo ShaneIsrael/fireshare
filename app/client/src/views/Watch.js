@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import ReactPlayer from 'react-player'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { Button, ButtonGroup, Grid, Paper, Typography, Box } from '@mui/material'
 import { Helmet } from 'react-helmet'
 import CopyToClipboard from 'react-copy-to-clipboard'
@@ -9,7 +9,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import Navbar from '../components/nav/Navbar'
 import NotFound from './NotFound'
-import { AuthService, VideoService } from '../services'
+import { VideoService } from '../services'
 import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath } from '../common/utils'
 
 const URL = getUrl()
@@ -22,20 +22,17 @@ function useQuery() {
   return React.useMemo(() => new URLSearchParams(search), [search])
 }
 
-const Watch = () => {
+const Watch = ({ authenticated }) => {
   const { id } = useParams()
   const query = useQuery()
   const time = query.get('t')
   const [details, setDetails] = React.useState(null)
-  const [loggedIn, setLoggedIn] = React.useState(false)
   const [notFound, setNotFound] = React.useState(false)
   const [views, setViews] = React.useState()
   const [viewAdded, setViewAdded] = React.useState(false)
-  const [videoDuration, setVideoDuration] = React.useState()
 
   const videoPlayerRef = useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
-  const navigate = useNavigate()
 
   React.useEffect(() => {
     async function fetch() {
@@ -44,6 +41,10 @@ const Watch = () => {
         const videoViews = (await VideoService.getViews(id)).data
         setDetails(resp)
         setViews(videoViews)
+        if (!resp.info?.duration || resp.info?.duration < 10) {
+          setViewAdded(true)
+          VideoService.addView(id).catch((err) => console.error(err))
+        }
       } catch (err) {
         if (err.response && err.response.status === 404) {
           setNotFound({
@@ -61,33 +62,6 @@ const Watch = () => {
     if (details == null) fetch()
   }, [details, id])
 
-  React.useEffect(() => {
-    try {
-      async function isLoggedIn() {
-        setLoggedIn((await AuthService.isLoggedIn()).data)
-      }
-      isLoggedIn()
-    } catch (err) {
-      console.error(err)
-    }
-  }, [])
-
-  const handleLogout = async () => {
-    try {
-      await AuthService.logout()
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-  const handleLogin = async () => {
-    try {
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
   const copyTimestamp = () => {
     copyToClipboard(`${PURL}${details?.video_id}?t=${videoPlayerRef.current?.getCurrentTime()}`)
     setAlert({
@@ -97,18 +71,9 @@ const Watch = () => {
     })
   }
 
-  React.useEffect(() => {
-    if (videoPlayerRef.current) {
-      setVideoDuration(videoPlayerRef.current.duration)
-    }
-  }, [videoPlayerRef.current])
-
   const handleTimeUpdate = (e) => {
     if (!viewAdded) {
-      if (videoDuration < 10) {
-        setViewAdded(true)
-        VideoService.addView(id).catch((err) => console.error(err))
-      } else if (e.playedSeconds >= 10) {
+      if (e.playedSeconds >= 10) {
         setViewAdded(true)
         VideoService.addView(id).catch((err) => console.error(err))
       }
@@ -116,8 +81,6 @@ const Watch = () => {
   }
 
   if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
-
-  const options = [{ name: loggedIn ? 'Logout' : 'Login', handler: loggedIn ? handleLogout : handleLogin }]
 
   const controls = () => (
     <ButtonGroup variant="contained" sx={{ maxWidth: '100%' }}>
@@ -154,7 +117,7 @@ const Watch = () => {
             textOverflow: 'ellipsis',
           }}
         >
-          {`${views} ${views === 1 ? 'view' : 'views'}`}
+          {`${views} ${views === 1 ? 'View' : 'Views'}`}
         </div>
       </Button>
       <Button
@@ -182,7 +145,7 @@ const Watch = () => {
   )
 
   return (
-    <Navbar options={options} pages={[{ name: 'View All Videos', href: '/feed' }]}>
+    <Navbar pages={[{ name: 'View All Videos', href: '/feed' }]} authenticated={authenticated}>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>

@@ -187,6 +187,11 @@ const VideoListItem = ({ video, openVideoHandler, alertHandler, authenticated, d
           </Grid>
           <Grid item sx={{ pl: 1, pr: 1 }}>
             <Typography sx={{ fontWeight: 400, fontSize: 20, fontFamily: 'monospace' }}>
+              {`${video.view_count} ${video.view_count === 1 ? 'View' : 'Views'}`}
+            </Typography>
+          </Grid>
+          <Grid item sx={{ pl: 1, pr: 1 }}>
+            <Typography sx={{ fontWeight: 400, fontSize: 20, fontFamily: 'monospace' }}>
               {toHHMMSS(video.info.duration)}
             </Typography>
           </Grid>

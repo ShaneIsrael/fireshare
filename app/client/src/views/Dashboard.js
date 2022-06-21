@@ -1,12 +1,11 @@
 import React from 'react'
 import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import VideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
 import Navbar from '../components/nav/Navbar'
-import { AuthService, VideoService } from '../services'
+import { VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, getSettings, setSetting } from '../common/utils'
 import { isMobile } from 'react-device-detect'
@@ -28,8 +27,7 @@ const createSelectFolders = (folders) => {
 const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
 
-const Dashboard = () => {
-  const [authenticated, setAuthenticated] = React.useState(false)
+const Dashboard = ({ authenticated }) => {
   const [videos, setVideos] = React.useState([])
   const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
@@ -43,7 +41,6 @@ const Dashboard = () => {
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
-  const navigate = useNavigate()
 
   function fetchVideos() {
     VideoService.getVideos(selectedSort.value)
@@ -76,23 +73,6 @@ const Dashboard = () => {
   }
 
   React.useEffect(() => {
-    try {
-      async function isLoggedIn() {
-        if (!(await AuthService.isLoggedIn()).data) {
-          navigate('/feed')
-        } else {
-          setAuthenticated(true)
-        }
-      }
-      isLoggedIn()
-      fetchVideos()
-    } catch (err) {
-      console.error(err)
-    }
-    // eslint-disable-next-line
-  }, [navigate])
-
-  React.useEffect(() => {
     fetchVideos()
     // eslint-disable-next-line
   }, [selectedSort])
@@ -103,32 +83,6 @@ const Dashboard = () => {
     },
     [videos],
   )
-
-  if (!authenticated) return null
-
-  const handleLogout = async () => {
-    try {
-      await AuthService.logout()
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const handleScan = async () => {
-    VideoService.scan().catch((err) =>
-      setAlert({
-        open: true,
-        type: 'error',
-        message: err.response?.data || 'Unknown Error',
-      }),
-    )
-    setAlert({
-      open: true,
-      type: 'info',
-      message: 'Scan initiated. This could take a few minutes.',
-    })
-  }
 
   const handleListStyleChange = (e, style) => {
     if (style !== null) {
@@ -150,13 +104,9 @@ const Dashboard = () => {
     setSetting('cardSize', newSize)
   }
 
-  const options = [
-    { name: 'Logout', handler: handleLogout },
-    { name: 'Scan Library', handler: handleScan },
-  ]
   const pages = [{ name: 'View Feed', href: '/feed' }]
   return (
-    <Navbar options={options} pages={pages}>
+    <Navbar pages={pages} authenticated={authenticated}>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
