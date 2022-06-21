@@ -132,7 +132,7 @@ Direct links copied from the link copy buttons in Fireshare will allow websites 
 
 <!-- GETTING STARTED -->
 
-## Installation
+# Installation
 
 Fireshare is meant to run within a Docker environment. While we reccommend using something like Docker Compose it is not required and can run with a simple `docker run` command.
 
@@ -168,11 +168,11 @@ See the Fireshare Configuration Wiki: <a href="https://github.com/ShaneIsrael/fi
 
 
 
-## Local Development
+# Local Development
 
 If you would like to run Fireshare via the source code in order to contribute you will need to have npm, Node.js and Python installed. I reccommend installing Node.js with NVM so that you can easily switch between Node versions.
 
-## Setup
+### Setup
 
 1. Have Python3, NodeJS and NPM installed.
 2. Clone the repo
@@ -191,17 +191,22 @@ If you would like to run Fireshare via the source code in order to contribute yo
 
 <!-- CONTRIBUTING -->
 
-## Contributing
+# Contributing
 
 If this project is at all interesting to you please feel free to contribute or create suggestions if you have them. Please note that creating a pull request does not guarantee it will be accepted into the project. Outside of obvious bug fixes it may be best to consult with us before starting work on any additions you'd like to make.
 
 [For questions or feature requests please create an issue with an appropriate label here](https://github.com/ShaneIsrael/fireshare/issues/new)
 
 1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Add upstream (`git remote add upstream https://github.com/ShaneIsrael/fireshare.git`)
+3. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+4. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+5. Rebase with upstream (`git rebase upstream/main`)
+6. Fix any merge conflicts you may have
+7. Push to the Branch (`git push origin feature/AmazingFeature`)
+8. Open a Pull Request
+
+**UPDATE YOUR BRANCH** We will not fix merge conflicts for you, if you make a pull request and it states there are merge conflicts please see steps 4 and 5 from the above.
 
 # Frequently Asked Questions
 
