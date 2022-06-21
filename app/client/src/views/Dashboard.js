@@ -1,12 +1,11 @@
 import React from 'react'
 import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import VideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
 import Navbar from '../components/nav/Navbar'
-import { AuthService, VideoService } from '../services'
+import { VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, getSettings, setSetting } from '../common/utils'
 import { isMobile } from 'react-device-detect'
@@ -42,7 +41,6 @@ const Dashboard = ({ authenticated }) => {
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
-  const navigate = useNavigate()
 
   function fetchVideos() {
     VideoService.getVideos(selectedSort.value)
@@ -85,8 +83,6 @@ const Dashboard = ({ authenticated }) => {
     },
     [videos],
   )
-
-  if (!authenticated) return null
 
   const handleListStyleChange = (e, style) => {
     if (style !== null) {

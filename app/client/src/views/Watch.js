@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import ReactPlayer from 'react-player'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { Button, ButtonGroup, Grid, Paper, Typography, Box } from '@mui/material'
 import { Helmet } from 'react-helmet'
 import CopyToClipboard from 'react-copy-to-clipboard'
@@ -9,7 +9,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import Navbar from '../components/nav/Navbar'
 import NotFound from './NotFound'
-import { AuthService, VideoService } from '../services'
+import { VideoService } from '../services'
 import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath } from '../common/utils'
 
 const URL = getUrl()
@@ -33,7 +33,6 @@ const Watch = ({ authenticated }) => {
 
   const videoPlayerRef = useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
-  const navigate = useNavigate()
 
   React.useEffect(() => {
     async function fetch() {
@@ -62,22 +61,6 @@ const Watch = ({ authenticated }) => {
     }
     if (details == null) fetch()
   }, [details, id])
-
-  const handleLogout = async () => {
-    try {
-      await AuthService.logout()
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
-  const handleLogin = async () => {
-    try {
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
 
   const copyTimestamp = () => {
     copyToClipboard(`${PURL}${details?.video_id}?t=${videoPlayerRef.current?.getCurrentTime()}`)

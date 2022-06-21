@@ -5,6 +5,7 @@ import random
 import logging
 
 from subprocess import Popen
+from textwrap import indent
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import current_user, login_required
 from flask_cors import CORS
@@ -52,8 +53,8 @@ def config():
 @api.route('/api/admin/config', methods=["GET", "PUT"])
 @login_required
 def get_or_update_config():
+    paths = current_app.config['PATHS']
     if request.method == 'GET':
-        paths = current_app.config['PATHS']
         config_path = paths['data'] / 'config.json'
         file = open(config_path)
         config = json.load(file)
@@ -63,7 +64,14 @@ def get_or_update_config():
         else:
             return jsonify({})
     if request.method == 'PUT':
-        print('updated config')
+        config = request.json["config"]
+        config_path = paths['data'] / 'config.json'
+        if not config:
+            return Response(status=400, response='A config must be provided.')
+        if not config_path.exists():
+            return Response(status=500, response='Could not find a config to update.')
+        config_path.write_text(json.dumps(config, indent=2))
+        return Response(status=200)
 
 
 @api.route('/api/manual/scan')

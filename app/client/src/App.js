@@ -6,8 +6,9 @@ import Login from './views/Login'
 import Watch from './views/Watch'
 import Dashboard from './views/Dashboard'
 import NotFound from './views/NotFound'
-import darkTheme from './common/darkTheme'
+import Settings from './views/Settings'
 import Feed from './views/Feed'
+import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
 import { setSetting } from './common/utils'
 import AuthWrapper from './components/utils/AuthWrapper'
@@ -54,6 +55,14 @@ export default function App() {
             }
           />
           <Route
+            path="/settings"
+            element={
+              <AuthWrapper redirect={'/login'}>
+                <Settings />
+              </AuthWrapper>
+            }
+          />
+          <Route
             path="/w/:id"
             element={
               <AuthWrapper>
@@ -61,7 +70,14 @@ export default function App() {
               </AuthWrapper>
             }
           />
-          <Route path="*" element={<NotFound />} />
+          <Route
+            path="*"
+            element={
+              <AuthWrapper>
+                <NotFound />
+              </AuthWrapper>
+            }
+          />
         </Routes>
       </ThemeProvider>
     </Router>

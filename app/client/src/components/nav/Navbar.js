@@ -64,13 +64,7 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
       console.error(err)
     }
   }
-  const handleLogin = async () => {
-    try {
-      navigate('/login')
-    } catch (err) {
-      console.error(err)
-    }
-  }
+
   const handleScan = async () => {
     VideoService.scan().catch((err) =>
       setAlert({
@@ -87,10 +81,11 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
   }
 
   const menuOptions = options.concat([
-    { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : handleLogin },
+    { name: authenticated ? 'Logout' : 'Login', handler: authenticated ? handleLogout : () => navigate('/login') },
   ])
   if (authenticated) {
     menuOptions.push({ name: 'Scan Library', handler: handleScan })
+    menuOptions.push({ name: 'Settings', handler: () => navigate('/settings') })
   }
 
   return (
