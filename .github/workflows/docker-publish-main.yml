@@ -1,7 +1,6 @@
 name: Publish Main Image
 on:
   push:
-    branches: [main]
     paths:
       - "app/**"
       - "migrations/**"
