@@ -12,7 +12,10 @@
     <br />
     <br />
     <a href="https://github.com/shaneisrael/fireshare/actions">
-      <img alt="Docker Build" src="https://img.shields.io/github/workflow/status/shaneisrael/fireshare/Publish%20Docker%20Image" />
+      <img alt="Docker Build" src="https://img.shields.io/github/workflow/status/shaneisrael/fireshare/Publish%20Main%20Image" />
+    </a>
+    <a href="https://hub.docker.com/r/shaneisrael/fireshare/tags?page=1&ordering=last_updated">
+      <img alt="GitHub tag (latest SemVer)" src="https://img.shields.io/github/v/tag/shaneisrael/fireshare?label=version">
     </a>
     <a href="https://github.com/shaneisrael/fireshare/stargazers">
       <img alt="GitHub stars" src="https://img.shields.io/github/stars/shaneisrael/fireshare">
