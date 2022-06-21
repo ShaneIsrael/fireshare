@@ -264,7 +264,7 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
             background: 'rgba(0, 0, 0, 0.13)',
           }}
         >
-          <Stack direction="row" alignItems="center" justifyContent="center" sx={{ pt: '1px' }} spacing={3}>
+          <Box alignItems="center" justifyContent="center" sx={{ display: 'flex', flexGrow: 1, pt: '1px' }} spacing={3}>
             <LightTooltip arrow title="Found a bug? Report it here.">
               <IconButton
                 aria-label="report-bug-link"
@@ -295,7 +295,10 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
                 <VolunteerActivismIcon fontSize="inherit" />
               </IconButton>
             </LightTooltip>
-          </Stack>
+            <Typography sx={{ position: 'absolute', right: 10, fontWeight: 600, fontSize: 12, color: '#2684FF' }}>
+              v{process.env.REACT_APP_VERSION}
+            </Typography>
+          </Box>
         </Paper>
       </Box>
     </>

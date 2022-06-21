@@ -1,6 +1,4 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AuthService } from '../services'
 import Navbar from '../components/nav/Navbar'
 import { Grid, Paper, Typography } from '@mui/material'
 

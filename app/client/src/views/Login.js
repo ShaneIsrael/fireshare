@@ -3,8 +3,7 @@ import React from 'react'
 import { Box, Grid } from '@mui/material'
 
 import LoginForm from '../components/forms/LoginForm'
-import { AuthService } from '../services'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 
 const Login = function ({ authenticated }) {
   if (authenticated) return <Navigate to="/" />
