@@ -201,7 +201,7 @@ If this project is at all interesting to you please feel free to contribute or c
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. `git remote add upstream https://github.com/ShaneIsrael/fireshare.git`
-5. `git rebase upstream/master`
+5. `git rebase upstream/main`
 6. Fix any merge conflicts you may have
 7. Push to the Branch (`git push origin feature/AmazingFeature`)
 8. Open a Pull Request
