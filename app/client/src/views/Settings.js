@@ -136,7 +136,7 @@ const Settings = ({ authenticated }) => {
                 </Box>
                 <TextField
                   size="small"
-                  placeholder="Shareable Link Domain"
+                  label="Shareable Link Domain"
                   value={updatedConfig.ui_config?.shareable_link_domain || ''}
                   onChange={(e) =>
                     setUpdatedConfig((prev) => ({
