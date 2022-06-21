@@ -198,10 +198,10 @@ If this project is at all interesting to you please feel free to contribute or c
 [For questions or feature requests please create an issue with an appropriate label here](https://github.com/ShaneIsrael/fireshare/issues/new)
 
 1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. `git remote add upstream https://github.com/ShaneIsrael/fireshare.git`
-5. `git rebase upstream/main`
+2. Add upstream (`git remote add upstream https://github.com/ShaneIsrael/fireshare.git`)
+3. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+4. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+5. Rebase with upstream (`git rebase upstream/main`)
 6. Fix any merge conflicts you may have
 7. Push to the Branch (`git push origin feature/AmazingFeature`)
 8. Open a Pull Request
