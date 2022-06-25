@@ -1,5 +1,5 @@
 import json
-import os, re
+import os, re, string
 import shutil
 import random
 import logging
@@ -236,7 +236,10 @@ def public_upload_video():
     if file.filename == '':
         return redirect(request.url)
     filename = secure_filename(file.filename)
-    file.save(os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], filename))
+    save_path = os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], filename)
+    if (os.path.exists(save_path)):
+        save_path = os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], f"{(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))}-{filename}")
+    file.save()
     return Response(status=201)
 
 @api.route('/api/upload', methods=['POST'])
@@ -254,7 +257,10 @@ def upload_video():
     if file.filename == '':
         return redirect(request.url)
     filename = secure_filename(file.filename)
-    file.save(os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], filename))
+    save_path = os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], filename)
+    if (os.path.exists(save_path)):
+        save_path = os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], f"{(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))}-{filename}")
+    file.save()
     return Response(status=201)
 
 @api.route('/api/video')
