@@ -17,7 +17,7 @@ import BugReportIcon from '@mui/icons-material/BugReport'
 import { lightBlue } from '@mui/material/colors'
 
 import logo from '../../assets/logo.png'
-import { Paper, Stack } from '@mui/material'
+import { Paper } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import styled from '@emotion/styled'
 import { AuthService, VideoService } from '../../services'

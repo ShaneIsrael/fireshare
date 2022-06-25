@@ -1,6 +1,5 @@
 import React from 'react'
 import { Box, Button, Divider, Grid, Stack, TextField, ToggleButton, Typography } from '@mui/material'
-import Navbar from '../components/nav/Navbar'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import SaveIcon from '@mui/icons-material/Save'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -44,51 +43,17 @@ const Settings = ({ authenticated }) => {
       setAlert({ open: true, message: err.response.data, type: 'error' })
     }
   }
-  const pages = [
-    { name: 'View Admin', href: '/' },
-    { name: 'View Feed', href: '/feed' },
-  ]
   return (
-    <Navbar pages={pages} authenticated={authenticated}>
+    <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Box sx={{ overflow: 'hidden', height: '100%' }}>
-        <Grid container item justifyContent="center" spacing={2} sx={{ mt: 2 }}>
+      <Box sx={{ height: '100%' }}>
+        <Grid container item justifyContent="center" spacing={2}>
           <Grid item xs={12}>
             <Grid container sx={{ pr: 2, pl: 2 }}>
-              <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }}>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontFamily: 'monospace',
-                    fontWeight: 500,
-                    letterSpacing: '.2rem',
-                    color: 'inherit',
-                    textDecoration: 'none',
-                    ml: 1,
-                  }}
-                >
-                  Settings
-                </Typography>
-              </Grid>
-              <Grid item xs sx={{ display: { xs: 'none', sm: 'flex' } }}>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontFamily: 'monospace',
-                    fontWeight: 500,
-                    letterSpacing: '.2rem',
-                    color: 'inherit',
-                    textDecoration: 'none',
-                    ml: 1,
-                  }}
-                >
-                  Settings
-                </Typography>
-              </Grid>
+              <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }}></Grid>
             </Grid>
-            <Divider light />
           </Grid>
           <Grid item>
             <Box
@@ -158,7 +123,7 @@ const Settings = ({ authenticated }) => {
           </Grid>
         </Grid>
       </Box>
-    </Navbar>
+    </>
   )
 }
 

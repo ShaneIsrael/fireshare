@@ -12,11 +12,10 @@ const Search = ({ searchHandler, placeholder, sx }) => {
   return (
     <Box {...sx}>
       <TextField
-        size="large"
-        variant="standard"
+        size="small"
+        // variant="standard"
         fullWidth
         placeholder={placeholder}
-        value={search}
         onChange={(e) => setSearch(e.target.value)}
         InputProps={{
           startAdornment: (

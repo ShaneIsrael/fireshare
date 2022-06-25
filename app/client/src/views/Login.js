@@ -9,14 +9,12 @@ const Login = function ({ authenticated }) {
   if (authenticated) return <Navigate to="/" />
 
   return (
-    <Box component="main" sx={{ height: '100vh' }}>
-      <Box square sx={{ overflow: 'auto' }}>
-        <Grid sx={{ height: '100vh' }} container direction="row" justifyContent="center" alignItems="center">
-          <Grid item>
-            <LoginForm />
-          </Grid>
+    <Box square sx={{ overflow: 'auto' }}>
+      <Grid sx={{ height: '100%' }} container direction="row" justifyContent="center" alignItems="center">
+        <Grid item>
+          <LoginForm />
         </Grid>
-      </Box>
+      </Grid>
     </Box>
   )
 }
