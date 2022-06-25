@@ -120,7 +120,7 @@ function Navbar20({ authenticated, page, searchable = false, children }) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
   const drawerOpen = getSetting('drawerOpen')
-  const [open, setOpen] = React.useState(drawerOpen !== null ? drawerOpen : true)
+  const [open, setOpen] = React.useState(drawerOpen !== undefined ? drawerOpen : true)
 
   const [alert, setAlert] = React.useState({ open: false })
   const navigate = useNavigate()
@@ -145,7 +145,6 @@ function Navbar20({ authenticated, page, searchable = false, children }) {
 
   const DrawerControl = styled('div')(({ theme }) => ({
     zIndex: 1000,
-
     position: 'absolute',
     left: 0,
     top: 13,
