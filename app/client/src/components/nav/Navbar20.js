@@ -1,5 +1,4 @@
 import * as React from 'react'
-import AppBar from '@mui/material/AppBar'
 import Box from '@mui/material/Box'
 import Divider from '@mui/material/Divider'
 import Drawer from '@mui/material/Drawer'
@@ -12,26 +11,31 @@ import ListItemText from '@mui/material/ListItemText'
 import MenuIcon from '@mui/icons-material/Menu'
 import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import PublicIcon from '@mui/icons-material/Public'
 import SettingsIcon from '@mui/icons-material/Settings'
 import LogoutIcon from '@mui/icons-material/Logout'
 import LoginIcon from '@mui/icons-material/Login'
 import GitHubIcon from '@mui/icons-material/GitHub'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'
+import MuiDrawer from '@mui/material/Drawer'
+import MuiAppBar from '@mui/material/AppBar'
+import { styled } from '@mui/material/styles'
 
-import { Avatar, Grid, Menu, MenuItem, Tooltip } from '@mui/material'
-import { lightBlue } from '@mui/material/colors'
+import { Grid } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import { AuthService, VideoService } from '../../services'
+import { AuthService } from '../../services'
 
 import logo from '../../assets/logo.png'
 import Search from '../search/Search'
 import LightTooltip from '../misc/LightTooltip'
 import SnackbarAlert from '../alert/SnackbarAlert'
+import { getSetting, setSetting } from '../../common/utils'
 const drawerWidth = 240
+const minimizedDrawerWidth = 57
 
 const pages = [
   { title: 'All Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
@@ -39,24 +43,95 @@ const pages = [
   { title: 'Settings', icon: <SettingsIcon />, href: '/settings', private: true },
 ]
 
-function Navbar20({ authenticated, page, children }) {
-  const [anchorElUser, setAnchorElUser] = React.useState(null)
+const openedMixin = (theme) => ({
+  width: drawerWidth,
+  transition: theme.transitions.create('width', {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.enteringScreen,
+  }),
+  overflowX: 'hidden',
+})
+
+const closedMixin = (theme) => ({
+  transition: theme.transitions.create('width', {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+  overflowX: 'hidden',
+  width: minimizedDrawerWidth,
+  [theme.breakpoints.up('sm')]: {
+    width: minimizedDrawerWidth,
+  },
+})
+
+const IconDrawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' })(({ theme, open }) => ({
+  width: open ? drawerWidth : minimizedDrawerWidth,
+  flexShrink: 0,
+  whiteSpace: 'nowrap',
+  boxSizing: 'border-box',
+  ...(open && {
+    ...openedMixin(theme),
+    '& .MuiDrawer-paper': openedMixin(theme),
+  }),
+  ...(!open && {
+    ...closedMixin(theme),
+    '& .MuiDrawer-paper': closedMixin(theme),
+  }),
+}))
+
+const AppBar = styled(MuiAppBar, {
+  shouldForwardProp: (prop) => prop !== 'open',
+})(({ theme, open }) => ({
+  zIndex: theme.zIndex.drawer,
+  [theme.breakpoints.up('sm')]: {
+    zIndex: theme.zIndex.drawer + 1,
+  },
+  transition: theme.transitions.create(['width', 'margin'], {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+  ...(open && {
+    marginLeft: 0,
+    width: '100%',
+    [theme.breakpoints.up('sm')]: {
+      width: `calc(100% - ${drawerWidth}px)`,
+      marginLeft: drawerWidth,
+    },
+    transition: theme.transitions.create(['width', 'margin'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  }),
+  ...(!open && {
+    marginLeft: 0,
+    width: '100%',
+    [theme.breakpoints.up('sm')]: {
+      width: `calc(100% - ${minimizedDrawerWidth}px)`,
+      marginLeft: minimizedDrawerWidth,
+    },
+    transition: theme.transitions.create(['width', 'margin'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+  }),
+}))
+
+function Navbar20({ authenticated, page, searchable = false, children }) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
+  const drawerOpen = getSetting('drawerOpen')
+  const [open, setOpen] = React.useState(drawerOpen !== null ? drawerOpen : true)
 
   const [alert, setAlert] = React.useState({ open: false })
-
   const navigate = useNavigate()
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
   }
 
-  const handleOpenUserMenu = (event) => {
-    setAnchorElUser(event.currentTarget)
-  }
-  const handleCloseUserMenu = () => {
-    setAnchorElUser(null)
+  const handleDrawerCollapse = () => {
+    setOpen(!open)
+    setSetting('drawerOpen', !open)
   }
 
   const handleLogout = async () => {
@@ -68,29 +143,23 @@ function Navbar20({ authenticated, page, children }) {
     }
   }
 
-  const handleScan = async () => {
-    VideoService.scan().catch((err) =>
-      setAlert({
-        open: true,
-        type: 'error',
-        message: err.response?.data || 'Unknown Error',
-      }),
-    )
-    setAlert({
-      open: true,
-      type: 'info',
-      message: 'Scan initiated. This could take a few minutes.',
-    })
-  }
+  const DrawerControl = styled('div')(({ theme }) => ({
+    zIndex: 1000,
 
-  const menuOptions = []
-  if (authenticated) {
-    menuOptions.push({ name: 'Scan Library', handler: handleScan })
-  }
+    position: 'absolute',
+    left: 0,
+    top: 13,
+  }))
 
   const drawer = (
     <div>
-      <Toolbar>
+      <Toolbar
+        sx={{
+          '&.MuiToolbar-root': {
+            pl: '13px',
+          },
+        }}
+      >
         <Box
           alt="fireshare logo"
           component="img"
@@ -174,83 +243,112 @@ function Navbar20({ authenticated, page, children }) {
           )}
         </List>
         <Divider />
-        <Box
-          sx={{
-            width: 205,
-            m: 2,
-            height: 50,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            ':hover': {
-              backgroundColor: 'rgba(194, 224, 255, 0.08)',
-              cursor: 'pointer',
-            },
-          }}
-          onClick={() => window.open('https://github.com/ShaneIsrael/fireshare', '_blank')}
-        >
-          <Grid container alignItems="center" sx={{ height: '100%' }}>
-            <Grid item sx={{ ml: 1, mr: 1 }}>
-              <IconButton aria-label="report-bug-link" sx={{ p: 0.5, pointerEvents: 'all' }}>
-                <GitHubIcon sx={{ color: '#EBEBEB' }} />
-              </IconButton>
-            </Grid>
-            <Grid container item direction="column" xs>
-              <Grid item>
-                <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12, color: '#EBEBEB' }}>
-                  Fireshare
-                </Typography>
-              </Grid>
-              <Grid item>
-                <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12, color: '#2684FF' }}>
-                  v{process.env.REACT_APP_VERSION}
-                </Typography>
-              </Grid>
-            </Grid>
-            <Grid container item xs>
-              <LightTooltip arrow title="Found a bug? Report it here.">
-                <IconButton
-                  aria-label="report-bug-link"
-                  size="medium"
-                  sx={{ p: 0.5, mr: 1, pointerEvents: 'all' }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    window.open('https://github.com/ShaneIsrael/fireshare/issues', '_blank')
-                  }}
-                >
-                  <BugReportIcon fontSize="inherit" />
+        {open ? (
+          <Box
+            sx={{
+              width: 222,
+              m: 1,
+              height: 40,
+              border: '1px solid rgba(194, 224, 255, 0.18)',
+              borderRadius: '8px',
+              ':hover': {
+                backgroundColor: 'rgba(194, 224, 255, 0.08)',
+                cursor: 'pointer',
+              },
+            }}
+            onClick={() => window.open('https://github.com/ShaneIsrael/fireshare', '_blank')}
+          >
+            <Grid container alignItems="center" sx={{ height: '100%' }}>
+              <Grid item sx={{ ml: 1, mr: 1 }}>
+                <IconButton aria-label="report-bug-link" sx={{ p: 0.5, pointerEvents: 'all' }}>
+                  <GitHubIcon sx={{ color: '#EBEBEB' }} />
                 </IconButton>
-              </LightTooltip>
-              <LightTooltip arrow title="Buy us a coffee!">
-                <IconButton
-                  aria-label="paypal-link"
-                  size="medium"
-                  sx={{ p: 0.5, pointerEvents: 'all' }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    window.open('https://www.paypal.com/paypalme/shaneisrael', '_blank')
-                  }}
-                >
-                  <VolunteerActivismIcon fontSize="inherit" />
-                </IconButton>
-              </LightTooltip>
+              </Grid>
+              <Grid container item direction="column" xs>
+                <Grid item>
+                  <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12, color: '#EBEBEB' }}>
+                    Fireshare
+                  </Typography>
+                </Grid>
+                <Grid item>
+                  <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12, color: '#2684FF' }}>
+                    v{process.env.REACT_APP_VERSION}
+                  </Typography>
+                </Grid>
+              </Grid>
+              <Grid container item xs>
+                <LightTooltip arrow title="Found a bug? Report it here.">
+                  <IconButton
+                    aria-label="report-bug-link"
+                    size="medium"
+                    sx={{ p: 0.5, mr: 1, pointerEvents: 'all' }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      window.open('https://github.com/ShaneIsrael/fireshare/issues', '_blank')
+                    }}
+                  >
+                    <BugReportIcon fontSize="inherit" />
+                  </IconButton>
+                </LightTooltip>
+                <LightTooltip arrow title="Buy us a coffee!">
+                  <IconButton
+                    aria-label="paypal-link"
+                    size="medium"
+                    sx={{ p: 0.5, pointerEvents: 'all' }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      window.open('https://www.paypal.com/paypalme/shaneisrael', '_blank')
+                    }}
+                  >
+                    <VolunteerActivismIcon fontSize="inherit" />
+                  </IconButton>
+                </LightTooltip>
+              </Grid>
             </Grid>
-          </Grid>
-        </Box>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              display: 'flex',
+              width: 42,
+              m: 1,
+              height: 40,
+              border: '1px solid rgba(194, 224, 255, 0.18)',
+              borderRadius: '8px',
+              ':hover': {
+                backgroundColor: 'rgba(194, 224, 255, 0.08)',
+                cursor: 'pointer',
+              },
+            }}
+            justifyContent="center"
+            alignItems="center"
+            onClick={() => window.open('https://github.com/ShaneIsrael/fireshare', '_blank')}
+          >
+            <IconButton aria-label="report-bug-link" sx={{ p: 0.5, pointerEvents: 'all' }}>
+              <GitHubIcon sx={{ color: '#EBEBEB' }} />
+            </IconButton>
+          </Box>
+        )}
       </Box>
     </div>
   )
-
   return (
     <Box sx={{ display: 'flex' }}>
       {page !== '/login' && (
         <AppBar
           position="fixed"
+          open={open}
           sx={{
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            ml: { sm: `${drawerWidth}px` },
             backgroundColor: '#0A1929D0',
           }}
         >
+          <DrawerControl
+            sx={{
+              display: { xs: 'none', sm: 'block' },
+            }}
+          >
+            <IconButton onClick={handleDrawerCollapse}>{open ? <ChevronLeftIcon /> : <ChevronRightIcon />}</IconButton>
+          </DrawerControl>
           <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)' }}>
             <IconButton
               color="inherit"
@@ -261,54 +359,22 @@ function Navbar20({ authenticated, page, children }) {
             >
               <MenuIcon />
             </IconButton>
-            <Search
-              placeholder={`Search videos...`}
-              searchHandler={(value) => setSearchText(value)}
-              sx={{ width: '100%', mr: 1 }}
-            />
-            {authenticated && (
-              <Box sx={{ flexGrow: 0 }}>
-                <Tooltip title="Open Options">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar alt="Admin" sx={{ bgcolor: lightBlue[500] }}>
-                      <AdminPanelSettingsIcon />
-                    </Avatar>
-                  </IconButton>
-                </Tooltip>
-                <Menu
-                  sx={{ mt: '45px' }}
-                  id="menu-appbar"
-                  anchorEl={anchorElUser}
-                  anchorOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  keepMounted
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  open={Boolean(anchorElUser)}
-                  onClose={handleCloseUserMenu}
-                >
-                  {menuOptions.map((option) => (
-                    <MenuItem
-                      key={option.name}
-                      onClick={() => {
-                        return option.handler() && handleCloseUserMenu()
-                      }}
-                    >
-                      <Typography textAlign="center">{option.name}</Typography>
-                    </MenuItem>
-                  ))}
-                </Menu>
-              </Box>
+            {searchable && (
+              <Search
+                placeholder={`Search videos...`}
+                searchHandler={(value) => setSearchText(value)}
+                sx={{ width: '100%', ml: { xs: 0, sm: 2 } }}
+              />
             )}
           </Toolbar>
         </AppBar>
       )}
       {page !== '/login' && (
-        <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }} aria-label="page navigation">
+        <Box
+          component="nav"
+          sx={{ width: { sm: open ? drawerWidth : minimizedDrawerWidth }, flexShrink: { sm: 0 } }}
+          aria-label="page navigation"
+        >
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -318,24 +384,26 @@ function Navbar20({ authenticated, page, children }) {
             }}
             sx={{
               display: { xs: 'block', sm: 'none' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: open ? drawerWidth : minimizedDrawerWidth },
             }}
           >
             {drawer}
           </Drawer>
-          <Drawer
+          <IconDrawer
             variant="permanent"
             sx={{
               display: { xs: 'none', sm: 'block' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
             }}
-            open
+            open={open}
           >
             {drawer}
-          </Drawer>
+          </IconDrawer>
         </Box>
       )}
-      <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` } }}
+      >
         <Toolbar />
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}

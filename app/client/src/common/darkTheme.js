@@ -214,20 +214,14 @@ const theme = {
           fontWeight: 500,
           fontSize: '0.875rem',
           color: '#CDD2D7',
+          padding: '8px',
           borderRadius: '8px',
           '&:hover': {
             backgroundColor: 'rgba(194, 224, 255, 0.08)',
           },
           '&.Mui-selected': {
             color: '#fff',
-            // borderRadius: 10,
-            // border: '1px solid',
-            // borderColor: '#0059B2 !important',
             backgroundImage: 'linear-gradient(140deg, #BC00E6DF, #FF3729D9)',
-
-            // '&:hover': {
-            //   backgroundColor: '#173A5E',
-            // },
           },
         },
       },

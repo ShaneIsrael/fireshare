@@ -35,7 +35,7 @@ export default function App() {
             path="/"
             element={
               <AuthWrapper redirect={'/feed'}>
-                <Navbar20 page="/">
+                <Navbar20 page="/" searchable>
                   <Dashboard />
                 </Navbar20>
               </AuthWrapper>
@@ -45,7 +45,7 @@ export default function App() {
             path="/feed"
             element={
               <AuthWrapper>
-                <Navbar20 page="/feed">
+                <Navbar20 page="/feed" searchable>
                   <Feed />
                 </Navbar20>
               </AuthWrapper>
@@ -74,9 +74,11 @@ export default function App() {
           <Route
             path="/w/:id"
             element={
-              <AuthWrapper>
-                <Watch />
-              </AuthWrapper>
+              <Navbar20 page="/w">
+                <AuthWrapper>
+                  <Watch />
+                </AuthWrapper>
+              </Navbar20>
             }
           />
           <Route

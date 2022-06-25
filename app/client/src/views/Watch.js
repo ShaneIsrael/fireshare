@@ -7,7 +7,6 @@ import CopyToClipboard from 'react-copy-to-clipboard'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
-import Navbar from '../components/nav/Navbar'
 import NotFound from './NotFound'
 import { VideoService } from '../services'
 import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath } from '../common/utils'
@@ -145,7 +144,7 @@ const Watch = ({ authenticated }) => {
   )
 
   return (
-    <Navbar pages={[{ name: 'View All Videos', href: '/feed' }]} authenticated={authenticated}>
+    <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
@@ -231,7 +230,7 @@ const Watch = ({ authenticated }) => {
           </Paper>
         </Grid>
       </Grid>
-    </Navbar>
+    </>
   )
 }
 
