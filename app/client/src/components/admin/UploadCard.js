@@ -18,6 +18,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
   const [progress, setProgress] = React.useState(0)
 
   const changeHandler = (event) => {
+    setProgress(0)
     setSelectedFile(event.target.files[0])
     setIsSelected(true)
   }
@@ -43,7 +44,6 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
           open: true,
         })
       }
-      VideoService.scan().catch((err) => console.error(err))
       setProgress(0)
       setIsSelected(false)
     }
