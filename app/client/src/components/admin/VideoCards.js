@@ -5,6 +5,7 @@ import VisibilityCard from './VisibilityCard'
 import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
+import UploadCard from './UploadCard'
 
 const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticated, size }) => {
   const [vids, setVideos] = React.useState(videos)
@@ -120,6 +121,13 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
         <Grid container justifyContent="center">
+          <UploadCard
+            authenticated={authenticated}
+            feedView={feedView}
+            cardWidth={size}
+            handleAlert={memoizedHandleAlert}
+            publicUpload={feedView}
+          />
           {vids.map((v) => (
             <VisibilityCard
               key={v.path + v.video_id}
