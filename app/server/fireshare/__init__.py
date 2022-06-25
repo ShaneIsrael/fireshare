@@ -76,6 +76,7 @@ def create_app(init_schedule=False):
         'data': Path(app.config['DATA_DIRECTORY']),
         'video': Path(app.config['VIDEO_DIRECTORY']),
         'processed': Path(app.config['PROCESSED_DIRECTORY']),
+        'config': Path(app.config['DATA_DIRECTORY'] / 'config.json')
     }
     app.config['PATHS'] = paths
     for k, path in paths.items():
@@ -91,8 +92,7 @@ def create_app(init_schedule=False):
             logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
     
-    config = paths['data'] / 'config.json'
-    update_config(config)
+    update_config(paths['config'])
 
     db.init_app(app)
     migrate.init_app(app, db)

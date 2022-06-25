@@ -3,7 +3,7 @@ import os, re
 import shutil
 import random
 import logging
-
+from werkzeug import secure_filename
 from subprocess import Popen
 from textwrap import indent
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
@@ -217,6 +217,45 @@ def add_video_view():
 def get_video_views(video_id):
     views = VideoView.count(video_id)
     return str(views)
+
+@api.route('/api/upload/public', methods=['POST'])
+def public_upload_video():
+    paths = current_app.config['PATHS']
+    with open(paths['config'], 'r') as configfile:
+        try:
+            config = json.load(configfile)
+        except:
+            return Response(status=500, response="Invalid or corrupt config file")
+    
+    if not config['app_config']['allow_public_upload']:
+        return Response(status=401)
+
+    if 'file' not in request.files:
+        return redirect(request.url)
+    file = request.files['file']
+    if file.filename == '':
+        return redirect(request.url)
+    filename = secure_filename(file.filename)
+    file.save(os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], filename))
+    return Response(status=201)
+
+@api.route('/api/upload', methods=['POST'])
+@login_required
+def upload_video():
+    paths = current_app.config['PATHS']
+    with open(paths['config'], 'r') as configfile:
+        try:
+            config = json.load(configfile)
+        except:
+            return Response(status=500, response="Invalid or corrupt config file")
+    if 'file' not in request.files:
+        return redirect(request.url)
+    file = request.files['file']
+    if file.filename == '':
+        return redirect(request.url)
+    filename = secure_filename(file.filename)
+    file.save(os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], filename))
+    return Response(status=201)
 
 @api.route('/api/video')
 def get_video():
