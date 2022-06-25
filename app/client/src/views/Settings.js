@@ -1,5 +1,16 @@
 import React from 'react'
-import { Box, Button, Divider, Grid, Stack, TextField, ToggleButton, Typography } from '@mui/material'
+import {
+  Box,
+  Button,
+  Checkbox,
+  Divider,
+  FormControlLabel,
+  Grid,
+  Stack,
+  TextField,
+  ToggleButton,
+  Typography,
+} from '@mui/material'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import SaveIcon from '@mui/icons-material/Save'
 import SensorsIcon from '@mui/icons-material/Sensors'
@@ -38,7 +49,7 @@ const Settings = ({ authenticated }) => {
       await ConfigService.updateConfig(updatedConfig)
       setUpdateable(false)
       setConfig((prev) => ({ ...prev, ...updatedConfig }))
-      setAlert({ open: true, message: 'Config Updated!', type: 'success' })
+      setAlert({ open: true, message: 'Settings Updated! Changes may take a minute to take effect.', type: 'success' })
     } catch (err) {
       console.error(err)
       setAlert({ open: true, message: err.response.data, type: 'error' })
@@ -116,6 +127,48 @@ const Settings = ({ authenticated }) => {
                     Default Video Privacy
                   </Typography>
                 </Box>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.app_config?.allow_public_upload || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          app_config: { ...prev.app_config, allow_public_upload: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Allow Public Upload"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.show_admin_upload || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, show_admin_upload: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Show Admin Upload Card"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.show_public_upload || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, show_public_upload: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Show Public Upload Card"
+                />
                 <TextField
                   size="small"
                   label="Shareable Link Domain"
@@ -123,7 +176,30 @@ const Settings = ({ authenticated }) => {
                   onChange={(e) =>
                     setUpdatedConfig((prev) => ({
                       ...prev,
-                      ui_config: { shareable_link_domain: e.target.value },
+                      ui_config: { ...prev.ui_config, shareable_link_domain: e.target.value },
+                    }))
+                  }
+                />
+                <TextField
+                  size="small"
+                  label="Public Upload Folder Name"
+                  value={updatedConfig.app_config?.public_upload_folder_name || ''}
+                  disabled={!updatedConfig.app_config?.allow_public_upload}
+                  onChange={(e) =>
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      app_config: { ...prev.app_config, public_upload_folder_name: e.target.value },
+                    }))
+                  }
+                />
+                <TextField
+                  size="small"
+                  label="Admin Upload Folder Name"
+                  value={updatedConfig.app_config?.admin_upload_folder_name || ''}
+                  onChange={(e) =>
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      app_config: { ...prev.app_config, admin_upload_folder_name: e.target.value },
                     }))
                   }
                 />

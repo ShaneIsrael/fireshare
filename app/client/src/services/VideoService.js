@@ -50,6 +50,28 @@ const service = {
   delete(id) {
     return Api().delete(`/api/video/delete/${id}`)
   },
+  upload(formData, uploadProgress) {
+    return Api().post('/api/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        const progress = progressEvent.loaded / progressEvent.total
+        uploadProgress(progress)
+      },
+    })
+  },
+  publicUpload(formData, uploadProgress) {
+    return Api().post('/api/upload/public', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        const progress = progressEvent.loaded / progressEvent.total
+        uploadProgress(progress)
+      },
+    })
+  },
   scan() {
     return Api().get('/api/manual/scan')
   },
