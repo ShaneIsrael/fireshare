@@ -2,9 +2,10 @@ import React from 'react'
 import { Box, Button, Divider, Grid, Stack, TextField, ToggleButton, Typography } from '@mui/material'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import SaveIcon from '@mui/icons-material/Save'
+import SensorsIcon from '@mui/icons-material/Sensors'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
-import { ConfigService } from '../services'
+import { ConfigService, VideoService } from '../services'
 import LightTooltip from '../components/misc/LightTooltip'
 
 import _ from 'lodash'
@@ -43,6 +44,22 @@ const Settings = ({ authenticated }) => {
       setAlert({ open: true, message: err.response.data, type: 'error' })
     }
   }
+
+  const handleScan = async () => {
+    VideoService.scan().catch((err) =>
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data || 'Unknown Error',
+      }),
+    )
+    setAlert({
+      open: true,
+      type: 'info',
+      message: 'Scan initiated. This could take a few minutes.',
+    })
+  }
+
   return (
     <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
@@ -110,14 +127,17 @@ const Settings = ({ authenticated }) => {
                     }))
                   }
                 />
+                <Button variant="contained" startIcon={<SaveIcon />} disabled={!updateable} onClick={handleSave}>
+                  Save Changes
+                </Button>
               </Stack>
             </Box>
           </Grid>
           <Grid item xs={12}>
             <Divider sx={{ mb: 2 }} light />
-            <Box sx={{ display: 'flex', width: '100%', pr: 2 }} justifyContent="flex-end">
-              <Button variant="contained" startIcon={<SaveIcon />} disabled={!updateable} onClick={handleSave}>
-                Save Changes
+            <Box sx={{ display: 'flex', width: '100%', pr: 2 }} justifyContent="flex-start">
+              <Button variant="contained" startIcon={<SensorsIcon />} onClick={handleScan}>
+                Scan Library
               </Button>
             </Box>
           </Grid>

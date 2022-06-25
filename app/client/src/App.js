@@ -10,7 +10,7 @@ import Settings from './views/Settings'
 import Feed from './views/Feed'
 import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
-import { setSetting } from './common/utils'
+import { getSetting, setSetting } from './common/utils'
 import AuthWrapper from './components/utils/AuthWrapper'
 import Navbar20 from './components/nav/Navbar20'
 
@@ -26,6 +26,8 @@ export default function App() {
       .catch((err) => console.error(err))
   })
 
+  const drawerOpen = getSetting('drawerOpen')
+
   return (
     <Router>
       <ThemeProvider theme={muitheme}>
@@ -35,7 +37,7 @@ export default function App() {
             path="/"
             element={
               <AuthWrapper redirect={'/feed'}>
-                <Navbar20 page="/">
+                <Navbar20 page="/" collapsed={!drawerOpen} searchable styleToggle cardSlider>
                   <Dashboard />
                 </Navbar20>
               </AuthWrapper>
@@ -45,7 +47,7 @@ export default function App() {
             path="/feed"
             element={
               <AuthWrapper>
-                <Navbar20 page="/feed">
+                <Navbar20 page="/feed" collapsed={!drawerOpen} searchable styleToggle cardSlider>
                   <Feed />
                 </Navbar20>
               </AuthWrapper>
@@ -64,7 +66,7 @@ export default function App() {
           <Route
             path="/settings"
             element={
-              <AuthWrapper redirect={'/login'}>
+              <AuthWrapper collapsed={!drawerOpen} redirect={'/login'}>
                 <Navbar20 page="/settings">
                   <Settings />
                 </Navbar20>
@@ -74,9 +76,11 @@ export default function App() {
           <Route
             path="/w/:id"
             element={
-              <AuthWrapper>
-                <Watch />
-              </AuthWrapper>
+              <Navbar20 collapsed page="/w">
+                <AuthWrapper>
+                  <Watch />
+                </AuthWrapper>
+              </Navbar20>
             }
           />
           <Route
