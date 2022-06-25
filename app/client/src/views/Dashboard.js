@@ -27,8 +27,9 @@ const createSelectFolders = (folders) => {
 const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
 
-const Dashboard = ({ authenticated }) => {
+const Dashboard = ({ authenticated, searchText }) => {
   const [videos, setVideos] = React.useState([])
+  const [search, setSearch] = React.useState(searchText)
   const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
@@ -41,6 +42,11 @@ const Dashboard = ({ authenticated }) => {
   const [alert, setAlert] = React.useState({ open: false })
 
   const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
+
+  if (searchText !== search) {
+    setSearch(searchText)
+    setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(searchText, 'i')) >= 0))
+  }
 
   function fetchVideos() {
     VideoService.getVideos(selectedSort.value)
@@ -77,13 +83,6 @@ const Dashboard = ({ authenticated }) => {
     // eslint-disable-next-line
   }, [selectedSort])
 
-  const handleSearch = React.useCallback(
-    (search) => {
-      setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(search, 'i')) >= 0))
-    },
-    [videos],
-  )
-
   const handleListStyleChange = (e, style) => {
     if (style !== null) {
       setListStyle(style)
@@ -106,44 +105,17 @@ const Dashboard = ({ authenticated }) => {
 
   const pages = [{ name: 'View Feed', href: '/feed' }]
   return (
-    <Navbar pages={pages} authenticated={authenticated}>
+    // <Navbar pages={pages} authenticated={authenticated}>
+    <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Box sx={{ overflow: 'hidden', height: '100%' }}>
-        <Grid container item justifyContent="center" spacing={2} sx={{ mt: 2 }}>
+      <Box sx={{ height: '100%' }}>
+        <Grid container item justifyContent="center" spacing={2}>
           <Grid item xs={12}>
-            <Grid container sx={{ pr: 2, pl: 2 }}>
-              <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }}>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontFamily: 'monospace',
-                    fontWeight: 500,
-                    letterSpacing: '.2rem',
-                    color: 'inherit',
-                    textDecoration: 'none',
-                    ml: 1,
-                  }}
-                >
-                  MY VIDEOS
-                </Typography>
-              </Grid>
-              <Grid item xs sx={{ display: { xs: 'none', sm: 'flex' } }}>
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontFamily: 'monospace',
-                    fontWeight: 500,
-                    letterSpacing: '.2rem',
-                    color: 'inherit',
-                    textDecoration: 'none',
-                    ml: 1,
-                  }}
-                >
-                  MY VIDEOS
-                </Typography>
-              </Grid>
+            <Grid container sx={{ pr: 2, pl: 2, mb: 2 }}>
+              <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }} />
+              <Grid item xs sx={{ display: { xs: 'none', sm: 'flex' } }} />
 
               {!isMobile && (
                 <Grid item sx={{ pr: 2, pt: 0.25 }}>
@@ -173,14 +145,8 @@ const Dashboard = ({ authenticated }) => {
                 </ToggleButtonGroup>
               </Grid>
             </Grid>
-            <Divider sx={{ mb: 2 }} light />
             <Grid container justifyContent="center">
               <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 2 }}>
-                <Search
-                  placeholder={`Search ${selectedFolder.label}`}
-                  searchHandler={handleSearch}
-                  sx={{ mb: 2, width: '100%' }}
-                />
                 <Stack direction="row" spacing={1}>
                   <Box sx={{ flexGrow: 1 }}>
                     <Select
@@ -203,8 +169,7 @@ const Dashboard = ({ authenticated }) => {
                 </Stack>
               </Grid>
             </Grid>
-            <Divider sx={{ mb: 1 }} light />
-            <Box sx={{ height: 'calc(100vh - 298px)', overflowY: 'scroll' }}>
+            <Box>
               {listStyle === 'list' && (
                 <VideoList
                   authenticated={authenticated}
@@ -244,7 +209,8 @@ const Dashboard = ({ authenticated }) => {
           </Grid>
         </Grid>
       </Box>
-    </Navbar>
+    </>
+    // </Navbar>
   )
 }
 

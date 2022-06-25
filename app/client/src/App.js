@@ -12,6 +12,7 @@ import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
 import { setSetting } from './common/utils'
 import AuthWrapper from './components/utils/AuthWrapper'
+import Navbar20 from './components/nav/Navbar20'
 
 const muitheme = createTheme(darkTheme)
 
@@ -34,7 +35,9 @@ export default function App() {
             path="/"
             element={
               <AuthWrapper redirect={'/feed'}>
-                <Dashboard />
+                <Navbar20 page="/">
+                  <Dashboard />
+                </Navbar20>
               </AuthWrapper>
             }
           />
@@ -42,23 +45,29 @@ export default function App() {
             path="/feed"
             element={
               <AuthWrapper>
-                <Feed />
+                <Navbar20 page="/feed">
+                  <Feed />
+                </Navbar20>
               </AuthWrapper>
             }
           />
           <Route
             path="/login"
             element={
-              <AuthWrapper>
-                <Login />
-              </AuthWrapper>
+              <Navbar20 page="/login">
+                <AuthWrapper>
+                  <Login />
+                </AuthWrapper>
+              </Navbar20>
             }
           />
           <Route
             path="/settings"
             element={
               <AuthWrapper redirect={'/login'}>
-                <Settings />
+                <Navbar20 page="/settings">
+                  <Settings />
+                </Navbar20>
               </AuthWrapper>
             }
           />
