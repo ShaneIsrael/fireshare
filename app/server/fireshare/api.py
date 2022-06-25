@@ -29,17 +29,6 @@ def get_video_path(id, subid=None):
     video_path = paths["processed"] / "video_links" / f"{id}{subid_suffix}{ext}"
     return str(video_path)
 
-@api.before_request
-def handle_chunking():
-    """
-    Sets the "wsgi.input_terminated" environment flag, thus enabling
-    Werkzeug to pass chunked requests as streams.  The gunicorn server
-    should set this, but it's not yet been implemented.
-    """
-    transfer_encoding = request.headers.get("Transfer-Encoding", None)
-    if transfer_encoding == u"chunked":
-        request.environ["wsgi.input_terminated"] = True
-
 @api.route('/w/<video_id>')
 def video_metadata(video_id):
     video = Video.query.filter_by(video_id=video_id).first()
