@@ -1,37 +1,27 @@
 import React from 'react'
-import { Box, Grid, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
-import AppsIcon from '@mui/icons-material/Apps'
-import TableRowsIcon from '@mui/icons-material/TableRows'
+import { Box, Grid, Stack } from '@mui/material'
 import VideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
 import { VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
-import { getSetting, getSettings, setSetting } from '../common/utils'
-import { isMobile } from 'react-device-detect'
+import { getSetting, setSetting } from '../common/utils'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
 import selectFolderTheme from '../common/reactSelectFolderTheme'
 import selectSortTheme from '../common/reactSelectSortTheme'
-import SliderWrapper from '../components/misc/SliderWrapper'
 import { SORT_OPTIONS } from '../common/constants'
-
-const settings = getSettings()
 
 const createSelectFolders = (folders) => {
   return folders.map((f) => ({ value: f, label: f }))
 }
 
-const CARD_SIZE_DEFAULT = 375
-const CARD_SIZE_MULTIPLIER = 2
-
-const Dashboard = ({ authenticated, searchText }) => {
+const Dashboard = ({ authenticated, searchText, cardSize, listStyle }) => {
   const [videos, setVideos] = React.useState([])
   const [search, setSearch] = React.useState(searchText)
   const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
   const [folders, setFolders] = React.useState(['All Videos'])
-  const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
   const [selectedFolder, setSelectedFolder] = React.useState(
     getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
@@ -39,11 +29,18 @@ const Dashboard = ({ authenticated, searchText }) => {
 
   const [alert, setAlert] = React.useState({ open: false })
 
-  const [listStyle, setListStyle] = React.useState(settings?.listStyle || 'card')
+  const [prevCardSize, setPrevCardSize] = React.useState(cardSize)
+  const [prevListStyle, setPrevListStyle] = React.useState(listStyle)
 
   if (searchText !== search) {
     setSearch(searchText)
     setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(searchText, 'i')) >= 0))
+  }
+  if (cardSize !== prevCardSize) {
+    setPrevCardSize(cardSize)
+  }
+  if (listStyle !== prevListStyle) {
+    setPrevListStyle(listStyle)
   }
 
   function fetchVideos() {
@@ -81,24 +78,9 @@ const Dashboard = ({ authenticated, searchText }) => {
     // eslint-disable-next-line
   }, [selectedSort])
 
-  const handleListStyleChange = (e, style) => {
-    if (style !== null) {
-      setListStyle(style)
-      setSetting('listStyle', style)
-      fetchVideos()
-    }
-  }
-
   const handleFolderSelection = (folder) => {
     setSetting('folder', folder)
     setSelectedFolder(folder)
-  }
-
-  const handleCardSizeChange = (e, value) => {
-    const modifier = value / 100
-    const newSize = CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER * modifier
-    setCardSize(newSize)
-    setSetting('cardSize', newSize)
   }
 
   return (
@@ -109,38 +91,6 @@ const Dashboard = ({ authenticated, searchText }) => {
       <Box sx={{ height: '100%' }}>
         <Grid container item justifyContent="center" spacing={2}>
           <Grid item xs={12}>
-            <Grid container sx={{ pr: 2, pl: 2, mb: 2 }}>
-              <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }} />
-              <Grid item xs sx={{ display: { xs: 'none', sm: 'flex' } }} />
-
-              {!isMobile && (
-                <Grid item sx={{ pr: 2, pt: 0.25 }}>
-                  <SliderWrapper
-                    width={100}
-                    cardSize={cardSize}
-                    defaultCardSize={CARD_SIZE_DEFAULT}
-                    cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
-                    onChangeCommitted={handleCardSizeChange}
-                  />
-                </Grid>
-              )}
-              <Grid item>
-                <ToggleButtonGroup
-                  size="small"
-                  sx={{ mt: -0.5 }}
-                  value={listStyle}
-                  exclusive
-                  onChange={handleListStyleChange}
-                >
-                  <ToggleButton value="card">
-                    <AppsIcon />
-                  </ToggleButton>
-                  <ToggleButton value="list">
-                    <TableRowsIcon />
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </Grid>
-            </Grid>
             <Grid container justifyContent="center">
               <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 2 }}>
                 <Stack direction="row" spacing={1}>

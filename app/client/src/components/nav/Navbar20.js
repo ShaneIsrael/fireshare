@@ -20,12 +20,14 @@ import GitHubIcon from '@mui/icons-material/GitHub'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
+import AppsIcon from '@mui/icons-material/Apps'
+import TableRowsIcon from '@mui/icons-material/TableRows'
 import BugReportIcon from '@mui/icons-material/BugReport'
 import MuiDrawer from '@mui/material/Drawer'
 import MuiAppBar from '@mui/material/AppBar'
 import { styled } from '@mui/material/styles'
 
-import { Grid } from '@mui/material'
+import { Grid, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { AuthService } from '../../services'
 
@@ -34,8 +36,12 @@ import Search from '../search/Search'
 import LightTooltip from '../misc/LightTooltip'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import { getSetting, setSetting } from '../../common/utils'
+import SliderWrapper from '../misc/SliderWrapper'
+
 const drawerWidth = 240
 const minimizedDrawerWidth = 57
+const CARD_SIZE_DEFAULT = 375
+const CARD_SIZE_MULTIPLIER = 2
 
 const pages = [
   { title: 'All Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
@@ -116,11 +122,13 @@ const AppBar = styled(MuiAppBar, {
   }),
 }))
 
-function Navbar20({ authenticated, page, searchable = false, children }) {
+function Navbar20({ authenticated, page, searchable = false, styleToggle = false, cardSlider = false, children }) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
   const drawerOpen = getSetting('drawerOpen')
   const [open, setOpen] = React.useState(drawerOpen !== undefined ? drawerOpen : true)
+  const [listStyle, setListStyle] = React.useState(getSetting('listStyle') || 'card')
+  const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
 
   const [alert, setAlert] = React.useState({ open: false })
   const navigate = useNavigate()
@@ -141,6 +149,20 @@ function Navbar20({ authenticated, page, searchable = false, children }) {
     } catch (err) {
       console.error(err)
     }
+  }
+
+  const handleListStyleChange = (e, style) => {
+    if (style !== null) {
+      setListStyle(style)
+      setSetting('listStyle', style)
+      // fetchVideos()
+    }
+  }
+  const handleCardSizeChange = (e, value) => {
+    const modifier = value / 100
+    const newSize = CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER * modifier
+    setCardSize(newSize)
+    setSetting('cardSize', newSize)
   }
 
   const DrawerControl = styled('div')(({ theme }) => ({
@@ -203,6 +225,43 @@ function Navbar20({ authenticated, page, searchable = false, children }) {
           return null
         })}
       </List>
+      {styleToggle && (
+        <>
+          <Divider />
+          <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
+            <ToggleButtonGroup
+              size="small"
+              orientation={open ? 'horizontal' : 'vertical'}
+              value={listStyle}
+              exclusive
+              onChange={handleListStyleChange}
+            >
+              <ToggleButton sx={{ width: open ? 100 : 'auto' }} value="card">
+                <AppsIcon />
+              </ToggleButton>
+              <ToggleButton sx={{ width: open ? 100 : 'auto' }} value="list">
+                <TableRowsIcon />
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        </>
+      )}
+      {cardSlider && listStyle === 'card' && (
+        <>
+          <Divider />
+          <Box sx={{ display: 'flex', p: 2, height: open ? 'auto' : 125 }} justifyContent="center">
+            <SliderWrapper
+              width={open ? '100%' : 5}
+              cardSize={cardSize}
+              defaultCardSize={CARD_SIZE_DEFAULT}
+              cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
+              onChangeCommitted={handleCardSizeChange}
+              vertical={!open}
+            />
+          </Box>
+        </>
+      )}
+      <Divider />
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
         <List sx={{ pl: 1, pr: 1 }}>
           {authenticated && (
@@ -407,7 +466,7 @@ function Navbar20({ authenticated, page, searchable = false, children }) {
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
-        {React.cloneElement(children, { authenticated, searchText })}
+        {React.cloneElement(children, { authenticated, searchText, listStyle, cardSize })}
       </Box>
     </Box>
   )
