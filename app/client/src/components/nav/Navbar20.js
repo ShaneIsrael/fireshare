@@ -122,11 +122,18 @@ const AppBar = styled(MuiAppBar, {
   }),
 }))
 
-function Navbar20({ authenticated, page, searchable = false, styleToggle = false, cardSlider = false, children }) {
+function Navbar20({
+  authenticated,
+  page,
+  collapsed = false,
+  searchable = false,
+  styleToggle = false,
+  cardSlider = false,
+  children,
+}) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
-  const drawerOpen = getSetting('drawerOpen')
-  const [open, setOpen] = React.useState(drawerOpen !== undefined ? drawerOpen : true)
+  const [open, setOpen] = React.useState(!collapsed)
   const [listStyle, setListStyle] = React.useState(getSetting('listStyle') || 'card')
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
 
