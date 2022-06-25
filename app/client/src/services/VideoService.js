@@ -52,6 +52,7 @@ const service = {
   },
   upload(formData, uploadProgress) {
     return Api().post('/api/upload', formData, {
+      timeout: 999999999,
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -63,6 +64,7 @@ const service = {
   },
   publicUpload(formData, uploadProgress) {
     return Api().post('/api/upload/public', formData, {
+      timeout: 999999999,
       headers: {
         'Content-Type': 'multipart/form-data',
       },
