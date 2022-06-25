@@ -63,16 +63,8 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
   }
 
   const EMPTY_STATE = () => (
-    <Paper variant="outlined" sx={{ mr: 3, ml: 3, overflow: 'hidden' }}>
-      <Grid
-        sx={{ height: 200 }}
-        container
-        item
-        spacing={2}
-        direction="column"
-        justifyContent="center"
-        alignItems="center"
-      >
+    <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
+      <Grid sx={{ p: 2 }} container item spacing={2} direction="column" justifyContent="center" alignItems="center">
         {!loadingIcon && (
           <>
             <Grid item>
@@ -87,9 +79,10 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
                   textDecoration: 'none',
                 }}
               >
-                {!feedView ? 'NO VIDEOS FOUND' : 'THERE ARE NO PUBLIC VIDEOS'}
+                NO VIDEOS FOUND
               </Typography>
             </Grid>
+
             {!feedView && (
               <Grid item>
                 <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
@@ -100,6 +93,15 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
           </>
         )}
         {loadingIcon}
+      </Grid>
+      <Grid container justifyContent="center">
+        <UploadCard
+          authenticated={authenticated}
+          feedView={feedView}
+          cardWidth={250}
+          handleAlert={memoizedHandleAlert}
+          publicUpload={feedView}
+        />
       </Grid>
     </Paper>
   )

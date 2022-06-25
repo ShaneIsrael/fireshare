@@ -89,7 +89,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle }) => {
         {alert.message}
       </SnackbarAlert>
       <Box sx={{ height: '100%' }}>
-        <Grid container item justifyContent="center" spacing={2}>
+        <Grid container item justifyContent="center">
           <Grid item xs={12}>
             <Grid container justifyContent="center">
               <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 2 }}>
