@@ -14,7 +14,6 @@ import Toolbar from '@mui/material/Toolbar'
 import Typography from '@mui/material/Typography'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
-import InfoIcon from '@mui/icons-material/Info'
 import PublicIcon from '@mui/icons-material/Public'
 import SettingsIcon from '@mui/icons-material/Settings'
 import LogoutIcon from '@mui/icons-material/Logout'
@@ -31,6 +30,7 @@ import { AuthService, VideoService } from '../../services'
 import logo from '../../assets/logo.png'
 import Search from '../search/Search'
 import LightTooltip from '../misc/LightTooltip'
+import SnackbarAlert from '../alert/SnackbarAlert'
 const drawerWidth = 240
 
 const pages = [
@@ -132,6 +132,7 @@ function Navbar20({ authenticated, page, children }) {
                 </ListItemButton>
               </ListItem>
             )
+          return null
         })}
       </List>
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
@@ -336,6 +337,9 @@ function Navbar20({ authenticated, page, children }) {
       )}
       <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}>
         <Toolbar />
+        <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+          {alert.message}
+        </SnackbarAlert>
         {React.cloneElement(children, { authenticated, searchText })}
       </Box>
     </Box>

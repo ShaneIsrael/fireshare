@@ -1,12 +1,11 @@
 import React from 'react'
-import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
+import { Box, Grid, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
 import { useLocation } from 'react-router-dom'
 import AppsIcon from '@mui/icons-material/Apps'
 import { isMobile } from 'react-device-detect'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import VideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
-import Navbar from '../components/nav/Navbar'
 import { VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, getSettings, setSetting } from '../common/utils'
@@ -18,7 +17,6 @@ import selectFolderTheme from '../common/reactSelectFolderTheme'
 import selectSortTheme from '../common/reactSelectSortTheme'
 
 import SliderWrapper from '../components/misc/SliderWrapper'
-import Search from '../components/search/Search'
 import { SORT_OPTIONS } from '../common/constants'
 
 const settings = getSettings()

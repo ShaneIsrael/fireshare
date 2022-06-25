@@ -1,10 +1,9 @@
 import React from 'react'
-import { Box, Grid, Typography, Divider, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
+import { Box, Grid, ToggleButtonGroup, ToggleButton, Stack } from '@mui/material'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import VideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
-import Navbar from '../components/nav/Navbar'
 import { VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, getSettings, setSetting } from '../common/utils'
@@ -15,7 +14,6 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import selectFolderTheme from '../common/reactSelectFolderTheme'
 import selectSortTheme from '../common/reactSelectSortTheme'
 import SliderWrapper from '../components/misc/SliderWrapper'
-import Search from '../components/search/Search'
 import { SORT_OPTIONS } from '../common/constants'
 
 const settings = getSettings()
@@ -103,9 +101,7 @@ const Dashboard = ({ authenticated, searchText }) => {
     setSetting('cardSize', newSize)
   }
 
-  const pages = [{ name: 'View Feed', href: '/feed' }]
   return (
-    // <Navbar pages={pages} authenticated={authenticated}>
     <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
@@ -210,7 +206,6 @@ const Dashboard = ({ authenticated, searchText }) => {
         </Grid>
       </Box>
     </>
-    // </Navbar>
   )
 }
 
