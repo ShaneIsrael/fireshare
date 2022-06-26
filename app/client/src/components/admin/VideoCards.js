@@ -64,7 +64,15 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, showUploadCa
 
   const EMPTY_STATE = () => (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-      <Grid sx={{ p: 2 }} container item spacing={2} direction="column" justifyContent="center" alignItems="center">
+      <Grid
+        sx={{ p: 2, height: 200 }}
+        container
+        item
+        spacing={2}
+        direction="column"
+        justifyContent="center"
+        alignItems="center"
+      >
         {!loadingIcon && (
           <>
             <Grid item>
@@ -94,15 +102,17 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, showUploadCa
         )}
         {loadingIcon}
       </Grid>
-      <Grid container justifyContent="center">
-        <UploadCard
-          authenticated={authenticated}
-          feedView={feedView}
-          cardWidth={250}
-          handleAlert={memoizedHandleAlert}
-          publicUpload={feedView}
-        />
-      </Grid>
+      {!loadingIcon && (
+        <Grid container justifyContent="center">
+          <UploadCard
+            authenticated={authenticated}
+            feedView={feedView}
+            cardWidth={250}
+            handleAlert={memoizedHandleAlert}
+            publicUpload={feedView}
+          />
+        </Grid>
+      )}
     </Paper>
   )
 
