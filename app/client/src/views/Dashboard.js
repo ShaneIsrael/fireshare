@@ -138,6 +138,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle }) => {
                   authenticated={authenticated}
                   loadingIcon={loading ? <LoadingSpinner /> : null}
                   size={cardSize}
+                  showUploadCard={selectedFolder.value === 'All Videos'}
                   videos={
                     selectedFolder.value === 'All Videos'
                       ? filteredVideos

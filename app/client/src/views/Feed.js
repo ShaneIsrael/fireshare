@@ -160,6 +160,7 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
                   loadingIcon={loading ? <LoadingSpinner /> : null}
                   feedView={true}
                   size={cardSize}
+                  showUploadCard={selectedFolder.value === 'All Videos'}
                   videos={
                     selectedFolder.value === 'All Videos'
                       ? filteredVideos
