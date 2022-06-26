@@ -11,6 +11,8 @@ import _ from 'lodash'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import LightTooltip from '../misc/LightTooltip'
 
+import logo from '../../assets/logo.png'
+
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
@@ -249,10 +251,12 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
               alt=""
               style={{
                 width: cardWidth,
+                minHeight: previewVideoHeight,
                 border: '1px solid #3399FFAE',
                 borderBottomRightRadius: '6px',
                 borderBottomLeftRadius: '6px',
                 borderTop: 'none',
+                background: 'repeating-linear-gradient(45deg,#606dbc,#606dbc 10px,#465298 10px,#465298 20px)',
               }}
             />
 
