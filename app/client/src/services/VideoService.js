@@ -58,7 +58,10 @@ const service = {
       },
       onUploadProgress: (progressEvent) => {
         const progress = progressEvent.loaded / progressEvent.total
-        uploadProgress(progress)
+        uploadProgress(progress, {
+          loaded: progressEvent.loaded / Math.pow(10, 6),
+          total: progressEvent.total / Math.pow(10, 6),
+        })
       },
     })
   },
@@ -70,7 +73,11 @@ const service = {
       },
       onUploadProgress: (progressEvent) => {
         const progress = progressEvent.loaded / progressEvent.total
-        uploadProgress(progress)
+        console.log(progressEvent)
+        uploadProgress(progress, {
+          loaded: progressEvent.loaded / Math.pow(10, 6),
+          total: progressEvent.total / Math.pow(10, 6),
+        })
       },
     })
   },

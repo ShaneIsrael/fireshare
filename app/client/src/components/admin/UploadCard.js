@@ -10,12 +10,14 @@ const Input = styled('input')({
 })
 
 const uiConfig = getSetting('ui_config')
+const numberFormat = new Intl.NumberFormat('en-US')
 
 const UploadCard = ({ authenticated, feedView = false, publicUpload = false, cardWidth, handleAlert }) => {
   const cardHeight = cardWidth / 1.77 + 32
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
+  const [uploadRate, setUploadRate] = React.useState()
 
   const changeHandler = (event) => {
     setProgress(0)
@@ -23,9 +25,10 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
     setIsSelected(true)
   }
 
-  const uploadProgress = (progress) => {
+  const uploadProgress = (progress, rate) => {
     if (progress <= 1 && progress >= 0) {
       setProgress(progress)
+      setUploadRate((prev) => ({ ...rate }))
     }
   }
 
@@ -49,6 +52,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
         })
       }
       setProgress(0)
+      setUploadRate(null)
       setIsSelected(false)
     }
     if (selectedFile) upload()
@@ -85,9 +89,15 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
               )}
               <CloudUploadIcon sx={{ fontSize: 75 }} />
               {progress !== 0 && progress !== 1 && (
-                <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
-                  Uploading... {(100 * progress).toFixed(0)}%
-                </Typography>
+                <>
+                  <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
+                    Uploading... {(100 * progress).toFixed(0)}%
+                  </Typography>
+                  <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                    {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
+                    {numberFormat.format(uploadRate.total.toFixed(0))} MB's
+                  </Typography>
+                </>
               )}
               {progress === 1 && (
                 <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
