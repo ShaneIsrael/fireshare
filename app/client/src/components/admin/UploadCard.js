@@ -73,7 +73,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
           variant="outlined"
         >
           <Box sx={{ display: 'flex', p: 2, height: '100%' }} justifyContent="center" alignItems="center">
-            <Stack sx={{ zIndex: 2, width: '100%' }} alignItems="center">
+            <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center">
               {!isSelected && (
                 <Input
                   id="icon-button-file"
@@ -109,7 +109,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
             sx={{
               position: 'absolute',
               bottom: 0,
-              zIndex: 1,
+              zIndex: -1,
               height: cardHeight,
               width: cardWidth * progress,
               backgroundImage: 'linear-gradient(90deg, #BC00E6DF, #FF3729D9)',
