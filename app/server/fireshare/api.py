@@ -227,22 +227,22 @@ def public_upload_video():
             config = json.load(configfile)
         except:
             logging.error("Invalid or corrupt config file")
-            return redirect(request.url)
+            return Response(status=400)
         configfile.close()
         
     if not config['app_config']['allow_public_upload']:
         logging.warn("A public upload attempt was made but public uploading is disabled")
-        return redirect(request.url)
+        return Response(status=401)
 
     if 'file' not in request.files:
-        return redirect(request.url)
+        return Response(status=400)
     file = request.files['file']
     if file.filename == '':
-        return redirect(request.url)
+        return Response(status=400)
     filename = file.filename
     filetype = file.filename.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
-        return redirect(request.url)
+        return Response(status=400)
     upload_directory = paths['video'] / config['app_config']['public_upload_folder_name']
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
@@ -263,14 +263,14 @@ def upload_video():
             return Response(status=500, response="Invalid or corrupt config file")
         configfile.close()
     if 'file' not in request.files:
-        return redirect(request.url)
+        return Response(status=400)
     file = request.files['file']
     if file.filename == '':
-        return redirect(request.url)
+        return Response(status=400)
     filename = file.filename
     filetype = file.filename.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
-        return redirect(request.url)
+        return Response(status=400)
     upload_directory = paths['video'] / config['app_config']['admin_upload_folder_name']
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
