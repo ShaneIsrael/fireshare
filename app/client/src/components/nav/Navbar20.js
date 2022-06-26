@@ -44,7 +44,7 @@ const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
 
 const pages = [
-  { title: 'All Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
+  { title: 'My Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
   { title: 'Public Videos', icon: <PublicIcon />, href: '/feed', private: false },
   { title: 'Settings', icon: <SettingsIcon />, href: '/settings', private: true },
 ]
