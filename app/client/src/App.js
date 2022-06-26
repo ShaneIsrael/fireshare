@@ -26,7 +26,7 @@ export default function App() {
       .catch((err) => console.error(err))
   })
 
-  const drawerOpen = getSetting('drawerOpen')
+  const drawerOpen = getSetting('drawerOpen') === undefined ? true : getSetting('drawerOpen')
 
   return (
     <Router>
