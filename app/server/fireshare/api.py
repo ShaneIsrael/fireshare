@@ -11,8 +11,10 @@ from flask_cors import CORS
 from sqlalchemy.sql import text
 from pathlib import Path
 
+
 from . import db
 from .models import Video, VideoInfo, VideoView
+from .constants import SUPPORTED_FILE_TYPES
 
 templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
 api = Blueprint('api', __name__, template_folder=templates_path)
@@ -238,6 +240,9 @@ def public_upload_video():
     if file.filename == '':
         return redirect(request.url)
     filename = file.filename
+    filetype = file.filename.split('.')[-1]
+    if not filetype in SUPPORTED_FILE_TYPES:
+        return redirect(request.url)
     upload_directory = paths['video'] / config['app_config']['public_upload_folder_name']
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
@@ -263,6 +268,9 @@ def upload_video():
     if file.filename == '':
         return redirect(request.url)
     filename = file.filename
+    filetype = file.filename.split('.')[-1]
+    if not filetype in SUPPORTED_FILE_TYPES:
+        return redirect(request.url)
     upload_directory = paths['video'] / config['app_config']['admin_upload_folder_name']
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
