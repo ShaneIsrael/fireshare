@@ -113,7 +113,10 @@ const Settings = ({ authenticated }) => {
                       onChange={() => {
                         setUpdatedConfig((prev) => ({
                           ...prev,
-                          app_config: { video_defaults: { private: !prev.app_config.video_defaults.private } },
+                          app_config: {
+                            ...prev.app_config,
+                            video_defaults: { private: !prev.app_config.video_defaults.private },
+                          },
                         }))
                       }}
                       sx={{ mr: 2 }}
