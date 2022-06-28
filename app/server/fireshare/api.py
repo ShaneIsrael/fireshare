@@ -248,7 +248,9 @@ def public_upload_video():
         os.makedirs(upload_directory)
     save_path = os.path.join(upload_directory, filename)
     if (os.path.exists(save_path)):
-        save_path = os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], f"{''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))}-{filename}")
+        name_no_type = ".".join(filename.split('.')[0:-1])
+        uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+        save_path = os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
     return Response(status=201)
 
@@ -276,8 +278,9 @@ def upload_video():
         os.makedirs(upload_directory)
     save_path = os.path.join(upload_directory, filename)
     if (os.path.exists(save_path)):
-        print(''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6)))
-        save_path = os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], f"{''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))}-{filename}")
+        name_no_type = ".".join(filename.split('.')[0:-1])
+        uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+        save_path = os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
     return Response(status=201)
 
