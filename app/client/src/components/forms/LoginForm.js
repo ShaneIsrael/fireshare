@@ -68,13 +68,13 @@ const LoginForm = function ({ sx }) {
         {alert.message}
       </SnackbarAlert>
       <Grid item sx={{ mb: 2 }}>
-        <Box component="img" src={logo} height={128} alt="fireshare logo" />
+        <Box component="img" src={logo} height={196} alt="fireshare logo" />
       </Grid>
       <Grid item sx={{ mb: 1 }}>
         <Typography
           align="center"
           sx={{
-            fontFamily: 'monospace',
+            // fontFamily: 'monospace',
             fontWeight: 700,
             fontSize: 32,
             letterSpacing: '.2rem',
@@ -124,7 +124,13 @@ const LoginForm = function ({ sx }) {
         </Grid>
         <Grid item xs={12} sx={{ mt: 1 }}>
           <Stack spacing={2}>
-            <Button variant="contained" size="large" sx={{ width: '100%' }} disabled={!password} onClick={handleLogin}>
+            <Button
+              variant="contained"
+              size="large"
+              sx={{ width: '100%' }}
+              disabled={!password || !username}
+              onClick={handleLogin}
+            >
               Sign in
             </Button>
           </Stack>
