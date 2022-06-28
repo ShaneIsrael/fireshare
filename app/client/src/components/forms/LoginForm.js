@@ -107,6 +107,7 @@ const LoginForm = function ({ sx }) {
             placeholder="Username"
             onKeyPress={handleLogin}
             onChange={handleLoginChange}
+            autoFocus
           />
         </Grid>
         <Grid item xs={12}>
