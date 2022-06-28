@@ -225,7 +225,7 @@ If you are experiencing playback issues there could be a number of reasons as to
 
 3. **Browsers** - In my testing I have noticed that Firefox struggles to playback very large files, however Chome and Edge do not seem to have the same problem.
 
-4. **Unsupported File Type** - At the moment, Fireshare only support MP4 and MOV files. It's reccommended to use MP4 where possible, while MOV is supported we have noticed that some MOV files play just fine while others do not. If your MOV file does not play, consider transcoding it to an MP4 file with a tool like Handbrake.
+4. **Unsupported File Type** - At the moment, Fireshare only support MP4, MOV and WEBM files. It's reccommended to use MP4 where possible, while MOV is supported we have noticed that some MOV files play just fine while others do not. If your MOV file does not play, consider transcoding it to an MP4 file with a tool like Handbrake.
 
 
 
