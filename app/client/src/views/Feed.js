@@ -107,7 +107,7 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
         {alert.message}
       </SnackbarAlert>
       <Box sx={{ height: '100%' }}>
-        <Grid container item justifyContent="center" spacing={2}>
+        <Grid container item justifyContent="center">
           <Grid item xs={12}>
             <Grid container justifyContent="center">
               {videos && videos.length !== 0 && (
@@ -160,6 +160,7 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
                   loadingIcon={loading ? <LoadingSpinner /> : null}
                   feedView={true}
                   size={cardSize}
+                  showUploadCard={selectedFolder.value === 'All Videos'}
                   videos={
                     selectedFolder.value === 'All Videos'
                       ? filteredVideos

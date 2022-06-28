@@ -11,6 +11,8 @@ from pathlib import Path
 from sqlalchemy import func
 import time
 
+from .constants import SUPPORTED_FILE_EXTENSIONS
+
 @click.group()
 def cli():
     pass
@@ -45,9 +47,8 @@ def scan_videos():
         if not video_links.is_dir():
             video_links.mkdir()
 
-        extensions = ['.mp4', '.mov', '.webm']
-        logger.info(f"Scanning {str(raw_videos)} for {', '.join(extensions)} video files")
-        video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix.lower() in extensions]
+        logger.info(f"Scanning {str(raw_videos)} for {', '.join(SUPPORTED_FILE_EXTENSIONS)} video files")
+        video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS]
         video_rows = Video.query.all()
 
         new_videos = []
@@ -55,7 +56,10 @@ def scan_videos():
             path = str(vf.relative_to(raw_videos))
             video_id = util.video_id(vf)
             existing = next((vr for vr in video_rows if vr.video_id == video_id), None)
-            if existing:
+            duplicate = next((dvr for dvr in new_videos if dvr.video_id == video_id), None)
+            if duplicate:
+                logger.info(f"Found duplicate video {video_id} as {str(path)}, skipping...")
+            elif existing:
                 if not existing.available:
                     logger.info(f"Updating Video {video_id}, available=True")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "available": True })

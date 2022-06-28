@@ -5,6 +5,7 @@ import VideoModal from '../modal/VideoModal'
 import VideoListItem from './VideoListItem'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
+import UploadCard from './UploadCard'
 
 const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated }) => {
   const [vids, setVideos] = React.useState(videos)
@@ -60,7 +61,7 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
   const EMPTY_STATE = () => (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
       <Grid
-        sx={{ height: 200 }}
+        sx={{ p: 2, height: 150 }}
         container
         item
         spacing={2}
@@ -82,9 +83,10 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
                   textDecoration: 'none',
                 }}
               >
-                {!feedView ? 'NO VIDEOS FOUND' : 'THERE ARE NO PUBLIC VIDEOS'}
+                NO VIDEOS FOUND
               </Typography>
             </Grid>
+
             {!feedView && (
               <Grid item>
                 <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
@@ -96,6 +98,17 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
         )}
         {loadingIcon}
       </Grid>
+      {!loadingIcon && (
+        <Grid container justifyContent="center">
+          <UploadCard
+            authenticated={authenticated}
+            feedView={feedView}
+            cardWidth={250}
+            handleAlert={memoizedHandleAlert}
+            publicUpload={feedView}
+          />
+        </Grid>
+      )}
     </Paper>
   )
 

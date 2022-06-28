@@ -52,23 +52,32 @@ const service = {
   },
   upload(formData, uploadProgress) {
     return Api().post('/api/upload', formData, {
+      timeout: 999999999,
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress: (progressEvent) => {
         const progress = progressEvent.loaded / progressEvent.total
-        uploadProgress(progress)
+        uploadProgress(progress, {
+          loaded: progressEvent.loaded / Math.pow(10, 6),
+          total: progressEvent.total / Math.pow(10, 6),
+        })
       },
     })
   },
   publicUpload(formData, uploadProgress) {
     return Api().post('/api/upload/public', formData, {
+      timeout: 999999999,
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress: (progressEvent) => {
         const progress = progressEvent.loaded / progressEvent.total
-        uploadProgress(progress)
+        console.log(progressEvent)
+        uploadProgress(progress, {
+          loaded: progressEvent.loaded / Math.pow(10, 6),
+          total: progressEvent.total / Math.pow(10, 6),
+        })
       },
     })
   },

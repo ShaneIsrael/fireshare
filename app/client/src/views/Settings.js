@@ -113,7 +113,10 @@ const Settings = ({ authenticated }) => {
                       onChange={() => {
                         setUpdatedConfig((prev) => ({
                           ...prev,
-                          app_config: { video_defaults: { private: !prev.app_config.video_defaults.private } },
+                          app_config: {
+                            ...prev.app_config,
+                            video_defaults: { private: !prev.app_config.video_defaults.private },
+                          },
                         }))
                       }}
                       sx={{ mr: 2 }}
@@ -135,6 +138,10 @@ const Settings = ({ authenticated }) => {
                         setUpdatedConfig((prev) => ({
                           ...prev,
                           app_config: { ...prev.app_config, allow_public_upload: e.target.checked },
+                          ui_config: {
+                            ...prev.ui_config,
+                            show_public_upload: !e.target.checked ? false : prev.ui_config.show_public_upload,
+                          },
                         }))
                       }
                     />

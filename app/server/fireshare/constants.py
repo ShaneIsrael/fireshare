@@ -13,3 +13,6 @@ DEFAULT_CONFIG = {
     "show_admin_upload": True,
   }
 }
+
+SUPPORTED_FILE_TYPES = ['mp4', 'mov', 'webm']
+SUPPORTED_FILE_EXTENSIONS = ['.mp4', '.mov', '.webm']

@@ -10,19 +10,27 @@ const Input = styled('input')({
 })
 
 const uiConfig = getSetting('ui_config')
+const numberFormat = new Intl.NumberFormat('en-US')
 
 const UploadCard = ({ authenticated, feedView = false, publicUpload = false, cardWidth, handleAlert }) => {
   const cardHeight = cardWidth / 1.77 + 32
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
+  const [uploadRate, setUploadRate] = React.useState()
 
   const changeHandler = (event) => {
+    setProgress(0)
     setSelectedFile(event.target.files[0])
     setIsSelected(true)
   }
 
-  const uploadProgress = (progress) => setProgress(progress)
+  const uploadProgress = (progress, rate) => {
+    if (progress <= 1 && progress >= 0) {
+      setProgress(progress)
+      setUploadRate((prev) => ({ ...rate }))
+    }
+  }
 
   React.useEffect(() => {
     async function upload() {
@@ -43,8 +51,8 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
           open: true,
         })
       }
-      VideoService.scan().catch((err) => console.error(err))
       setProgress(0)
+      setUploadRate(null)
       setIsSelected(false)
     }
     if (selectedFile) upload()
@@ -59,25 +67,17 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
       <label htmlFor="icon-button-file">
         <Paper
           sx={{
+            position: 'relative',
             width: cardWidth,
             height: cardHeight,
             cursor: 'pointer',
             background: 'rgba(0,0,0,0)',
+            overflow: 'hidden',
           }}
           variant="outlined"
         >
-          <Box
-            sx={{
-              position: 'absolute',
-              zIndex: 1,
-              height: cardHeight,
-              width: cardWidth * progress,
-              backgroundImage: 'linear-gradient(140deg, #BC00E6DF, #FF3729D9)',
-              borderRadius: '10px',
-            }}
-          />
           <Box sx={{ display: 'flex', p: 2, height: '100%' }} justifyContent="center" alignItems="center">
-            <Stack sx={{ zIndex: 2, width: '100%' }} alignItems="center">
+            <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center">
               {!isSelected && (
                 <Input
                   id="icon-button-file"
@@ -89,17 +89,43 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
               )}
               <CloudUploadIcon sx={{ fontSize: 75 }} />
               {progress !== 0 && progress !== 1 && (
-                <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
-                  Uploading... {(100 * progress).toFixed(0)}%
-                </Typography>
+                <>
+                  <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
+                    Uploading... {(100 * progress).toFixed(0)}%
+                  </Typography>
+                  <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                    {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
+                    {numberFormat.format(uploadRate.total.toFixed(0))} MB's
+                  </Typography>
+                </>
               )}
               {progress === 1 && (
-                <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
+                <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
                   Processing...
+                  <Typography
+                    component="span"
+                    variant="overline"
+                    align="center"
+                    display="block"
+                    sx={{ fontWeight: 400, fontSize: 12 }}
+                  >
+                    This may take a few minutes
+                  </Typography>
                 </Typography>
               )}
             </Stack>
           </Box>
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: 0,
+              zIndex: -1,
+              height: cardHeight,
+              width: cardWidth * progress,
+              backgroundImage: 'linear-gradient(90deg, #BC00E6DF, #FF3729D9)',
+              borderRadius: '10px',
+            }}
+          />
         </Paper>
       </label>
     </Grid>

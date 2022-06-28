@@ -7,7 +7,7 @@ import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
 import UploadCard from './UploadCard'
 
-const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticated, size }) => {
+const VideoCards = ({ videos, loadingIcon = null, feedView = false, showUploadCard = false, authenticated, size }) => {
   const [vids, setVideos] = React.useState(videos)
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
@@ -63,9 +63,9 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
   }
 
   const EMPTY_STATE = () => (
-    <Paper variant="outlined" sx={{ mr: 3, ml: 3, overflow: 'hidden' }}>
+    <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
       <Grid
-        sx={{ height: 200 }}
+        sx={{ p: 2, height: 200 }}
         container
         item
         spacing={2}
@@ -87,9 +87,10 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
                   textDecoration: 'none',
                 }}
               >
-                {!feedView ? 'NO VIDEOS FOUND' : 'THERE ARE NO PUBLIC VIDEOS'}
+                NO VIDEOS FOUND
               </Typography>
             </Grid>
+
             {!feedView && (
               <Grid item>
                 <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
@@ -101,6 +102,17 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
         )}
         {loadingIcon}
       </Grid>
+      {!loadingIcon && (
+        <Grid container justifyContent="center">
+          <UploadCard
+            authenticated={authenticated}
+            feedView={feedView}
+            cardWidth={250}
+            handleAlert={memoizedHandleAlert}
+            publicUpload={feedView}
+          />
+        </Grid>
+      )}
     </Paper>
   )
 
@@ -121,13 +133,15 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, authenticate
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
         <Grid container justifyContent="center">
-          <UploadCard
-            authenticated={authenticated}
-            feedView={feedView}
-            cardWidth={size}
-            handleAlert={memoizedHandleAlert}
-            publicUpload={feedView}
-          />
+          {showUploadCard && (
+            <UploadCard
+              authenticated={authenticated}
+              feedView={feedView}
+              cardWidth={size}
+              handleAlert={memoizedHandleAlert}
+              publicUpload={feedView}
+            />
+          )}
           {vids.map((v) => (
             <VisibilityCard
               key={v.path + v.video_id}

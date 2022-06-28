@@ -94,6 +94,11 @@ The goal of Fireshare is to provide a very simple and easy way for you to share 
 
 ![folders]
 
+<h2 align="center">Uploading</h2>
+<p align="center">Allow your community or the public the ability to upload videos. Of course, this feature can be disabled or limited to only administrator access</p>
+
+![uploading]
+
 <h2 align="center">Edit Video Details</h2>
 <p align="center">Access a basic modal for editing the title and description of videos by clicking on the "pencil" icon.</p>
 
@@ -245,3 +250,4 @@ If you are experiencing playback issues there could be a number of reasons as to
 [watch-page]: .github/images/watch-page.png
 [ogg-data]: .github/images/ogg-data.png
 [mobile-view]: .github/images/mobile-view.png
+[uploading]: .github/images/uploading.png

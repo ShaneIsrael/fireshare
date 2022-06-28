@@ -11,8 +11,10 @@ from flask_cors import CORS
 from sqlalchemy.sql import text
 from pathlib import Path
 
+
 from . import db
 from .models import Video, VideoInfo, VideoView
+from .constants import SUPPORTED_FILE_TYPES
 
 templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
 api = Blueprint('api', __name__, template_folder=templates_path)
@@ -225,25 +227,30 @@ def public_upload_video():
             config = json.load(configfile)
         except:
             logging.error("Invalid or corrupt config file")
-            return redirect(request.url)
+            return Response(status=400)
         configfile.close()
         
     if not config['app_config']['allow_public_upload']:
         logging.warn("A public upload attempt was made but public uploading is disabled")
-        return redirect(request.url)
+        return Response(status=401)
 
     if 'file' not in request.files:
-        return redirect(request.url)
+        return Response(status=400)
     file = request.files['file']
     if file.filename == '':
-        return redirect(request.url)
+        return Response(status=400)
     filename = file.filename
+    filetype = file.filename.split('.')[-1]
+    if not filetype in SUPPORTED_FILE_TYPES:
+        return Response(status=400)
     upload_directory = paths['video'] / config['app_config']['public_upload_folder_name']
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
     save_path = os.path.join(upload_directory, filename)
     if (os.path.exists(save_path)):
-        save_path = os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], f"{''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))}-{filename}")
+        name_no_type = ".".join(filename.split('.')[0:-1])
+        uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+        save_path = os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
     return Response(status=201)
 
@@ -258,18 +265,22 @@ def upload_video():
             return Response(status=500, response="Invalid or corrupt config file")
         configfile.close()
     if 'file' not in request.files:
-        return redirect(request.url)
+        return Response(status=400)
     file = request.files['file']
     if file.filename == '':
-        return redirect(request.url)
+        return Response(status=400)
     filename = file.filename
+    filetype = file.filename.split('.')[-1]
+    if not filetype in SUPPORTED_FILE_TYPES:
+        return Response(status=400)
     upload_directory = paths['video'] / config['app_config']['admin_upload_folder_name']
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
     save_path = os.path.join(upload_directory, filename)
     if (os.path.exists(save_path)):
-        print(''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6)))
-        save_path = os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], f"{''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))}-{filename}")
+        name_no_type = ".".join(filename.split('.')[0:-1])
+        uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+        save_path = os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
     return Response(status=201)
 
