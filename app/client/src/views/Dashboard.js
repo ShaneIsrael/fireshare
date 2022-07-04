@@ -25,7 +25,9 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle }) => {
   const [selectedFolder, setSelectedFolder] = React.useState(
     getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
-  const [selectedSort, setSelectedSort] = React.useState(SORT_OPTIONS[0])
+  const [selectedSort, setSelectedSort] = React.useState(
+    getSetting('sortOption') || SORT_OPTIONS[0],
+  )
 
   const [alert, setAlert] = React.useState({ open: false })
 
@@ -82,7 +84,12 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle }) => {
     setSetting('folder', folder)
     setSelectedFolder(folder)
   }
-
+  
+  const handleSortSelection = (sortOption) => {
+    setSetting('sortOption', sortOption)
+    setSelectedSort(sortOption)
+  }
+  
   return (
     <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
@@ -107,7 +114,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle }) => {
                   <Select
                     value={selectedSort}
                     options={SORT_OPTIONS}
-                    onChange={(option) => setSelectedSort(option)}
+                    onChange={handleSortSelection}
                     styles={selectSortTheme}
                     blurInputOnSelect
                     isSearchable={false}
