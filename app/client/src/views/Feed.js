@@ -38,7 +38,9 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
       ? { value: category, label: category }
       : getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
   )
-  const [selectedSort, setSelectedSort] = React.useState(SORT_OPTIONS[0])
+  const [selectedSort, setSelectedSort] = React.useState(
+    getSetting('sortOption') || SORT_OPTIONS[0],
+  )
 
   const [alert, setAlert] = React.useState({ open: false })
 
@@ -100,7 +102,12 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
       window.history.replaceState({ category: folder.value }, '', `/#/feed?${searchParams.toString()}`)
     }
   }
-
+  
+  const handleSortSelection = (sortOption) => {
+    setSetting('sortOption', sortOption)
+    setSelectedSort(sortOption)
+  }
+  
   return (
     <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
@@ -126,7 +133,7 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
                     <Select
                       value={selectedSort}
                       options={SORT_OPTIONS}
-                      onChange={(option) => setSelectedSort(option)}
+                      onChange={handleSortSelection}
                       styles={selectSortTheme}
                       blurInputOnSelect
                       isSearchable={false}
