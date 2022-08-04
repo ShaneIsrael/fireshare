@@ -10,6 +10,10 @@ useradd appuser || true
 groupmod -o -g "$PGID" appuser
 usermod -o -u "$PUID" appuser
 
+chown -R appuser:appuser $DATA_DIRECTORY
+chown -R appuser:appuser $VIDEO_DIRECTORY
+chown -R appuser:appuser $PROCESSED_DIRECTORY
+
 su appuser
 
 echo '
@@ -19,12 +23,6 @@ User uid:    $(id -u appuser)
 User gid:    $(id -g appuser)
 -------------------------------------
 "
-
-chown appuser:appuser $DATA_DIRECTORY
-chown appuser:appuser $VIDEO_DIRECTORY
-chown appuser:appuser $PROCESSED_DIRECTORY
-
-
 
 # Remove any lockfiles on startup
 rm $DATA_DIRECTORY/*.lock 2> /dev/null
