@@ -25,11 +25,11 @@ User gid:    $(id -g appuser)
 "
 
 # Remove any lockfiles on startup
-rm $DATA_DIRECTORY/*.lock 2> /dev/null
+runuser -u appuser -- rm $DATA_DIRECTORY/*.lock 2> /dev/null
 
 # Remove job db on start
-rm /jobs.sqlite
+runuser -u appuser -- rm /jobs.sqlite
 
 
-flask db upgrade
-gunicorn --bind=127.0.0.1:5000 "fireshare:create_app(init_schedule=True)" --workers 3 --threads 3 --preload
+runuser -u appuser -- flask db upgrade
+runuser -u appuser -- gunicorn --bind=127.0.0.1:5000 "fireshare:create_app(init_schedule=True)" --workers 3 --threads 3 --preload
