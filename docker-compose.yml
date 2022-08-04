@@ -11,3 +11,5 @@ services:
     environment:
       - ADMIN_PASSWORD=admin
       - MINUTES_BETWEEN_VIDEO_SCANS=5
+      - PUID=1000
+      - PGID=1000
