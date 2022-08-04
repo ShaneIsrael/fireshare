@@ -8,11 +8,11 @@ usermod -o -u "$PUID" appuser
 
 echo '
 -------------------------------------'
-echo '
+echo "
 User uid:    $(id -u appuser)
 User gid:    $(id -g appuser)
 -------------------------------------
-'
+"
 
 chown appuser:appuser $DATA_DIRECTORY
 chown appuser:appuser $VIDEO_DIRECTORY
