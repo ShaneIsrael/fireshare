@@ -151,7 +151,7 @@ If you have all of your game clips stored in a folder **my_game_clips** then in 
 
 ### Docker Compose
 
-If you have docker compose installed, at the root of this project you can simply run this command. 
+If you have docker compose installed, at the root of this project you can simply run this command.
 
 > **make sure you edit the docker-compose.yml** file with your volume locations and admin password.
 
@@ -170,8 +170,6 @@ Once running, navigate to `localhost:8080` in your browser.
 ### Configurable Settings
 
 See the Fireshare Configuration Wiki: <a href="https://github.com/ShaneIsrael/fireshare/wiki/Fireshare-Configurables">Link</a>
-
-
 
 # Local Development
 
@@ -213,6 +211,10 @@ If this project is at all interesting to you please feel free to contribute or c
 
 **UPDATE YOUR BRANCH** We will not fix merge conflicts for you, if you make a pull request and it states there are merge conflicts please see steps 4 and 5 from the above.
 
+### Updating the Fireshare Database
+
+If you need to update the database or add a new table / column first make your changes to the `app/server/fireshare/models.py` file then at the root of the project run `flask db migrate "name of migration"` a new migration will be made with your changes. Go to that file and double check that everything is correct. You may need to manually edit this migration.
+
 # Frequently Asked Questions
 
 ### Playback Issues
@@ -227,8 +229,14 @@ If you are experiencing playback issues there could be a number of reasons as to
 
 4. **Unsupported File Type** - At the moment, Fireshare only support MP4, MOV and WEBM files. It's reccommended to use MP4 where possible, while MOV is supported we have noticed that some MOV files play just fine while others do not. If your MOV file does not play, consider transcoding it to an MP4 file with a tool like Handbrake.
 
+5. **Upload Issues** - Uploading issues are often caused by putting fireshare behind some sort of reverse proxy like nginx. By default nginx has limits on how large your uploads can be. Often the issue is that your trying to upload a file larger than nginx allows. You'll need to update your reverse proxies settings to increase these limits and timeouts. If you are using nginx, you most likely just need to add these two lines.
 
+```
+client_max_body_size 0;
+proxy_read_timeout 999999s;
+```
 
+These settings will only work on Nginx. With `client_max_body_size` set to `0` we are allowing any size upload. We are also increasing the timeout limit so that the connection isn't timedout. If you are not using nginx you'll need to do some research.
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
