@@ -15,14 +15,22 @@ CORS(main, supports_credentials=True)
 @main.before_app_first_request
 def before_first_request():
     # Create the admin user if it doesn't already exist
-    admin = User.query.filter_by(username='admin').first()
+    admin = User.query.filter_by(admin=True).first()
+
     if not admin:
-        admin_user = User(username='admin', password=generate_password_hash(current_app.config['ADMIN_PASSWORD'], method='sha256'))
+        username = current_app.config['ADMIN_USERNAME'] or 'admin'
+        admin_user = User(username=username, password=generate_password_hash(current_app.config['ADMIN_PASSWORD'] or 'admin', method='sha256'), admin=True)
         db.session.add(admin_user)
         db.session.commit()
-    if not check_password_hash(admin.password, current_app.config['ADMIN_PASSWORD']):
-        db.session.query(User).filter_by(username='admin').update({'password': generate_password_hash(current_app.config['ADMIN_PASSWORD'], method='sha256')})
+    if admin and not check_password_hash(admin.password, current_app.config['ADMIN_PASSWORD']):
+        row = db.session.query(User).filter_by(admin=True).first()
+        row.password = generate_password_hash(current_app.config['ADMIN_PASSWORD'], method='sha256')
         db.session.commit()
+    if admin and current_app.config['ADMIN_USERNAME'] and admin.username != current_app.config['ADMIN_USERNAME']:
+        row = db.session.query(User).filter_by(admin=True).first()
+        row.username = current_app.config['ADMIN_USERNAME'] or admin.username
+        db.session.commit()
+
 
 @main.route('/', defaults={'path': ''})
 @main.route('/#/<path:path>')

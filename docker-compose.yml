@@ -9,7 +9,9 @@ services:
       - ./dev_root/fireshare_processed:/processed
       - ./dev_root/fireshare_videos:/videos
     environment:
+      - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=admin
+      - SECRET_KEY=replace_this_with_some_random_string
       - MINUTES_BETWEEN_VIDEO_SCANS=5
       - PUID=1000
       - PGID=1000

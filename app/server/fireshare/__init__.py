@@ -65,6 +65,7 @@ def create_app(init_schedule=False):
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
     app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
+    app.config['ADMIN_USERNAME'] = os.getenv('ADMIN_USERNAME')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/db.sqlite'
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///jobs.sqlite'
