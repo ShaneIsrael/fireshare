@@ -74,6 +74,15 @@ def get_or_update_config():
         config_path.write_text(json.dumps(config, indent=2))
         return Response(status=200)
 
+@api.route('/api/admin/warnings', methods=["GET"])
+@login_required
+def get_warnings():
+    warnings = current_app.config['WARNINGS']
+    if request.method == 'GET':
+        if len(warnings) == 0:
+            return jsonify({})
+        else:
+            return jsonify(warnings)
 
 @api.route('/api/manual/scan')
 @login_required

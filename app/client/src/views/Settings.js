@@ -20,6 +20,7 @@ import { ConfigService, VideoService } from '../services'
 import LightTooltip from '../components/misc/LightTooltip'
 
 import _ from 'lodash'
+import WarningService from "../services/WarningService";
 
 const Settings = ({ authenticated }) => {
   const [alert, setAlert] = React.useState({ open: false })
@@ -33,6 +34,7 @@ const Settings = ({ authenticated }) => {
         const conf = (await ConfigService.getAdminConfig()).data
         setConfig(conf)
         setUpdatedConfig(conf)
+        await checkForWarnings()
       } catch (err) {
         console.error(err)
       }
@@ -69,6 +71,22 @@ const Settings = ({ authenticated }) => {
       type: 'info',
       message: 'Scan initiated. This could take a few minutes.',
     })
+  }
+
+  const checkForWarnings  = async () =>{
+      let warnings = await WarningService.getAdminWarnings()
+
+      if (Object.keys(warnings.data).length === 0)
+          return;
+
+      for (const warning of warnings.data) {
+          setAlert({
+              open: true,
+              type: 'warning',
+              message: warning,
+          });
+          await new Promise(r => setTimeout(r, 2000)); //Without this a second Warning would instantly overwrite the first...
+      }
   }
 
   return (
