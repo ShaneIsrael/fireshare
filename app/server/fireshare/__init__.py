@@ -72,6 +72,13 @@ def create_app(init_schedule=False):
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['INIT_SCHEDULE'] = init_schedule
     app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = int(os.getenv('MINUTES_BETWEEN_VIDEO_SCANS', '5'))
+    app.config['WARNINGS'] = []
+
+    if (app.config['ADMIN_PASSWORD'] and app.config['ADMIN_USERNAME'] == "admin"):
+        stdPasswordWarning = "You are using the Default Login-Credentials, please consider changing it."
+        app.config['WARNINGS'].append(stdPasswordWarning)
+        logger.warning(stdPasswordWarning)
+    
 
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
