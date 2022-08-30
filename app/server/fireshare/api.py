@@ -261,6 +261,7 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
+    Popen("fireshare bulk-import", shell=True)
     return Response(status=201)
 
 @api.route('/api/upload', methods=['POST'])
