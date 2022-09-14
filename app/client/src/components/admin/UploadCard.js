@@ -43,7 +43,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
         if (!publicUpload && authenticated) {
           await VideoService.upload(formData, uploadProgress)
         }
-        handleAlert({ type: 'success', message: "You're upload will be available after the next scan.", open: true })
+        handleAlert({ type: 'success', message: "Your upload will be available after the next scan.", open: true })
       } catch (err) {
         handleAlert({
           type: 'error',
