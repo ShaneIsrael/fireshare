@@ -129,6 +129,11 @@ Direct links copied from the link copy buttons in Fireshare will allow websites 
 <img src=".github/images/ogg-data.png" alt="Logo">
 </p>
 
+<h2 align="center">LDAP Authentication Support</h2>
+<p align="center">
+Connect Fireshare to a central user directory and keep user access organised.
+</p>
+
 ### Built With
 
 - [React](https://reactjs.org/)
@@ -169,7 +174,8 @@ Once running, navigate to `localhost:8080` in your browser.
 
 ### Configurable Settings
 
-See the Fireshare Configuration Wiki: <a href="https://github.com/ShaneIsrael/fireshare/wiki/Fireshare-Configurables">Link</a>
+See the Fireshare Configuration Wiki: <a href="https://github.com/ShaneIsrael/fireshare/wiki/Fireshare-Configurables">Link</a>  
+For LDAP configuration, see [LDAP.md](./LDAP.md)
 
 # Local Development
 

@@ -7,6 +7,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(100), unique=True)
     password = db.Column(db.String(100))
     admin = db.Column(db.Boolean, default=True)
+    ldap = db.Column(db.Boolean, default=False)
 
 class Video(db.Model):
     __tablename__ = "video"
