@@ -1,5 +1,6 @@
 import os, sys
 import os.path
+import ldap
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -67,6 +68,16 @@ def create_app(init_schedule=False):
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
     app.config['ADMIN_USERNAME'] = os.getenv('ADMIN_USERNAME')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
+    app.config['DISABLE_ADMINCREATE'] = bool(os.getenv("DISABLE_ADMINCREATE"))
+    app.config['LDAP_ENABLE'] = bool(os.getenv("LDAP_ENABLE"))
+    app.config['LDAP_URL'] = os.getenv("LDAP_URL")
+    app.config['LDAP_STARTLS'] = bool(os.getenv("LDAP_STARTLS"))
+    app.config['LDAP_BASEDN'] = os.getenv("LDAP_BASEDN")
+    app.config['LDAP_BINDDN'] = os.getenv("LDAP_BINDDN")
+    app.config['LDAP_PASSWORD'] = os.getenv("LDAP_PASSWORD")
+    app.config['LDAP_USER_FILTER'] = os.getenv("LDAP_USER_FILTER")
+    app.config['LDAP_ADMIN_GROUP'] = os.getenv("LDAP_ADMIN_GROUP")
+
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/db.sqlite'
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///jobs.sqlite'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -74,7 +85,7 @@ def create_app(init_schedule=False):
     app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = int(os.getenv('MINUTES_BETWEEN_VIDEO_SCANS', '5'))
     app.config['WARNINGS'] = []
 
-    if (app.config['ADMIN_PASSWORD'] and app.config['ADMIN_USERNAME'] == "admin"):
+    if (app.config['ADMIN_PASSWORD'] and app.config['ADMIN_USERNAME'] == "admin") and app.config["DISABLE_ADMINCREATE"] == False:
         stdPasswordWarning = "You are using the Default Login-Credentials, please consider changing it."
         app.config['WARNINGS'].append(stdPasswordWarning)
         logger.warning(stdPasswordWarning)
@@ -104,6 +115,16 @@ def create_app(init_schedule=False):
     db.init_app(app)
     migrate.init_app(app, db)
 
+
+    if app.config["LDAP_ENABLE"]:
+        if not app.config["LDAP_URL"] or not app.config["LDAP_BINDDN"] or not app.config["LDAP_BASEDN"] or not app.config["LDAP_USER_FILTER"]:
+            app.logger.error("Missing parameters for LDAP")
+            exit(1)
+        app.ldap_conn = ldap.initialize(app.config["LDAP_URL"])
+        app.ldap_conn.protocol_version = ldap.VERSION3
+        app.ldap_conn.simple_bind_s(app.config["LDAP_BINDDN"] + "," + app.config["LDAP_BASEDN"], app.config["LDAP_PASSWORD"])
+        app.logger.info("LDAP connection successful")
+    
     login_manager = LoginManager()
     login_manager.init_app(app)
 
