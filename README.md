@@ -213,7 +213,7 @@ If this project is at all interesting to you please feel free to contribute or c
 5. Rebase with upstream (`git rebase upstream/main`)
 6. Fix any merge conflicts you may have
 7. Push to the Branch (`git push origin feature/AmazingFeature`)
-8. Open a Pull Request
+8. Open a Pull Request against the **develop** branch
 
 **UPDATE YOUR BRANCH** We will not fix merge conflicts for you, if you make a pull request and it states there are merge conflicts please see steps 4 and 5 from the above.
 
