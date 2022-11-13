@@ -129,6 +129,7 @@ function Navbar20({
   searchable = false,
   styleToggle = false,
   cardSlider = false,
+  toolbar = true,
   children,
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
@@ -467,9 +468,13 @@ function Navbar20({
       )}
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` } }}
+        sx={{
+          flexGrow: 1,
+          p: page !== '/w' ? 3 : 0,
+          width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` },
+        }}
       >
-        <Toolbar />
+        {toolbar && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>

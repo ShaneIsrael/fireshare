@@ -61,7 +61,7 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
   const EMPTY_STATE = () => (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
       <Grid
-        sx={{ p: 2, height: 150 }}
+        sx={{ p: 2, height: 200 }}
         container
         item
         spacing={2}
@@ -113,7 +113,7 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
   )
 
   return (
-    <Box sx={{ pl: 3, pr: 3 }}>
+    <Box>
       <VideoModal
         open={videoModal.open}
         onClose={() => setVideoModal({ open: false })}
