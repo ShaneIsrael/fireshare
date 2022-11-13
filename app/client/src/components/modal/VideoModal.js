@@ -1,9 +1,21 @@
 import React from 'react'
-import { Box, Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, TextField } from '@mui/material'
+import {
+  Box,
+  Button,
+  ButtonGroup,
+  Grid,
+  IconButton,
+  InputAdornment,
+  Modal,
+  Paper,
+  Slide,
+  TextField,
+} from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
 import SaveIcon from '@mui/icons-material/Save'
+import CloseIcon from '@mui/icons-material/Close'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
@@ -154,137 +166,146 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Modal
-        open={open}
-        onClose={onClose}
-        disableAutoFocus={true}
-        BackdropProps={{
-          sx: {
-            background: 'rgba(0, 0, 0, 0.7)',
-          },
-        }}
-      >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '90%',
-          }}
-        >
-          <Grid container justifyContent="center">
-            <Grid item xs={12}>
-              <video
-                ref={playerRef}
-                width="100%"
-                height="auto"
-                autoPlay
-                src={`${
-                  SERVED_BY === 'nginx'
-                    ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
-                    : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
-                }`}
-                disablePictureInPicture
-                controls
-                onTimeUpdate={handleTimeUpdate}
-              />
-            </Grid>
-            <Grid item>
-              <ButtonGroup variant="contained">
-                <Button onClick={getRandomVideo}>
-                  <ShuffleIcon />
-                </Button>
-                {authenticated && (
-                  <Button onClick={handlePrivacyChange} edge="end">
-                    {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </Button>
-                )}
-                <TextField
-                  sx={{
-                    textAlign: 'center',
-                    background: 'rgba(50, 50, 50, 0.9)',
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 0,
-                      width: {
-                        xs: 'auto',
-                        sm: 350,
-                        md: 450,
-                      },
-                    },
-                    '& .MuiInputBase-input.Mui-disabled': {
-                      WebkitTextFillColor: '#fff',
-                    },
-                  }}
-                  size="small"
-                  value={title}
-                  placeholder="Video Title"
-                  disabled={!authenticated}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && update()}
-                  InputProps={{
-                    endAdornment: authenticated && (
-                      <InputAdornment position="end">
-                        <IconButton
-                          disabled={!updateable}
-                          sx={
-                            updateable
-                              ? {
-                                  animation: 'blink-blue 0.5s ease-in-out infinite alternate',
-                                }
-                              : {}
-                          }
-                          onClick={update}
-                          edge="end"
-                        >
-                          <SaveIcon />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
+      <Modal open={open} onClose={onClose} disableAutoFocus={true}>
+        <Slide direction="up" in={open} mountOnEnter unmountOnExit>
+          <Paper
+            sx={{ height: '100%', borderRadius: '0px', overflowY: 'auto', background: 'rgba(0, 0, 0, 0.4)' }}
+            onClick={onClose}
+          >
+            <IconButton
+              color="inherit"
+              onClick={onClose}
+              aria-label="close"
+              sx={{
+                position: 'absolute',
+                background: 'rgba(255,255,255,0.25)',
+                ':hover': {
+                  background: 'rgba(255,255,255,0.5)',
+                },
+                width: 50,
+                height: 50,
+                top: 16,
+                right: 16,
+                zIndex: 100,
+                padding: 0,
+              }}
+            >
+              <CloseIcon sx={{ width: 35, height: 35 }} />
+            </IconButton>
+            <Grid container justifyContent="center">
+              <Grid item xs={12}>
+                <video
+                  ref={playerRef}
+                  width="100%"
+                  height="auto"
+                  src={`${
+                    SERVED_BY === 'nginx'
+                      ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
+                      : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
+                  }`}
+                  disablePictureInPicture
+                  controls
+                  onTimeUpdate={handleTimeUpdate}
                 />
-                <CopyToClipboard text={`${PURL}${vid.video_id}`}>
-                  <Button
-                    onMouseDown={handleMouseDown}
-                    onClick={() =>
-                      setAlert({
-                        type: 'info',
-                        message: 'Link copied to clipboard',
-                        open: true,
-                      })
-                    }
-                  >
-                    <LinkIcon />
+              </Grid>
+              <Grid item>
+                <ButtonGroup variant="contained" onClick={(e) => e.stopPropagation()}>
+                  <Button onClick={getRandomVideo}>
+                    <ShuffleIcon />
                   </Button>
-                </CopyToClipboard>
-                <Button onClick={copyTimestamp}>
-                  <AccessTimeIcon />
-                </Button>
-              </ButtonGroup>
-              {(authenticated || description) && (
-                <Paper sx={{ width: '100%', mt: 1, p: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
+                  {authenticated && (
+                    <Button onClick={handlePrivacyChange} edge="end">
+                      {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </Button>
+                  )}
                   <TextField
-                    fullWidth
-                    disabled={!authenticated}
                     sx={{
+                      textAlign: 'center',
+                      background: 'rgba(50, 50, 50, 0.9)',
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 0,
+                        width: {
+                          xs: 'auto',
+                          sm: 350,
+                          md: 450,
+                        },
+                      },
                       '& .MuiInputBase-input.Mui-disabled': {
                         WebkitTextFillColor: '#fff',
                       },
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        border: 'none',
-                      },
                     }}
                     size="small"
-                    placeholder="Enter a video description..."
-                    value={description || ''}
-                    onChange={(e) => handleDescriptionChange(e.target.value)}
-                    multiline
+                    value={title}
+                    placeholder="Video Title"
+                    disabled={!authenticated}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && update()}
+                    InputProps={{
+                      endAdornment: authenticated && (
+                        <InputAdornment position="end">
+                          <IconButton
+                            disabled={!updateable}
+                            sx={
+                              updateable
+                                ? {
+                                    animation: 'blink-blue 0.5s ease-in-out infinite alternate',
+                                  }
+                                : {}
+                            }
+                            onClick={update}
+                            edge="end"
+                          >
+                            <SaveIcon />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
                   />
-                </Paper>
-              )}
+                  <CopyToClipboard text={`${PURL}${vid.video_id}`}>
+                    <Button
+                      onMouseDown={handleMouseDown}
+                      onClick={() =>
+                        setAlert({
+                          type: 'info',
+                          message: 'Link copied to clipboard',
+                          open: true,
+                        })
+                      }
+                    >
+                      <LinkIcon />
+                    </Button>
+                  </CopyToClipboard>
+                  <Button onClick={copyTimestamp}>
+                    <AccessTimeIcon />
+                  </Button>
+                </ButtonGroup>
+                {(authenticated || description) && (
+                  <Paper sx={{ mt: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
+                    <TextField
+                      fullWidth
+                      disabled={!authenticated}
+                      sx={{
+                        '& .MuiInputBase-input.Mui-disabled': {
+                          WebkitTextFillColor: '#fff',
+                        },
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          border: 'none',
+                        },
+                      }}
+                      size="small"
+                      placeholder="Enter a video description..."
+                      value={description || ''}
+                      onChange={(e) => handleDescriptionChange(e.target.value)}
+                      rows={2}
+                      multiline
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Paper>
+                )}
+              </Grid>
             </Grid>
-          </Grid>
-        </Box>
+          </Paper>
+        </Slide>
       </Modal>
     </>
   )
