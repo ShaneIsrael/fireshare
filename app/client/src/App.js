@@ -76,7 +76,7 @@ export default function App() {
           <Route
             path="/w/:id"
             element={
-              <Navbar20 collapsed toolbar={false} page="/w">
+              <Navbar20 collapsed={true} toolbar page="/w">
                 <AuthWrapper>
                   <Watch />
                 </AuthWrapper>
