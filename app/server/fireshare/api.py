@@ -135,9 +135,9 @@ def get_random_public_video():
 def get_public_videos():
     sort = request.args.get('sort')
     if "views" in sort:
-        videos = Video.query.filter_by(available=True).join(VideoInfo).filter(Video.info.has(private=False))
+        videos = Video.query.filter(Video.available==True).join(VideoInfo).filter(Video.info.has(private=False))
     else:
-        videos = Video.query.filter_by(available=True).join(VideoInfo).filter(Video.info.has(private=False)).order_by(text(sort))
+        videos = Video.query.filter(Video.available==True).join(VideoInfo).filter(Video.info.has(private=False)).order_by(text(sort))
     
     videos_json = []
     for v in videos:
