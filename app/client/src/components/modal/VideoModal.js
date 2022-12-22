@@ -1,16 +1,5 @@
 import React from 'react'
-import {
-  Box,
-  Button,
-  ButtonGroup,
-  Grid,
-  IconButton,
-  InputAdornment,
-  Modal,
-  Paper,
-  Slide,
-  TextField,
-} from '@mui/material'
+import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
@@ -166,12 +155,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Modal open={open} onClose={onClose} disableAutoFocus={true}>
-        <Slide direction="up" in={open} mountOnEnter unmountOnExit>
-          <Paper
-            sx={{ height: '100%', borderRadius: '0px', overflowY: 'auto', background: 'rgba(0, 0, 0, 0.4)' }}
-            onClick={onClose}
-          >
+      <Modal open={open} onClose={onClose} closeAfterTransition disableAutoFocus={true}>
+        <Slide in={open}>
+          <Paper sx={{ height: '100%', borderRadius: '0px', overflowY: 'auto', background: 'rgba(0, 0, 0, 0.4)' }}>
             <IconButton
               color="inherit"
               onClick={onClose}

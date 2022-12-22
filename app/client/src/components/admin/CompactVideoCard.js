@@ -11,8 +11,6 @@ import _ from 'lodash'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import LightTooltip from '../misc/LightTooltip'
 
-import logo from '../../assets/logo.png'
-
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
