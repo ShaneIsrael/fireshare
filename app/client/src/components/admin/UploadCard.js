@@ -9,7 +9,6 @@ const Input = styled('input')({
   display: 'none',
 })
 
-const uiConfig = getSetting('ui_config')
 const numberFormat = new Intl.NumberFormat('en-US')
 
 const UploadCard = ({ authenticated, feedView = false, publicUpload = false, cardWidth, handleAlert }) => {
@@ -18,6 +17,8 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
   const [uploadRate, setUploadRate] = React.useState()
+
+  const uiConfig = getSetting('ui_config')
 
   const changeHandler = (event) => {
     setProgress(0)
