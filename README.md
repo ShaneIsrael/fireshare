@@ -233,7 +233,7 @@ If you are experiencing playback issues there could be a number of reasons as to
 
 2. **Upload Speed**
 
-   You're upload speed matters. If you have a slow upload speed, depending the file sizes that you are trying to serve it may not be possible for people to stream your videos. Consider compressing your videos with Handbrake.
+   Your upload speed matters. If you have a slow upload speed, depending the file sizes that you are trying to serve it may not be possible for people to stream your videos. Consider compressing your videos with Handbrake.
 
 3. **Browsers**
 
