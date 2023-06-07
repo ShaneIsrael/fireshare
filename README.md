@@ -241,7 +241,7 @@ If you are experiencing playback issues there could be a number of reasons as to
 
 4. **Unsupported File Type**
 
-   At the moment, Fireshare only support MP4, MOV and WEBM files. It's reccommended to use MP4 where possible, while MOV is supported we have noticed that some MOV files play just fine while others do not. If your MOV file does not play, consider transcoding it to an MP4 file with a tool like Handbrake.
+   At the moment, Fireshare only supports file types and encodings that browsers can play natively, generally MP4, MOV and WEBM files. For example you could have h265 encoded videos work just fine and play in chrome, but not play at all in Firefox which wouldn't be a great experience for your viewers. It's reccommended to use MP4 encoded in h264 where possible since it is supported by virtually every browser at this time. If your video file does not play or causes errors you may need to transcode it to an h264 encoded MP4 with a tool like Handbrake.
 
 5. **Upload Issues**
 
