@@ -151,16 +151,19 @@ def sync_metadata():
             vpath = paths["processed"] / "video_links" / str(v.video_id + v.video.extension)
             if Path(vpath).is_file():
                 content_verf_retries = 0
-                while not integv.verify(vpath):
-                    if content_verf_retries >= 3:
-                        logger.warn(f"There is a corrupt file in the uploads directory. Please find and remove the file!. (Look for the syslink-ed file: {vpath})\nRun the command \"stat {vpath}\" to find the offending file.")
-                        raise corruptFileException()
-                    content_verf_retries += 1
-                    logger.info(f"[{content_verf_retries}/3] - Found a corrupt file: {vpath}")
-                    logger.info("Waiting 30 seconds to try again...")
-                    time.sleep(30)
+                if str(v.video.extension) != ".mov":
+                    while not integv.verify(vpath, file_type=str(v.video.extension)):
+                        if content_verf_retries >= 3:
+                            logger.warn(f"There is a corrupt file in the uploads directory. Please find and remove the file!. (Look for the syslink-ed file: {vpath})\nRun the command \"stat {vpath}\" to find the offending file.")
+                            raise corruptFileException()
+                        content_verf_retries += 1
+                        logger.info(f"[{content_verf_retries}/3] - Found a corrupt file: {vpath}")
+                        logger.info("Waiting 30 seconds to try again...")
+                        time.sleep(30)
+                    else:
+                        logger.info(f"File passed corruption check: {vpath}")
                 else:
-                    logger.info(f"File passed corruption check: {vpath}")
+                    logger.info(f"Corruption Check Skipping .mov file as it cannot be validated")
                 info = util.get_media_info(vpath)
                 vcodec = [i for i in info if i['codec_type'] == 'video'][0]
                 duration = 0
