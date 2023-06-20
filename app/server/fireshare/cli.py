@@ -152,7 +152,7 @@ def sync_metadata():
             if Path(vpath).is_file():
                 content_verf_retries = 0
                 if str(v.video.extension) != ".mov":
-                    while not integv.verify(vpath, file_type=str(v.video.extension):
+                    while not integv.verify(vpath, file_type=str(v.video.extension)):
                         if content_verf_retries >= 3:
                             logger.warn(f"There is a corrupt file in the uploads directory. Please find and remove the file!. (Look for the syslink-ed file: {vpath})\nRun the command \"stat {vpath}\" to find the offending file.")
                             raise corruptFileException()
