@@ -143,6 +143,19 @@ def sync_metadata():
     class corruptFileException(Exception):
         pass
 
+    def checkForCorruptFile(vpath, v):
+        content_verf_retries = 0
+        while not integv.verify(open(vpath, "rb"), file_type=str(v.video.extension)):
+            if content_verf_retries >= 3:
+                logger.warn(f"There is a corrupt file in the uploads directory. Please find and remove the file!. (Look for the syslink-ed file: {vpath})\nRun the command \"stat {vpath}\" to find the offending file.")
+                raise corruptFileException()
+            content_verf_retries += 1
+            logger.info(f"[{content_verf_retries}/3] - Found a corrupt file: {vpath}")
+            logger.info("Waiting 30 seconds to try again...")
+            time.sleep(30)
+        else:
+            logger.info(f"File passed corruption check: {vpath}")
+
     with create_app().app_context():
         paths = current_app.config['PATHS']
         videos = VideoInfo.query.filter(VideoInfo.info==None).all()
@@ -150,18 +163,9 @@ def sync_metadata():
         for v in videos:
             vpath = paths["processed"] / "video_links" / str(v.video_id + v.video.extension)
             if Path(vpath).is_file():
-                content_verf_retries = 0
+                
                 if str(v.video.extension) != ".mov":
-                    while not integv.verify(vpath, file_type=str(v.video.extension)):
-                        if content_verf_retries >= 3:
-                            logger.warn(f"There is a corrupt file in the uploads directory. Please find and remove the file!. (Look for the syslink-ed file: {vpath})\nRun the command \"stat {vpath}\" to find the offending file.")
-                            raise corruptFileException()
-                        content_verf_retries += 1
-                        logger.info(f"[{content_verf_retries}/3] - Found a corrupt file: {vpath}")
-                        logger.info("Waiting 30 seconds to try again...")
-                        time.sleep(30)
-                    else:
-                        logger.info(f"File passed corruption check: {vpath}")
+                    checkForCorruptFile(vpath, v)
                 else:
                     logger.info(f"Corruption Check Skipping .mov file as it cannot be validated")
                 info = util.get_media_info(vpath)
