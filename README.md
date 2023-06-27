@@ -147,7 +147,7 @@ Connect Fireshare to a central user directory and keep user access organised.
 
 ## v1.2.13
 ```
-  Added a catch for finding corrupt or malformed files in the uploads directory when initiating a scan
+  Added a catch for finding corrupt or malformed files when initiating a scan
 ```
 
 <!-- GETTING STARTED -->
