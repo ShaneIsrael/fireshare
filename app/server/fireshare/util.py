@@ -47,7 +47,7 @@ def get_media_info(path):
         data = json.loads(sp.check_output(cmd.split()).decode('utf-8'))
         return data['streams']
     except Exception as ex:
-        logger.warn('Could not extract video info', ex)
+        logger.warning('Could not extract video info')
         return None
 
 def create_poster(video_path, out_path, second=0):
