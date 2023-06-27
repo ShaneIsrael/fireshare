@@ -150,11 +150,19 @@ def sync_metadata():
                 while info == None:
                     info = util.get_media_info(vpath)
                     if info == None:
+                        corruptVideoWarning = "There may be a corrupt video in your Uploads Directory. See your logs for more info!"
+                        if not corruptVideoWarning in current_app.config['WARNINGS']:
+                            current_app.config['WARNINGS'].append(corruptVideoWarning)
                         logger.warn(f"[{v.video.path}] - There may be a corrupt file in your uploads directory. Or, you may be recording to the uploads directory and haven't finished yet.")
                         logger.warn(f"For more info and to find the offending file, run this command in your container: \"stat {vpath}\"")
                         logger.warn("I'll try to process this file again in 60 seconds...")
                         time.sleep(60)
                 
+                corruptVideoWarning = "There may be a corrupt video in your Uploads Directory. See your logs for more info!"
+                if corruptVideoWarning in current_app.config['WARNINGS']:
+                    position = current_app.config['WARNINGS'].index(corruptVideoWarning)
+                    current_app.config['WARNINGS'].pop(position)
+
                 vcodec = [i for i in info if i['codec_type'] == 'video'][0]
                 duration = 0
                 if 'duration' in vcodec:
