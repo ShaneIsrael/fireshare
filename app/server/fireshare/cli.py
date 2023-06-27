@@ -146,18 +146,16 @@ def sync_metadata():
         for v in videos:
             vpath = paths["processed"] / "video_links" / str(v.video_id + v.video.extension)
             if Path(vpath).is_file():
-                info = util.get_media_info(vpath)
-                file_validated = False
-                while not file_validated:
-                    try:
-                        vcodec = [i for i in info if i['codec_type'] == 'video'][0]
-                    except TypeError:
-                        logger.warn("There may be a corrupt file in your uploads directory. Or, you may be recording to the uploads directory and haven't finished yet.")
-                        logger.warn(f"For more info and to find the offending file, run the command: \"stat {vpath}\"")
+                info = None
+                while info == None:
+                    info = util.get_media_info(vpath)
+                    if info == None:
+                        logger.warn(f"[{v.video.path}] - There may be a corrupt file in your uploads directory. Or, you may be recording to the uploads directory and haven't finished yet.")
+                        logger.warn(f"For more info and to find the offending file, run this command in your container: \"stat {vpath}\"")
                         logger.warn("I'll try to process this file again in 60 seconds...")
                         time.sleep(60)
-                    else:
-                        file_validated = True
+                
+                vcodec = [i for i in info if i['codec_type'] == 'video'][0]
                 duration = 0
                 if 'duration' in vcodec:
                     duration = float(vcodec['duration'])
