@@ -46,6 +46,7 @@
         <li><a href="#built-with">Built With</a></li>
       </ul>
     </li>
+    <li><a href="#changelog">Changelog</a></li>
     <li>
       <a href="#installation">Installation</a>
       <ul>
@@ -139,6 +140,15 @@ Connect Fireshare to a central user directory and keep user access organised.
 - [React](https://reactjs.org/)
 - [Python](https://www.python.org/)
 - [Material UI](https://mui.com/)
+
+<!--- CHANGE LOG --->
+
+# Changelog
+
+## v1.2.13
+```
+  Added a catch for finding corrupt or malformed files when initiating a scan
+```
 
 <!-- GETTING STARTED -->
 
