@@ -15,6 +15,13 @@ export const getUrl = () => {
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}`
 }
 
+
+export const getProjectName = () => {
+  const project_name = getSetting('ui_config')?.['project_name']
+  return project_name
+}
+
+
 export const getPublicWatchUrl = () => {
   const shareableLinkDomain = getSetting('ui_config')?.['shareable_link_domain']
   if (shareableLinkDomain) {
@@ -78,7 +85,7 @@ export const copyToClipboard = (textToCopy) => {
     // navigator clipboard api method'
     return navigator.clipboard.writeText(textToCopy)
   } else {
-    console.log('test')
+    // console.log('test')
     // text area method
     let textArea = document.createElement('textarea')
     textArea.value = textToCopy

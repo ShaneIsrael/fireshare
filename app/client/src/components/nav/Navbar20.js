@@ -35,7 +35,7 @@ import logo from '../../assets/logo.png'
 import Search from '../search/Search'
 import LightTooltip from '../misc/LightTooltip'
 import SnackbarAlert from '../alert/SnackbarAlert'
-import { getSetting, setSetting } from '../../common/utils'
+import { getProjectName, getSetting, setSetting } from '../../common/utils'
 import SliderWrapper from '../misc/SliderWrapper'
 
 const drawerWidth = 240
@@ -209,7 +209,7 @@ function Navbar20({
             textDecoration: 'none',
           }}
         >
-          Fireshare
+          {getProjectName()}
         </Typography>
       </Toolbar>
       <Divider />

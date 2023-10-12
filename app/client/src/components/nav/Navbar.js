@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom'
 import styled from '@emotion/styled'
 import { AuthService, VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
+import { getProjectName } from '../../common/utils'
 
 const LightTooltip = styled(({ className, ...props }) => <Tooltip {...props} classes={{ popper: className }} />)(
   ({ theme }) => ({
@@ -118,7 +119,7 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
               textDecoration: 'none',
             }}
           >
-            FIRESHARE
+            {getProjectName()}
           </Typography>
 
           {pages.length > 0 && (
@@ -188,7 +189,7 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
               textDecoration: 'none',
             }}
           >
-            FIRESHARE
+            {getProjectName()}
           </Typography>
           <Box sx={{ flexGrow: 1, display: { xs: 'none', sm: 'flex' } }}>
             {pages.map((page) => (

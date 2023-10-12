@@ -73,20 +73,20 @@ const Settings = ({ authenticated }) => {
     })
   }
 
-  const checkForWarnings  = async () =>{
-      let warnings = await WarningService.getAdminWarnings()
+  const checkForWarnings = async () => {
+    let warnings = await WarningService.getAdminWarnings()
 
-      if (Object.keys(warnings.data).length === 0)
-          return;
+    if (Object.keys(warnings.data).length === 0)
+      return;
 
-      for (const warning of warnings.data) {
-          setAlert({
-              open: true,
-              type: 'warning',
-              message: warning,
-          });
-          await new Promise(r => setTimeout(r, 2000)); //Without this a second Warning would instantly overwrite the first...
-      }
+    for (const warning of warnings.data) {
+      setAlert({
+        open: true,
+        type: 'warning',
+        message: warning,
+      });
+      await new Promise(r => setTimeout(r, 2000)); //Without this a second Warning would instantly overwrite the first...
+    }
   }
 
   return (
@@ -202,6 +202,17 @@ const Settings = ({ authenticated }) => {
                     setUpdatedConfig((prev) => ({
                       ...prev,
                       ui_config: { ...prev.ui_config, shareable_link_domain: e.target.value },
+                    }))
+                  }
+                />
+                <TextField
+                  size="small"
+                  label="Project Name to show on UI"
+                  value={updatedConfig.ui_config?.project_name || ''}
+                  onChange={(e) =>
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      ui_config: { ...prev.ui_config, project_name: e.target.value },
                     }))
                   }
                 />

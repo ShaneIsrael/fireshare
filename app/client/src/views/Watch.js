@@ -9,7 +9,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import { VideoService } from '../services'
-import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath } from '../common/utils'
+import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath, getProjectName } from '../common/utils'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -170,17 +170,17 @@ const Watch = ({ authenticated }) => {
         />
         <meta property="og:video:width" value={details?.info?.width} />
         <meta property="og:video:height" value={details?.info?.height} />
-        <meta property="og:site_name" value="Fireshare" />
+
+        <meta property="og:site_name" value={getProjectName()} />
       </Helmet>
       <Grid container>
         <Grid item xs={12}>
           <ReactPlayer
             ref={videoPlayerRef}
-            url={`${
-              SERVED_BY === 'nginx'
-                ? `${URL}/_content/video/${getVideoPath(id, details?.extension || '.mp4')}`
-                : `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`
-            }`}
+            url={`${SERVED_BY === 'nginx'
+              ? `${URL}/_content/video/${getVideoPath(id, details?.extension || '.mp4')}`
+              : `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`
+              }`}
             width="100%"
             height="auto"
             playing
