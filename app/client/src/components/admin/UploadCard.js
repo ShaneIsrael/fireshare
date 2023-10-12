@@ -1,71 +1,86 @@
-import React from 'react'
-import { Box, Grid, Paper, Stack, Typography } from '@mui/material'
-import CloudUploadIcon from '@mui/icons-material/CloudUpload'
-import styled from '@emotion/styled'
-import { VideoService } from '../../services'
-import { getSetting } from '../../common/utils'
+import React from 'react';
+import { Box, Grid, Paper, Stack, Typography } from '@mui/material';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import styled from '@emotion/styled';
+import { VideoService } from '../../services';
+import { getSetting } from '../../common/utils';
 
 const Input = styled('input')({
   display: 'none',
-})
+});
 
-const numberFormat = new Intl.NumberFormat('en-US')
+const numberFormat = new Intl.NumberFormat('en-US');
 
 const UploadCard = ({ authenticated, feedView = false, publicUpload = false, cardWidth, handleAlert }) => {
-  const cardHeight = cardWidth / 1.77 + 32
-  const [selectedFile, setSelectedFile] = React.useState()
-  const [isSelected, setIsSelected] = React.useState(false)
-  const [progress, setProgress] = React.useState(0)
-  const [uploadRate, setUploadRate] = React.useState()
+  const cardHeight = cardWidth / 1.77 + 32;
+  const [selectedFile, setSelectedFile] = React.useState();
+  const [isSelected, setIsSelected] = React.useState(false);
+  const [progress, setProgress] = React.useState(0);
+  const [uploadRate, setUploadRate] = React.useState();
 
-  const uiConfig = getSetting('ui_config')
+  const uiConfig = getSetting('ui_config');
 
   const changeHandler = (event) => {
-    setProgress(0)
-    setSelectedFile(event.target.files[0])
-    setIsSelected(true)
-  }
+    setProgress(0);
+    setSelectedFile(event.target.files[0]);
+    setIsSelected(true);
+  };
 
   const uploadProgress = (progress, rate) => {
     if (progress <= 1 && progress >= 0) {
-      setProgress(progress)
-      setUploadRate((prev) => ({ ...rate }))
+      setProgress(progress);
+      setUploadRate({ ...rate });
     }
-  }
+  };
+
+  // Function to handle the drop event
+  const dropHandler = (event) => {
+    event.preventDefault();
+    setProgress(0);
+    const file = event.dataTransfer.files[0];
+    setSelectedFile(file);
+    setIsSelected(true);
+  };
+
+  // Prevent default behavior for drag events to enable dropping files
+  const dragOverHandler = (event) => {
+    event.preventDefault();
+  };
 
   React.useEffect(() => {
     async function upload() {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
+      const formData = new FormData();
+      formData.append('file', selectedFile);
       try {
         if (publicUpload) {
-          await VideoService.publicUpload(formData, uploadProgress)
+          await VideoService.publicUpload(formData, uploadProgress);
         }
         if (!publicUpload && authenticated) {
-          await VideoService.upload(formData, uploadProgress)
+          await VideoService.upload(formData, uploadProgress);
         }
-        handleAlert({ type: 'success', message: "Your upload will be available after the next scan.", open: true })
+        handleAlert({ type: 'success', message: "Your upload will be available after the next scan.", open: true });
       } catch (err) {
         handleAlert({
           type: 'error',
           message: `An error occurred while uploading your video.`,
           open: true,
-        })
+        });
       }
-      setProgress(0)
-      setUploadRate(null)
-      setIsSelected(false)
+      setProgress(0);
+      setUploadRate(null);
+      setIsSelected(false);
     }
-    if (selectedFile) upload()
+    if (selectedFile) upload();
     // eslint-disable-next-line
-  }, [selectedFile])
+  }, [selectedFile]);
 
-  if (feedView && !uiConfig?.show_public_upload) return null
-  if (!feedView && !uiConfig?.show_admin_upload) return null
+  if (feedView && !uiConfig?.show_public_upload) return null;
+  if (!feedView && !uiConfig?.show_admin_upload) return null;
 
   return (
     <Grid item sx={{ ml: 0.75, mr: 0.75, mb: 1.5 }}>
       <label htmlFor="icon-button-file">
+        {/* Add onDrop and onDragOver handlers */}
         <Paper
           sx={{
             position: 'relative',
@@ -76,6 +91,8 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
             overflow: 'hidden',
           }}
           variant="outlined"
+          onDrop={dropHandler}
+          onDragOver={dragOverHandler}
         >
           <Box sx={{ display: 'flex', p: 2, height: '100%' }} justifyContent="center" alignItems="center">
             <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center">
@@ -130,7 +147,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
         </Paper>
       </label>
     </Grid>
-  )
-}
+  );
+};
 
-export default UploadCard
+export default UploadCard;
