@@ -40,7 +40,7 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: |
-            shaneisrael/fireshare
+            risedsky/fireshare
 
       - name: Build and push Docker images
         uses: docker/build-push-action@v2

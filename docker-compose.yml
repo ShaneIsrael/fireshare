@@ -2,7 +2,8 @@ version: "3"
 services:
   fireshare:
     container_name: fireshare
-    image: shaneisrael/fireshare:latest
+    image: risedsky/fireshare:latest
+    build: .
     ports:
       - "8080:80"
     volumes:
@@ -14,5 +15,5 @@ services:
       - ADMIN_PASSWORD=admin
       - SECRET_KEY=replace_this_with_some_random_string
       - MINUTES_BETWEEN_VIDEO_SCANS=5
-      - PUID=1000
-      - PGID=1000
+      - PUID=1001
+      - PGID=1001
