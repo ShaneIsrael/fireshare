@@ -154,6 +154,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:type" value="video" />
         <meta property="og:url" value={window.location.href} />
         <meta property="og:title" value={details?.info?.title} />
+        <meta property="og:description" value={details?.info?.description} />
         <meta
           property="og:image"
           value={
@@ -170,6 +171,7 @@ const Watch = ({ authenticated }) => {
         />
         <meta property="og:video:width" value={details?.info?.width} />
         <meta property="og:video:height" value={details?.info?.height} />
+
 
         <meta property="og:site_name" value={getProjectName()} />
       </Helmet>
