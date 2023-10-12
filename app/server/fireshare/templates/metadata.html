@@ -20,7 +20,8 @@
     <meta property="og:url" value="/#/w/{{ video.video_id }}" data-react-helmet="true">
     <meta property="og:image" value="/_content/derived/{{ video.video_id }}/poster.jpg" data-react-helmet="true">
     <meta property="og:video" value="/_content/video/{{ video.video_id }}{{ video.extension }}" data-react-helmet="true">
-    <meta property="og:site_name" value="Fireshare" data-react-helmet="true">
+    <meta property="og:site_name" value={getProjectName()} data-react-helmet="true">
+    <meta property="og:description" content="{{ video.info.description}}" />
     <meta property="og:title" value="{{ video.info.title }}" data-react-helmet="true">
     <meta property="og:video:width" value="{{ video.info.width }}" data-react-helmet="true">
     <meta property="og:video:height" value="{{ video.info.height }}" data-react-helmet="true">
