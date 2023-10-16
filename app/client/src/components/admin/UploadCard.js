@@ -29,7 +29,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
   const uploadProgress = (progress, rate) => {
     if (progress <= 1 && progress >= 0) {
       setProgress(progress);
-      setUploadRate({ ...rate });
+      setUploadRate((prev) => ({ ...rate }))
     }
   };
 
