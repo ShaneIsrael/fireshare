@@ -33,6 +33,20 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
     }
   }
 
+  // Function to handle the drop event
+  const dropHandler = (event) => {
+    event.preventDefault()
+    setProgress(0)
+    const file = event.dataTransfer.files[0]
+    setSelectedFile(file)
+    setIsSelected(true)
+  }
+
+  // Prevent default behavior for drag events to enable dropping files
+  const dragOverHandler = (event) => {
+    event.preventDefault()
+  }
+
   React.useEffect(() => {
     async function upload() {
       const formData = new FormData()
@@ -66,6 +80,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
   return (
     <Grid item sx={{ ml: 0.75, mr: 0.75, mb: 1.5 }}>
       <label htmlFor="icon-button-file">
+        {/* Add onDrop and onDragOver handlers */}
         <Paper
           sx={{
             position: 'relative',
@@ -76,6 +91,8 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
             overflow: 'hidden',
           }}
           variant="outlined"
+          onDrop={dropHandler}
+          onDragOver={dragOverHandler}
         >
           <Box sx={{ display: 'flex', p: 2, height: '100%' }} justifyContent="center" alignItems="center">
             <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center">
