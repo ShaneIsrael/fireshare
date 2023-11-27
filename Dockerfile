@@ -3,7 +3,7 @@ WORKDIR /app
 ENV PATH /app/node_modules/.bin:$PATH
 COPY app/client/package.json ./
 COPY app/client/package-lock.json ./
-COPY app/client/.env ./
+COPY app/client/.env.* ./
 RUN npm ci --silent
 RUN npm install react-scripts@5.0.1 -g --silent && npm cache clean --force;
 COPY app/client/ ./
