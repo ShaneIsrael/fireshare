@@ -2,8 +2,7 @@ version: "3"
 services:
   fireshare:
     container_name: fireshare
-    # image: shaneisrael/fireshare:latest
-    image: fireshare:fix-localhost
+    image: shaneisrael/fireshare:latest
     ports:
       - "8080:80"
     volumes:
