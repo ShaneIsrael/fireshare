@@ -9,7 +9,7 @@ export const getServedBy = () => {
 export const getUrl = () => {
   const portWithColon = window.location.port ? `:${window.location.port}` : ''
   return (window.location.hostname.indexOf('localhost') >= 0 && window.location.port !== '')
-    ? `http://localhost:${process.env.REACT_APP_PORT || window.location.port}`
+    ? `http://localhost:${process.env.REACT_APP_SERVER_PORT || window.location.port}`
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}`
 }
 
@@ -20,7 +20,7 @@ export const getPublicWatchUrl = () => {
   }
   const portWithColon = window.location.port ? `:${window.location.port}` : ''
   return (window.location.hostname.indexOf('localhost') >= 0 && window.location.port !== '')
-    ? `http://localhost:${process.env.REACT_APP_PORT || window.location.port}/#/w/`
+    ? `http://localhost:${process.env.REACT_APP_SERVER_PORT || window.location.port}/#/w/`
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}/w/`
 }
 
