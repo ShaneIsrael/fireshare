@@ -34,10 +34,11 @@ def add_user(username, password):
         click.echo(f"Created user {username}")
 
 @cli.command()
-def scan_videos():
+@click.option("--root", "-r", help="root video path to scan", required=False)
+def scan_videos(root):
     with create_app().app_context():
         paths = current_app.config['PATHS']
-        raw_videos = paths["video"]
+        videos_path = paths["video"]
         video_links = paths["processed"] / "video_links"
         
         config_file = open(paths["data"] / "config.json")
@@ -47,13 +48,13 @@ def scan_videos():
         if not video_links.is_dir():
             video_links.mkdir()
 
-        logger.info(f"Scanning {str(raw_videos)} for {', '.join(SUPPORTED_FILE_EXTENSIONS)} video files")
-        video_files = [f for f in raw_videos.glob('**/*') if f.is_file() and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS]
+        logger.info(f"Scanning {str(videos_path)} for {', '.join(SUPPORTED_FILE_EXTENSIONS)} video files")
+        video_files = [f for f in (videos_path / root if root else videos_path).glob('**/*') if f.is_file() and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS]
         video_rows = Video.query.all()
 
         new_videos = []
         for vf in video_files:
-            path = str(vf.relative_to(raw_videos))
+            path = str(vf.relative_to(videos_path)) 
             video_id = util.video_id(vf)
             existing = next((vr for vr in video_rows if vr.video_id == video_id), None)
             duplicate = next((dvr for dvr in new_videos if dvr.video_id == video_id), None)
@@ -64,16 +65,16 @@ def scan_videos():
                     logger.info(f"Updating Video {video_id}, available=True")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "available": True })
                 if not existing.created_at:
-                    created_at = datetime.fromtimestamp(os.path.getctime(f"{raw_videos}/{path}"))
+                    created_at = datetime.fromtimestamp(os.path.getctime(f"{videos_path}/{path}"))
                     logger.info(f"Updating Video {video_id}, created_at={created_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "created_at": created_at })
                 if not existing.updated_at:
-                    updated_at = datetime.fromtimestamp(os.path.getmtime(f"{raw_videos}/{path}"))
+                    updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                     logger.info(f"Updating Video {video_id}, updated_at={updated_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "updated_at": updated_at })
             else:
-                created_at = datetime.fromtimestamp(os.path.getctime(f"{raw_videos}/{path}"))
-                updated_at = datetime.fromtimestamp(os.path.getmtime(f"{raw_videos}/{path}"))
+                created_at = datetime.fromtimestamp(os.path.getctime(f"{videos_path}/{path}"))
+                updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                 v = Video(video_id=video_id, extension=vf.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at)
                 logger.info(f"Adding new Video {video_id} at {str(path)} (created {created_at.isoformat()}, updated {updated_at.isoformat()})")
                 new_videos.append(v)
@@ -111,6 +112,83 @@ def scan_videos():
                 logger.warn(f"Video {ev.video_id} at {file_path} was not found")
                 db.session.query(Video).filter_by(video_id=ev.video_id).update({ "available": False})
         db.session.commit()
+
+@cli.command()
+@click.option("--path", "-p", help="path to video to scan", required=False)
+def scan_video(path):
+    with create_app().app_context():
+        paths = current_app.config['PATHS']
+        videos_path = paths["video"]
+        video_links = paths["processed"] / "video_links"
+        
+        config_file = open(paths["data"] / "config.json")
+        video_config = json.load(config_file)["app_config"]["video_defaults"]
+        config_file.close()
+        
+        if not video_links.is_dir():
+            video_links.mkdir()
+        
+        video_file = (videos_path / path) if (videos_path / path).is_file() and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS else None
+        if video_file:
+            video_rows = Video.query.all()
+            logger.info(f"Scanning {str(video_file)}")
+
+            path = str(video_file.relative_to(videos_path)) 
+            video_id = util.video_id(video_file)
+            existing = next((vr for vr in video_rows if vr.video_id == video_id), None)
+            if existing:
+                if not existing.available:
+                    logger.info(f"Updating Video {video_id}, available=True")
+                    db.session.query(Video).filter_by(video_id=existing.video_id).update({ "available": True })
+                if not existing.created_at:
+                    created_at = datetime.fromtimestamp(os.path.getctime(f"{videos_path}/{path}"))
+                    logger.info(f"Updating Video {video_id}, created_at={created_at}")
+                    db.session.query(Video).filter_by(video_id=existing.video_id).update({ "created_at": created_at })
+                if not existing.updated_at:
+                    updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
+                    logger.info(f"Updating Video {video_id}, updated_at={updated_at}")
+                    db.session.query(Video).filter_by(video_id=existing.video_id).update({ "updated_at": updated_at })
+            else:
+                created_at = datetime.fromtimestamp(os.path.getctime(f"{videos_path}/{path}"))
+                updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
+                v = Video(video_id=video_id, extension=video_file.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at)
+                logger.info(f"Adding new Video {video_id} at {str(path)} (created {created_at.isoformat()}, updated {updated_at.isoformat()})")
+                db.session.add(v)
+                fd = os.open(str(video_links.absolute()), os.O_DIRECTORY)
+                src = Path((paths["video"] / v.path).absolute())
+                dst = Path(paths["processed"] / "video_links" / (video_id + video_file.suffix))
+                common_root = Path(*os.path.commonprefix([src.parts, dst.parts]))
+                num_up = len(dst.parts)-1 - len(common_root.parts)
+                prefix = "../" * num_up
+                rel_src = Path(prefix + str(src).replace(str(common_root), ''))
+                if not dst.exists():
+                    logger.info(f"Linking {str(rel_src)} --> {str(dst)}")
+                    try:
+                        os.symlink(src, dst, dir_fd=fd)
+                    except FileExistsError:
+                        logger.info(f"{dst} exists already")
+                info = VideoInfo(video_id=v.video_id, title=Path(v.path).stem, private=video_config["private"])
+                db.session.add(info)
+                    
+                processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+                logger.info(f"Checking for videos with missing posters...")
+                derived_path = Path(processed_root, "derived", info.video_id)
+                video_path = Path(processed_root, "video_links", info.video_id + video_file.suffix)
+                if video_path.exists():
+                    poster_path = Path(derived_path, "poster.jpg")
+                    should_create_poster = (not poster_path.exists() or regenerate)
+                    if should_create_poster:
+                        if not derived_path.exists():
+                            derived_path.mkdir(parents=True)
+                        poster_time = 0
+                        util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
+                    else:
+                        logger.debug(f"Skipping creation of poster for video {info.video_id} because it exists at {str(poster_path)}")
+                    db.session.commit()
+                else:
+                    logger.warn(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+        else:
+            logger.info(f"Invalid video file, unable to scan: {str(videos_path / path)}")
 
 @cli.command()
 def repair_symlinks():
@@ -265,7 +343,8 @@ def create_boomerang_posters(regenerate):
 
 @cli.command()
 @click.pass_context
-def bulk_import(ctx):
+@click.option("--root", "-r", help="root video path to scan", required=False)
+def bulk_import(ctx, root):
     with create_app().app_context():
         paths = current_app.config['PATHS']
         if util.lock_exists(paths["data"]):
@@ -275,7 +354,7 @@ def bulk_import(ctx):
         
         timing = {}
         s = time.time()
-        ctx.invoke(scan_videos)
+        ctx.invoke(scan_videos, root=root)
         timing['scan_videos'] = time.time() - s
         s = time.time()
         ctx.invoke(sync_metadata)

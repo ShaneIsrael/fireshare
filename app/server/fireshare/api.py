@@ -244,6 +244,8 @@ def public_upload_video():
     if not config['app_config']['allow_public_upload']:
         logging.warn("A public upload attempt was made but public uploading is disabled")
         return Response(status=401)
+    
+    upload_folder = config['app_config']['public_upload_folder_name']
 
     if 'file' not in request.files:
         return Response(status=400)
@@ -254,16 +256,16 @@ def public_upload_video():
     filetype = file.filename.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
-    upload_directory = paths['video'] / config['app_config']['public_upload_folder_name']
+    upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
     save_path = os.path.join(upload_directory, filename)
     if (os.path.exists(save_path)):
         name_no_type = ".".join(filename.split('.')[0:-1])
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
-        save_path = os.path.join(paths['video'], config['app_config']['public_upload_folder_name'], f"{name_no_type}-{uid}.{filetype}")
+        save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen("fireshare bulk-import", shell=True)
+    Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
     return Response(status=201)
 
 @api.route('/api/upload', methods=['POST'])
@@ -276,6 +278,9 @@ def upload_video():
         except:
             return Response(status=500, response="Invalid or corrupt config file")
         configfile.close()
+    
+    upload_folder = config['app_config']['admin_upload_folder_name']
+
     if 'file' not in request.files:
         return Response(status=400)
     file = request.files['file']
@@ -285,16 +290,16 @@ def upload_video():
     filetype = file.filename.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
-    upload_directory = paths['video'] / config['app_config']['admin_upload_folder_name']
+    upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
     save_path = os.path.join(upload_directory, filename)
     if (os.path.exists(save_path)):
         name_no_type = ".".join(filename.split('.')[0:-1])
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
-        save_path = os.path.join(paths['video'], config['app_config']['admin_upload_folder_name'], f"{name_no_type}-{uid}.{filetype}")
+        save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen("fireshare bulk-import", shell=True)
+    Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
     return Response(status=201)
 
 @api.route('/api/video')
