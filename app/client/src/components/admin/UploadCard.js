@@ -11,7 +11,7 @@ const Input = styled('input')({
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-const UploadCard = ({ authenticated, feedView = false, publicUpload = false, cardWidth, handleAlert }) => {
+const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fetchVideos, cardWidth, handleAlert }) => {
   const cardHeight = cardWidth / 1.77 + 32
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
@@ -44,7 +44,13 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, car
         if (!publicUpload && authenticated) {
           await VideoService.upload(formData, uploadProgress)
         }
-        handleAlert({ type: 'success', message: "Your upload will be available after the next scan.", open: true })
+        handleAlert({
+          type: 'success',
+          message: 'Your upload will be available shortly',
+          autohideDuration: 2500,
+          open: true,
+          onClose: () => fetchVideos(),
+        })
       } catch (err) {
         handleAlert({
           type: 'error',

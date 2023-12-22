@@ -7,7 +7,15 @@ import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
 import UploadCard from './UploadCard'
 
-const VideoCards = ({ videos, loadingIcon = null, feedView = false, showUploadCard = false, authenticated, size }) => {
+const VideoCards = ({
+  videos,
+  loadingIcon = null,
+  feedView = false,
+  showUploadCard = false,
+  fetchVideos,
+  authenticated,
+  size,
+}) => {
   const [vids, setVideos] = React.useState(videos)
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
@@ -126,7 +134,12 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, showUploadCa
         authenticated={authenticated}
         updateCallback={handleUpdate}
       />
-      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+      <SnackbarAlert
+        severity={alert.type}
+        open={alert.open}
+        onClose={alert.onClose}
+        setOpen={(open) => setAlert({ ...alert, open })}
+      >
         {alert.message}
       </SnackbarAlert>
 
@@ -139,6 +152,7 @@ const VideoCards = ({ videos, loadingIcon = null, feedView = false, showUploadCa
               feedView={feedView}
               cardWidth={size}
               handleAlert={memoizedHandleAlert}
+              fetchVideos={fetchVideos}
               publicUpload={feedView}
             />
           )}
