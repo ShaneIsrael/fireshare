@@ -114,12 +114,18 @@ def scan_videos(root):
         db.session.commit()
 
 @cli.command()
+@click.pass_context
 @click.option("--path", "-p", help="path to video to scan", required=False)
-def scan_video(path):
+def scan_video(ctx, path):
     with create_app().app_context():
         paths = current_app.config['PATHS']
         videos_path = paths["video"]
         video_links = paths["processed"] / "video_links"
+        thumbnail_skip = current_app.config['THUMBNAIL_VIDEO_LOCATION'] or 0
+        if thumbnail_skip > 0 and thumbnail_skip <= 100:
+            thumbnail_skip = thumbnail_skip / 100
+        else:
+            thumbnail_skip = 0
         
         config_file = open(paths["data"] / "config.json")
         video_config = json.load(config_file)["app_config"]["video_defaults"]
@@ -169,7 +175,12 @@ def scan_video(path):
                         logger.info(f"{dst} exists already")
                 info = VideoInfo(video_id=v.video_id, title=Path(v.path).stem, private=video_config["private"])
                 db.session.add(info)
-                    
+                db.session.commit()
+
+                logger.info("Syncing metadata")
+                ctx.invoke(sync_metadata, video=video_id)
+                info = VideoInfo.query.filter(VideoInfo.video_id==video_id).one()
+
                 processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
                 logger.info(f"Checking for videos with missing posters...")
                 derived_path = Path(processed_root, "derived", info.video_id)
@@ -180,7 +191,9 @@ def scan_video(path):
                     if should_create_poster:
                         if not derived_path.exists():
                             derived_path.mkdir(parents=True)
-                        poster_time = 0
+                        logger.info(info.duration)
+                        logger.info(thumbnail_skip)
+                        poster_time = int(info.duration * thumbnail_skip)
                         util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
                     else:
                         logger.debug(f"Skipping creation of poster for video {info.video_id} because it exists at {str(poster_path)}")
@@ -216,10 +229,11 @@ def repair_symlinks():
                     logger.info(f"{dst} exists already")
 
 @cli.command()
-def sync_metadata():
+@click.option("--video", "-v", help="The video to sync metadata from", default=None)
+def sync_metadata(video):
     with create_app().app_context():
         paths = current_app.config['PATHS']
-        videos = VideoInfo.query.filter(VideoInfo.info==None).all()
+        videos = VideoInfo.query.filter(VideoInfo.video_id==video).all() if video else VideoInfo.query.filter(VideoInfo.info==None).all()
         logger.info(f'Found {len(videos):,} videos without metadata')
         for v in videos:
             vpath = paths["processed"] / "video_links" / str(v.video_id + v.video.extension)
@@ -352,6 +366,12 @@ def bulk_import(ctx, root):
             return
         util.create_lock(paths["data"])
         
+        thumbnail_skip = current_app.config['THUMBNAIL_VIDEO_LOCATION'] or 0
+        if thumbnail_skip > 0 and thumbnail_skip <= 100:
+            thumbnail_skip = thumbnail_skip / 100
+        else:
+            thumbnail_skip = 0
+
         timing = {}
         s = time.time()
         ctx.invoke(scan_videos, root=root)
@@ -360,7 +380,7 @@ def bulk_import(ctx, root):
         ctx.invoke(sync_metadata)
         timing['sync_metadata'] = time.time() - s
         s = time.time()
-        ctx.invoke(create_posters)
+        ctx.invoke(create_posters, skip=thumbnail_skip)
         timing['create_posters'] = time.time() - s
 
         logger.info(f"Finished bulk import. Timing info: {json.dumps(timing)}")

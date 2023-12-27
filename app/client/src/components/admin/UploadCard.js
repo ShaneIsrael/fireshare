@@ -46,8 +46,8 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
         }
         handleAlert({
           type: 'success',
-          message: 'Your upload will be available shortly',
-          autohideDuration: 2500,
+          message: 'Your upload will be in a few seconds.',
+          autohideDuration: 3500,
           open: true,
           onClose: () => fetchVideos(),
         })
