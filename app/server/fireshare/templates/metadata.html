@@ -16,14 +16,14 @@
     <meta name="description" content="{{ video.info.description or 'Self host your media and share with unique links.' }}">
     <link rel="apple-touch-icon" href="/logo192.png">
     <link rel="manifest" href="/manifest.json">
-    <meta property="og:type" value="video" data-react-helmet="true">
-    <meta property="og:url" value="/#/w/{{ video.video_id }}" data-react-helmet="true">
-    <meta property="og:image" value="/_content/derived/{{ video.video_id }}/poster.jpg" data-react-helmet="true">
-    <meta property="og:video" value="/_content/video/{{ video.video_id }}{{ video.extension }}" data-react-helmet="true">
-    <meta property="og:site_name" value="Fireshare" data-react-helmet="true">
-    <meta property="og:title" value="{{ video.info.title }}" data-react-helmet="true">
-    <meta property="og:video:width" value="{{ video.info.width }}" data-react-helmet="true">
-    <meta property="og:video:height" value="{{ video.info.height }}" data-react-helmet="true">
+    <meta property="og:type" content="video" data-react-helmet="true">
+    <meta property="og:url" content="/#/w/{{ video.video_id }}" data-react-helmet="true">
+    <meta property="og:image" content="/_content/derived/{{ video.video_id }}/poster.jpg" data-react-helmet="true">
+    <meta property="og:video" content="/_content/video/{{ video.video_id }}{{ video.extension }}" data-react-helmet="true">
+    <meta property="og:site_name" content="Fireshare" data-react-helmet="true">
+    <meta property="og:title" content="{{ video.info.title }}" data-react-helmet="true">
+    <meta property="og:video:width" content="{{ video.info.width }}" data-react-helmet="true">
+    <meta property="og:video:height" content="{{ video.info.height }}" data-react-helmet="true">
     <link itemprop="thumbnailUrl" href="/_content/derived/{{ video.video_id }}/poster.jpg">
     <title>{{ video.info.title }}</title>
 </head>
