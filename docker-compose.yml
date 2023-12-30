@@ -14,7 +14,9 @@ services:
       - ADMIN_PASSWORD=admin
       - SECRET_KEY=replace_this_with_some_random_string
       - MINUTES_BETWEEN_VIDEO_SCANS=5
-      # The location video thumbnails are generated. A value between 0-100 where 50 would be the frame in the middle of the video file and 0 would be the first frame of the video.
+      # The location in the video thumbnails are generated. A value between 0-100 where 50 would be the frame in the middle of the video file and 0 would be the first frame of the video.
       - THUMBNAIL_VIDEO_LOCATION=0
+      # The domain your instance is hosted at. (do not add http or https) e.x: v.fireshare.net, this is required for opengraph to work correctly for shared links.
+      - DOMAIN=""
       - PUID=1000
       - PGID=1000

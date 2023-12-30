@@ -34,10 +34,11 @@ def get_video_path(id, subid=None):
 @api.route('/w/<video_id>')
 def video_metadata(video_id):
     video = Video.query.filter_by(video_id=video_id).first()
+    domain = f"https://{current_app.config['DOMAIN']}" if current_app.config['DOMAIN'] else ""
     if video:
-        return render_template('metadata.html', video=video.json())
+        return render_template('metadata.html', video=video.json(), domain=domain)
     else:
-        return redirect('/#/w/{}'.format(video_id), code=302)
+        return redirect('{}/#/w/{}'.format(domain, video_id), code=302)
 
 @api.route('/api/config')
 def config():

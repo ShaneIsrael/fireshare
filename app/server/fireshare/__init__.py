@@ -62,6 +62,7 @@ def create_app(init_schedule=False):
         raise Exception("DATA_DIRECTORY not found in environment")
 
     app.config['ENVIRONMENT'] = os.getenv('ENVIRONMENT')
+    app.config['DOMAIN'] = os.getenv('DOMAIN')
     app.config['THUMBNAIL_VIDEO_LOCATION'] = int(os.getenv('THUMBNAIL_VIDEO_LOCATION') or 0)
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32)) 
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
