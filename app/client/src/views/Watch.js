@@ -165,7 +165,7 @@ const Watch = ({ authenticated }) => {
           value={
             SERVED_BY === 'nginx'
               ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
-              : `${URL}/api/video/stream/${id}/stream.m3u8`
+              : `${URL}/api/video/stream/${id}/video.m3u8`
           }
         />
         <meta property="og:video:width" value={details?.info?.width} />
@@ -179,7 +179,7 @@ const Watch = ({ authenticated }) => {
             url={`${
               SERVED_BY === 'nginx'
                 ? `${URL}/_content/video/${getVideoPath(id, details?.extension || '.mp4')}`
-                : `${URL}/api/video/stream/${id}/stream.m3u8`
+                : `${URL}/api/video/stream/${id}/video.m3u8`
             }`}
             width="100%"
             height="auto"

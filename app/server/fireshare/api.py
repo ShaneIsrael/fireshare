@@ -309,14 +309,14 @@ def stream_video(video_id, file):
     if not video:
         raise Exception(f"No video found for {video_id}")
     
-    paths = current_app.config['PATHS']
-    return send_from_directory(Path(paths["processed"] / "video_links" / video_id), file)
+    print(Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id), file)
+
+    return send_from_directory(Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id), file)
     
 
 @api.route('/api/video')
 def get_video():
     video_id = request.args.get('id')
-    transcode = request.args.get('transcode') == 'true'
     subid = request.args.get('subid')
     video_path = get_video_path(video_id, subid)
     file_size = os.stat(video_path).st_size
@@ -339,28 +339,13 @@ def get_video():
         else:
             length = file_size - start
 
-    
-    if not transcode:
-        with open(video_path, 'rb') as f:
-            f.seek(start)
-            chunk = f.read(length)
+    with open(video_path, 'rb') as f:
+        f.seek(start)
+        chunk = f.read(length)
 
-        rv = Response(chunk, 206, mimetype='video/mp4', content_type='video/mp4', direct_passthrough=True)
-        rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
-        return rv
-    else:
-        # video_path is file.mp4
-        path = Path(video_path)
-
-        out_path = path.parent / video_id / "stream.m3u8"
-        if not out_path.parent.exists():
-            out_path.parent.mkdir(parents=True)
-        print(video_path, out_path)
-        util.transcode_video(video_path, out_path)
-
-        tv = Response("Transcoding", 200)
-        tv.headers.add('Content-Type', 'text/plain')
-        return tv
+    rv = Response(chunk, 206, mimetype='video/mp4', content_type='video/mp4', direct_passthrough=True)
+    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
+    return rv
     
 
 @api.after_request

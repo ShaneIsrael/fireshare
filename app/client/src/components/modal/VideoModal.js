@@ -188,7 +188,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   url={`${
                     SERVED_BY === 'nginx'
                       ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
-                      : `${URL}/api/video/stream/${vid.video_id}/stream.m3u8`
+                      : `${URL}/api/video/stream/${vid.video_id}/video.m3u8`
                   }`}
                   pip={false}
                   controls
