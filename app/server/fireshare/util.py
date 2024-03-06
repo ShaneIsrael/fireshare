@@ -61,7 +61,7 @@ def create_poster(video_path, out_path, second=0):
 def transcode_video(video_path, out_path):
     s = time.time()
     logger.info(f"Transcoding video")
-    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-c:v', 'libx264', '-c:a', 'aac', str(out_path)]
+    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-c:v', 'copy', '-c:a', 'copy', str(out_path)]
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)
     e = time.time()

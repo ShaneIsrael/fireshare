@@ -5,14 +5,14 @@ import random
 import logging
 from subprocess import Popen
 from textwrap import indent
-from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
+from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, send_from_directory, redirect
 from flask_login import current_user, login_required
 from flask_cors import CORS
 from sqlalchemy.sql import text
 from pathlib import Path
 
 
-from . import db
+from . import db, util
 from .models import Video, VideoInfo, VideoView
 from .constants import SUPPORTED_FILE_TYPES
 
@@ -303,9 +303,20 @@ def upload_video():
     Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
     return Response(status=201)
 
+@api.route('/api/video/stream/<video_id>/<file>')
+def stream_video(video_id, file):
+    video = Video.query.filter_by(video_id=video_id).first()
+    if not video:
+        raise Exception(f"No video found for {video_id}")
+    
+    paths = current_app.config['PATHS']
+    return send_from_directory(Path(paths["processed"] / "video_links" / video_id), file)
+    
+
 @api.route('/api/video')
 def get_video():
     video_id = request.args.get('id')
+    transcode = request.args.get('transcode') == 'true'
     subid = request.args.get('subid')
     video_path = get_video_path(video_id, subid)
     file_size = os.stat(video_path).st_size
@@ -328,13 +339,29 @@ def get_video():
         else:
             length = file_size - start
 
-    with open(video_path, 'rb') as f:
-        f.seek(start)
-        chunk = f.read(length)
+    
+    if not transcode:
+        with open(video_path, 'rb') as f:
+            f.seek(start)
+            chunk = f.read(length)
 
-    rv = Response(chunk, 206, mimetype='video/mp4', content_type='video/mp4', direct_passthrough=True)
-    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
-    return rv
+        rv = Response(chunk, 206, mimetype='video/mp4', content_type='video/mp4', direct_passthrough=True)
+        rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
+        return rv
+    else:
+        # video_path is file.mp4
+        path = Path(video_path)
+
+        out_path = path.parent / video_id / "stream.m3u8"
+        if not out_path.parent.exists():
+            out_path.parent.mkdir(parents=True)
+        print(video_path, out_path)
+        util.transcode_video(video_path, out_path)
+
+        tv = Response("Transcoding", 200)
+        tv.headers.add('Content-Type', 'text/plain')
+        return tv
+    
 
 @api.after_request
 def after_request(response):
