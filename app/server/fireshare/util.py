@@ -61,12 +61,43 @@ def create_poster(video_path, out_path, second=0):
 def convert_video_to_m3u8(video_path, out_path):
     s = time.time()
     logger.info(f"Converting video to M3U8")
-    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-c:v', 'copy', '-c:a', 'copy', str(out_path)]
+    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-hls_list_size', '0', '-c:v', 'copy', '-c:a', 'copy', str(out_path)]
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)
     e = time.time()
     logger.info(f'Converted {str(out_path)} in {e-s}s')
 
+def resize_m3u8(m3u8_path, height=720, fps=60):
+    s = time.time()
+    logger.info(f"Resizing M3U8 segment")
+    cmd = [
+        'ffmpeg',
+        '-v', 'quiet',
+        '-i', str(m3u8_path),
+        '-vf', f'scale=-2:{height},pad=ceil(iw/2)*2:ceil(ih/2)*2',
+        '-c:v', 'libx264',
+        '-c:a', 'copy',
+        '-preset', 'veryfast',
+        "-f", "mpegts",
+        "-copyts",
+        "pipe:1"
+    ]
+
+    s = time.time()
+    logger.info(f"Converting video to M3U8")
+    logger.debug(f"$: {' '.join(cmd)}")
+
+    process = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+    output, error = process.communicate()
+
+    if process.returncode != 0:
+        logger.error(f'Error resizing m3u8: {error.decode()}')
+        return None
+    
+    e = time.time()
+    logger.info(f'Converted {str(m3u8_path)} in {e-s}s')
+
+    return output
 
 def transcode_video(video_path, out_path):
     s = time.time()

@@ -3,13 +3,15 @@ import os, re, string
 import shutil
 import random
 import logging
+import m3u8
 from subprocess import Popen
 from textwrap import indent
-from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, send_from_directory, redirect
+from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, send_from_directory, redirect, make_response
 from flask_login import current_user, login_required
 from flask_cors import CORS
 from sqlalchemy.sql import text
 from pathlib import Path
+from io import BytesIO
 
 
 from . import db, util
@@ -309,7 +311,22 @@ def stream_video(video_id, file):
     if not video:
         raise Exception(f"No video found for {video_id}")
     
-    print(Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id), file)
+    playlist = m3u8.load(f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{video_id}/video.m3u8")
+    fileExists = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, file)
+    if fileExists.exists() and file.endswith(".ts"):
+        segment = next((segment for segment in playlist.segments if segment.uri == file), None)
+        if segment:
+            segmentPath = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, segment.uri)
+
+            output = util.resize_m3u8(segmentPath, 240, 60)
+            return Response(output, mimetype='video/mp2t', headers={
+                'Content-Length': len(output),
+                'Content-Type': 'video/mp2t'
+            })
+
+        else:
+            print("No segment found")
+            return Response(status=404)
 
     return send_from_directory(Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id), file)
     
