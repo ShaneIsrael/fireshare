@@ -72,11 +72,13 @@ def resize_m3u8(m3u8_path, height=720, fps=60):
     logger.info(f"Resizing M3U8 segment")
     cmd = [
         'ffmpeg',
-        '-v', 'quiet',
+        '-v', 'error',
         '-i', str(m3u8_path),
-        '-vf', f'scale=-2:{height},pad=ceil(iw/2)*2:ceil(ih/2)*2',
-        '-c:v', 'libx264',
+        # '-vf', f'scale=-2:{height},pad=ceil(iw/2)*2:ceil(ih/2)*2',
+        '-r', str(fps),
+        '-c:v', 'h264_videotoolbox',
         '-c:a', 'copy',
+        '-b:v', '10M',
         '-preset', 'veryfast',
         "-f", "mpegts",
         "-copyts",
@@ -91,8 +93,10 @@ def resize_m3u8(m3u8_path, height=720, fps=60):
     output, error = process.communicate()
 
     if process.returncode != 0:
-        logger.error(f'Error resizing m3u8: {error.decode()}')
-        return None
+        error_message = error.decode()
+        logger.error(f'Error converting video to M3U8: {error_message}')
+        return error_message
+        return error.decode()  # Return the FFmpeg error message
     
     e = time.time()
     logger.info(f'Converted {str(m3u8_path)} in {e-s}s')

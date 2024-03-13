@@ -311,22 +311,28 @@ def stream_video(video_id, file):
     if not video:
         raise Exception(f"No video found for {video_id}")
     
-    playlist = m3u8.load(f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{video_id}/video.m3u8")
-    fileExists = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, file)
-    if fileExists.exists() and file.endswith(".ts"):
-        segment = next((segment for segment in playlist.segments if segment.uri == file), None)
-        if segment:
-            segmentPath = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, segment.uri)
+    # TODO: Transcode if necessary
+    transcode = False
+    if transcode:
+        playlist = m3u8.load(f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{video_id}/video.m3u8")
+        fileExists = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, file)
+        if fileExists.exists() and file.endswith(".ts"):
+            segment = next((segment for segment in playlist.segments if segment.uri == file), None)
+            if segment:
+                segmentPath = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, segment.uri)
 
-            output = util.resize_m3u8(segmentPath, 240, 60)
-            return Response(output, mimetype='video/mp2t', headers={
-                'Content-Length': len(output),
-                'Content-Type': 'video/mp2t'
-            })
+                output = util.resize_m3u8(segmentPath, 720, 30)
+                if not output:
+                    return Response(status=500)
+                
+                return Response(output, mimetype='video/mp2t', headers={
+                    'Content-Length': len(output),
+                    'Content-Type': 'video/mp2t'
+                })
 
-        else:
-            print("No segment found")
-            return Response(status=404)
+            else:
+                print("No segment found")
+                return Response(status=404)
 
     return send_from_directory(Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id), file)
     
