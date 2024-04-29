@@ -14,17 +14,14 @@
     <a href="https://github.com/shaneisrael/fireshare/actions">
       <img alt="Docker Build" src="https://github.com/shaneisrael/fireshare/actions/workflows/docker-publish-main.yml/badge.svg" />
     </a>
+    <a href="https://hub.docker.com/r/shaneisrael/fireshare">
+      <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/shaneisrael/fireshare?label=docker%20pulls">
+    </a>
     <a href="https://hub.docker.com/r/shaneisrael/fireshare/tags?page=1&ordering=last_updated">
       <img alt="GitHub tag (latest SemVer)" src="https://img.shields.io/github/v/tag/shaneisrael/fireshare?label=version">
     </a>
     <a href="https://github.com/shaneisrael/fireshare/stargazers">
       <img alt="GitHub stars" src="https://img.shields.io/github/stars/shaneisrael/fireshare">
-    </a>
-    <a href="https://github.com/shaneisrael/fireshare/issues">
-      <img alt="Issues" src="https://img.shields.io/github/issues/shaneisrael/fireshare?color=0088ff" />
-    </a>
-    <a href="https://github.com/shaneisrael/fireshare/pulls">
-      <img alt="GitHub pull requests" src="https://img.shields.io/github/issues-pr/shaneisrael/fireshare?color=0088ff" />
     </a>
     <br />
     <br />
