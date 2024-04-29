@@ -3,16 +3,18 @@ import os, re, string
 import shutil
 import random
 import logging
+import m3u8
 from subprocess import Popen
 from textwrap import indent
-from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
+from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, send_from_directory, redirect, make_response
 from flask_login import current_user, login_required
 from flask_cors import CORS
 from sqlalchemy.sql import text
 from pathlib import Path
+from io import BytesIO
 
 
-from . import db
+from . import db, util
 from .models import Video, VideoInfo, VideoView
 from .constants import SUPPORTED_FILE_TYPES
 
@@ -303,6 +305,38 @@ def upload_video():
     Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
     return Response(status=201)
 
+@api.route('/api/video/stream/<video_id>/<file>')
+def stream_video(video_id, file):
+    video = Video.query.filter_by(video_id=video_id).first()
+    if not video:
+        raise Exception(f"No video found for {video_id}")
+    
+    # TODO: Transcode if necessary
+    transcode = False
+    if transcode:
+        playlist = m3u8.load(f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{video_id}/video.m3u8")
+        fileExists = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, file)
+        if fileExists.exists() and file.endswith(".ts"):
+            segment = next((segment for segment in playlist.segments if segment.uri == file), None)
+            if segment:
+                segmentPath = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, segment.uri)
+
+                output = util.resize_m3u8(segmentPath, 720, 30)
+                if not output:
+                    return Response(status=500)
+                
+                return Response(output, mimetype='video/mp2t', headers={
+                    'Content-Length': len(output),
+                    'Content-Type': 'video/mp2t'
+                })
+
+            else:
+                print("No segment found")
+                return Response(status=404)
+
+    return send_from_directory(Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id), file)
+    
+
 @api.route('/api/video')
 def get_video():
     video_id = request.args.get('id')
@@ -335,6 +369,7 @@ def get_video():
     rv = Response(chunk, 206, mimetype='video/mp4', content_type='video/mp4', direct_passthrough=True)
     rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
     return rv
+    
 
 @api.after_request
 def after_request(response):
