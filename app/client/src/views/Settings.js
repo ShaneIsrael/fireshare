@@ -194,6 +194,20 @@ const Settings = ({ authenticated }) => {
                   }
                   label="Show Public Upload Card"
                 />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.use_hls_by_default || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, use_hls_by_default: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Use HLS stream by default"
+                />
                 <TextField
                   size="small"
                   label="Shareable Link Domain"

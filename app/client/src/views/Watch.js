@@ -9,6 +9,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import { VideoService } from '../services'
+import { getSetting } from '../common/utils'
 import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath } from '../common/utils'
 
 const URL = getUrl()
@@ -76,6 +77,20 @@ const Watch = ({ authenticated }) => {
         setViewAdded(true)
         VideoService.addView(id).catch((err) => console.error(err))
       }
+    }
+  }
+
+  const videoURL = () => {
+    let useStream = getSetting('ui_config')?.use_hls_by_default;
+
+    if (SERVED_BY === 'nginx') {
+      return useStream
+        ? `${URL}/_content/derived/${id}/video.m3u8`
+        : `${URL}/_content/video/${getVideoPath(id, details?.extension || 'mp4')}`;
+    } else {
+      return useStream
+        ? `${URL}/api/video/stream/${id}/video.m3u8`
+        : `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`;
     }
   }
 
@@ -162,11 +177,7 @@ const Watch = ({ authenticated }) => {
         />
         <meta
           property="og:video"
-          value={
-            SERVED_BY === 'nginx'
-              ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
-              : `${URL}/api/video/stream/${id}/video.m3u8`
-          }
+          value={`${URL}/api/video/stream/${id}/video.m3u8`}
         />
         <meta property="og:video:width" value={details?.info?.width} />
         <meta property="og:video:height" value={details?.info?.height} />
@@ -174,13 +185,11 @@ const Watch = ({ authenticated }) => {
       </Helmet>
       <Grid container>
         <Grid item xs={12}>
+          <p>{JSON.stringify(getSetting('ui_config').use_hls_by_default)}</p>
+          <p>{videoURL()}</p> 
           <ReactPlayer
             ref={videoPlayerRef}
-            url={`${
-              SERVED_BY === 'nginx'
-                ? `${URL}/_content/video/${getVideoPath(id, details?.extension || '.mp4')}`
-                : `${URL}/api/video/stream/${id}/video.m3u8`
-            }`}
+            url={videoURL()}
             width="100%"
             height="auto"
             playing
