@@ -1,0 +1,16 @@
+[
+    {
+        "date": "11-04-2025",
+        "message": "Fireshare has updated to version 1.2.22! Please read the changelog and update your instance for the latest features and fixes.",
+        "ignore_if_version": "1.2.22",
+        "ignore_after": "11-05-2025",
+        "critical": false
+    },
+    {
+        "date": "11-04-2025",
+        "message": "(!) Breaking changes to Fireshare will be coming in a not-too-distant future update. Please ensure your dockerfile is versioned correctly and is not using the latest tag.",
+        "ignore_if_version": null,
+        "ignore_after": null,
+        "critical": true
+    }
+]
