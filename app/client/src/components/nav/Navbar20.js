@@ -138,7 +138,6 @@ function Navbar20({
       // Make the fetch call to the API
       const res = await fetch('http://localhost:5000/api/folder-size');
       const data = await res.json();
-      console.log(`Folder size: ${data.size_pretty}`);
       
       // Update the state with the fetched data
       setFolderSize(data.size_pretty);
@@ -362,7 +361,7 @@ function Navbar20({
                   color: '#EBEBEB',
                 }}
               >
-                Used Data:{' '}
+                Disk Usage:{' '}
                 <Box component="span" sx={{ color: '#2684FF' }}>
                   {folderSize}
                 </Box>
