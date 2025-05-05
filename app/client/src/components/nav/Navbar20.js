@@ -132,27 +132,6 @@ function Navbar20({
   toolbar = true,
   children,
 }) {
-  const [folderSize, setFolderSize] = React.useState(null);
-  const checkFolderSize = async () => {
-    try {
-      // Make the fetch call to the API
-      const res = await fetch('http://localhost:5000/api/folder-size');
-      const data = await res.json();
-      console.log(`Folder size: ${data.size_pretty}`);
-      
-      // Update the state with the fetched data
-      setFolderSize(data.size_pretty);
-    } catch (error) {
-      console.error('Failed to fetch folder size:', error);
-    }
-  };
-
-   // Use effect to run the fetch on component mount
-   React.useEffect(() => {
-    checkFolderSize();
-  }, []); // Empty dependency array ensures this runs only once when component mounts
-
-
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
   const [open, setOpen] = React.useState(!collapsed)
@@ -330,70 +309,6 @@ function Navbar20({
           )}
         </List>
         <Divider />
-       
-        {folderSize !== null ? (
-        <Box
-          sx={{
-            width: 222,
-            m: 1,
-            height: 40,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            pl: 2,
-            pr: 2,
-            color: '#EBEBEB',
-            fontWeight: 600,
-            fontSize: 13,
-            backgroundColor: 'transparent',
-            ':hover': {
-              backgroundColor: 'rgba(194, 224, 255, 0.08)',
-            },
-          }}
-        >
-          <Grid container alignItems="center">
-            <Grid item>
-              <Typography
-                sx={{
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  fontSize: 15,
-                  color: '#EBEBEB',
-                }}
-              >
-                Used Data:{' '}
-                <Box component="span" sx={{ color: '#2684FF' }}>
-                  {folderSize}
-                </Box>
-              </Typography>
-
-            </Grid>
-          </Grid>
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            width: 222,
-            m: 1,
-            height: 40,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#888',
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-        >
-          <Typography variant="body2" color="textSecondary">
-            Loading folder size...
-          </Typography>
-        </Box>
-      )}
-
-
         {open ? (
           <Box
             sx={{
