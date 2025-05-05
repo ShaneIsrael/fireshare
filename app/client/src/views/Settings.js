@@ -152,16 +152,34 @@ const Settings = ({ authenticated }) => {
                   control={
                     <Checkbox
                       checked={updatedConfig.app_config?.allow_public_upload || false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          app_config: { ...prev.app_config, allow_public_upload: e.target.checked },
+                      onChange={async (e) => {
+                        const isChecked = e.target.checked;
+
+                        const newConfig = {
+                          ...updatedConfig,
+                          app_config: { ...updatedConfig.app_config, allow_public_upload: isChecked },
                           ui_config: {
-                            ...prev.ui_config,
-                            show_public_upload: !e.target.checked ? false : prev.ui_config.show_public_upload,
+                            ...updatedConfig.ui_config,
+                            show_public_upload: isChecked
+                              ? updatedConfig.ui_config?.show_public_upload
+                              : false,
                           },
-                        }))
-                      }
+                        };
+
+                        setUpdatedConfig(newConfig);
+
+                        
+                        //   will also force set public upload icon to disabled in config if Public Upload is unchecked. 
+                        //   Turns Public Upload Icon into a child basically
+                        if (!isChecked) { 
+                          try {
+                            await ConfigService.updateAdminConfig(newConfig);
+                            console.log('Backend config updated: show_public_upload = false');
+                          } catch (err) {
+                            console.error('Failed to update backend config:', err);
+                          }
+                        }
+                      }}
                     />
                   }
                   label="Allow Public Upload"
@@ -180,20 +198,26 @@ const Settings = ({ authenticated }) => {
                   }
                   label="Show Admin Upload Card"
                 />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_public_upload || false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_public_upload: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Show Public Upload Card"
-                />
+                
+                {/* logic to show/hide checkbox in GUIbased on Parent:allow_public_upload
+                Backend logic to change config for parent|child is setup in the allow_public_upload section */}
+               
+                {updatedConfig.app_config?.allow_public_upload && ( 
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.show_public_upload || false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: { ...prev.ui_config, show_public_upload: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Show Public Upload Card"
+                  />
+                )}
                 <TextField
                   size="small"
                   label="Shareable Link Domain"
