@@ -303,6 +303,7 @@ def upload_video():
     Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
     return Response(status=201)
 
+
 @api.route('/api/video')
 def get_video():
     video_id = request.args.get('id')
@@ -340,3 +341,39 @@ def get_video():
 def after_request(response):
     response.headers.add('Accept-Ranges', 'bytes')
     return response
+
+
+def get_folder_size(folder_path):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(folder_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            if os.path.isfile(fp):  # Avoid broken symlinks
+                total_size += os.path.getsize(fp)
+    return total_size
+
+@api.route('/api/folder-size', methods=['GET'])
+def folder_size():
+    print("Folder size endpoint was hit!")  # Debugging line
+    path = request.args.get('path', default='.', type=str)
+    size_bytes = get_folder_size(path)
+    size_mb = size_bytes / (1024 * 1024)
+
+    if size_mb < 1024:
+        rounded_mb = round(size_mb / 100) * 100
+        size_pretty = f"{rounded_mb} MB"
+    elif size_mb < 1024 * 1024:
+        size_gb = size_mb / 1024
+        size_pretty = f"{round(size_gb, 1)} GB"
+    else:
+        size_tb = size_mb / (1024 * 1024)
+        size_pretty = f"{round(size_tb, 1)} TB"
+
+    return jsonify({
+        "folder": path,
+        "size_bytes": size_bytes,
+        "size_pretty": size_pretty
+    })
+
+
+

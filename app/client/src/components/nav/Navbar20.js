@@ -29,7 +29,7 @@ import { styled } from '@mui/material/styles'
 
 import { Grid, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import { AuthService } from '../../services'
+import { AuthService, StatsService } from '../../services'
 
 import logo from '../../assets/logo.png'
 import Search from '../search/Search'
@@ -132,6 +132,7 @@ function Navbar20({
   toolbar = true,
   children,
 }) {
+
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
   const [open, setOpen] = React.useState(!collapsed)
@@ -179,6 +180,21 @@ function Navbar20({
     left: 0,
     top: 13,
   }))
+
+  const [folderSize, setFolderSize] = React.useState(null); // Disk Usage Service
+
+  React.useEffect(() => {
+    const fetchFolderSize = async () => {
+      try {
+        const data = await StatsService.getFolderSize(); // now calls the service
+        setFolderSize(data.size_pretty);
+      } catch (error) {
+        console.error('Error fetching folder size:', error);
+      }
+    };
+
+    fetchFolderSize();
+  }, []);
 
   const drawer = (
     <div>
@@ -309,6 +325,70 @@ function Navbar20({
           )}
         </List>
         <Divider />
+       
+        {folderSize !== null ? (
+        <Box
+          sx={{
+            width: 222,
+            m: 1,
+            height: 40,
+            border: '1px solid rgba(194, 224, 255, 0.18)',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            pl: 2,
+            pr: 2,
+            color: '#EBEBEB',
+            fontWeight: 600,
+            fontSize: 13,
+            backgroundColor: 'transparent',
+            ':hover': {
+              backgroundColor: 'rgba(194, 224, 255, 0.08)',
+            },
+          }}
+        >
+          <Grid container alignItems="center">
+            <Grid item>
+              <Typography
+                sx={{
+                  fontFamily: 'monospace',
+                  fontWeight: 600,
+                  fontSize: 15,
+                  color: '#EBEBEB',
+                }}
+              >
+                Disk Usage:{' '}
+                <Box component="span" sx={{ color: '#2684FF' }}>
+                  {folderSize}
+                </Box>
+              </Typography>
+
+            </Grid>
+          </Grid>
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            width: 222,
+            m: 1,
+            height: 40,
+            border: '1px solid rgba(194, 224, 255, 0.18)',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#888',
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+        >
+          <Typography variant="body2" color="textSecondary">
+            Loading folder size...
+          </Typography>
+        </Box>
+      )}
+
+
         {open ? (
           <Box
             sx={{
