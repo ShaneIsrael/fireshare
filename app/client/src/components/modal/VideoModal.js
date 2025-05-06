@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useContext } from 'react'
 import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
@@ -11,6 +11,9 @@ import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoPath } from '../../common/utils'
 import { VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
+import { ConfigContext } from '../../contexts/ConfigContext' // Import ConfigContext
+
+
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -148,6 +151,11 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     }
   }
 
+  const config = useContext(ConfigContext)
+
+  // Default to 'true' for autoplay if not set in config
+  const autoplay = config?.ui_config?.autoplay ?? false
+
   if (!vid) return null
 
   return (
@@ -189,6 +197,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
                       : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
                   }`}
+                  autoPlay={autoplay}  // Use autoplay from config 
                   disablePictureInPicture
                   controls
                   onTimeUpdate={handleTimeUpdate}
