@@ -12,15 +12,6 @@ const service = {
       config,
     })
   },
-
-  // Adding the new methods:
-  getAdminConfigUpdated() {
-    return Api().get('/api/config')  // Adjusted to match the new method
-  },
-
-  updateConfigUpdated(updatedConfig) {
-    return Api().put('/api/config', updatedConfig)  // Adjusted to match the new method
-  }
 }
 
 export default service
