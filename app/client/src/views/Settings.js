@@ -148,6 +148,22 @@ const Settings = ({ authenticated }) => {
                     Default Video Privacy
                   </Typography>
                 </Box>
+                
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.show_admin_upload || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, show_admin_upload: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Show Admin Upload Card"
+                />
+
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -182,20 +198,6 @@ const Settings = ({ authenticated }) => {
                     />
                   }
                   label="Allow Public Upload"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_admin_upload || false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_admin_upload: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Show Admin Upload Card"
                 />
                 
                 {/* logic to show/hide checkbox in GUIbased on Parent:allow_public_upload
