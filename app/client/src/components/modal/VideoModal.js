@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactPlayer from 'react-player'
 import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
@@ -128,7 +129,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const copyTimestamp = () => {
-    copyToClipboard(`${PURL}${vid.video_id}?t=${playerRef.current?.currentTime}`)
+    copyToClipboard(`${PURL}${vid.video_id}?t=${playerRef.current?.getCurrentTime()}`)
     setAlert({
       type: 'info',
       message: 'Time stamped link copied to clipboard',
@@ -141,7 +142,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       if (!vid.info?.duration || vid.info?.duration < 10) {
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
-      } else if (e.target.currentTime >= 10) {
+      } else if (e.playedSeconds >= 10) {
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
       }
@@ -180,18 +181,19 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             </IconButton>
             <Grid container justifyContent="center">
               <Grid item xs={12}>
-                <video
+                <ReactPlayer
                   ref={playerRef}
                   width="100%"
                   height="auto"
-                  src={`${
+                  url={`${
                     SERVED_BY === 'nginx'
                       ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
-                      : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
+                      : `${URL}/api/video/stream/${vid.video_id}/video.m3u8`
                   }`}
-                  disablePictureInPicture
+                  pip={false}
                   controls
-                  onTimeUpdate={handleTimeUpdate}
+                  playing
+                  onProgress={handleTimeUpdate}
                 />
               </Grid>
               <Grid item>

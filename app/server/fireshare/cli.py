@@ -195,9 +195,18 @@ def scan_video(ctx, path):
                         util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
                     else:
                         logger.debug(f"Skipping creation of poster for video {info.video_id} because it exists at {str(poster_path)}")
+
+                    m3u8_path = Path(derived_path, "video.m3u8")
+                    should_convert_to_m3u8 = (not m3u8_path.exists() or regenerate)
+                    if should_convert_to_m3u8:
+                        if not derived_path.exists():
+                            derived_path.mkdir(parents=True)
+                        util.convert_video_to_m3u8(video_path, derived_path / "video.m3u8")
+                    else:
+                        logger.debug(f"Skipping conversion of video to m3u8 for video {info.video_id} because it exists at {str(m3u8_path)}")
                     db.session.commit()
                 else:
-                    logger.warn(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+                    logger.warn(f"Skipping creation of poster and/or conversion to M3U8 for video {info.video_id} because the video at {str(m3u8_path)} already exists not exist or is not accessible")
         else:
             logger.info(f"Invalid video file, unable to scan: {str(videos_path / path)}")
 
@@ -331,6 +340,15 @@ def create_posters(regenerate, skip):
                 util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
             else:
                 logger.debug(f"Skipping creation of poster for video {vi.video_id} because it exists at {str(poster_path)}")
+            
+            m3u8_path = Path(derived_path, "video.m3u8")
+            should_convert_to_m3u8 = (not m3u8_path.exists() or regenerate)
+            if should_convert_to_m3u8:
+                if not derived_path.exists():
+                    derived_path.mkdir(parents=True)
+                util.convert_video_to_m3u8(video_path, derived_path / "video.m3u8")
+            else:
+                logger.debug(f"Skipping conversion of video to m3u8 for video {vi.video_id} because it exists at {str(m3u8_path)}")
 
 @cli.command()
 @click.option("--regenerate", "-r", help="Overwrite existing posters", is_flag=True)
@@ -352,6 +370,15 @@ def create_boomerang_posters(regenerate):
                 util.create_boomerang_preview(video_path, poster_path)
             else:
                 logger.info(f"Skipping creation of boomerang poster for video {vi.video_id} because it exists at {str(poster_path)}")
+
+            m3u8_path = Path(derived_path, "video.m3u8")
+            should_convert_to_m3u8 = (not m3u8_path.exists() or regenerate)
+            if should_convert_to_m3u8:
+                if not derived_path.exists():
+                    derived_path.mkdir(parents=True)
+                util.convert_video_to_m3u8(video_path, derived_path / "video.m3u8")
+            else:
+                logger.debug(f"Skipping conversion of video to m3u8 for video {vi.video_id} because it exists at {str(m3u8_path)}")
 
 @cli.command()
 @click.pass_context
