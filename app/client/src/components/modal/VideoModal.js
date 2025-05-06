@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
@@ -9,11 +9,8 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoPath } from '../../common/utils'
-import { VideoService } from '../../services'
+import { ConfigService, VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
-import { ConfigContext } from '../../contexts/ConfigContext' // Import ConfigContext
-
-
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -27,6 +24,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [vid, setVideo] = React.useState(null)
   const [viewAdded, setViewAdded] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
+  const [autoplay, setAutoplay] = useState(false);  // State to store autoplay value from config
+
 
   const playerRef = React.useRef()
 
@@ -46,6 +45,20 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       console.log(err)
     }
   }
+
+  // Fetch config on component mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const result = await ConfigService.getConfig();  // Fetch config from API
+        setAutoplay(result.data?.autoplay || false);  // Set autoplay value from config
+      } catch (error) {
+        console.error('Error fetching config:', error);
+      }
+    };
+
+    fetchConfig();  // Call function to fetch config
+  }, []);  // Empty dependency array ensures this runs only once
 
   React.useEffect(() => {
     async function fetch() {
@@ -151,11 +164,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     }
   }
 
-  const config = useContext(ConfigContext)
-
-  // Default to 'true' for autoplay if not set in config
-  const autoplay = config?.ui_config?.autoplay ?? false
-
   if (!vid) return null
 
   return (
@@ -197,7 +205,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
                       : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
                   }`}
-                  autoPlay={autoplay}  // Use autoplay from config 
+                  autoPlay={autoplay}  // Use autoplay from config
                   disablePictureInPicture
                   controls
                   onTimeUpdate={handleTimeUpdate}
