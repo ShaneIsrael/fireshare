@@ -30,6 +30,8 @@ import { styled } from '@mui/material/styles'
 import { Grid, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { AuthService } from '../../services'
+import StatsService from '../../services/StatsService';
+
 
 import logo from '../../assets/logo.png'
 import Search from '../search/Search'
@@ -132,24 +134,27 @@ function Navbar20({
   toolbar = true,
   children,
 }) {
-  const [folderSize, setFolderSize] = React.useState(null);
-  const checkFolderSize = async () => {
-    try {
-      // Make the fetch call to the API
-      const res = await fetch('http://localhost:5000/api/folder-size');
-      const data = await res.json();
-      
-      // Update the state with the fetched data
-      setFolderSize(data.size_pretty);
-    } catch (error) {
-      console.error('Failed to fetch folder size:', error);
-    }
-  };
 
-   // Use effect to run the fetch on component mount
-   React.useEffect(() => {
-    checkFolderSize();
-  }, []); // Empty dependency array ensures this runs only once when component mounts
+  
+
+
+
+  const [folderSize, setFolderSize] = React.useState(null);
+
+  React.useEffect(() => {
+    const fetchFolderSize = async () => {
+      try {
+        const data = await StatsService.getFolderSize(); // now calls the service
+        setFolderSize(data.size_pretty);
+      } catch (error) {
+        console.error('Error fetching folder size:', error);
+      }
+    };
+
+    fetchFolderSize();
+  }, []);
+
+
 
 
   const [mobileOpen, setMobileOpen] = React.useState(false)
