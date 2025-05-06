@@ -383,7 +383,7 @@ function Navbar20({
           }}
         >
           <Typography variant="body2" color="textSecondary">
-            Loading folder size...
+            Loading Disk Usage...
           </Typography>
         </Box>
       )}
