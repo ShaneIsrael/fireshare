@@ -24,7 +24,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [vid, setVideo] = React.useState(null)
   const [viewAdded, setViewAdded] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
-  const [autoplay, setAutoplay] = useState(false);  // State to store autoplay value from config
+  const [autoplay, setAutoplay] = useState(false);  
 
 
   const playerRef = React.useRef()
@@ -46,19 +46,18 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     }
   }
 
-  // Fetch config on component mount
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const result = await ConfigService.getConfig();  // Fetch config from API
-        setAutoplay(result.data?.autoplay || false);  // Set autoplay value from config
+        const result = await ConfigService.getConfig();  
+        setAutoplay(result.data?.autoplay || false);  
       } catch (error) {
         console.error('Error fetching config:', error);
       }
     };
 
-    fetchConfig();  // Call function to fetch config
-  }, []);  // Empty dependency array ensures this runs only once
+    fetchConfig();  
+  }, []);  
 
   React.useEffect(() => {
     async function fetch() {
@@ -205,7 +204,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
                       : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
                   }`}
-                  autoPlay={autoplay}  // Use autoplay from config
+                  autoPlay={autoplay}  
                   disablePictureInPicture
                   controls
                   onTimeUpdate={handleTimeUpdate}
