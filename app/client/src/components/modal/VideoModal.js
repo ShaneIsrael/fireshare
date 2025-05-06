@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
@@ -9,7 +9,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoPath } from '../../common/utils'
-import { VideoService } from '../../services'
+import { ConfigService, VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 
 const URL = getUrl()
@@ -24,6 +24,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [vid, setVideo] = React.useState(null)
   const [viewAdded, setViewAdded] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
+  const [autoplay, setAutoplay] = useState(false);  
+
 
   const playerRef = React.useRef()
 
@@ -43,6 +45,19 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       console.log(err)
     }
   }
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const result = await ConfigService.getConfig();  
+        setAutoplay(result.data?.autoplay || false);  
+      } catch (error) {
+        console.error('Error fetching config:', error);
+      }
+    };
+
+    fetchConfig();  
+  }, []);  
 
   React.useEffect(() => {
     async function fetch() {
@@ -189,6 +204,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
                       : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
                   }`}
+                  autoPlay={autoplay}  
                   disablePictureInPicture
                   controls
                   onTimeUpdate={handleTimeUpdate}

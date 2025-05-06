@@ -228,6 +228,24 @@ const Settings = ({ authenticated }) => {
                     }))
                   }
                 />
+                <Divider></Divider>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.autoplay || false}  
+                      onChange={(e) => 
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { 
+                            ...prev.ui_config, 
+                            autoplay: e.target.checked  
+                          }
+                        }))
+                      }
+                    />
+                  }
+                  label="Auto Play Videos"
+                />
                 <Button variant="contained" startIcon={<SaveIcon />} disabled={!updateable} onClick={handleSave}>
                   Save Changes
                 </Button>
