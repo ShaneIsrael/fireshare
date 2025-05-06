@@ -174,7 +174,6 @@ const Settings = ({ authenticated }) => {
                         if (!isChecked) { 
                           try {
                             await ConfigService.updateAdminConfig(newConfig);
-                            console.log('Backend config updated: show_public_upload = false');
                           } catch (err) {
                             console.error('Failed to update backend config:', err);
                           }
