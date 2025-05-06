@@ -148,7 +148,24 @@ const Settings = ({ authenticated }) => {
                     Default Video Privacy
                   </Typography>
                 </Box>
-                
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.app_config?.allow_public_upload || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          app_config: { ...prev.app_config, allow_public_upload: e.target.checked },
+                          ui_config: {
+                            ...prev.ui_config,
+                            show_public_upload: !e.target.checked ? false : prev.ui_config.show_public_upload,
+                          },
+                        }))
+                      }
+                    />
+                  }
+                  label="Allow Public Upload"
+                />
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -163,62 +180,20 @@ const Settings = ({ authenticated }) => {
                   }
                   label="Show Admin Upload Card"
                 />
-
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={updatedConfig.app_config?.allow_public_upload || false}
-                      onChange={async (e) => {
-                        const isChecked = e.target.checked;
-
-                        const newConfig = {
-                          ...updatedConfig,
-                          app_config: { ...updatedConfig.app_config, allow_public_upload: isChecked },
-                          ui_config: {
-                            ...updatedConfig.ui_config,
-                            show_public_upload: isChecked
-                              ? updatedConfig.ui_config?.show_public_upload
-                              : false,
-                          },
-                        };
-
-                        setUpdatedConfig(newConfig);
-
-                        
-                        //   will also force set public upload icon to disabled in config if Public Upload is unchecked. 
-                        //   Turns Public Upload Icon into a child basically
-                        if (!isChecked) { 
-                          try {
-                            await ConfigService.updateAdminConfig(newConfig);
-                          } catch (err) {
-                            console.error('Failed to update backend config:', err);
-                          }
-                        }
-                      }}
+                      checked={updatedConfig.ui_config?.show_public_upload || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, show_public_upload: e.target.checked },
+                        }))
+                      }
                     />
                   }
-                  label="Allow Public Upload"
+                  label="Show Public Upload Card"
                 />
-                
-                {/* logic to show/hide checkbox in GUIbased on Parent:allow_public_upload
-                Backend logic to change config for parent|child is setup in the allow_public_upload section */}
-               
-                {updatedConfig.app_config?.allow_public_upload && ( 
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_public_upload || false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_public_upload: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Show Public Upload Card"
-                  />
-                )}
                 <TextField
                   size="small"
                   label="Shareable Link Domain"
@@ -252,6 +227,24 @@ const Settings = ({ authenticated }) => {
                       app_config: { ...prev.app_config, admin_upload_folder_name: e.target.value },
                     }))
                   }
+                />
+                <Divider></Divider>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.autoplay || false}  
+                      onChange={(e) => 
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { 
+                            ...prev.ui_config, 
+                            autoplay: e.target.checked  
+                          }
+                        }))
+                      }
+                    />
+                  }
+                  label="Auto Play Videos"
                 />
                 <Button variant="contained" startIcon={<SaveIcon />} disabled={!updateable} onClick={handleSave}>
                   Save Changes
