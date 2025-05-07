@@ -10,6 +10,7 @@ import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
 import MenuIcon from '@mui/icons-material/Menu'
 import Toolbar from '@mui/material/Toolbar'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import PublicIcon from '@mui/icons-material/Public'
@@ -28,6 +29,7 @@ import MuiAppBar from '@mui/material/AppBar'
 import { styled } from '@mui/material/styles'
 
 import { Grid, ToggleButton, ToggleButtonGroup } from '@mui/material'
+import Hourglass from './HourGlassAnimation'
 import { useNavigate } from 'react-router-dom'
 import { AuthService, StatsService } from '../../services'
 
@@ -325,30 +327,67 @@ function Navbar20({
           )}
         </List>
         <Divider />
+
+
+       
        
         {folderSize !== null ? (
-        <Box
-          sx={{
-            width: 222,
-            m: 1,
-            height: 40,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            pl: 2,
-            pr: 2,
-            color: '#EBEBEB',
-            fontWeight: 600,
-            fontSize: 13,
-            backgroundColor: 'transparent',
-            ':hover': {
-              backgroundColor: 'rgba(194, 224, 255, 0.08)',
-            },
-          }}
-        >
-          <Grid container alignItems="center">
-            <Grid item>
+          open ? (
+            <Box
+              sx={{
+                width: 222,
+                m: 1,
+                height: 40,
+                border: '1px solid rgba(194, 224, 255, 0.18)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                pl: 2,
+                pr: 2,
+                color: '#EBEBEB',
+                fontWeight: 600,
+                fontSize: 13,
+                backgroundColor: 'transparent',
+                ':hover': {
+                  backgroundColor: 'rgba(194, 224, 255, 0.08)',
+                },
+              }}
+            >
+              <Grid container alignItems="center">
+                <Grid item>
+                  <Typography
+                    sx={{
+                      fontFamily: 'monospace',
+                      fontWeight: 600,
+                      fontSize: 15,
+                      color: '#EBEBEB',
+                    }}
+                  >
+                    Disk Usage:{' '}
+                    <Box component="span" sx={{ color: '#2684FF' }}>
+                      {folderSize}
+                    </Box>
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          ) : (
+            <Tooltip title={`Disk Usage: ${folderSize}`} arrow placement="right">
+            <Box
+              sx={{
+                width: 42,
+                m: 1,
+                height: 40,
+                border: '1px solid rgba(194, 224, 255, 0.18)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                ':hover': {
+                  backgroundColor: 'rgba(194, 224, 255, 0.08)',
+                },
+              }}
+            >
               <Typography
                 sx={{
                   fontFamily: 'monospace',
@@ -357,36 +396,52 @@ function Navbar20({
                   color: '#EBEBEB',
                 }}
               >
-                Disk Usage:{' '}
-                <Box component="span" sx={{ color: '#2684FF' }}>
-                  {folderSize}
-                </Box>
-              </Typography>
+                <img
+                  src={require('../../assets/icons/hard-drive.png')}
+                  alt="Disk"
+                  style={{
+                    width: 25,
+                    height: 25,
+                    display: 'block',        
+                    margin: '0 auto',        
+                    objectFit: 'contain',    
+                    filter: 'invert(90%)',
+                  }}
+                />
 
-            </Grid>
-          </Grid>
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            width: 222,
-            m: 1,
-            height: 40,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#888',
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-        >
-          <Typography variant="body2" color="textSecondary">
-            Loading Disk Usage...
-          </Typography>
-        </Box>
-      )}
+              </Typography>
+            </Box>
+            </Tooltip>
+            
+          )
+        ) : (
+          <Box
+            sx={{
+              width: open ? 222 : 42,
+              m: 1,
+              height: 40,
+              border: '1px solid rgba(194, 224, 255, 0.18)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#888',
+              fontWeight: 600,
+              fontSize: 13,
+            }}
+          >
+            <Typography variant="body2" color="textSecondary">
+              {open ? 'Loading Disk Usage...' : 
+              
+              <Hourglass size={18} fill="#FFF" bg="transparent" />
+
+
+              }
+            </Typography>
+          </Box>
+          
+        )}
+
 
 
         {open ? (
