@@ -1,4 +1,5 @@
 import * as React from 'react'
+
 import Box from '@mui/material/Box'
 import Divider from '@mui/material/Divider'
 import Drawer from '@mui/material/Drawer'
@@ -8,10 +9,14 @@ import ListItem from '@mui/material/ListItem'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
-import MenuIcon from '@mui/icons-material/Menu'
 import Toolbar from '@mui/material/Toolbar'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
+import MuiDrawer from '@mui/material/Drawer'
+import MuiAppBar from '@mui/material/AppBar'
+import { styled } from '@mui/material/styles'
+
+import MenuIcon from '@mui/icons-material/Menu'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import PublicIcon from '@mui/icons-material/Public'
 import SettingsIcon from '@mui/icons-material/Settings'
@@ -24,12 +29,10 @@ import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import BugReportIcon from '@mui/icons-material/BugReport'
-import MuiDrawer from '@mui/material/Drawer'
-import MuiAppBar from '@mui/material/AppBar'
-import { styled } from '@mui/material/styles'
+import StorageIcon from '@mui/icons-material/Storage'
+import SyncIcon from '@mui/icons-material/Sync'
 
 import { Grid, ToggleButton, ToggleButtonGroup } from '@mui/material'
-import Hourglass from './HourGlassAnimation'
 import { useNavigate } from 'react-router-dom'
 import { AuthService, StatsService } from '../../services'
 
@@ -188,7 +191,7 @@ function Navbar20({
   React.useEffect(() => {
     const fetchFolderSize = async () => {
       try {
-        const data = await StatsService.getFolderSize(); // now calls the service
+        const data = await StatsService.getFolderSize();
         setFolderSize(data.size_pretty);
       } catch (error) {
         console.error('Error fetching folder size:', error);
@@ -373,44 +376,34 @@ function Navbar20({
             </Box>
           ) : (
             <Tooltip title={`Disk Usage: ${folderSize}`} arrow placement="right">
-            <Box
-              sx={{
-                width: 42,
-                m: 1,
-                height: 40,
-                border: '1px solid rgba(194, 224, 255, 0.18)',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                ':hover': {
-                  backgroundColor: 'rgba(194, 224, 255, 0.08)',
-                },
-              }}
-            >
-              <Typography
+              <Box
                 sx={{
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  fontSize: 15,
-                  color: '#EBEBEB',
+                  width: 42,
+                  m: 1,
+                  height: 40,
+                  border: '1px solid rgba(194, 224, 255, 0.18)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  ':hover': {
+                    backgroundColor: 'rgba(194, 224, 255, 0.08)',
+                  },
                 }}
               >
-                <img
-                  src={require('../../assets/icons/hard-drive.png')}
-                  alt="Disk"
-                  style={{
-                    width: 25,
-                    height: 25,
-                    display: 'block',        
-                    margin: '0 auto',        
-                    objectFit: 'contain',    
-                    filter: 'invert(90%)',
+                <Typography
+                  sx={{
+                    fontFamily: 'monospace',
+                    fontWeight: 600,
+                    fontSize: 15,
+                    color: '#EBEBEB',
                   }}
-                />
-
-              </Typography>
-            </Box>
+                >
+                  <IconButton aria-label="report-bug-link" sx={{ p: 0.5, pointerEvents: 'all' }}>
+                    <StorageIcon sx={{ color: '#EBEBEB' }} />
+                  </IconButton>
+                </Typography>
+              </Box>
             </Tooltip>
             
           )
@@ -433,7 +426,19 @@ function Navbar20({
             <Typography variant="body2" color="textSecondary">
               {open ? 'Loading Disk Usage...' : 
               
-              <Hourglass size={18} fill="#FFF" bg="transparent" />
+              <SyncIcon
+                sx={{
+                  animation: "spin 2s linear infinite",
+                  "@keyframes spin": {
+                    "0%": {
+                      transform: "rotate(360deg)",
+                    },
+                    "100%": {
+                      transform: "rotate(0deg)",
+                    },
+                  },
+                }}
+              />
 
 
               }
