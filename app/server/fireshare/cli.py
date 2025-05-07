@@ -3,7 +3,7 @@ import os
 import json
 import click
 from datetime import datetime
-from flask import current_app,has_request_context, request
+from flask import current_app, request
 from fireshare import create_app, db, util, logger
 from fireshare.models import User, Video, VideoInfo
 from werkzeug.security import generate_password_hash
@@ -35,15 +35,12 @@ def send_discord_webhook(webhook_url, title="New Notification", description="No 
     except requests.exceptions.RequestException as e:
         print(f"❌ Failed to send webhook: {e}")
 
-def get_public_watch_url(video_id, config):
+def get_public_watch_url(video_id, config, host):
     shareable_link_domain = config.get("ui_config", {}).get("shareable_link_domain", "")
     if shareable_link_domain:
         return f"{shareable_link_domain}/w/{video_id}"
-    elif has_request_context():
-        return f"{request.host_url}#/w/{video_id}"
     else:
-        # Fallback if there's no request context
-        return f"http://localhost:3000/#/w/{video_id}"  # or read from env/config  
+        return f"{host}/w/{video_id}"
     
 @click.group()
 def cli():
@@ -151,6 +148,7 @@ def scan_videos(root):
 def scan_video(ctx, path):
     with create_app().app_context():
         paths = current_app.config['PATHS']
+        domain = current_app.config['DOMAIN']
         videos_path = paths["video"]
         video_links = paths["processed"] / "video_links"
         thumbnail_skip = current_app.config['THUMBNAIL_VIDEO_LOCATION'] or 0
@@ -235,12 +233,11 @@ def scan_video(ctx, path):
                     
                     if discord_webhook_url:
                         logger.info(f"Posting to Discord webhook")
-                        video_url = get_public_watch_url("3b04bbbdc6c77c7cd8b38d276910f327", config)
+                        video_url = get_public_watch_url(video_id, config, domain)
                         send_discord_webhook(
                             webhook_url=discord_webhook_url,
                             title=f"🎮 {info.title}",
-                            description=f"Watch it now: {video_url}",
-                            # image_url="https://via.placeholder.com/600x300.png?text=New+Upload"
+                            description=f"{video_url}",
                         )
                 else:
                     logger.warn(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
