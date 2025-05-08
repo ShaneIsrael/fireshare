@@ -18,7 +18,7 @@ def send_discord_webhook(webhook_url=None, video_url=None):
     payload = {
         "content": video_url,
         "username": "Fireshare",
-        "avatar_url": "https://github.com/ShaneIsrael/fireshare/raw/develop/app/client/src/assets/logo.png",
+        "avatar_url": "https://github.com/ShaneIsrael/fireshare/raw/develop/app/client/src/assets/logo_square.png",
     }
 
     try:
