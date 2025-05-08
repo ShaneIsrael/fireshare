@@ -270,7 +270,7 @@ const Settings = ({ authenticated }) => {
                   }
                   label="Auto Play Videos"
                 />
-                <Divider></Divider>
+                <Divider />
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
                     Integrations

@@ -362,7 +362,7 @@ function Navbar20({
                     sx={{
                       fontFamily: 'monospace',
                       fontWeight: 600,
-                      fontSize: 15,
+                      fontSize: 12,
                       color: '#EBEBEB',
                     }}
                   >
@@ -421,28 +421,25 @@ function Navbar20({
               color: '#888',
               fontWeight: 600,
               fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <Typography variant="body2" color="textSecondary">
-              {open ? 'Loading Disk Usage...' : 
-              
-              <SyncIcon
-                sx={{
-                  animation: "spin 2s linear infinite",
-                  "@keyframes spin": {
-                    "0%": {
-                      transform: "rotate(360deg)",
-                    },
-                    "100%": {
-                      transform: "rotate(0deg)",
-                    },
+            
+            {open ? <Typography variant="body2" color="textSecondary">Loading Disk Usage...</Typography> : <SyncIcon
+              sx={{
+                animation: "spin 2s linear infinite",
+                "@keyframes spin": {
+                  "0%": {
+                    transform: "rotate(360deg)",
                   },
-                }}
-              />
-
-
-              }
-            </Typography>
+                  "100%": {
+                    transform: "rotate(0deg)",
+                  },
+                },
+              }}
+            /> }
           </Box>
           
         )}
