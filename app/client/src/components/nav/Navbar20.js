@@ -399,7 +399,7 @@ function Navbar20({
                     color: '#EBEBEB',
                   }}
                 >
-                  <IconButton aria-label="report-bug-link" sx={{ p: 0.5, pointerEvents: 'all' }}>
+                  <IconButton sx={{ p: 0.5, pointerEvents: 'all' }}>
                     <StorageIcon sx={{ color: '#EBEBEB' }} />
                   </IconButton>
                 </Typography>
