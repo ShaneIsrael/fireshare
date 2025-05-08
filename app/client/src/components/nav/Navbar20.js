@@ -1,4 +1,5 @@
 import * as React from 'react'
+
 import Box from '@mui/material/Box'
 import Divider from '@mui/material/Divider'
 import Drawer from '@mui/material/Drawer'
@@ -8,9 +9,14 @@ import ListItem from '@mui/material/ListItem'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
-import MenuIcon from '@mui/icons-material/Menu'
 import Toolbar from '@mui/material/Toolbar'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
+import MuiDrawer from '@mui/material/Drawer'
+import MuiAppBar from '@mui/material/AppBar'
+import { styled } from '@mui/material/styles'
+
+import MenuIcon from '@mui/icons-material/Menu'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import PublicIcon from '@mui/icons-material/Public'
 import SettingsIcon from '@mui/icons-material/Settings'
@@ -23,9 +29,8 @@ import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import AppsIcon from '@mui/icons-material/Apps'
 import TableRowsIcon from '@mui/icons-material/TableRows'
 import BugReportIcon from '@mui/icons-material/BugReport'
-import MuiDrawer from '@mui/material/Drawer'
-import MuiAppBar from '@mui/material/AppBar'
-import { styled } from '@mui/material/styles'
+import StorageIcon from '@mui/icons-material/Storage'
+import SyncIcon from '@mui/icons-material/Sync'
 
 import { Grid, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
@@ -186,7 +191,7 @@ function Navbar20({
   React.useEffect(() => {
     const fetchFolderSize = async () => {
       try {
-        const data = await StatsService.getFolderSize(); // now calls the service
+        const data = await StatsService.getFolderSize();
         setFolderSize(data.size_pretty);
       } catch (error) {
         console.error('Error fetching folder size:', error);
@@ -325,68 +330,120 @@ function Navbar20({
           )}
         </List>
         <Divider />
+
+
+       
        
         {folderSize !== null ? (
-        <Box
-          sx={{
-            width: 222,
-            m: 1,
-            height: 40,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            pl: 2,
-            pr: 2,
-            color: '#EBEBEB',
-            fontWeight: 600,
-            fontSize: 13,
-            backgroundColor: 'transparent',
-            ':hover': {
-              backgroundColor: 'rgba(194, 224, 255, 0.08)',
-            },
-          }}
-        >
-          <Grid container alignItems="center">
-            <Grid item>
-              <Typography
+          open ? (
+            <Box
+              sx={{
+                width: 222,
+                m: 1,
+                height: 40,
+                border: '1px solid rgba(194, 224, 255, 0.18)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                pl: 2,
+                pr: 2,
+                color: '#EBEBEB',
+                fontWeight: 600,
+                fontSize: 13,
+                backgroundColor: 'transparent',
+                ':hover': {
+                  backgroundColor: 'rgba(194, 224, 255, 0.08)',
+                },
+              }}
+            >
+              <Grid container alignItems="center">
+                <Grid item>
+                  <Typography
+                    sx={{
+                      fontFamily: 'monospace',
+                      fontWeight: 600,
+                      fontSize: 12,
+                      color: '#EBEBEB',
+                    }}
+                  >
+                    Disk Usage:{' '}
+                    <Box component="span" sx={{ color: '#2684FF' }}>
+                      {folderSize}
+                    </Box>
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Box>
+          ) : (
+            <Tooltip title={`Disk Usage: ${folderSize}`} arrow placement="right">
+              <Box
                 sx={{
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  fontSize: 15,
-                  color: '#EBEBEB',
+                  width: 42,
+                  m: 1,
+                  height: 40,
+                  border: '1px solid rgba(194, 224, 255, 0.18)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  ':hover': {
+                    backgroundColor: 'rgba(194, 224, 255, 0.08)',
+                  },
                 }}
               >
-                Disk Usage:{' '}
-                <Box component="span" sx={{ color: '#2684FF' }}>
-                  {folderSize}
-                </Box>
-              </Typography>
+                <Typography
+                  sx={{
+                    fontFamily: 'monospace',
+                    fontWeight: 600,
+                    fontSize: 15,
+                    color: '#EBEBEB',
+                  }}
+                >
+                  <IconButton sx={{ p: 0.5, pointerEvents: 'all' }}>
+                    <StorageIcon sx={{ color: '#EBEBEB' }} />
+                  </IconButton>
+                </Typography>
+              </Box>
+            </Tooltip>
+            
+          )
+        ) : (
+          <Box
+            sx={{
+              width: open ? 222 : 42,
+              m: 1,
+              height: 40,
+              border: '1px solid rgba(194, 224, 255, 0.18)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#888',
+              fontWeight: 600,
+              fontSize: 13,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            
+            {open ? <Typography variant="body2" color="textSecondary">Loading Disk Usage...</Typography> : <SyncIcon
+              sx={{
+                animation: "spin 2s linear infinite",
+                "@keyframes spin": {
+                  "0%": {
+                    transform: "rotate(360deg)",
+                  },
+                  "100%": {
+                    transform: "rotate(0deg)",
+                  },
+                },
+              }}
+            /> }
+          </Box>
+          
+        )}
 
-            </Grid>
-          </Grid>
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            width: 222,
-            m: 1,
-            height: 40,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#888',
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-        >
-          <Typography variant="body2" color="textSecondary">
-            Loading Disk Usage...
-          </Typography>
-        </Box>
-      )}
 
 
         {open ? (

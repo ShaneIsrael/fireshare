@@ -22,11 +22,19 @@ import LightTooltip from '../components/misc/LightTooltip'
 import _ from 'lodash'
 import WarningService from "../services/WarningService";
 
+const isValidDiscordWebhook = (url) => {
+  const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/;
+  return regex.test(url);
+};
+
 const Settings = ({ authenticated }) => {
   const [alert, setAlert] = React.useState({ open: false })
   const [config, setConfig] = React.useState()
   const [updatedConfig, setUpdatedConfig] = React.useState({})
   const [updateable, setUpdateable] = React.useState(false)
+  const [discordUrl, setDiscordUrl] = React.useState('')
+  const isDiscordUsed = discordUrl.trim() !== ''
+
 
   React.useEffect(() => {
     async function fetch() {
@@ -45,6 +53,12 @@ const Settings = ({ authenticated }) => {
   React.useEffect(() => {
     setUpdateable(!_.isEqual(config, updatedConfig))
   }, [updatedConfig, config])
+
+  React.useEffect(() => {
+    if (updatedConfig.integrations?.discord_webhook_url) {
+      setDiscordUrl(updatedConfig.integrations.discord_webhook_url)
+    }
+  }, [updatedConfig])
 
   const handleSave = async () => {
     try {
@@ -116,6 +130,11 @@ const Settings = ({ authenticated }) => {
               }}
             >
               <Stack spacing={2}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
+                    Privacy & Upload
+                  </Typography>
+                </Box>
                 <Box>
                   <LightTooltip
                     title={updatedConfig.app_config?.video_defaults?.private ? 'Private' : 'Public'}
@@ -229,6 +248,11 @@ const Settings = ({ authenticated }) => {
                   }
                 />
                 <Divider></Divider>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
+                    Video
+                  </Typography>
+                </Box>
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -246,7 +270,40 @@ const Settings = ({ authenticated }) => {
                   }
                   label="Auto Play Videos"
                 />
-                <Button variant="contained" startIcon={<SaveIcon />} disabled={!updateable} onClick={handleSave}>
+                <Divider />
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
+                    Integrations
+                  </Typography>
+                </Box>
+                <TextField
+                  size="small"
+                  label="Discord Webhook URL"
+                  value={discordUrl}
+                  error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
+                  helperText={
+                    discordUrl !== '' && !isValidDiscordWebhook(discordUrl)
+                      ? 'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
+                      : ' '
+                  }
+                  onChange={(e) => {
+                    const url = e.target.value
+                    setDiscordUrl(url)
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      integrations: {
+                        ...prev.integrations,
+                        discord_webhook_url: url,
+                      },
+                    }))
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed) }
+                  onClick={handleSave}
+                >
                   Save Changes
                 </Button>
               </Stack>

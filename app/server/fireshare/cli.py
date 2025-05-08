@@ -3,16 +3,44 @@ import os
 import json
 import click
 from datetime import datetime
-from flask import current_app
+from flask import current_app, request
 from fireshare import create_app, db, util, logger
 from fireshare.models import User, Video, VideoInfo
 from werkzeug.security import generate_password_hash
 from pathlib import Path
 from sqlalchemy import func
 import time
+import requests
 
 from .constants import SUPPORTED_FILE_EXTENSIONS
 
+def send_discord_webhook(webhook_url=None, video_url=None):
+    payload = {
+        "content": video_url,
+        "username": "Fireshare",
+        "avatar_url": "https://github.com/ShaneIsrael/fireshare/raw/develop/app/client/src/assets/logo_square.png",
+    }
+
+    try:
+        response = requests.post(webhook_url, json=payload)
+        response.raise_for_status()
+        print("Webhook sent successfully.")
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to send webhook: {e}")
+
+def get_public_watch_url(video_id, config, host):
+    shareable_link_domain = config.get("ui_config", {}).get("shareable_link_domain", "")
+    if shareable_link_domain:
+        if not shareable_link_domain.startswith("https://") and not shareable_link_domain.startswith("http://"):
+            shareable_link_domain = f"https://{shareable_link_domain}"
+        return f"{shareable_link_domain}/w/{video_id}"
+    elif host:
+        if not host.startswith("https://") and not host.startswith("http://"):
+            host = f"https://{host}"
+        return f"{host}/w/{video_id}"
+    else:
+        return print("--Unable to post to Discord--\nPlease check that your DOMAIN env variable is set correctly or that you have a shareable link domain set in your Admin settings.")
+    
 @click.group()
 def cli():
     pass
@@ -119,6 +147,7 @@ def scan_videos(root):
 def scan_video(ctx, path):
     with create_app().app_context():
         paths = current_app.config['PATHS']
+        domain = current_app.config['DOMAIN']
         videos_path = paths["video"]
         video_links = paths["processed"] / "video_links"
         thumbnail_skip = current_app.config['THUMBNAIL_VIDEO_LOCATION'] or 0
@@ -128,7 +157,10 @@ def scan_video(ctx, path):
             thumbnail_skip = 0
         
         config_file = open(paths["data"] / "config.json")
-        video_config = json.load(config_file)["app_config"]["video_defaults"]
+        config = json.load(config_file)
+        video_config = config["app_config"]["video_defaults"]
+        discord_webhook_url = config["integrations"]["discord_webhook_url"]
+
         config_file.close()
         
         if not video_links.is_dir():
@@ -186,6 +218,7 @@ def scan_video(ctx, path):
                 derived_path = Path(processed_root, "derived", info.video_id)
                 video_path = Path(processed_root, "video_links", info.video_id + video_file.suffix)
                 if video_path.exists():
+                    
                     poster_path = Path(derived_path, "poster.jpg")
                     should_create_poster = (not poster_path.exists() or regenerate)
                     if should_create_poster:
@@ -196,6 +229,11 @@ def scan_video(ctx, path):
                     else:
                         logger.debug(f"Skipping creation of poster for video {info.video_id} because it exists at {str(poster_path)}")
                     db.session.commit()
+                    
+                    if discord_webhook_url:
+                        logger.info(f"Posting to Discord webhook")
+                        video_url = get_public_watch_url(video_id, config, domain)
+                        send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
                 else:
                     logger.warn(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
         else:
