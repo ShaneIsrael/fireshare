@@ -3,16 +3,45 @@ import os
 import json
 import click
 from datetime import datetime
-from flask import current_app
+from flask import current_app, request
 from fireshare import create_app, db, util, logger
 from fireshare.models import User, Video, VideoInfo
 from werkzeug.security import generate_password_hash
 from pathlib import Path
 from sqlalchemy import func
 import time
+import requests
 
 from .constants import SUPPORTED_FILE_EXTENSIONS
 
+def send_discord_webhook(webhook_url, title="New Notification", description="No description provided.", image_url=None):
+    payload = {
+        "embeds": [
+            {
+                "title": title,
+                "description": description,
+                "color": 0xbd0486,
+            }
+        ]
+    }
+
+    if image_url:
+        payload["embeds"][0]["image"] = {"url": image_url}
+
+    try:
+        response = requests.post(webhook_url, json=payload)
+        response.raise_for_status()
+        print("✅ Webhook sent successfully.")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Failed to send webhook: {e}")
+
+def get_public_watch_url(video_id, config, host):
+    shareable_link_domain = config.get("ui_config", {}).get("shareable_link_domain", "")
+    if shareable_link_domain:
+        return f"{shareable_link_domain}/w/{video_id}"
+    else:
+        return f"{host}/w/{video_id}"
+    
 @click.group()
 def cli():
     pass
@@ -119,6 +148,7 @@ def scan_videos(root):
 def scan_video(ctx, path):
     with create_app().app_context():
         paths = current_app.config['PATHS']
+        domain = current_app.config['DOMAIN']
         videos_path = paths["video"]
         video_links = paths["processed"] / "video_links"
         thumbnail_skip = current_app.config['THUMBNAIL_VIDEO_LOCATION'] or 0
@@ -128,7 +158,10 @@ def scan_video(ctx, path):
             thumbnail_skip = 0
         
         config_file = open(paths["data"] / "config.json")
-        video_config = json.load(config_file)["app_config"]["video_defaults"]
+        config = json.load(config_file)
+        video_config = config["app_config"]["video_defaults"]
+        discord_webhook_url = config["integrations"]["discord_webhook_url"]
+
         config_file.close()
         
         if not video_links.is_dir():
@@ -186,6 +219,7 @@ def scan_video(ctx, path):
                 derived_path = Path(processed_root, "derived", info.video_id)
                 video_path = Path(processed_root, "video_links", info.video_id + video_file.suffix)
                 if video_path.exists():
+                    
                     poster_path = Path(derived_path, "poster.jpg")
                     should_create_poster = (not poster_path.exists() or regenerate)
                     if should_create_poster:
@@ -196,6 +230,15 @@ def scan_video(ctx, path):
                     else:
                         logger.debug(f"Skipping creation of poster for video {info.video_id} because it exists at {str(poster_path)}")
                     db.session.commit()
+                    
+                    if discord_webhook_url:
+                        logger.info(f"Posting to Discord webhook")
+                        video_url = get_public_watch_url(video_id, config, domain)
+                        send_discord_webhook(
+                            webhook_url=discord_webhook_url,
+                            title=f"🎮 {info.title}",
+                            description=f"{video_url}",
+                        )
                 else:
                     logger.warn(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
         else:

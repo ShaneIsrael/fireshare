@@ -21,3 +21,4 @@ zipp==3.8.0
 xxhash==3.0.0
 apscheduler==3.9.1
 python-ldap==3.4.3
+requests==2.27.1
