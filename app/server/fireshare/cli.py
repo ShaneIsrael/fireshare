@@ -14,7 +14,7 @@ import requests
 
 from .constants import SUPPORTED_FILE_EXTENSIONS
 
-def send_discord_webhook(video_url=None):
+def send_discord_webhook(webhook_url=None, video_url=None):
     payload = {
         "content": video_url,
         "username": "Fireshare",
@@ -233,7 +233,7 @@ def scan_video(ctx, path):
                     if discord_webhook_url:
                         logger.info(f"Posting to Discord webhook")
                         video_url = get_public_watch_url(video_id, config, domain)
-                        send_discord_webhook(video_url=video_url)
+                        send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
                 else:
                     logger.warn(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
         else:
