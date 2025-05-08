@@ -31,13 +31,15 @@ def send_discord_webhook(video_url=None):
 def get_public_watch_url(video_id, config, host):
     shareable_link_domain = config.get("ui_config", {}).get("shareable_link_domain", "")
     if shareable_link_domain:
-        if not shareable_link_domain.startswith("https://"):
+        if not shareable_link_domain.startswith("https://") and not shareable_link_domain.startswith("http://"):
             shareable_link_domain = f"https://{shareable_link_domain}"
         return f"{shareable_link_domain}/w/{video_id}"
-    else:
-        if not host.startswith("https://"):
+    elif host:
+        if not host.startswith("https://") and not host.startswith("http://"):
             host = f"https://{host}"
         return f"{host}/w/{video_id}"
+    else:
+        return print("--Unable to post to Discord--\nPlease check that your DOMAIN env variable is set correctly or that you have a shareable link domain set in your Admin settings.")
     
 @click.group()
 def cli():
