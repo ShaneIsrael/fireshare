@@ -22,12 +22,19 @@ import LightTooltip from '../components/misc/LightTooltip'
 import _ from 'lodash'
 import WarningService from "../services/WarningService";
 
+const isValidDiscordWebhook = (url) => {
+  const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/;
+  return regex.test(url);
+};
+
 const Settings = ({ authenticated }) => {
   const [alert, setAlert] = React.useState({ open: false })
   const [config, setConfig] = React.useState()
   const [updatedConfig, setUpdatedConfig] = React.useState({})
   const [updateable, setUpdateable] = React.useState(false)
   const [discordUrl, setDiscordUrl] = React.useState('')
+  const isDiscordUsed = discordUrl.trim() !== ''
+
 
   React.useEffect(() => {
     async function fetch() {
@@ -273,10 +280,10 @@ const Settings = ({ authenticated }) => {
                   size="small"
                   label="Discord Webhook URL"
                   value={discordUrl}
-                  error={discordUrl !== '' && !discordUrl.startsWith('https://discord.com/api/webhooks/')}
+                  error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
                   helperText={
-                    discordUrl !== '' && !discordUrl.startsWith('https://discord.com/api/webhooks/')
-                      ? 'Must start with https://discord.com/api/webhooks/'
+                    discordUrl !== '' && !isValidDiscordWebhook(discordUrl)
+                      ? 'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
                       : ' '
                   }
                   onChange={(e) => {
@@ -291,8 +298,12 @@ const Settings = ({ authenticated }) => {
                     }))
                   }}
                 />
-
-                <Button variant="contained" startIcon={<SaveIcon />} disabled={!updateable} onClick={handleSave}>
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed) }
+                  onClick={handleSave}
+                >
                   Save Changes
                 </Button>
               </Stack>
