@@ -11,6 +11,9 @@ DEFAULT_CONFIG = {
     "shareable_link_domain": "",
     "show_public_upload": False,
     "show_admin_upload": True,
+  },
+  "integrations": {
+    "discord_webhook_url": "",
   }
 }
 
