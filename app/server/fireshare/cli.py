@@ -65,13 +65,14 @@ def add_user(username, password):
 @click.option("--root", "-r", help="root video path to scan", required=False)
 def scan_videos(root):
     with create_app().app_context():
-        domain = current_app.config['DOMAIN']
         paths = current_app.config['PATHS']
+        domain = current_app.config['DOMAIN']
         videos_path = paths["video"]
         video_links = paths["processed"] / "video_links"
+
         config_file = open(paths["data"] / "config.json")
         config = json.load(config_file)
-        video_config = json.load(config_file)["app_config"]["video_defaults"]
+        video_config = config["app_config"]["video_defaults"]
         discord_webhook_url = config["integrations"]["discord_webhook_url"]
         config_file.close()
         
