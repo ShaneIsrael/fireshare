@@ -81,6 +81,37 @@ const service = {
       },
     })
   },
+  uploadChunked(formData, uploadProgress, totalSize, alreadyUploaded) {
+    return Api().post('/api/uploadChunked', formData, {
+      timeout: 999999999,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        const progress = (progressEvent.loaded + alreadyUploaded) / totalSize
+        uploadProgress(progress, {
+          loaded: (progressEvent.loaded + alreadyUploaded) / Math.pow(10, 6),
+          total: totalSize / Math.pow(10, 6),
+        })
+      },
+    })
+  },
+  publicUploadChunked(formData, uploadProgress) {
+    return Api().post('/api/upload/publicChunked', formData, {
+      timeout: 999999999,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        const progress = progressEvent.loaded / progressEvent.total
+        console.log(progressEvent)
+        uploadProgress(progress, {
+          loaded: progressEvent.loaded / Math.pow(10, 6),
+          total: progressEvent.total / Math.pow(10, 6),
+        })
+      },
+    })
+  },
   scan() {
     return Api().get('/api/manual/scan')
   },

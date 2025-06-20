@@ -48,6 +48,11 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
   }
 
   React.useEffect(() => {
+
+    if (!selectedFile) return;
+
+    const chunkSize = 90 * 1024 * 1024; // 90MB chunk size
+
     async function upload() {
       const formData = new FormData()
       formData.append('file', selectedFile)
@@ -76,7 +81,82 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
       setUploadRate(null)
       setIsSelected(false)
     }
-    if (selectedFile) upload()
+
+    async function uploadChunked() {
+      if (!selectedFile) return;
+
+      const totalChunks = Math.ceil(selectedFile.size / chunkSize);
+      const checksum = await crypto.subtle.digest('SHA-256', await selectedFile.arrayBuffer()).then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''));
+
+      try {
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+          const start = chunkIndex * chunkSize;
+          const end = Math.min(start + chunkSize, selectedFile.size);
+          const chunk = selectedFile.slice(start, end);
+
+          const formData = new FormData();
+          formData.append('blob', chunk, selectedFile.name);
+          formData.append('chunkPart', chunkIndex + 1);
+          formData.append('totalChunks', totalChunks);
+          formData.append('checkSum', checksum);
+
+          // const onChunkProgress = (event) => {
+          //   if (event.lengthComputable) {
+          //     const chunkProgress = event.loaded / event.total;
+          //     const overallProgress = ((chunkIndex + chunkProgress) / totalChunks) * 100;
+          //     setProgress(overallProgress);
+          //     uploadProgress && uploadProgress(event);
+          //   }
+          // };
+
+          //   if (publicUpload) {
+          //     await VideoService.publicUploadChunked(formData, onChunkProgress);
+          //   } else if (!publicUpload && authenticated) {
+          //     await VideoService.uploadChunked(formData, onChunkProgress);
+          //   }
+          // }
+
+          if (publicUpload) {
+            await VideoService.publicUploadChunked(formData, uploadProgress);
+          } else if (!publicUpload && authenticated) {
+            await VideoService.uploadChunked(formData, uploadProgress, selectedFile.size, start);
+          }
+        }
+
+        handleAlert({
+          type: 'success',
+          message: 'Your upload will be available in a few seconds.',
+          autohideDuration: 3500,
+          open: true,
+          onClose: () => fetchVideos(),
+        });
+      } catch (err) {
+        handleAlert({
+          type: 'error',
+          message: `An error occurred while uploading your video.`,
+          open: true,
+        });
+      }
+
+      setProgress(0);
+      setUploadRate(null);
+      setIsSelected(false);
+    }
+
+
+    if (selectedFile.size > chunkSize) {
+      // TODO: remove
+      handleAlert({
+        type: 'info',
+        message: 'Video will be uploaded in chunks.',
+        autohideDuration: 3500,
+        open: true,
+      });
+      uploadChunked()
+    }
+    else {
+      upload()
+    }
     // eslint-disable-next-line
   }, [selectedFile])
 
