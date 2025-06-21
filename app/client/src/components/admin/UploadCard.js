@@ -63,7 +63,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
 
     if (!selectedFile) return;
 
-    const chunkSize = 25 * 1024 * 1024; // 90MB chunk size
+    const chunkSize = 90 * 1024 * 1024; // 90MB chunk size
 
     async function upload() {
       const formData = new FormData()
@@ -113,7 +113,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
           formData.append('checkSum', checksum);
 
           if (publicUpload) {
-            await VideoService.publicUploadChunked(formData, uploadProgress);
+            await VideoService.publicUploadChunked(formData, uploadProgressChunked, selectedFile.size, start);
           } else if (!publicUpload && authenticated) {
             await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start);
           }
