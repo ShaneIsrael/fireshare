@@ -349,8 +349,7 @@ def upload_videoChunked():
         f.write(blob.read())
 
     if chunkPart < totalChunks:
-        return Response(status=202, response=f"Chunk {chunkPart} of {totalChunks} received. Waiting for more chunks to complete upload.")
-
+        return Response(status=202)
 
     save_path = os.path.join(upload_directory, filename)
 

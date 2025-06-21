@@ -33,6 +33,18 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
     }
   }
 
+  const uploadProgressChunked = (progress, progressTotal, rate) => {
+    if (progressTotal <= 1 && progressTotal >= 0) {
+      setProgress(progressTotal);
+      setUploadRate((prev) => ({ ...rate }))
+    } else {
+      if (progress <= 1 && progress >= 0) {
+        setProgress(progress)
+        setUploadRate((prev) => ({ ...rate }))
+      }
+    }
+  }
+
   // Function to handle the drop event
   const dropHandler = (event) => {
     event.preventDefault()
@@ -51,7 +63,7 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
 
     if (!selectedFile) return;
 
-    const chunkSize = 90 * 1024 * 1024; // 90MB chunk size
+    const chunkSize = 25 * 1024 * 1024; // 90MB chunk size
 
     async function upload() {
       const formData = new FormData()
@@ -100,26 +112,10 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
           formData.append('totalChunks', totalChunks);
           formData.append('checkSum', checksum);
 
-          // const onChunkProgress = (event) => {
-          //   if (event.lengthComputable) {
-          //     const chunkProgress = event.loaded / event.total;
-          //     const overallProgress = ((chunkIndex + chunkProgress) / totalChunks) * 100;
-          //     setProgress(overallProgress);
-          //     uploadProgress && uploadProgress(event);
-          //   }
-          // };
-
-          //   if (publicUpload) {
-          //     await VideoService.publicUploadChunked(formData, onChunkProgress);
-          //   } else if (!publicUpload && authenticated) {
-          //     await VideoService.uploadChunked(formData, onChunkProgress);
-          //   }
-          // }
-
           if (publicUpload) {
             await VideoService.publicUploadChunked(formData, uploadProgress);
           } else if (!publicUpload && authenticated) {
-            await VideoService.uploadChunked(formData, uploadProgress, selectedFile.size, start);
+            await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start);
           }
         }
 

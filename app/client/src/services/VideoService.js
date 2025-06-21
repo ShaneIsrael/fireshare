@@ -83,13 +83,14 @@ const service = {
   },
   uploadChunked(formData, uploadProgress, totalSize, alreadyUploaded) {
     return Api().post('/api/uploadChunked', formData, {
-      timeout: 999999999,
+      timeout: 600000,
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress: (progressEvent) => {
-        const progress = (progressEvent.loaded + alreadyUploaded) / totalSize
-        uploadProgress(progress, {
+        const progressTotal = (progressEvent.loaded + alreadyUploaded) / totalSize
+        const progress = (progressEvent.loaded) / progressEvent.total
+        uploadProgress(progress, progressTotal, {
           loaded: (progressEvent.loaded + alreadyUploaded) / Math.pow(10, 6),
           total: totalSize / Math.pow(10, 6),
         })
@@ -98,7 +99,7 @@ const service = {
   },
   publicUploadChunked(formData, uploadProgress) {
     return Api().post('/api/upload/publicChunked', formData, {
-      timeout: 999999999,
+      timeout: 600000,
       headers: {
         'Content-Type': 'multipart/form-data',
       },
