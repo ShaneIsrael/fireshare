@@ -10,6 +10,7 @@ from flask_login import current_user, login_required
 from flask_cors import CORS
 from sqlalchemy.sql import text
 from pathlib import Path
+import time
 
 
 from . import db
@@ -269,6 +270,58 @@ def public_upload_video():
     Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
     return Response(status=201)
 
+@api.route('/api/uploadChunked/public', methods=['POST'])
+def public_upload_videoChunked():
+    paths = current_app.config['PATHS']
+    with open(paths['data'] / 'config.json', 'r') as configfile:
+        try:
+            config = json.load(configfile)
+        except:
+            logging.error("Invalid or corrupt config file")
+            return Response(status=400)
+        configfile.close()
+        
+    if not config['app_config']['allow_public_upload']:
+        logging.warn("A public upload attempt was made but public uploading is disabled")
+        return Response(status=401)
+    
+    upload_folder = config['app_config']['public_upload_folder_name']
+
+    required_files = ['blob']
+    required_form_fields = ['chunkPart', 'totalChunks', 'checkSum']
+    if not all(key in request.files for key in required_files) or not all(key in request.form for key in required_form_fields):
+        return Response(status=400)   
+    blob = request.files.get('blob')
+    chunkPart = int(request.form.get('chunkPart'))
+    totalChunks = int(request.form.get('totalChunks'))
+    checkSum = request.form.get('checkSum')
+    if not blob.filename or blob.filename.strip() == '' or blob.filename == 'blob':
+        return Response(status=400)
+    filename = blob.filename
+    filetype = blob.filename.split('.')[-1] # TODO, probe filetype with fmpeg instead and remux to supporrted
+    if not filetype in SUPPORTED_FILE_TYPES:
+        return Response(status=400)
+     
+    upload_directory = paths['video'] / upload_folder
+    if not os.path.exists(upload_directory):
+        os.makedirs(upload_directory) 
+    tempPath = os.path.join(upload_directory, f"{checkSum}.{filetype}")
+    with open(tempPath, 'ab') as f:
+        f.write(blob.read())
+    if chunkPart < totalChunks:
+        return Response(status=202)
+    
+    save_path = os.path.join(upload_directory, filename)
+
+    if (os.path.exists(save_path)):
+        name_no_type = ".".join(filename.split('.')[0:-1])
+        uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+        save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
+    
+    os.rename(tempPath, save_path)
+    Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
+    return Response(status=201)
+
 @api.route('/api/upload', methods=['POST'])
 @login_required
 def upload_video():
@@ -300,6 +353,58 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
+    Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
+    return Response(status=201)
+
+@api.route('/api/uploadChunked', methods=['POST'])
+@login_required
+def upload_videoChunked():
+    paths = current_app.config['PATHS']
+    with open(paths['data'] / 'config.json', 'r') as configfile:
+        try:
+            config = json.load(configfile)
+        except:
+            return Response(status=500, response="Invalid or corrupt config file")
+        configfile.close()
+    
+    upload_folder = config['app_config']['admin_upload_folder_name']
+
+    required_files = ['blob']
+    required_form_fields = ['chunkPart', 'totalChunks', 'checkSum']
+
+    if not all(key in request.files for key in required_files) or not all(key in request.form for key in required_form_fields):
+        return Response(status=400)
+    blob = request.files.get('blob')
+    chunkPart = int(request.form.get('chunkPart'))
+    totalChunks = int(request.form.get('totalChunks'))
+    checkSum = request.form.get('checkSum')
+    if not blob.filename or blob.filename.strip() == '' or blob.filename == 'blob':
+        return Response(status=400)
+    
+    filename = blob.filename
+    filetype = blob.filename.split('.')[-1] # TODO, probe filetype with fmpeg instead and remux
+    if not filetype in SUPPORTED_FILE_TYPES:
+        return Response(status=400)
+    
+    upload_directory = paths['video'] / upload_folder
+    if not os.path.exists(upload_directory):
+        os.makedirs(upload_directory)
+    
+    tempPath = os.path.join(upload_directory, f"{checkSum}.{filetype}")
+    with open(tempPath, 'ab') as f:
+        f.write(blob.read())
+
+    if chunkPart < totalChunks:
+        return Response(status=202)
+
+    save_path = os.path.join(upload_directory, filename)
+
+    if (os.path.exists(save_path)):
+        name_no_type = ".".join(filename.split('.')[0:-1])
+        uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+        save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
+
+    os.rename(tempPath, save_path)
     Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
     return Response(status=201)
 
