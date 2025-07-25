@@ -99,6 +99,18 @@ def manual_scan():
 @login_required
 def get_videos():
     sort = request.args.get('sort')
+    # Check that the sort parameter is one of the allowed values 
+    allowed_sorts = [
+        'updated_at desc',
+        'updated_at asc',
+        'video_info.title desc',
+        'video_info.title asc',
+        'views desc',
+        'views asc'
+    ]
+    if sort not in allowed_sorts:
+        return jsonify({"error": "Invalid sort parameter"}), 400      
+
     if "views" in sort:
         videos = Video.query.join(VideoInfo).all()
     else:
@@ -135,6 +147,19 @@ def get_random_public_video():
 @api.route('/api/videos/public')
 def get_public_videos():
     sort = request.args.get('sort')
+
+    # Check that the sort parameter is one of the allowed values 
+    allowed_sorts = [
+        'updated_at desc',
+        'updated_at asc',
+        'video_info.title desc',
+        'video_info.title asc',
+        'views desc',
+        'views asc'
+    ]
+    if sort not in allowed_sorts:
+        return jsonify({"error": "Invalid sort parameter"}), 400        
+
     if "views" in sort:
         videos = Video.query.join(VideoInfo).filter_by(private=False)
     else:
