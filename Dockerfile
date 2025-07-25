@@ -9,7 +9,7 @@ RUN npm install react-scripts@5.0.1 -g --silent && npm cache clean --force;
 COPY app/client/ ./
 RUN npm run build
 
-FROM python:3.9-slim-buster
+FROM python:3.9.23-slim-bullseye
 WORKDIR /
 RUN apt-get update && apt-get install --no-install-recommends -y \
     nginx nginx-extras supervisor build-essential gcc \
