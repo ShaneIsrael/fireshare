@@ -66,11 +66,14 @@ def add_user(username, password):
 def scan_videos(root):
     with create_app().app_context():
         paths = current_app.config['PATHS']
+        domain = current_app.config['DOMAIN']
         videos_path = paths["video"]
         video_links = paths["processed"] / "video_links"
-        
+
         config_file = open(paths["data"] / "config.json")
-        video_config = json.load(config_file)["app_config"]["video_defaults"]
+        config = json.load(config_file)
+        video_config = config["app_config"]["video_defaults"]
+        discord_webhook_url = config["integrations"]["discord_webhook_url"]
         config_file.close()
         
         if not video_links.is_dir():
@@ -130,6 +133,11 @@ def scan_videos(root):
             info = VideoInfo(video_id=nv.video_id, title=Path(nv.path).stem, private=video_config["private"])
             db.session.add(info)
         db.session.commit()
+        if discord_webhook_url:
+            for nv in new_videos:
+                logger.info(f"Posting to Discord webhook")
+                video_url = get_public_watch_url(nv.video_id, config, domain)
+                send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
 
         existing_videos = Video.query.filter_by(available=True).all()
         logger.info(f"Verifying {len(existing_videos):,} video files still exist...")
