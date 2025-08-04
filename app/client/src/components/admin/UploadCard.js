@@ -141,13 +141,6 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
 
 
     if (selectedFile.size > chunkSize) {
-      // TODO: remove
-      handleAlert({
-        type: 'info',
-        message: 'Video will be uploaded in chunks.',
-        autohideDuration: 3500,
-        open: true,
-      });
       uploadChunked()
     }
     else {
