@@ -190,18 +190,25 @@ def delete_video(id):
         VideoInfo.query.filter_by(video_id=id).delete()
         Video.query.filter_by(video_id=id).delete()
         db.session.commit()
-        file_path = f"{current_app.config['VIDEO_DIRECTORY']}/{video.path}"
-        link_path = f"{current_app.config['PROCESSED_DIRECTORY']}/video_links/{id}.{video.extension}"
-        derived_path = f"{current_app.config['PROCESSED_DIRECTORY']}/derived/{id}"
+        
+        # Use the PATHS config for consistent path handling
+        paths = current_app.config['PATHS']
+        file_path = paths['video'] / video.path
+        link_path = paths['processed'] / 'video_links' / f"{id}.{video.extension}"
+        derived_path = paths['processed'] / 'derived' / id
+        
         try:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            if os.path.exists(link_path):
-                os.remove(link_path)
-            if os.path.exists(derived_path):
+            if file_path.exists():
+                file_path.unlink()
+                logging.info(f"Deleted video file: {file_path}")
+            if link_path.exists():
+                link_path.unlink()
+                logging.info(f"Deleted link file: {link_path}")
+            if derived_path.exists():
                 shutil.rmtree(derived_path)
+                logging.info(f"Deleted derived directory: {derived_path}")
         except OSError as e:
-            logging.error(f"Error deleting: {e.strerror}")
+            logging.error(f"Error deleting files for video {id}: {e}")
         return Response(status=200)
         
     else:
