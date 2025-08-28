@@ -52,7 +52,7 @@ def get_media_info(path):
 
 def create_poster(video_path, out_path, second=0):
     s = time.time()
-    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', str(out_path)]
+    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', '-vf', 'scale=iw:ih:force_original_aspect_ratio=decrease', str(out_path)]
     logger.debug(f"$ {' '.join(cmd)}")
     sp.call(cmd)
     e = time.time()

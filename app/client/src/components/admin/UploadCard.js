@@ -114,6 +114,10 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
           formData.append('chunkPart', chunkIndex + 1);
           formData.append('totalChunks', totalChunks);
           formData.append('checkSum', checksum);
+          formData.append('fileName', selectedFile.name);
+          formData.append('fileSize', selectedFile.size.toString());
+          formData.append('lastModified', selectedFile.lastModified.toString());
+          formData.append('fileType', selectedFile.type);
 
           if (publicUpload) {
             await VideoService.publicUploadChunked(formData, uploadProgressChunked, selectedFile.size, start);
@@ -141,7 +145,6 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
       setUploadRate(null);
       setIsSelected(false);
     }
-
 
     if (selectedFile.size > chunkSize) {
       uploadChunked()
