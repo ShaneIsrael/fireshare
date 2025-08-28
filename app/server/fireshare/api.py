@@ -201,7 +201,6 @@ def delete_video(id):
             if file_path.exists():
                 file_path.unlink()
                 logging.info(f"Deleted video file: {file_path}")
-            # Handle symlinks - check if it's a symlink or regular file
             if link_path.exists() or link_path.is_symlink():
                 link_path.unlink()
                 logging.info(f"Deleted link file: {link_path}")
@@ -210,7 +209,6 @@ def delete_video(id):
                 logging.info(f"Deleted derived directory: {derived_path}")
         except OSError as e:
             logging.error(f"Error deleting files for video {id}: {e}")
-            # Log the exact paths being attempted for debugging
             logging.error(f"Attempted to delete: file={file_path}, link={link_path}, derived={derived_path}")
         return Response(status=200)
         
