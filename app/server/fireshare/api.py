@@ -187,15 +187,15 @@ def delete_video(id):
     video = Video.query.filter_by(video_id=id).first()
     if video:
         logging.info(f"Deleting video: {video.video_id}")
+        
+        paths = current_app.config['PATHS']
+        file_path = paths['video'] / video.path
+        link_path = paths['processed'] / 'video_links' / f"{id}{video.extension}"
+        derived_path = paths['processed'] / 'derived' / id
+        
         VideoInfo.query.filter_by(video_id=id).delete()
         Video.query.filter_by(video_id=id).delete()
         db.session.commit()
-        
-        # Use the PATHS config for consistent path handling
-        paths = current_app.config['PATHS']
-        file_path = paths['video'] / video.path
-        link_path = paths['processed'] / 'video_links' / f"{id}.{video.extension}"
-        derived_path = paths['processed'] / 'derived' / id
         
         try:
             if file_path.exists():
