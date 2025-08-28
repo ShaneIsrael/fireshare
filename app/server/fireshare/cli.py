@@ -11,6 +11,7 @@ from pathlib import Path
 from sqlalchemy import func
 import time
 import requests
+import re
 
 from .constants import SUPPORTED_FILE_EXTENSIONS
 
@@ -80,7 +81,11 @@ def scan_videos(root):
             video_links.mkdir()
 
         logger.info(f"Scanning {str(videos_path)} for {', '.join(SUPPORTED_FILE_EXTENSIONS)} video files")
-        video_files = [f for f in (videos_path / root if root else videos_path).glob('**/*') if f.is_file() and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS]
+        CHUNK_FILE_PATTERN = re.compile(r'\.part\d{4}$')
+        video_files = [f for f in (videos_path / root if root else videos_path).glob('**/*') 
+                      if f.is_file() 
+                      and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS 
+                      and not CHUNK_FILE_PATTERN.search(f.name)]
         video_rows = Video.query.all()
 
         new_videos = []
@@ -174,7 +179,10 @@ def scan_video(ctx, path):
         if not video_links.is_dir():
             video_links.mkdir()
         
-        video_file = (videos_path / path) if (videos_path / path).is_file() and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS else None
+        CHUNK_FILE_PATTERN = re.compile(r'\.part\d{4}$')
+        video_file = ((videos_path / path) if (videos_path / path).is_file() 
+                     and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS 
+                     and not CHUNK_FILE_PATTERN.search((videos_path / path).name) else None)
         if video_file:
             video_rows = Video.query.all()
             logger.info(f"Scanning {str(video_file)}")
