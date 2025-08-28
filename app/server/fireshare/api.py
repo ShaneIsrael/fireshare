@@ -402,19 +402,22 @@ def upload_videoChunked():
     upload_folder = config['app_config']['admin_upload_folder_name']
 
     required_files = ['blob']
-    required_form_fields = ['chunkPart', 'totalChunks', 'checkSum']
+    required_form_fields = ['chunkPart', 'totalChunks', 'checkSum', 'fileName', 'fileSize']
 
     if not all(key in request.files for key in required_files) or not all(key in request.form for key in required_form_fields):
         return Response(status=400)
+        
     blob = request.files.get('blob')
     chunkPart = int(request.form.get('chunkPart'))
     totalChunks = int(request.form.get('totalChunks'))
     checkSum = request.form.get('checkSum')
-    if not blob.filename or blob.filename.strip() == '' or blob.filename == 'blob':
+    fileName = request.form.get('fileName')
+    fileSize = int(request.form.get('fileSize'))
+    
+    if not fileName or fileName.strip() == '':
         return Response(status=400)
     
-    filename = blob.filename
-    filetype = blob.filename.split('.')[-1] # TODO, probe filetype with fmpeg instead and remux
+    filetype = fileName.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
     
@@ -422,21 +425,56 @@ def upload_videoChunked():
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
     
-    tempPath = os.path.join(upload_directory, f"{checkSum}.{filetype}")
-    with open(tempPath, 'ab') as f:
+    # Store chunks with part number to ensure proper ordering
+    tempPath = os.path.join(upload_directory, f"{checkSum}.part{chunkPart:04d}")
+    
+    # Write this specific chunk
+    with open(tempPath, 'wb') as f:
         f.write(blob.read())
 
-    if chunkPart < totalChunks:
+    # Check if we have all chunks
+    chunk_files = []
+    for i in range(1, totalChunks + 1):
+        chunk_path = os.path.join(upload_directory, f"{checkSum}.part{i:04d}")
+        if os.path.exists(chunk_path):
+            chunk_files.append(chunk_path)
+    
+    # If we don't have all chunks yet, return 202
+    if len(chunk_files) != totalChunks:
         return Response(status=202)
 
-    save_path = os.path.join(upload_directory, filename)
-
-    if (os.path.exists(save_path)):
-        name_no_type = ".".join(filename.split('.')[0:-1])
+    # All chunks received, reassemble the file
+    save_path = os.path.join(upload_directory, fileName)
+    
+    if os.path.exists(save_path):
+        name_no_type = ".".join(fileName.split('.')[0:-1])
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
-        save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
+        save_path = os.path.join(upload_directory, f"{name_no_type}-{uid}.{filetype}")
 
-    os.rename(tempPath, save_path)
+    # Reassemble chunks in correct order
+    try:
+        with open(save_path, 'wb') as output_file:
+            for i in range(1, totalChunks + 1):
+                chunk_path = os.path.join(upload_directory, f"{checkSum}.part{i:04d}")
+                with open(chunk_path, 'rb') as chunk_file:
+                    output_file.write(chunk_file.read())
+                # Clean up chunk file
+                os.remove(chunk_path)
+        
+        # Verify file size
+        if os.path.getsize(save_path) != fileSize:
+            os.remove(save_path)
+            return Response(status=500, response="File size mismatch after reassembly")
+            
+    except Exception as e:
+        # Clean up on error
+        for chunk_path in chunk_files:
+            if os.path.exists(chunk_path):
+                os.remove(chunk_path)
+        if os.path.exists(save_path):
+            os.remove(save_path)
+        return Response(status=500, response="Error reassembling file")
+
     Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
     return Response(status=201)
 
