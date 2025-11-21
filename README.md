@@ -266,6 +266,46 @@ To use GPU acceleration, you need to:
 
 4. Update your docker-compose.yml with GPU configuration (see example above)
 
+**Unraid GPU Setup:**
+
+For Unraid users who want to pass their NVIDIA GPU to the Fireshare container:
+
+1. **Install NVIDIA Driver Plugin:**
+   - In Unraid, go to Apps/Community Applications
+   - Search for "NVIDIA Driver" and install the plugin
+   - The plugin will automatically install NVIDIA drivers on boot
+
+2. **Configure Fireshare Container in Unraid:**
+   - Edit the Fireshare container in Unraid's Docker tab
+   - Add the following environment variables:
+     ```
+     ENABLE_TRANSCODING=true
+     TRANSCODE_GPU=true
+     ```
+   
+3. **Enable GPU Passthrough:**
+   - In the container settings, scroll to "Extra Parameters"
+   - Add: `--runtime=nvidia`
+   - Alternatively, you can use the newer syntax in "Extra Parameters":
+     ```
+     --gpus=all
+     ```
+
+4. **Verify GPU Access:**
+   - Once the container is running, open the container console
+   - Run: `nvidia-smi`
+   - You should see your GPU listed with driver information
+
+5. **Advanced Configuration (Optional):**
+   - If you want to limit to specific GPUs, use:
+     ```
+     --gpus='"device=0"'
+     ```
+   - For multiple specific GPUs:
+     ```
+     --gpus='"device=0,1"'
+     ```
+
 **Notes:**
 - Transcoding only creates quality variants for videos larger than the target resolution
 - Original files are always preserved
