@@ -310,9 +310,14 @@ To use GPU acceleration, you need to:
    sudo systemctl restart docker
    ```
 
-3. Verify GPU is available:
+3. Verify GPU is available on host:
    ```bash
    docker run --rm --runtime=nvidia --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+   ```
+   
+   **Note:** The Fireshare container doesn't include `nvidia-smi`. To verify GPU access in Fireshare, use:
+   ```bash
+   docker exec -it fireshare ffmpeg -encoders 2>/dev/null | grep nvenc
    ```
 
 4. Update your docker-compose.yml with GPU configuration (see example above)
@@ -336,16 +341,38 @@ For Unraid users who want to pass their NVIDIA GPU to the Fireshare container:
    
 3. **Enable GPU Passthrough:**
    - In the container settings, scroll to "Extra Parameters"
-   - Add: `--runtime=nvidia`
-   - Alternatively, you can use the newer syntax in "Extra Parameters":
-     ```
-     --gpus=all
-     ```
+   - Add: `--gpus=all`
+   - **Important:** Use `--gpus=all` instead of `--runtime=nvidia` for Unraid
 
 4. **Verify GPU Access:**
-   - Once the container is running, open the container console
-   - Run: `nvidia-smi`
-   - You should see your GPU listed with driver information
+   
+   The Fireshare container doesn't include `nvidia-smi`, but you can verify GPU access in these ways:
+   
+   **Method 1: Check FFmpeg GPU encoders (Recommended)**
+   ```bash
+   docker exec -it fireshare ffmpeg -encoders 2>/dev/null | grep nvenc
+   ```
+   You should see output like:
+   ```
+   V..... h264_nvenc           NVIDIA NVENC H.264 encoder
+   V..... hevc_nvenc           NVIDIA NVENC hevc encoder
+   V..... av1_nvenc            NVIDIA NVENC AV1 encoder
+   ```
+   
+   **Method 2: Test transcoding with GPU**
+   - Enable transcoding with `TRANSCODE_GPU=true`
+   - Check the logs while a video is transcoding:
+     ```bash
+     docker logs -f fireshare
+     ```
+   - Look for log messages indicating GPU encoding (e.g., "Using GPU acceleration")
+   
+   **Method 3: Verify from Unraid host**
+   - While transcoding is running, check GPU usage on the Unraid host:
+     ```bash
+     nvidia-smi
+     ```
+   - You should see FFmpeg processes using the GPU
 
 5. **Advanced Configuration (Optional):**
    - If you want to limit to specific GPUs, use:
