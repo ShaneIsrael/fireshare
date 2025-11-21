@@ -89,6 +89,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     python3.9 python3-pip python3-dev \
     libldap2-dev libsasl2-dev libssl-dev \
     libffi-dev libc-dev \
+    build-essential \
     wget curl ca-certificates \
     libx264-163 libx265-199 libvpx7 libaom3 \
     libopus0 libvorbis0a libvorbisenc2 \
