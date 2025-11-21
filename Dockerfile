@@ -9,33 +9,85 @@ RUN npm install react-scripts@5.0.1 -g --silent && npm cache clean --force;
 COPY app/client/ ./
 RUN npm run build
 
-FROM python:3.9.23-slim-bullseye
-WORKDIR /
+# Use NVIDIA CUDA base image for FFmpeg with NVENC support
+FROM nvidia/cuda:11.8.0-base-ubuntu22.04 as ffmpeg-builder
+WORKDIR /tmp
 
-# Install base dependencies
-RUN apt-get update && apt-get install --no-install-recommends -y \
-    nginx nginx-extras supervisor build-essential gcc g++ \
-    libc-dev libffi-dev python3-pip python-dev \
-    libldap2-dev libsasl2-dev libssl-dev \
-    wget curl xz-utils ca-certificates gnupg \
-    pkg-config yasm nasm git autoconf automake libtool \
+# Install build dependencies and Python
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential pkg-config yasm nasm git wget xz-utils ca-certificates \
+    libx264-dev libx265-dev libvpx-dev libaom-dev \
+    libopus-dev libvorbis-dev libass-dev libfreetype6-dev libmp3lame-dev \
+    python3.9 python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
-# Download and install FFmpeg static build with NVENC support
-# Using John Van Sickle's static builds which include NVENC, libaom-av1, libvpx, etc.
-RUN cd /tmp && \
-    wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
-    tar -xf ffmpeg-release-amd64-static.tar.xz && \
-    cd ffmpeg-*-amd64-static && \
-    cp ffmpeg ffprobe /usr/local/bin/ && \
-    chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe && \
-    ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
+# Install NVIDIA codec headers
+RUN git clone --depth 1 https://git.videolan.org/git/ffmpeg/nv-codec-headers.git && \
+    cd nv-codec-headers && \
+    make install && \
+    cd .. && \
+    rm -rf nv-codec-headers
+
+# Download and build FFmpeg with NVENC
+RUN wget -q https://ffmpeg.org/releases/ffmpeg-6.1.tar.xz && \
+    tar -xf ffmpeg-6.1.tar.xz && \
+    cd ffmpeg-6.1 && \
+    ./configure \
+        --prefix=/usr/local \
+        --enable-gpl \
+        --enable-version3 \
+        --enable-nonfree \
+        --enable-cuda-nvcc \
+        --enable-cuvid \
+        --enable-nvenc \
+        --enable-libnpp \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libvpx \
+        --enable-libaom \
+        --enable-libopus \
+        --enable-libvorbis \
+        --enable-libmp3lame \
+        --enable-libass \
+        --enable-libfreetype \
+        --extra-cflags="-I/usr/local/cuda/include" \
+        --extra-ldflags="-L/usr/local/cuda/lib64" \
+        --disable-debug \
+        --disable-doc && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+
+# Main application stage
+FROM nvidia/cuda:11.8.0-base-ubuntu22.04
+WORKDIR /
+
+# Copy FFmpeg from builder
+COPY --from=ffmpeg-builder /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg-builder /usr/local/bin/ffprobe /usr/local/bin/ffprobe
+COPY --from=ffmpeg-builder /usr/local/lib/lib* /usr/local/lib/
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install --no-install-recommends -y \
+    nginx supervisor \
+    python3.9 python3-pip python3-dev \
+    libldap2-dev libsasl2-dev libssl-dev \
+    libffi-dev libc-dev \
+    wget curl ca-certificates \
+    libx264-163 libx265-199 libvpx7 libaom3 \
+    libopus0 libvorbis0a libvorbisenc2 \
+    libass9 libfreetype6 libmp3lame0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symlinks and configure library path
+RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
     ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe && \
-    cd / && \
-    rm -rf /tmp/ffmpeg-* && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
+    echo "/usr/local/cuda/lib64" >> /etc/ld.so.conf.d/usr-local.conf && \
+    ldconfig && \
     ffmpeg -version && \
     echo "Available encoders:" && \
-    ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|libaom|libvpx|libx264)" || echo "Some encoders may not be listed"
+    ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|libaom|libvpx|libx264)" || true
 
 RUN adduser --disabled-password --gecos '' nginx
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
