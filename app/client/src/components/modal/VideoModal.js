@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField, Select, MenuItem, FormControl } from '@mui/material'
+import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField, Select, MenuItem } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
@@ -317,34 +317,35 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   </Button>
                 </ButtonGroup>
                 {availableQualities().length > 1 && (
-                  <FormControl size="small" sx={{ ml: 1, minWidth: 100 }}>
-                    <Select
-                      value={quality}
-                      onChange={(e) => handleQualityChange(e.target.value)}
-                      sx={{
+                  <Select
+                    size="small"
+                    value={quality}
+                    onChange={(e) => handleQualityChange(e.target.value)}
+                    sx={{
+                      ml: 1,
+                      minWidth: 100,
+                      color: 'white',
+                      background: 'rgba(50, 50, 50, 0.9)',
+                      '.MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'primary.main',
+                      },
+                      '.MuiSvgIcon-root': {
                         color: 'white',
-                        background: 'rgba(50, 50, 50, 0.9)',
-                        '.MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(255, 255, 255, 0.23)',
-                        },
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'rgba(255, 255, 255, 0.4)',
-                        },
-                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'primary.main',
-                        },
-                        '.MuiSvgIcon-root': {
-                          color: 'white',
-                        },
-                      }}
-                    >
-                      {availableQualities().map((q) => (
-                        <MenuItem key={q.value} value={q.value}>
-                          {q.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                      },
+                    }}
+                  >
+                    {availableQualities().map((q) => (
+                      <MenuItem key={q.value} value={q.value}>
+                        {q.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
                 )}
                 {(authenticated || description) && (
                   <Paper sx={{ mt: 1, background: 'rgba(50, 50, 50, 0.9)' }}>

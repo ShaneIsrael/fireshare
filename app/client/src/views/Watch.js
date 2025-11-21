@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import ReactPlayer from 'react-player'
 import { useLocation, useParams } from 'react-router-dom'
-import { Button, ButtonGroup, Grid, Paper, Typography, Box, Select, MenuItem, FormControl } from '@mui/material'
+import { Button, ButtonGroup, Grid, Paper, Typography, Box, Select, MenuItem } from '@mui/material'
 import { Helmet } from 'react-helmet'
 import CopyToClipboard from 'react-copy-to-clipboard'
 import LinkIcon from '@mui/icons-material/Link'
@@ -205,33 +205,34 @@ const Watch = ({ authenticated }) => {
         </Button>
       </ButtonGroup>
       {availableQualities().length > 1 && (
-        <FormControl size="small" sx={{ ml: 1, minWidth: 100 }}>
-          <Select
-            value={quality}
-            onChange={(e) => handleQualityChange(e.target.value)}
-            sx={{
+        <Select
+          size="small"
+          value={quality}
+          onChange={(e) => handleQualityChange(e.target.value)}
+          sx={{
+            ml: 1,
+            minWidth: 100,
+            color: 'white',
+            '.MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(255, 255, 255, 0.23)',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(255, 255, 255, 0.4)',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'primary.main',
+            },
+            '.MuiSvgIcon-root': {
               color: 'white',
-              '.MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255, 255, 255, 0.23)',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'rgba(255, 255, 255, 0.4)',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
-              },
-              '.MuiSvgIcon-root': {
-                color: 'white',
-              },
-            }}
-          >
-            {availableQualities().map((q) => (
-              <MenuItem key={q.value} value={q.value}>
-                {q.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            },
+          }}
+        >
+          {availableQualities().map((q) => (
+            <MenuItem key={q.value} value={q.value}>
+              {q.label}
+            </MenuItem>
+          ))}
+        </Select>
       )}
     </>
   )
