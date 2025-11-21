@@ -257,15 +257,51 @@ docker exec -it fireshare fireshare transcode-videos --regenerate
 
 **Workflow for Upgrading Existing Installations:**
 
-1. **Enable transcoding** by adding environment variables:
+1. **Pull the latest image** (if using Docker):
+   ```bash
+   docker pull shaneisrael/fireshare:latest
+   ```
+   
+   Or if using docker-compose:
+   ```bash
+   docker-compose pull
+   ```
+
+2. **Stop and remove the old container**:
+   ```bash
+   docker stop fireshare && docker rm fireshare
+   ```
+   
+   Or with docker-compose:
+   ```bash
+   docker-compose down
+   ```
+
+3. **Enable transcoding** by adding environment variables to your docker-compose.yml or docker run command:
    ```yaml
    ENABLE_TRANSCODING=true
    TRANSCODE_GPU=true  # Optional, for GPU acceleration
    ```
 
-2. **Restart the container** to apply the new configuration
+4. **Start the container** - Database migrations will run automatically:
+   ```bash
+   docker-compose up -d
+   ```
+   
+   Or with docker run:
+   ```bash
+   docker run --name fireshare -v $(pwd)/fireshare:/data:rw -v $(pwd)/fireshare_processed:/processed:rw -v /path/to/videos:/videos:rw -p 8080:80 -e ADMIN_PASSWORD=your-password -e ENABLE_TRANSCODING=true -d shaneisrael/fireshare:latest
+   ```
+   
+   **Note:** The database migration to add transcoding columns runs automatically on container startup via `flask db upgrade` in the entrypoint.
 
-3. **Transcode existing videos** using one of these approaches:
+5. **Verify the migration ran successfully**:
+   ```bash
+   docker logs fireshare | grep "Running upgrade"
+   ```
+   You should see: `INFO  [alembic.runtime.migration] Running upgrade a4503f708aee -> b7e8541487dc, add transcoding support`
+
+6. **Transcode existing videos** using one of these approaches:
 
    **Option A: Transcode everything at once (recommended for small libraries)**
    ```bash
