@@ -67,6 +67,107 @@ def transcode_video(video_path, out_path):
     e = time.time()
     logger.info(f'Transcoded {str(out_path)} in {e-s}s')
 
+def transcode_video_quality(video_path, out_path, height, use_gpu=False):
+    """
+    Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
+    
+    Fallback chain when GPU is enabled:
+    1. AV1 with GPU (av1_nvenc) - RTX 40 series or newer
+    2. H.264 with GPU (h264_nvenc) - GTX 1050+ / Pascal or newer
+    3. AV1 with CPU (libaom-av1) - Excellent compression
+    4. H.264 with CPU (libx264) - Universal fallback
+    
+    Args:
+        video_path: Path to the source video
+        out_path: Path for the transcoded output
+        height: Target height in pixels (e.g., 720, 1080)
+        use_gpu: Whether to use GPU acceleration (NVENC if available)
+    """
+    s = time.time()
+    
+    # Determine output container based on codec
+    out_path_str = str(out_path)
+    
+    # Build ffmpeg command
+    # Use 'error' level to see actual errors while keeping output clean
+    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
+    
+    # Add GPU acceleration if enabled
+    if use_gpu:
+        # Try AV1 NVENC first (requires RTX 40 series or newer)
+        logger.info(f"Transcoding video to {height}p using GPU AV1 (NVENC)")
+        cmd.extend(['-c:v', 'av1_nvenc', '-preset', 'p4', '-cq:v', '30'])
+        cmd.extend(['-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str])
+    else:
+        # Use libaom-av1 for CPU encoding with reasonable settings
+        logger.info(f"Transcoding video to {height}p using CPU AV1")
+        cmd.extend(['-c:v', 'libaom-av1', '-cpu-used', '4', '-crf', '30', '-b:v', '0'])
+        cmd.extend(['-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str])
+    
+    logger.debug(f"$: {' '.join(cmd)}")
+    
+    try:
+        result = sp.call(cmd)
+        if result != 0 and use_gpu:
+            # GPU AV1 NVENC failed - try H.264 NVENC (works on older GPUs)
+            logger.warning(f"GPU AV1 NVENC transcoding failed (likely requires RTX 40 series+)")
+            logger.info(f"Trying GPU H.264 NVENC (works on GTX 1050+/Pascal or newer)")
+            cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
+                   '-c:v', 'h264_nvenc', '-preset', 'p4', '-cq:v', '23',
+                   '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
+            logger.debug(f"$: {' '.join(cmd)}")
+            result = sp.call(cmd)
+            if result != 0:
+                # H.264 NVENC also failed, fall back to CPU AV1
+                logger.warning(f"GPU H.264 NVENC also failed, falling back to CPU AV1")
+                cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
+                       '-c:v', 'libaom-av1', '-cpu-used', '4', '-crf', '30', '-b:v', '0',
+                       '-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str]
+                logger.debug(f"$: {' '.join(cmd)}")
+                result = sp.call(cmd)
+                if result != 0:
+                    # AV1 CPU encoding failed, fallback to H.264 CPU as last resort
+                    logger.warning(f"CPU AV1 encoding failed, falling back to CPU H.264")
+                    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
+                           '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+                           '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
+                    logger.debug(f"$: {' '.join(cmd)}")
+                    sp.call(cmd)
+    except Exception as ex:
+        logger.error(f"Error transcoding video: {ex}")
+        if use_gpu:
+            # Try H.264 NVENC fallback on exception
+            logger.warning(f"GPU AV1 transcoding encountered error, trying GPU H.264 NVENC")
+            try:
+                cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
+                       '-c:v', 'h264_nvenc', '-preset', 'p4', '-cq:v', '23',
+                       '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
+                logger.debug(f"$: {' '.join(cmd)}")
+                result = sp.call(cmd)
+                if result != 0:
+                    # Try CPU AV1
+                    logger.warning(f"GPU H.264 NVENC failed, falling back to CPU AV1")
+                    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
+                           '-c:v', 'libaom-av1', '-cpu-used', '4', '-crf', '30', '-b:v', '0',
+                           '-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str]
+                    logger.debug(f"$: {' '.join(cmd)}")
+                    result = sp.call(cmd)
+                    if result != 0:
+                        # Final fallback to H.264 CPU
+                        logger.warning(f"CPU AV1 encoding failed, falling back to CPU H.264")
+                        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
+                               '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+                               '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
+                        logger.debug(f"$: {' '.join(cmd)}")
+                        sp.call(cmd)
+            except Exception:
+                raise
+        else:
+            raise
+    
+    e = time.time()
+    logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
+
 def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
     # https://stackoverflow.com/questions/65874316/trim-a-video-and-add-the-boomerang-effect-on-it-with-ffmpeg
     # https://ffmpeg.org/ffmpeg-filters.html#reverse

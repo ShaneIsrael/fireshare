@@ -1,7 +1,7 @@
 import React, { useRef } from 'react'
 import ReactPlayer from 'react-player'
 import { useLocation, useParams } from 'react-router-dom'
-import { Button, ButtonGroup, Grid, Paper, Typography, Box } from '@mui/material'
+import { Button, ButtonGroup, Grid, Paper, Typography, Box, Select, MenuItem } from '@mui/material'
 import { Helmet } from 'react-helmet'
 import CopyToClipboard from 'react-copy-to-clipboard'
 import LinkIcon from '@mui/icons-material/Link'
@@ -29,6 +29,7 @@ const Watch = ({ authenticated }) => {
   const [notFound, setNotFound] = React.useState(false)
   const [views, setViews] = React.useState()
   const [viewAdded, setViewAdded] = React.useState(false)
+  const [quality, setQuality] = React.useState('auto')
 
   const videoPlayerRef = useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
@@ -61,8 +62,24 @@ const Watch = ({ authenticated }) => {
     if (details == null) fetch()
   }, [details, id])
 
+  const getCurrentTime = () => {
+    // Helper to get current time from either native video element or ReactPlayer
+    if (videoPlayerRef.current) {
+      // Native video element (used when quality variants exist)
+      if (typeof videoPlayerRef.current.currentTime === 'number') {
+        return videoPlayerRef.current.currentTime
+      }
+      // ReactPlayer (used when no quality variants)
+      if (typeof videoPlayerRef.current.getCurrentTime === 'function') {
+        return videoPlayerRef.current.getCurrentTime()
+      }
+    }
+    return 0
+  }
+
   const copyTimestamp = () => {
-    copyToClipboard(`${PURL}${details?.video_id}?t=${videoPlayerRef.current?.getCurrentTime()}`)
+    const currentTime = getCurrentTime()
+    copyToClipboard(`${PURL}${details?.video_id}?t=${currentTime}`)
     setAlert({
       type: 'info',
       message: 'Time stamped link copied to clipboard',
@@ -72,75 +89,152 @@ const Watch = ({ authenticated }) => {
 
   const handleTimeUpdate = (e) => {
     if (!viewAdded) {
-      if (e.playedSeconds >= 10) {
+      const currentTime = e.playedSeconds || e.target?.currentTime || 0
+      if (currentTime >= 10) {
         setViewAdded(true)
         VideoService.addView(id).catch((err) => console.error(err))
       }
     }
   }
 
+  const getVideoUrl = () => {
+    if (SERVED_BY === 'nginx') {
+      const videoPath = getVideoPath(id, details?.extension || '.mp4')
+      // For nginx serving, we would need to serve transcoded files through nginx config
+      // For now, fallback to API serving when quality is selected
+      if (quality !== 'auto') {
+        return `${URL}/api/video?id=${id}&quality=${quality}`
+      }
+      return `${URL}/_content/video/${videoPath}`
+    } else {
+      const baseUrl = `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`
+      if (quality !== 'auto') {
+        return `${baseUrl}&quality=${quality}`
+      }
+      return baseUrl
+    }
+  }
+
+  const availableQualities = () => {
+    const qualities = [{ value: 'auto', label: 'Auto' }]
+    if (details?.info?.has_720p) {
+      qualities.push({ value: '720p', label: '720p' })
+    }
+    if (details?.info?.has_1080p) {
+      qualities.push({ value: '1080p', label: '1080p' })
+    }
+    return qualities
+  }
+
+  const handleQualityChange = (newQuality) => {
+    const currentTime = getCurrentTime()
+    setQuality(newQuality)
+    // Wait for the video element to be ready
+    setTimeout(() => {
+      if (videoPlayerRef.current) {
+        if (videoPlayerRef.current.seekTo) {
+          videoPlayerRef.current.seekTo(currentTime)
+        } else if (videoPlayerRef.current.currentTime !== undefined) {
+          videoPlayerRef.current.currentTime = currentTime
+        }
+      }
+    }, 100)
+  }
+
   if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
 
   const controls = () => (
-    <ButtonGroup variant="contained" sx={{ maxWidth: '100%' }}>
-      <CopyToClipboard text={`${PURL}${details?.video_id}`}>
-        <Button
-          onClick={() =>
-            setAlert({
-              type: 'info',
-              message: 'Link copied to clipboard',
-              open: true,
-            })
-          }
-        >
-          <LinkIcon />
+    <>
+      <ButtonGroup variant="contained" sx={{ maxWidth: '100%' }}>
+        <CopyToClipboard text={`${PURL}${details?.video_id}`}>
+          <Button
+            onClick={() =>
+              setAlert({
+                type: 'info',
+                message: 'Link copied to clipboard',
+                open: true,
+              })
+            }
+          >
+            <LinkIcon />
+          </Button>
+        </CopyToClipboard>
+        <Button onClick={copyTimestamp}>
+          <AccessTimeIcon />
         </Button>
-      </CopyToClipboard>
-      <Button onClick={copyTimestamp}>
-        <AccessTimeIcon />
-      </Button>
-      <Button
-        disabled
-        sx={{
-          '&.Mui-disabled': {
-            borderRight: 'none',
-            borderTop: 'none',
-          },
-        }}
-      >
-        <div
-          style={{
-            overflow: 'hidden',
-            color: '#2AA9F2',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
+        <Button
+          disabled
+          sx={{
+            '&.Mui-disabled': {
+              borderRight: 'none',
+              borderTop: 'none',
+            },
           }}
         >
-          {`${views} ${views === 1 ? 'View' : 'Views'}`}
-        </div>
-      </Button>
-      <Button
-        disabled
-        sx={{
-          '&.Mui-disabled': {
-            borderRight: 'none',
-            borderTop: 'none',
-          },
-        }}
-      >
-        <div
-          style={{
-            overflow: 'hidden',
+          <div
+            style={{
+              overflow: 'hidden',
+              color: '#2AA9F2',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {`${views} ${views === 1 ? 'View' : 'Views'}`}
+          </div>
+        </Button>
+        <Button
+          disabled
+          sx={{
+            '&.Mui-disabled': {
+              borderRight: 'none',
+              borderTop: 'none',
+            },
+          }}
+        >
+          <div
+            style={{
+              overflow: 'hidden',
+              color: 'white',
+              textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {details?.info?.title}
+          </div>
+        </Button>
+      </ButtonGroup>
+      {availableQualities().length > 1 && (
+        <Select
+          size="small"
+          value={quality}
+          onChange={(e) => handleQualityChange(e.target.value)}
+          sx={{
+            ml: 1,
+            minWidth: 100,
             color: 'white',
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
+            '.MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(255, 255, 255, 0.23)',
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(255, 255, 255, 0.4)',
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'primary.main',
+            },
+            '.MuiSvgIcon-root': {
+              color: 'white',
+            },
           }}
         >
-          {details?.info?.title}
-        </div>
-      </Button>
-    </ButtonGroup>
+          {availableQualities().map((q) => (
+            <MenuItem key={q.value} value={q.value}>
+              {q.label}
+            </MenuItem>
+          ))}
+        </Select>
+      )}
+    </>
   )
 
   return (
@@ -174,28 +268,46 @@ const Watch = ({ authenticated }) => {
       </Helmet>
       <Grid container>
         <Grid item xs={12}>
-          <ReactPlayer
-            ref={videoPlayerRef}
-            url={`${
-              SERVED_BY === 'nginx'
-                ? `${URL}/_content/video/${getVideoPath(id, details?.extension || '.mp4')}`
-                : `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`
-            }`}
-            width="100%"
-            height="auto"
-            playing
-            config={{
-              file: {
-                forcedAudio: true,
-                attributes: {
-                  onLoadedMetadata: () => videoPlayerRef.current.seekTo(time),
+          {availableQualities().length > 1 ? (
+            <video
+              ref={videoPlayerRef}
+              width="100%"
+              height="auto"
+              src={getVideoUrl()}
+              autoPlay
+              controls
+              onLoadedMetadata={() => {
+                if (time && videoPlayerRef.current) {
+                  videoPlayerRef.current.currentTime = time
+                }
+              }}
+              onTimeUpdate={handleTimeUpdate}
+              style={{ backgroundColor: '#000' }}
+            />
+          ) : (
+            <ReactPlayer
+              ref={videoPlayerRef}
+              url={`${
+                SERVED_BY === 'nginx'
+                  ? `${URL}/_content/video/${getVideoPath(id, details?.extension || '.mp4')}`
+                  : `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`
+              }`}
+              width="100%"
+              height="auto"
+              playing
+              config={{
+                file: {
+                  forcedAudio: true,
+                  attributes: {
+                    onLoadedMetadata: () => videoPlayerRef.current.seekTo(time),
+                  },
                 },
-              },
-            }}
-            controls
-            volume={0.5}
-            onProgress={handleTimeUpdate}
-          />
+              }}
+              controls
+              volume={0.5}
+              onProgress={handleTimeUpdate}
+            />
+          )}
         </Grid>
         <Grid item xs={12}>
           <Paper width="100%" square sx={{ p: 1, mt: '-6px', background: 'rgba(0, 0, 0, 0.1)' }}>

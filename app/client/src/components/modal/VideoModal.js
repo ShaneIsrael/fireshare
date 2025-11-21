@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField } from '@mui/material'
+import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField, Select, MenuItem } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
@@ -24,7 +24,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [vid, setVideo] = React.useState(null)
   const [viewAdded, setViewAdded] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
-  const [autoplay, setAutoplay] = useState(false);  
+  const [autoplay, setAutoplay] = useState(false);
+  const [quality, setQuality] = React.useState('auto')
 
 
   const playerRef = React.useRef()
@@ -163,6 +164,43 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     }
   }
 
+  const getVideoUrl = () => {
+    if (SERVED_BY === 'nginx') {
+      const videoPath = getVideoPath(vid.video_id, vid.extension)
+      if (quality !== 'auto') {
+        return `${URL}/api/video?id=${vid.video_id}&quality=${quality}`
+      }
+      return `${URL}/_content/video/${videoPath}`
+    } else {
+      const baseUrl = `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
+      if (quality !== 'auto') {
+        return `${baseUrl}&quality=${quality}`
+      }
+      return baseUrl
+    }
+  }
+
+  const availableQualities = () => {
+    const qualities = [{ value: 'auto', label: 'Auto' }]
+    if (vid?.info?.has_720p) {
+      qualities.push({ value: '720p', label: '720p' })
+    }
+    if (vid?.info?.has_1080p) {
+      qualities.push({ value: '1080p', label: '1080p' })
+    }
+    return qualities
+  }
+
+  const handleQualityChange = (newQuality) => {
+    const currentTime = playerRef.current?.currentTime || 0
+    setQuality(newQuality)
+    setTimeout(() => {
+      if (playerRef.current && playerRef.current.currentTime !== undefined) {
+        playerRef.current.currentTime = currentTime
+      }
+    }, 100)
+  }
+
   if (!vid) return null
 
   return (
@@ -196,14 +234,11 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             <Grid container justifyContent="center">
               <Grid item xs={12}>
                 <video
+                  key={quality}
                   ref={playerRef}
                   width="100%"
                   height="auto"
-                  src={`${
-                    SERVED_BY === 'nginx'
-                      ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
-                      : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
-                  }`}
+                  src={getVideoUrl()}
                   autoPlay={autoplay}  
                   disablePictureInPicture
                   controls
@@ -281,6 +316,37 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                     <AccessTimeIcon />
                   </Button>
                 </ButtonGroup>
+                {availableQualities().length > 1 && (
+                  <Select
+                    size="small"
+                    value={quality}
+                    onChange={(e) => handleQualityChange(e.target.value)}
+                    sx={{
+                      ml: 1,
+                      minWidth: 100,
+                      color: 'white',
+                      background: 'rgba(50, 50, 50, 0.9)',
+                      '.MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'primary.main',
+                      },
+                      '.MuiSvgIcon-root': {
+                        color: 'white',
+                      },
+                    }}
+                  >
+                    {availableQualities().map((q) => (
+                      <MenuItem key={q.value} value={q.value}>
+                        {q.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                )}
                 {(authenticated || description) && (
                   <Paper sx={{ mt: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
                     <TextField

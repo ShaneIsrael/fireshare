@@ -13,7 +13,7 @@ from pathlib import Path
 import time
 
 
-from . import db
+from . import db, logger
 from .models import Video, VideoInfo, VideoView
 from .constants import SUPPORTED_FILE_TYPES
 
@@ -22,11 +22,21 @@ api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
 
-def get_video_path(id, subid=None):
+def get_video_path(id, subid=None, quality=None):
     video = Video.query.filter_by(video_id=id).first()
     if not video:
         raise Exception(f"No video found for {id}")
     paths = current_app.config['PATHS']
+    
+    # Handle quality variants (720p, 1080p)
+    if quality and quality in ['720p', '1080p']:
+        # Check if the transcoded version exists
+        derived_path = paths["processed"] / "derived" / id / f"{id}-{quality}.mp4"
+        if derived_path.exists():
+            return str(derived_path)
+        # Fall back to original if quality doesn't exist
+        logger.warning(f"Requested quality {quality} for video {id} not found, falling back to original")
+    
     subid_suffix = f"-{subid}" if subid else ""
     ext = ".mp4" if subid else video.extension
     video_path = paths["processed"] / "video_links" / f"{id}{subid_suffix}{ext}"
@@ -483,7 +493,8 @@ def upload_videoChunked():
 def get_video():
     video_id = request.args.get('id')
     subid = request.args.get('subid')
-    video_path = get_video_path(video_id, subid)
+    quality = request.args.get('quality')  # Support quality parameter (720p, 1080p)
+    video_path = get_video_path(video_id, subid, quality)
     file_size = os.stat(video_path).st_size
     start = 0
     length = 10240
