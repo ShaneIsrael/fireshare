@@ -34,11 +34,17 @@ RUN cd /tmp && \
     wget -q https://ffmpeg.org/releases/ffmpeg-6.1.tar.xz && \
     tar -xf ffmpeg-6.1.tar.xz && \
     cd ffmpeg-6.1 && \
-    # Install codec dependencies
+    # Install codec dependencies (both dev and runtime)
     apt-get update && apt-get install -y --no-install-recommends \
-        libx264-dev libx265-dev libvpx-dev \
-        libaom-dev libopus-dev libvorbis-dev \
-        libass-dev libfreetype6-dev libmp3lame-dev && \
+        libx264-dev libx264-163 \
+        libx265-dev libx265-192 \
+        libvpx-dev libvpx7 \
+        libaom-dev libaom3 \
+        libopus-dev libopus0 \
+        libvorbis-dev libvorbis0a libvorbisenc2 \
+        libass-dev libass9 \
+        libfreetype6-dev libfreetype6 \
+        libmp3lame-dev libmp3lame0 && \
     # Configure FFmpeg with NVENC and codec support
     ./configure \
         --prefix=/usr/local \
@@ -66,19 +72,16 @@ RUN cd /tmp && \
     ldconfig && \
     cd / && \
     rm -rf /tmp/ffmpeg-* && \
-    # Remove only the -dev packages, keep runtime libraries
+    # Remove only the -dev packages, keep runtime libraries and build tools
     apt-get remove -y \
         libx264-dev libx265-dev libvpx-dev \
         libaom-dev libopus-dev libvorbis-dev \
         libass-dev libfreetype6-dev libmp3lame-dev \
         build-essential gcc g++ pkg-config yasm nasm git autoconf automake libtool && \
-    # Install runtime libraries
-    apt-get install -y --no-install-recommends \
-        libx264-163 libx265-192 libvpx7 \
-        libaom3 libopus0 libvorbis0a libvorbisenc2 \
-        libass9 libfreetype6 libmp3lame0 && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/* && \
+    # Update library cache again after cleanup
+    ldconfig && \
     # Verify FFmpeg installation
     ffmpeg -version && \
     echo "Available NVENC encoders:" && \
@@ -102,6 +105,8 @@ ENV VIDEO_DIRECTORY /videos
 ENV PROCESSED_DIRECTORY /processed
 ENV TEMPLATE_PATH=/app/server/fireshare/templates
 ENV ADMIN_PASSWORD admin
+ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
+ENV PATH /usr/local/bin:$PATH
 
 EXPOSE 80
 CMD ["bash", "/entrypoint.sh"]
