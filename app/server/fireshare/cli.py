@@ -408,6 +408,73 @@ def create_boomerang_posters(regenerate):
                 logger.info(f"Skipping creation of boomerang poster for video {vi.video_id} because it exists at {str(poster_path)}")
 
 @cli.command()
+@click.option("--regenerate", "-r", help="Overwrite existing transcoded videos", is_flag=True)
+@click.option("--video", "-v", help="Transcode a specific video by id", default=None)
+def transcode_videos(regenerate, video):
+    """Transcode videos to 1080p and 720p variants"""
+    with create_app().app_context():
+        if not current_app.config.get('ENABLE_TRANSCODING'):
+            logger.info("Transcoding is disabled. Set ENABLE_TRANSCODING=true to enable.")
+            return
+        
+        processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+        use_gpu = current_app.config.get('TRANSCODE_GPU', False)
+        
+        # Get videos to transcode
+        vinfos = VideoInfo.query.filter(VideoInfo.video_id==video).all() if video else VideoInfo.query.all()
+        logger.info(f'Processing {len(vinfos):,} videos for transcoding (GPU: {use_gpu})')
+        
+        for vi in vinfos:
+            derived_path = Path(processed_root, "derived", vi.video_id)
+            video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
+            
+            if not video_path.exists():
+                logger.warn(f"Skipping transcoding for video {vi.video_id} because the video at {str(video_path)} does not exist")
+                continue
+            
+            if not derived_path.exists():
+                derived_path.mkdir(parents=True)
+            
+            # Determine which qualities to transcode
+            original_height = vi.height or 0
+            
+            # Transcode to 1080p if original is higher and 1080p doesn't exist
+            transcode_1080p_path = derived_path / f"{vi.video_id}-1080p.mp4"
+            if original_height > 1080 and (not transcode_1080p_path.exists() or regenerate):
+                logger.info(f"Transcoding {vi.video_id} to 1080p")
+                try:
+                    util.transcode_video_quality(video_path, transcode_1080p_path, 1080, use_gpu)
+                    vi.has_1080p = True
+                    db.session.add(vi)
+                    db.session.commit()
+                except Exception as ex:
+                    logger.error(f"Failed to transcode {vi.video_id} to 1080p: {ex}")
+            elif transcode_1080p_path.exists():
+                logger.debug(f"Skipping 1080p transcode for {vi.video_id} (already exists)")
+                vi.has_1080p = True
+                db.session.add(vi)
+                db.session.commit()
+            
+            # Transcode to 720p if original is higher than 720p and 720p doesn't exist
+            transcode_720p_path = derived_path / f"{vi.video_id}-720p.mp4"
+            if original_height > 720 and (not transcode_720p_path.exists() or regenerate):
+                logger.info(f"Transcoding {vi.video_id} to 720p")
+                try:
+                    util.transcode_video_quality(video_path, transcode_720p_path, 720, use_gpu)
+                    vi.has_720p = True
+                    db.session.add(vi)
+                    db.session.commit()
+                except Exception as ex:
+                    logger.error(f"Failed to transcode {vi.video_id} to 720p: {ex}")
+            elif transcode_720p_path.exists():
+                logger.debug(f"Skipping 720p transcode for {vi.video_id} (already exists)")
+                vi.has_720p = True
+                db.session.add(vi)
+                db.session.commit()
+        
+        logger.info("Transcoding complete")
+
+@cli.command()
 @click.pass_context
 @click.option("--root", "-r", help="root video path to scan", required=False)
 def bulk_import(ctx, root):
@@ -434,6 +501,12 @@ def bulk_import(ctx, root):
         s = time.time()
         ctx.invoke(create_posters, skip=thumbnail_skip)
         timing['create_posters'] = time.time() - s
+        
+        # Transcode videos if transcoding is enabled
+        if current_app.config.get('ENABLE_TRANSCODING'):
+            s = time.time()
+            ctx.invoke(transcode_videos)
+            timing['transcode_videos'] = time.time() - s
 
         logger.info(f"Finished bulk import. Timing info: {json.dumps(timing)}")
 

@@ -79,6 +79,8 @@ def create_app(init_schedule=False):
     app.config['LDAP_PASSWORD'] = os.getenv("LDAP_PASSWORD")
     app.config['LDAP_USER_FILTER'] = os.getenv("LDAP_USER_FILTER")
     app.config['LDAP_ADMIN_GROUP'] = os.getenv("LDAP_ADMIN_GROUP")
+    app.config['ENABLE_TRANSCODING'] = os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
+    app.config['TRANSCODE_GPU'] = os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
 
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/db.sqlite'
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///jobs.sqlite'
