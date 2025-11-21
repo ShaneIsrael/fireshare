@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     pkg-config yasm nasm git autoconf automake libtool \
     && rm -rf /var/lib/apt/lists/*
 
-# Install NVIDIA Video Codec SDK headers (for NVENC/NVDEC support)
+# Install NVIDIA Video Codec SDK headers for NVENC/NVDEC support
 RUN cd /tmp && \
     git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git && \
     cd nv-codec-headers && \
@@ -29,7 +29,7 @@ RUN cd /tmp && \
     cd / && \
     rm -rf /tmp/nv-codec-headers
 
-# Install codec dependencies (both dev and runtime)
+# Install codec library dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libx264-dev \
     libx265-dev \
@@ -42,11 +42,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libmp3lame-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# Build and install FFmpeg with NVENC, AV1, VP9, and other codec support
+# Download and extract FFmpeg source
 RUN cd /tmp && \
     wget -q https://ffmpeg.org/releases/ffmpeg-6.1.tar.xz && \
-    tar -xf ffmpeg-6.1.tar.xz && \
-    cd ffmpeg-6.1 && \
+    tar -xf ffmpeg-6.1.tar.xz
+
+# Configure FFmpeg - separated to see exact error
+RUN cd /tmp/ffmpeg-6.1 && \
     ./configure \
         --prefix=/usr/local \
         --enable-gpl \
@@ -63,34 +65,35 @@ RUN cd /tmp && \
         --enable-libass \
         --enable-libfreetype \
         --disable-debug \
-        --disable-doc && \
-    make -j$(nproc) && \
-    make install && \
-    ldconfig
+        --disable-doc
 
-# Create symlinks and verify installation
+# Build FFmpeg
+RUN cd /tmp/ffmpeg-6.1 && make -j$(nproc)
+
+# Install FFmpeg
+RUN cd /tmp/ffmpeg-6.1 && make install && ldconfig
+
+# Create symlinks and verify
 RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
     ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe && \
-    test -f /usr/local/bin/ffmpeg || { echo "FFmpeg binary not found!"; exit 1; } && \
+    test -f /usr/local/bin/ffmpeg || { echo "FFmpeg not found!"; exit 1; } && \
     echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
     ldconfig && \
-    echo "FFmpeg installed at: $(which ffmpeg)" && \
     ffmpeg -version
 
-# Clean up FFmpeg build artifacts and dev packages
-RUN cd / && \
-    rm -rf /tmp/ffmpeg-* && \
+# Clean up build files and dev packages
+RUN rm -rf /tmp/ffmpeg-* && \
     apt-get remove -y \
-        libx264-dev libx265-dev libvpx-dev \
-        libaom-dev libopus-dev libvorbis-dev \
-        libass-dev libfreetype6-dev libmp3lame-dev \
+        libx264-dev libx265-dev libvpx-dev libaom-dev \
+        libopus-dev libvorbis-dev libass-dev \
+        libfreetype6-dev libmp3lame-dev \
         yasm nasm autoconf automake libtool && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     ldconfig
 
-# Create a profile script to set environment for all users
+# Set up environment
 RUN echo 'export PATH=/usr/local/bin:$PATH' >> /etc/profile.d/ffmpeg.sh && \
     echo 'export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH' >> /etc/profile.d/ffmpeg.sh && \
     chmod +x /etc/profile.d/ffmpeg.sh
