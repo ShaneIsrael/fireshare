@@ -194,11 +194,20 @@ Fireshare supports automatic transcoding of videos to create 720p and 1080p qual
 - Quality selection in the video player
 
 **Requirements:**
-- FFmpeg with libaom-av1 and NVENC support (included in the Docker image)
-- Optional: NVIDIA GPU with NVENC support for hardware acceleration
-  - Supported GPUs: NVIDIA GTX 1050+ (Pascal or newer for H.264/HEVC NVENC), RTX 4000+ (Ada Lovelace or newer for AV1 NVENC)
-  - NVIDIA Container Toolkit must be installed on the host system
+- FFmpeg with NVENC, libaom-av1, VP9, and codec support (included in the Docker image)
+- CPU transcoding works out of the box
+
+**GPU Transcoding:**
+The Docker image includes FFmpeg compiled with NVENC support for GPU-accelerated transcoding. To use GPU transcoding:
+  - NVIDIA GPU with NVENC support (GTX 1050+ / Pascal or newer)
+  - NVIDIA drivers installed on the host system
+  - NVIDIA Container Toolkit on the host system
   - See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+  
+Benefits of GPU transcoding:
+- 5-10x faster than CPU encoding
+- Lower power consumption
+- Frees up CPU for other tasks
 
 **Environment Variables:**
 ```yaml
@@ -392,23 +401,22 @@ For Unraid users who want to pass their NVIDIA GPU to the Fireshare container:
    ```
    V..... h264_nvenc           NVIDIA NVENC H.264 encoder
    V..... hevc_nvenc           NVIDIA NVENC hevc encoder
-   V..... av1_nvenc            NVIDIA NVENC AV1 encoder
    ```
    
-   **Method 2: Test transcoding with GPU**
+   **Method 2: Monitor transcoding logs**
    - Enable transcoding with `TRANSCODE_GPU=true`
    - Check the logs while a video is transcoding:
      ```bash
      docker logs -f fireshare
      ```
-   - Look for log messages indicating GPU encoding (e.g., "Using GPU acceleration")
+   - Look for "Transcoding video to 720p using GPU H.264 (NVENC)" messages
    
-   **Method 3: Verify from Unraid host**
-   - While transcoding is running, check GPU usage on the Unraid host:
+   **Method 3: Verify GPU usage (from Unraid host)**
+   - While transcoding is running, check GPU usage:
      ```bash
      nvidia-smi
      ```
-   - You should see FFmpeg processes using the GPU
+   - You should see FFmpeg processes using the GPU with video encoder/decoder utilization
 
 5. **Advanced Configuration (Optional):**
    - If you want to limit to specific GPUs, use:
@@ -424,17 +432,22 @@ For Unraid users who want to pass their NVIDIA GPU to the Fireshare container:
 - Transcoding only creates quality variants for videos larger than the target resolution
 - Original files are always preserved
 - The video player will automatically show a quality selector when transcoded versions are available
-- AV1 transcoding is CPU-intensive; GPU acceleration is highly recommended for production use
-- The FFmpeg binary included in the Docker image supports both CPU and GPU encoding
+- FFmpeg is compiled with NVENC support for GPU-accelerated transcoding
+- GPU transcoding is 5-10x faster than CPU transcoding
 
-**Transcoding Fallback Chain (GPU Mode):**
-When `TRANSCODE_GPU=true`, the following fallback chain is used:
-1. **AV1 with GPU (av1_nvenc)** - Best compression, requires RTX 40 series or newer
-2. **VP9/WebM with GPU (vp9_nvenc)** - Widely supported, works with GTX 1050+ (Pascal or newer)
-3. **AV1 with CPU (libaom-av1)** - Excellent compression but slow
+**Transcoding Fallback Chain:**
+
+**GPU Mode** (`TRANSCODE_GPU=true`):
+1. **AV1 with GPU (av1_nvenc)** - Best compression, RTX 40 series or newer (Ada Lovelace)
+2. **H.264 with GPU (h264_nvenc)** - Fast and widely supported, GTX 1050+ (Pascal or newer)
+3. **AV1 with CPU (libaom-av1)** - Excellent compression if GPU encoding fails
 4. **H.264 with CPU (libx264)** - Final fallback, universally compatible
 
-This ensures that GPU transcoding always produces a widely-supported format before falling back to CPU processing.
+**CPU Mode** (`TRANSCODE_GPU=false` or GPU unavailable):
+1. **AV1 with CPU (libaom-av1)** - Best compression, slower
+2. **H.264 with CPU (libx264)** - Fallback if AV1 fails
+
+The system automatically tries AV1 NVENC first on all GPUs, then falls back to H.264 NVENC for older GPUs that don't support AV1 hardware encoding.
 
 # Local Development
 

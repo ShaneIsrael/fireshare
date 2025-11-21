@@ -72,10 +72,10 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
     
     Fallback chain when GPU is enabled:
-    1. AV1 with GPU (av1_nvenc) - RTX 40 series+
-    2. VP9/WebM with GPU (vp9_nvenc) - GTX 1050+
-    3. AV1 with CPU (libaom-av1)
-    4. H.264 with CPU (libx264)
+    1. AV1 with GPU (av1_nvenc) - RTX 40 series or newer
+    2. H.264 with GPU (h264_nvenc) - GTX 1050+ / Pascal or newer
+    3. AV1 with CPU (libaom-av1) - Excellent compression
+    4. H.264 with CPU (libx264) - Universal fallback
     
     Args:
         video_path: Path to the source video
@@ -89,12 +89,12 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     out_path_str = str(out_path)
     
     # Build ffmpeg command
-    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path)]
+    # Use 'error' level to see actual errors while keeping output clean
+    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
     
     # Add GPU acceleration if enabled
     if use_gpu:
-        # Try AV1 NVENC first (av1_nvenc)
-        # Note: av1_nvenc requires newer NVIDIA GPUs (RTX 40 series+)
+        # Try AV1 NVENC first (requires RTX 40 series or newer)
         logger.info(f"Transcoding video to {height}p using GPU AV1 (NVENC)")
         cmd.extend(['-c:v', 'av1_nvenc', '-preset', 'p4', '-cq:v', '30'])
         cmd.extend(['-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str])
@@ -109,33 +109,26 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     try:
         result = sp.call(cmd)
         if result != 0 and use_gpu:
-            # GPU AV1 failed, try VP9/WebM with GPU (widely supported format)
-            logger.warning(f"GPU AV1 transcoding failed, trying VP9/WebM with GPU")
-            # Change output to .webm for VP9
-            webm_path = out_path_str.replace('.mp4', '.webm')
-            cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path),
-                   '-c:v', 'vp9_nvenc', '-preset', 'p4', '-cq:v', '30',
-                   '-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', webm_path]
+            # GPU AV1 NVENC failed - try H.264 NVENC (works on older GPUs)
+            logger.warning(f"GPU AV1 NVENC transcoding failed (likely requires RTX 40 series+)")
+            logger.info(f"Trying GPU H.264 NVENC (works on GTX 1050+/Pascal or newer)")
+            cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
+                   '-c:v', 'h264_nvenc', '-preset', 'p4', '-cq:v', '23',
+                   '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
             logger.debug(f"$: {' '.join(cmd)}")
             result = sp.call(cmd)
-            
-            if result == 0:
-                # VP9 GPU encoding succeeded, rename to final output
-                import shutil
-                shutil.move(webm_path, out_path_str)
-                logger.info(f"Successfully transcoded with VP9/WebM using GPU")
-            else:
-                # VP9 GPU failed, fallback to CPU AV1
-                logger.warning(f"GPU VP9 transcoding failed, falling back to CPU AV1")
-                cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path),
+            if result != 0:
+                # H.264 NVENC also failed, fall back to CPU AV1
+                logger.warning(f"GPU H.264 NVENC also failed, falling back to CPU AV1")
+                cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
                        '-c:v', 'libaom-av1', '-cpu-used', '4', '-crf', '30', '-b:v', '0',
                        '-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str]
                 logger.debug(f"$: {' '.join(cmd)}")
                 result = sp.call(cmd)
                 if result != 0:
-                    # AV1 CPU encoding failed, fallback to H.264 as last resort
-                    logger.warning(f"CPU AV1 encoding failed, falling back to H.264")
-                    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path),
+                    # AV1 CPU encoding failed, fallback to H.264 CPU as last resort
+                    logger.warning(f"CPU AV1 encoding failed, falling back to CPU H.264")
+                    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
                            '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
                            '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
                     logger.debug(f"$: {' '.join(cmd)}")
@@ -143,32 +136,26 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     except Exception as ex:
         logger.error(f"Error transcoding video: {ex}")
         if use_gpu:
-            # Try VP9/WebM with GPU on exception
-            logger.warning(f"GPU transcoding encountered error, trying VP9/WebM with GPU")
+            # Try H.264 NVENC fallback on exception
+            logger.warning(f"GPU AV1 transcoding encountered error, trying GPU H.264 NVENC")
             try:
-                webm_path = out_path_str.replace('.mp4', '.webm')
-                cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path),
-                       '-c:v', 'vp9_nvenc', '-preset', 'p4', '-cq:v', '30',
-                       '-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', webm_path]
+                cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
+                       '-c:v', 'h264_nvenc', '-preset', 'p4', '-cq:v', '23',
+                       '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
                 logger.debug(f"$: {' '.join(cmd)}")
                 result = sp.call(cmd)
-                
-                if result == 0:
-                    import shutil
-                    shutil.move(webm_path, out_path_str)
-                    logger.info(f"Successfully transcoded with VP9/WebM using GPU after error")
-                else:
-                    # VP9 GPU failed, try CPU AV1
-                    logger.warning(f"GPU VP9 failed, falling back to CPU AV1")
-                    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path),
+                if result != 0:
+                    # Try CPU AV1
+                    logger.warning(f"GPU H.264 NVENC failed, falling back to CPU AV1")
+                    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
                            '-c:v', 'libaom-av1', '-cpu-used', '4', '-crf', '30', '-b:v', '0',
                            '-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str]
                     logger.debug(f"$: {' '.join(cmd)}")
                     result = sp.call(cmd)
                     if result != 0:
-                        # Final fallback to H.264
-                        logger.warning(f"CPU AV1 encoding failed, falling back to H.264")
-                        cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path),
+                        # Final fallback to H.264 CPU
+                        logger.warning(f"CPU AV1 encoding failed, falling back to CPU H.264")
+                        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
                                '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
                                '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
                         logger.debug(f"$: {' '.join(cmd)}")
