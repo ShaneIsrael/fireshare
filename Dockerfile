@@ -21,88 +21,21 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     pkg-config yasm nasm git autoconf automake libtool \
     && rm -rf /var/lib/apt/lists/*
 
-# Install NVIDIA Video Codec SDK headers for NVENC/NVDEC support
+# Download and install FFmpeg static build with NVENC support
+# Using John Van Sickle's static builds which include NVENC, libaom-av1, libvpx, etc.
 RUN cd /tmp && \
-    git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git && \
-    cd nv-codec-headers && \
-    make install && \
-    ldconfig && \
-    cd / && \
-    rm -rf /tmp/nv-codec-headers
-
-# Install codec library dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libx264-dev \
-    libx265-dev \
-    libvpx-dev \
-    libaom-dev \
-    libopus-dev \
-    libvorbis-dev \
-    libass-dev \
-    libfreetype6-dev \
-    libmp3lame-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-# Download and extract FFmpeg source
-RUN cd /tmp && \
-    wget -q https://ffmpeg.org/releases/ffmpeg-6.1.tar.xz && \
-    tar -xf ffmpeg-6.1.tar.xz
-
-# Configure FFmpeg with explicit PKG_CONFIG_PATH
-RUN cd /tmp/ffmpeg-6.1 && \
-    PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig" \
-    ./configure \
-        --prefix=/usr/local \
-        --extra-cflags="-I/usr/local/include" \
-        --extra-ldflags="-L/usr/local/lib" \
-        --enable-gpl \
-        --enable-version3 \
-        --enable-nonfree \
-        --enable-ffnvcodec \
-        --enable-libx264 \
-        --enable-libx265 \
-        --enable-libvpx \
-        --enable-libaom \
-        --enable-libopus \
-        --enable-libvorbis \
-        --enable-libmp3lame \
-        --enable-libass \
-        --enable-libfreetype \
-        --disable-debug \
-        --disable-doc || { cat /tmp/ffmpeg-6.1/ffbuild/config.log; exit 1; }
-
-# Build FFmpeg
-RUN cd /tmp/ffmpeg-6.1 && make -j$(nproc)
-
-# Install FFmpeg
-RUN cd /tmp/ffmpeg-6.1 && make install && ldconfig
-
-# Create symlinks and verify
-RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
+    wget -q https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz && \
+    tar -xf ffmpeg-release-amd64-static.tar.xz && \
+    cd ffmpeg-*-amd64-static && \
+    cp ffmpeg ffprobe /usr/local/bin/ && \
+    chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe && \
+    ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
     ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe && \
-    test -f /usr/local/bin/ffmpeg || { echo "FFmpeg not found!"; exit 1; } && \
-    echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
-    ldconfig && \
+    cd / && \
+    rm -rf /tmp/ffmpeg-* && \
     ffmpeg -version && \
-    echo "Checking encoders:" && \
-    ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|libaom|libx264)" || true
-
-# Clean up build files and dev packages
-RUN rm -rf /tmp/ffmpeg-* && \
-    apt-get remove -y \
-        libx264-dev libx265-dev libvpx-dev libaom-dev \
-        libopus-dev libvorbis-dev libass-dev \
-        libfreetype6-dev libmp3lame-dev \
-        yasm nasm autoconf automake libtool && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    ldconfig
-
-# Set up environment
-RUN echo 'export PATH=/usr/local/bin:$PATH' >> /etc/profile.d/ffmpeg.sh && \
-    echo 'export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH' >> /etc/profile.d/ffmpeg.sh && \
-    chmod +x /etc/profile.d/ffmpeg.sh
+    echo "Available encoders:" && \
+    ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|libaom|libvpx|libx264)" || echo "Some encoders may not be listed"
 
 RUN adduser --disabled-password --gecos '' nginx
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
