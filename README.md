@@ -229,16 +229,67 @@ services:
 ```
 
 **Manual Transcoding:**
-You can manually trigger transcoding for existing videos:
+
+If you have existing videos that were scanned before enabling transcoding, you can manually transcode them:
+
 ```bash
-# Transcode all videos
+# Transcode all videos in your library
 docker exec -it fireshare fireshare transcode-videos
 
-# Transcode a specific video
+# Transcode a specific video by its ID
 docker exec -it fireshare fireshare transcode-videos --video VIDEO_ID
 
-# Regenerate transcoded versions
+# Regenerate transcoded versions (overwrites existing)
 docker exec -it fireshare fireshare transcode-videos --regenerate
+```
+
+**Important Notes for Existing Videos:**
+- The `transcode-videos` command only processes videos when `ENABLE_TRANSCODING=true` is set
+- Transcoding happens in the background and can take significant time depending on:
+  - Number and size of videos
+  - CPU/GPU performance
+  - Whether GPU acceleration is enabled
+- Progress is logged in the container logs: `docker logs -f fireshare`
+- Only videos larger than the target resolution will be transcoded (e.g., 4K videos will get 1080p and 720p variants)
+- Original files are never modified or deleted
+- You can check if a video has been transcoded by looking at the quality selector in the player
+- To find a video's ID, check the URL when viewing it (e.g., `/w/VIDEO_ID`)
+
+**Workflow for Upgrading Existing Installations:**
+
+1. **Enable transcoding** by adding environment variables:
+   ```yaml
+   ENABLE_TRANSCODING=true
+   TRANSCODE_GPU=true  # Optional, for GPU acceleration
+   ```
+
+2. **Restart the container** to apply the new configuration
+
+3. **Transcode existing videos** using one of these approaches:
+
+   **Option A: Transcode everything at once (recommended for small libraries)**
+   ```bash
+   docker exec -it fireshare fireshare transcode-videos
+   ```
+
+   **Option B: Transcode videos gradually (recommended for large libraries)**
+   ```bash
+   # Get a list of video IDs from your admin dashboard
+   # Then transcode them one at a time or in batches
+   docker exec -it fireshare fireshare transcode-videos --video VIDEO_ID_1
+   docker exec -it fireshare fireshare transcode-videos --video VIDEO_ID_2
+   # ... etc
+   ```
+
+4. **Future videos** will be automatically transcoded during the scan process (every 5 minutes by default)
+
+**Monitoring Progress:**
+```bash
+# Watch transcoding logs in real-time
+docker logs -f fireshare
+
+# Check if transcoding is running
+docker exec -it fireshare ps aux | grep ffmpeg
 ```
 
 **GPU Setup (Optional but Recommended):**
