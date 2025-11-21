@@ -2,7 +2,9 @@ from setuptools import setup, find_packages
 import pkg_resources
 import pathlib
 
-with pathlib.Path('requirements.txt').open() as requirements_txt:
+# Use path relative to this setup.py file
+here = pathlib.Path(__file__).parent.resolve()
+with (here / 'requirements.txt').open() as requirements_txt:
     install_requires = [
         str(requirement)
         for requirement
