@@ -82,10 +82,26 @@ def scan_videos(root):
 
         logger.info(f"Scanning {str(videos_path)} for {', '.join(SUPPORTED_FILE_EXTENSIONS)} video files")
         CHUNK_FILE_PATTERN = re.compile(r'\.part\d{4}$')
-        video_files = [f for f in (videos_path / root if root else videos_path).glob('**/*') 
-                      if f.is_file() 
-                      and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS 
-                      and not CHUNK_FILE_PATTERN.search(f.name)]
+        TRANSCODE_PATTERN = re.compile(r'-(?:720p|1080p)\.mp4$', re.IGNORECASE)
+        
+        # Collect all video files and filter out transcoded versions
+        all_files = [f for f in (videos_path / root if root else videos_path).glob('**/*') 
+                     if f.is_file() and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS]
+        
+        video_files = []
+        skipped_count = 0
+        for f in all_files:
+            if CHUNK_FILE_PATTERN.search(f.name):
+                continue  # Skip chunk files silently
+            elif TRANSCODE_PATTERN.search(f.name):
+                logger.debug(f"Skipping transcoded file: {f.name}")
+                skipped_count += 1
+            else:
+                video_files.append(f)
+        
+        if skipped_count > 0:
+            logger.info(f"Skipped {skipped_count} transcoded video file(s)")
+        
         video_rows = Video.query.all()
 
         new_videos = []
@@ -180,9 +196,17 @@ def scan_video(ctx, path):
             video_links.mkdir()
         
         CHUNK_FILE_PATTERN = re.compile(r'\.part\d{4}$')
+        TRANSCODE_PATTERN = re.compile(r'-(?:720p|1080p)\.mp4$', re.IGNORECASE)
+        
+        # Check if the file is a transcoded version and skip it
+        if (videos_path / path).is_file() and TRANSCODE_PATTERN.search((videos_path / path).name):
+            logger.warning(f"Skipping transcoded file: {path}. Transcoded files should not be scanned.")
+            return
+        
         video_file = ((videos_path / path) if (videos_path / path).is_file() 
                      and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS 
-                     and not CHUNK_FILE_PATTERN.search((videos_path / path).name) else None)
+                     and not CHUNK_FILE_PATTERN.search((videos_path / path).name)
+                     and not TRANSCODE_PATTERN.search((videos_path / path).name) else None)
         if video_file:
             video_rows = Video.query.all()
             logger.info(f"Scanning {str(video_file)}")
