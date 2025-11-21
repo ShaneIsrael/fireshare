@@ -26,6 +26,7 @@ RUN cd /tmp && \
     git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git && \
     cd nv-codec-headers && \
     make install && \
+    ldconfig && \
     cd / && \
     rm -rf /tmp/nv-codec-headers
 
@@ -47,10 +48,13 @@ RUN cd /tmp && \
     wget -q https://ffmpeg.org/releases/ffmpeg-6.1.tar.xz && \
     tar -xf ffmpeg-6.1.tar.xz
 
-# Configure FFmpeg - separated to see exact error
+# Configure FFmpeg with explicit PKG_CONFIG_PATH
 RUN cd /tmp/ffmpeg-6.1 && \
+    PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig" \
     ./configure \
         --prefix=/usr/local \
+        --extra-cflags="-I/usr/local/include" \
+        --extra-ldflags="-L/usr/local/lib" \
         --enable-gpl \
         --enable-version3 \
         --enable-nonfree \
@@ -65,7 +69,7 @@ RUN cd /tmp/ffmpeg-6.1 && \
         --enable-libass \
         --enable-libfreetype \
         --disable-debug \
-        --disable-doc
+        --disable-doc || { cat /tmp/ffmpeg-6.1/ffbuild/config.log; exit 1; }
 
 # Build FFmpeg
 RUN cd /tmp/ffmpeg-6.1 && make -j$(nproc)
@@ -79,7 +83,9 @@ RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
     test -f /usr/local/bin/ffmpeg || { echo "FFmpeg not found!"; exit 1; } && \
     echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
     ldconfig && \
-    ffmpeg -version
+    ffmpeg -version && \
+    echo "Checking encoders:" && \
+    ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|libaom|libx264)" || true
 
 # Clean up build files and dev packages
 RUN rm -rf /tmp/ffmpeg-* && \
