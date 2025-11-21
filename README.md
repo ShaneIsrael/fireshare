@@ -389,8 +389,16 @@ For Unraid users who want to pass their NVIDIA GPU to the Fireshare container:
 - Original files are always preserved
 - The video player will automatically show a quality selector when transcoded versions are available
 - AV1 transcoding is CPU-intensive; GPU acceleration is highly recommended for production use
-- GPU AV1 encoding (av1_nvenc) requires RTX 40 series or newer; older GPUs will automatically fall back to CPU AV1 encoding
 - The FFmpeg binary included in the Docker image supports both CPU and GPU encoding
+
+**Transcoding Fallback Chain (GPU Mode):**
+When `TRANSCODE_GPU=true`, the following fallback chain is used:
+1. **AV1 with GPU (av1_nvenc)** - Best compression, requires RTX 40 series or newer
+2. **VP9/WebM with GPU (vp9_nvenc)** - Widely supported, works with GTX 1050+ (Pascal or newer)
+3. **AV1 with CPU (libaom-av1)** - Excellent compression but slow
+4. **H.264 with CPU (libx264)** - Final fallback, universally compatible
+
+This ensures that GPU transcoding always produces a widely-supported format before falling back to CPU processing.
 
 # Local Development
 
