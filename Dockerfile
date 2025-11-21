@@ -45,15 +45,14 @@ RUN cd /tmp && \
         libass-dev libass9 \
         libfreetype6-dev libfreetype6 \
         libmp3lame-dev libmp3lame0 && \
-    # Configure FFmpeg with NVENC and codec support
+    # Configure FFmpeg with NVENC and codec support (without CUDA runtime requirements)
     ./configure \
         --prefix=/usr/local \
         --enable-gpl \
         --enable-version3 \
         --enable-nonfree \
         --enable-nvenc \
-        --enable-cuda-nvcc \
-        --enable-libnpp \
+        --enable-ffnvcodec \
         --enable-libx264 \
         --enable-libx265 \
         --enable-libvpx \
@@ -64,18 +63,18 @@ RUN cd /tmp && \
         --enable-libass \
         --enable-libfreetype \
         --disable-debug \
-        --disable-doc \
-        --disable-static \
-        --enable-shared && \
+        --disable-doc && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
     # Create symlinks to /usr/bin for system-wide access
     ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
     ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe && \
+    # Verify binaries exist before continuing
+    test -f /usr/local/bin/ffmpeg || { echo "FFmpeg binary not found after install!"; exit 1; } && \
     cd / && \
     rm -rf /tmp/ffmpeg-* && \
-    # Remove only the -dev packages, keep runtime libraries and build tools
+    # Remove build tools and dev packages, keep runtime libraries
     apt-get remove -y \
         libx264-dev libx265-dev libvpx-dev \
         libaom-dev libopus-dev libvorbis-dev \
@@ -89,8 +88,10 @@ RUN cd /tmp && \
     echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
     ldconfig && \
     # Verify FFmpeg installation and symlinks
-    ffmpeg -version && \
+    echo "FFmpeg installed at:" && \
+    which ffmpeg && \
     ls -la /usr/bin/ffmpeg /usr/local/bin/ffmpeg && \
+    ffmpeg -version && \
     echo "Available NVENC encoders:" && \
     ffmpeg -hide_banner -encoders 2>/dev/null | grep nvenc || echo "Note: NVENC requires NVIDIA drivers at runtime"
 
