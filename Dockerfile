@@ -82,10 +82,19 @@ RUN cd /tmp && \
     rm -rf /var/lib/apt/lists/* && \
     # Update library cache again after cleanup
     ldconfig && \
+    # Add library path to system-wide config
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
+    ldconfig && \
     # Verify FFmpeg installation
     ffmpeg -version && \
     echo "Available NVENC encoders:" && \
     ffmpeg -hide_banner -encoders 2>/dev/null | grep nvenc || echo "Note: NVENC requires NVIDIA drivers at runtime"
+
+# Create a profile script to set environment for all users
+RUN echo 'export PATH=/usr/local/bin:$PATH' >> /etc/profile.d/ffmpeg.sh && \
+    echo 'export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH' >> /etc/profile.d/ffmpeg.sh && \
+    chmod +x /etc/profile.d/ffmpeg.sh
+
 RUN adduser --disabled-password --gecos '' nginx
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log
