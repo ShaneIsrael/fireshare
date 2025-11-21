@@ -62,8 +62,23 @@ const Watch = ({ authenticated }) => {
     if (details == null) fetch()
   }, [details, id])
 
+  const getCurrentTime = () => {
+    // Helper to get current time from either native video element or ReactPlayer
+    if (videoPlayerRef.current) {
+      // Native video element (used when quality variants exist)
+      if (typeof videoPlayerRef.current.currentTime === 'number') {
+        return videoPlayerRef.current.currentTime
+      }
+      // ReactPlayer (used when no quality variants)
+      if (typeof videoPlayerRef.current.getCurrentTime === 'function') {
+        return videoPlayerRef.current.getCurrentTime()
+      }
+    }
+    return 0
+  }
+
   const copyTimestamp = () => {
-    const currentTime = videoPlayerRef.current?.currentTime || videoPlayerRef.current?.getCurrentTime()
+    const currentTime = getCurrentTime()
     copyToClipboard(`${PURL}${details?.video_id}?t=${currentTime}`)
     setAlert({
       type: 'info',
@@ -112,7 +127,7 @@ const Watch = ({ authenticated }) => {
   }
 
   const handleQualityChange = (newQuality) => {
-    const currentTime = videoPlayerRef.current?.currentTime || videoPlayerRef.current?.getCurrentTime() || 0
+    const currentTime = getCurrentTime()
     setQuality(newQuality)
     // Wait for the video element to be ready
     setTimeout(() => {

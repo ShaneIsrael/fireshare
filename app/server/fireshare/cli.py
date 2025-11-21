@@ -150,7 +150,7 @@ def scan_videos(root):
             file_path = Path((paths["video"] / ev.path).absolute())
             logger.debug(f"Verifying video {ev.video_id} at {file_path} is available")
             if not file_path.exists():
-                logger.warn(f"Video {ev.video_id} at {file_path} was not found")
+                logger.warning(f"Video {ev.video_id} at {file_path} was not found")
                 db.session.query(Video).filter_by(video_id=ev.video_id).update({ "available": False})
         db.session.commit()
 
@@ -251,7 +251,7 @@ def scan_video(ctx, path):
                         video_url = get_public_watch_url(video_id, config, domain)
                         send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
                 else:
-                    logger.warn(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+                    logger.warning(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
         else:
             logger.info(f"Invalid video file, unable to scan: {str(videos_path / path)}")
 
@@ -297,9 +297,9 @@ def sync_metadata(video):
                         corruptVideoWarning = "There may be a corrupt video in your video Directory. See your logs for more info!"
                         if not corruptVideoWarning in current_app.config['WARNINGS']:
                             current_app.config['WARNINGS'].append(corruptVideoWarning)
-                        logger.warn(f"[{v.video.path}] - There may be a corrupt file in your video directory. Or, you may be recording to the video directory and haven't finished yet.")
-                        logger.warn(f"For more info and to find the offending file, run this command in your container: \"stat {vpath}\"")
-                        logger.warn("I'll try to process this file again in 60 seconds...")
+                        logger.warning(f"[{v.video.path}] - There may be a corrupt file in your video directory. Or, you may be recording to the video directory and haven't finished yet.")
+                        logger.warning(f"For more info and to find the offending file, run this command in your container: \"stat {vpath}\"")
+                        logger.warning("I'll try to process this file again in 60 seconds...")
                         time.sleep(60)
                 
                 corruptVideoWarning = "There may be a corrupt video in your video Directory. See your logs for more info!"
@@ -325,7 +325,7 @@ def sync_metadata(video):
                 db.session.add(v)
                 db.session.commit()
             else:
-                logger.warn(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
+                logger.warning(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
 
 @cli.command()
 def create_web_videos():
@@ -359,7 +359,7 @@ def create_web_videos():
                     logger.debug(f"Skipping {v.video_id} because {str(out_mp4_fn)} already exists")
 
             else:
-                logger.warn(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
+                logger.warning(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
         
 
 @cli.command()
@@ -374,7 +374,7 @@ def create_posters(regenerate, skip):
             derived_path = Path(processed_root, "derived", vi.video_id)
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
             if not video_path.exists():
-                logger.warn(f"Skipping creation of poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+                logger.warning(f"Skipping creation of poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
                 continue
             poster_path = Path(derived_path, "poster.jpg")
             should_create_poster = (not poster_path.exists() or regenerate)
@@ -429,7 +429,7 @@ def transcode_videos(regenerate, video):
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
             
             if not video_path.exists():
-                logger.warn(f"Skipping transcoding for video {vi.video_id} because the video at {str(video_path)} does not exist")
+                logger.warning(f"Skipping transcoding for video {vi.video_id} because the video at {str(video_path)} does not exist")
                 continue
             
             if not derived_path.exists():

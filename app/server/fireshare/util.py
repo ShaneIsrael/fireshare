@@ -137,7 +137,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                            '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', str(out_path)]
                     logger.debug(f"$: {' '.join(cmd)}")
                     sp.call(cmd)
-            except:
+            except Exception:
                 raise
         else:
             raise

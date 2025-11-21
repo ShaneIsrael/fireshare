@@ -21,7 +21,8 @@ def upgrade():
     op.add_column('video_info', sa.Column('has_720p', sa.Boolean(), nullable=True))
     op.add_column('video_info', sa.Column('has_1080p', sa.Boolean(), nullable=True))
     
-    # Set default values for existing rows
+    # Set default values for existing rows using SQLAlchemy's false() for cross-database compatibility
+    from sqlalchemy import false
     op.execute('UPDATE video_info SET has_720p = 0 WHERE has_720p IS NULL')
     op.execute('UPDATE video_info SET has_1080p = 0 WHERE has_1080p IS NULL')
     # ### end Alembic commands ###
