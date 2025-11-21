@@ -1,7 +1,7 @@
 """add transcoding support
 
 Revision ID: b7e8541487dc
-Revises: a4503f708aee
+Revises: 4395905f3725
 Create Date: 2024-11-21 05:02:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'b7e8541487dc'
-down_revision = 'a4503f708aee'
+down_revision = '4395905f3725'
 branch_labels = None
 depends_on = None
 
