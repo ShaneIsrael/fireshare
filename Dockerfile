@@ -9,29 +9,43 @@ RUN npm install react-scripts@5.0.1 -g --silent && npm cache clean --force;
 COPY app/client/ ./
 RUN npm run build
 
-# Use NVIDIA CUDA base image for FFmpeg with NVENC support
-FROM nvidia/cuda:11.8.0-base-ubuntu22.04 as ffmpeg-builder
+# FFmpeg builder stage with CUDA development tools
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 as ffmpeg-builder
 WORKDIR /tmp
 
-# Install build dependencies and Python
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential pkg-config yasm nasm git wget xz-utils ca-certificates \
-    libx264-dev libx265-dev libvpx-dev libaom-dev \
-    libopus-dev libvorbis-dev libass-dev libfreetype6-dev libmp3lame-dev \
-    python3.9 python3-pip \
+    build-essential \
+    pkg-config \
+    yasm \
+    nasm \
+    git \
+    wget \
+    xz-utils \
+    ca-certificates \
+    libx264-dev \
+    libx265-dev \
+    libvpx-dev \
+    libaom-dev \
+    libopus-dev \
+    libvorbis-dev \
+    libass-dev \
+    libfreetype6-dev \
+    libmp3lame-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install NVIDIA codec headers
-RUN git clone --depth 1 https://git.videolan.org/git/ffmpeg/nv-codec-headers.git && \
+# Install NVIDIA codec headers for NVENC support
+RUN git clone --depth 1 --branch n12.1.14.0 https://git.videolan.org/git/ffmpeg/nv-codec-headers.git && \
     cd nv-codec-headers && \
     make install && \
-    cd .. && \
-    rm -rf nv-codec-headers
+    ldconfig
 
-# Download and build FFmpeg with NVENC
+# Download and extract FFmpeg
 RUN wget -q https://ffmpeg.org/releases/ffmpeg-6.1.tar.xz && \
-    tar -xf ffmpeg-6.1.tar.xz && \
-    cd ffmpeg-6.1 && \
+    tar -xf ffmpeg-6.1.tar.xz
+
+# Configure FFmpeg with NVENC and all necessary encoders
+RUN cd ffmpeg-6.1 && \
     ./configure \
         --prefix=/usr/local \
         --enable-gpl \
@@ -52,11 +66,19 @@ RUN wget -q https://ffmpeg.org/releases/ffmpeg-6.1.tar.xz && \
         --enable-libfreetype \
         --extra-cflags="-I/usr/local/cuda/include" \
         --extra-ldflags="-L/usr/local/cuda/lib64" \
+        --nvccflags="-gencode arch=compute_50,code=sm_50 -O2" \
         --disable-debug \
-        --disable-doc && \
+        --disable-doc
+
+# Build and install FFmpeg
+RUN cd ffmpeg-6.1 && \
     make -j$(nproc) && \
     make install && \
     ldconfig
+
+# Verify FFmpeg was built correctly
+RUN ffmpeg -version && \
+    ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|264|265|vpx|aom)" | head -20
 
 # Main application stage
 FROM nvidia/cuda:11.8.0-base-ubuntu22.04
