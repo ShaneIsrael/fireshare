@@ -51,10 +51,7 @@ RUN cd ffmpeg-6.1 && \
         --enable-gpl \
         --enable-version3 \
         --enable-nonfree \
-        --enable-cuda-nvcc \
-        --enable-cuvid \
-        --enable-nvenc \
-        --enable-libnpp \
+        --enable-ffnvcodec \
         --enable-libx264 \
         --enable-libx265 \
         --enable-libvpx \
@@ -64,9 +61,6 @@ RUN cd ffmpeg-6.1 && \
         --enable-libmp3lame \
         --enable-libass \
         --enable-libfreetype \
-        --extra-cflags="-I/usr/local/cuda/include" \
-        --extra-ldflags="-L/usr/local/cuda/lib64" \
-        --nvccflags="-gencode arch=compute_50,code=sm_50 -O2" \
         --disable-debug \
         --disable-doc
 
