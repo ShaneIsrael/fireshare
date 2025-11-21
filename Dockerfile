@@ -31,15 +31,15 @@ RUN cd /tmp && \
 
 # Install codec dependencies (both dev and runtime)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libx264-dev libx264-163 \
-    libx265-dev libx265-192 \
-    libvpx-dev libvpx7 \
-    libaom-dev libaom3 \
-    libopus-dev libopus0 \
-    libvorbis-dev libvorbis0a libvorbisenc2 \
-    libass-dev libass9 \
-    libfreetype6-dev libfreetype6 \
-    libmp3lame-dev libmp3lame0 && \
+    libx264-dev \
+    libx265-dev \
+    libvpx-dev \
+    libaom-dev \
+    libopus-dev \
+    libvorbis-dev \
+    libass-dev \
+    libfreetype6-dev \
+    libmp3lame-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Build and install FFmpeg with NVENC, AV1, VP9, and other codec support
@@ -78,14 +78,14 @@ RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
     echo "FFmpeg installed at: $(which ffmpeg)" && \
     ffmpeg -version
 
-# Clean up FFmpeg build artifacts and unnecessary packages
+# Clean up FFmpeg build artifacts and dev packages
 RUN cd / && \
     rm -rf /tmp/ffmpeg-* && \
     apt-get remove -y \
         libx264-dev libx265-dev libvpx-dev \
         libaom-dev libopus-dev libvorbis-dev \
         libass-dev libfreetype6-dev libmp3lame-dev \
-        build-essential gcc g++ pkg-config yasm nasm git autoconf automake libtool && \
+        yasm nasm autoconf automake libtool && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
