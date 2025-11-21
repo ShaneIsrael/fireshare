@@ -184,6 +184,96 @@ Once running, navigate to `localhost:8080` in your browser.
 See the Fireshare Configuration Wiki: <a href="https://github.com/ShaneIsrael/fireshare/wiki/Fireshare-Configurables">Link</a>  
 For LDAP configuration, see [LDAP.md](./LDAP.md)
 
+### Video Transcoding (Optional)
+
+Fireshare supports automatic transcoding of videos to create 720p and 1080p quality variants using the AV1 codec for better compression. This feature is **disabled by default** and must be explicitly enabled.
+
+**Benefits:**
+- Smaller file sizes with AV1 compression (up to 50% smaller than H.264)
+- Better streaming performance for users with limited bandwidth
+- Quality selection in the video player
+
+**Requirements:**
+- FFmpeg with libaom-av1 and NVENC support (included in the Docker image)
+- Optional: NVIDIA GPU with NVENC support for hardware acceleration
+  - Supported GPUs: NVIDIA GTX 1050+ (Pascal or newer for H.264/HEVC NVENC), RTX 4000+ (Ada Lovelace or newer for AV1 NVENC)
+  - NVIDIA Container Toolkit must be installed on the host system
+  - See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
+
+**Environment Variables:**
+```yaml
+# Enable automatic transcoding during video scans (default: false)
+ENABLE_TRANSCODING=true
+
+# Enable GPU acceleration for transcoding using NVENC (default: false)
+# Requires nvidia-docker runtime
+TRANSCODE_GPU=true
+```
+
+**Docker Compose GPU Setup:**
+```yaml
+services:
+  fireshare:
+    # ... other configuration ...
+    environment:
+      - ENABLE_TRANSCODING=true
+      - TRANSCODE_GPU=true
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+```
+
+**Manual Transcoding:**
+You can manually trigger transcoding for existing videos:
+```bash
+# Transcode all videos
+docker exec -it fireshare fireshare transcode-videos
+
+# Transcode a specific video
+docker exec -it fireshare fireshare transcode-videos --video VIDEO_ID
+
+# Regenerate transcoded versions
+docker exec -it fireshare fireshare transcode-videos --regenerate
+```
+
+**GPU Setup (Optional but Recommended):**
+
+To use GPU acceleration, you need to:
+
+1. Install NVIDIA drivers on your host system
+2. Install NVIDIA Container Toolkit:
+   ```bash
+   # Ubuntu/Debian
+   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+   curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
+     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+   sudo apt-get update
+   sudo apt-get install -y nvidia-container-toolkit
+   sudo systemctl restart docker
+   ```
+
+3. Verify GPU is available:
+   ```bash
+   docker run --rm --runtime=nvidia --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+   ```
+
+4. Update your docker-compose.yml with GPU configuration (see example above)
+
+**Notes:**
+- Transcoding only creates quality variants for videos larger than the target resolution
+- Original files are always preserved
+- The video player will automatically show a quality selector when transcoded versions are available
+- AV1 transcoding is CPU-intensive; GPU acceleration is highly recommended for production use
+- GPU AV1 encoding (av1_nvenc) requires RTX 40 series or newer; older GPUs will automatically fall back to CPU AV1 encoding
+- The FFmpeg binary included in the Docker image supports both CPU and GPU encoding
+
 # Local Development
 
 If you would like to run Fireshare via the source code in order to contribute you will need to have npm, Node.js and Python installed. I reccommend installing Node.js with NVM so that you can easily switch between Node versions.
