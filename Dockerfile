@@ -29,23 +29,24 @@ RUN cd /tmp && \
     cd / && \
     rm -rf /tmp/nv-codec-headers
 
+# Install codec dependencies (both dev and runtime)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libx264-dev libx264-163 \
+    libx265-dev libx265-192 \
+    libvpx-dev libvpx7 \
+    libaom-dev libaom3 \
+    libopus-dev libopus0 \
+    libvorbis-dev libvorbis0a libvorbisenc2 \
+    libass-dev libass9 \
+    libfreetype6-dev libfreetype6 \
+    libmp3lame-dev libmp3lame0 && \
+    rm -rf /var/lib/apt/lists/*
+
 # Build and install FFmpeg with NVENC, AV1, VP9, and other codec support
 RUN cd /tmp && \
     wget -q https://ffmpeg.org/releases/ffmpeg-6.1.tar.xz && \
     tar -xf ffmpeg-6.1.tar.xz && \
     cd ffmpeg-6.1 && \
-    # Install codec dependencies (both dev and runtime)
-    apt-get update && apt-get install -y --no-install-recommends \
-        libx264-dev libx264-163 \
-        libx265-dev libx265-192 \
-        libvpx-dev libvpx7 \
-        libaom-dev libaom3 \
-        libopus-dev libopus0 \
-        libvorbis-dev libvorbis0a libvorbisenc2 \
-        libass-dev libass9 \
-        libfreetype6-dev libfreetype6 \
-        libmp3lame-dev libmp3lame0 && \
-    # Configure FFmpeg with NVENC and codec support (without CUDA runtime requirements)
     ./configure \
         --prefix=/usr/local \
         --enable-gpl \
@@ -66,34 +67,29 @@ RUN cd /tmp && \
         --disable-doc && \
     make -j$(nproc) && \
     make install && \
-    ldconfig && \
-    # Create symlinks to /usr/bin for system-wide access
-    ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
+    ldconfig
+
+# Create symlinks and verify installation
+RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
     ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe && \
-    # Verify binaries exist before continuing
-    test -f /usr/local/bin/ffmpeg || { echo "FFmpeg binary not found after install!"; exit 1; } && \
-    cd / && \
+    test -f /usr/local/bin/ffmpeg || { echo "FFmpeg binary not found!"; exit 1; } && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
+    ldconfig && \
+    echo "FFmpeg installed at: $(which ffmpeg)" && \
+    ffmpeg -version
+
+# Clean up FFmpeg build artifacts and unnecessary packages
+RUN cd / && \
     rm -rf /tmp/ffmpeg-* && \
-    # Remove build tools and dev packages, keep runtime libraries
     apt-get remove -y \
         libx264-dev libx265-dev libvpx-dev \
         libaom-dev libopus-dev libvorbis-dev \
         libass-dev libfreetype6-dev libmp3lame-dev \
         build-essential gcc g++ pkg-config yasm nasm git autoconf automake libtool && \
     apt-get autoremove -y && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    # Update library cache again after cleanup
-    ldconfig && \
-    # Add library path to system-wide config
-    echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
-    ldconfig && \
-    # Verify FFmpeg installation and symlinks
-    echo "FFmpeg installed at:" && \
-    which ffmpeg && \
-    ls -la /usr/bin/ffmpeg /usr/local/bin/ffmpeg && \
-    ffmpeg -version && \
-    echo "Available NVENC encoders:" && \
-    ffmpeg -hide_banner -encoders 2>/dev/null | grep nvenc || echo "Note: NVENC requires NVIDIA drivers at runtime"
+    ldconfig
 
 # Create a profile script to set environment for all users
 RUN echo 'export PATH=/usr/local/bin:$PATH' >> /etc/profile.d/ffmpeg.sh && \
