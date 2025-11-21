@@ -52,7 +52,6 @@ RUN cd /tmp && \
         --enable-gpl \
         --enable-version3 \
         --enable-nonfree \
-        --enable-nvenc \
         --enable-ffnvcodec \
         --enable-libx264 \
         --enable-libx265 \
