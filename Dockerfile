@@ -70,6 +70,9 @@ RUN cd /tmp && \
     make -j$(nproc) && \
     make install && \
     ldconfig && \
+    # Create symlinks to /usr/bin for system-wide access
+    ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
+    ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe && \
     cd / && \
     rm -rf /tmp/ffmpeg-* && \
     # Remove only the -dev packages, keep runtime libraries and build tools
@@ -85,8 +88,9 @@ RUN cd /tmp && \
     # Add library path to system-wide config
     echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
     ldconfig && \
-    # Verify FFmpeg installation
+    # Verify FFmpeg installation and symlinks
     ffmpeg -version && \
+    ls -la /usr/bin/ffmpeg /usr/local/bin/ffmpeg && \
     echo "Available NVENC encoders:" && \
     ffmpeg -hide_banner -encoders 2>/dev/null | grep nvenc || echo "Note: NVENC requires NVIDIA drivers at runtime"
 
