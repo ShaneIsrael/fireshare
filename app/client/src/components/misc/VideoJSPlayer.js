@@ -2,7 +2,10 @@ import React, { useEffect, useRef } from 'react'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
 import 'videojs-contrib-quality-levels'
-import 'videojs-http-source-selector'
+
+// Import and register the quality selector plugin
+import '@silvermine/videojs-quality-selector'
+import '@silvermine/videojs-quality-selector/dist/css/quality-selector.css'
 
 const VideoJSPlayer = ({ 
   sources, 
@@ -17,6 +20,14 @@ const VideoJSPlayer = ({
 }) => {
   const videoRef = useRef(null)
   const playerRef = useRef(null)
+  const onTimeUpdateRef = useRef(onTimeUpdate)
+  const onReadyRef = useRef(onReady)
+
+  // Keep refs updated with latest callback values
+  useEffect(() => {
+    onTimeUpdateRef.current = onTimeUpdate
+    onReadyRef.current = onReady
+  }, [onTimeUpdate, onReady])
 
   useEffect(() => {
     // Make sure Video.js player is only initialized once
@@ -47,13 +58,13 @@ const VideoJSPlayer = ({
         player.src(sources)
       }
 
-      // Handle time updates
-      if (onTimeUpdate) {
-        player.on('timeupdate', () => {
-          const currentTime = player.currentTime()
-          onTimeUpdate({ playedSeconds: currentTime || 0 })
-        })
-      }
+      // Handle time updates using ref to avoid recreating player
+      player.on('timeupdate', () => {
+        const currentTime = player.currentTime()
+        if (onTimeUpdateRef.current) {
+          onTimeUpdateRef.current({ playedSeconds: currentTime || 0 })
+        }
+      })
 
       // Seek to start time if provided
       if (startTime) {
@@ -62,16 +73,18 @@ const VideoJSPlayer = ({
         })
       }
 
-      // Call onReady when player is ready
-      if (onReady) {
-        player.ready(() => {
-          onReady(player)
-        })
-      }
+      // Call onReady when player is ready using ref
+      player.ready(() => {
+        if (onReadyRef.current) {
+          onReadyRef.current(player)
+        }
+      })
 
-      // Enable source selector if multiple sources
+      // Enable quality selector if multiple sources
       if (sources && sources.length > 1) {
-        player.httpSourceSelector()
+        player.ready(() => {
+          player.controlBar.addChild('QualitySelector')
+        })
       }
     } else {
       const player = playerRef.current
@@ -89,7 +102,8 @@ const VideoJSPlayer = ({
         }
       }
     }
-  }, [sources, poster, autoplay, controls, onTimeUpdate, onReady, startTime])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sources, poster, autoplay, controls, startTime])
 
   // Dispose the Video.js player when the functional component unmounts
   useEffect(() => {
