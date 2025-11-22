@@ -292,7 +292,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     
     mode = 'gpu' if use_gpu else 'cpu'
     
-    # Use cached encoder if available to avoid redundant NVENC checks during bulk transcoding.
+    # Use cached encoder if available to avoid redundant encoder detection during bulk transcoding.
     if _working_encoder_cache[mode] is not None:
         encoder = _working_encoder_cache[mode]
         logger.debug(f"Using cached {mode.upper()} encoder: {encoder['name']}")
