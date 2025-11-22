@@ -96,6 +96,32 @@ export const copyToClipboard = (textToCopy) => {
 }
 
 /**
+ * Gets the URL for a specific video quality
+ * @param {string} videoId - The video ID
+ * @param {string} quality - Quality ('720p', '1080p', or 'original')
+ * @param {string} extension - Video file extension (e.g., '.mp4', '.mkv')
+ * @returns {string} Video URL
+ */
+export const getVideoUrl = (videoId, quality, extension) => {
+  const URL = getUrl()
+  const SERVED_BY = getServedBy()
+  
+  if (quality === '720p' || quality === '1080p') {
+    if (SERVED_BY === 'nginx') {
+      return `${URL}/_content/derived/${videoId}/${videoId}-${quality}.mp4`
+    }
+    return `${URL}/api/video?id=${videoId}&quality=${quality}`
+  }
+  
+  // Original quality
+  if (SERVED_BY === 'nginx') {
+    const videoPath = getVideoPath(videoId, extension)
+    return `${URL}/_content/video/${videoPath}`
+  }
+  return `${URL}/api/video?id=${extension === '.mkv' ? `${videoId}&subid=1` : videoId}`
+}
+
+/**
  * Generates video sources array for Video.js player with quality options
  * Prefers 720p if available, else 1080p, else original
  * @param {string} videoId - The video ID
@@ -104,9 +130,6 @@ export const copyToClipboard = (textToCopy) => {
  * @returns {Array} Array of video sources for Video.js
  */
 export const getVideoSources = (videoId, videoInfo, extension) => {
-  // Cache these values as they don't change during application lifecycle
-  const URL = getUrl()
-  const SERVED_BY = getServedBy()
   const sources = []
   
   // Prefer 720p if available, else 1080p, else original
@@ -115,61 +138,31 @@ export const getVideoSources = (videoId, videoInfo, extension) => {
   
   // Add 720p (preferred first)
   if (has720p) {
-    if (SERVED_BY === 'nginx') {
-      // Serve transcoded files directly from nginx
-      sources.push({
-        src: `${URL}/_content/derived/${videoId}/${videoId}-720p.mp4`,
-        type: 'video/mp4',
-        label: '720p',
-        selected: true, // Always prefer 720p if available
-      })
-    } else {
-      sources.push({
-        src: `${URL}/api/video?id=${videoId}&quality=720p`,
-        type: 'video/mp4',
-        label: '720p',
-        selected: true, // Always prefer 720p if available
-      })
-    }
+    sources.push({
+      src: getVideoUrl(videoId, '720p', extension),
+      type: 'video/mp4',
+      label: '720p',
+      selected: true, // Always prefer 720p if available
+    })
   }
   
   // Add 1080p
   if (has1080p) {
-    if (SERVED_BY === 'nginx') {
-      // Serve transcoded files directly from nginx
-      sources.push({
-        src: `${URL}/_content/derived/${videoId}/${videoId}-1080p.mp4`,
-        type: 'video/mp4',
-        label: '1080p',
-        selected: !has720p, // Select 1080p only if 720p is not available
-      })
-    } else {
-      sources.push({
-        src: `${URL}/api/video?id=${videoId}&quality=1080p`,
-        type: 'video/mp4',
-        label: '1080p',
-        selected: !has720p, // Select 1080p only if 720p is not available
-      })
-    }
+    sources.push({
+      src: getVideoUrl(videoId, '1080p', extension),
+      type: 'video/mp4',
+      label: '1080p',
+      selected: !has720p, // Select 1080p only if 720p is not available
+    })
   }
 
   // Add original quality
-  if (SERVED_BY === 'nginx') {
-    const videoPath = getVideoPath(videoId, extension)
-    sources.push({
-      src: `${URL}/_content/video/${videoPath}`,
-      type: 'video/mp4',
-      label: 'Original',
-      selected: !has720p && !has1080p, // Select original only if no transcoded versions
-    })
-  } else {
-    sources.push({
-      src: `${URL}/api/video?id=${extension === '.mkv' ? `${videoId}&subid=1` : videoId}`,
-      type: 'video/mp4',
-      label: 'Original',
-      selected: !has720p && !has1080p, // Select original only if no transcoded versions
-    })
-  }
+  sources.push({
+    src: getVideoUrl(videoId, 'original', extension),
+    type: 'video/mp4',
+    label: 'Original',
+    selected: !has720p && !has1080p, // Select original only if no transcoded versions
+  })
 
   return sources
 }

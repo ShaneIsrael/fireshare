@@ -5,7 +5,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import EditIcon from '@mui/icons-material/Edit'
 import LinkIcon from '@mui/icons-material/Link'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, useDebounce, getVideoPath } from '../../common/utils'
+import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, useDebounce, getVideoUrl } from '../../common/utils'
 import VideoService from '../../services/VideoService'
 import _ from 'lodash'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
@@ -117,26 +117,15 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
     const has1080p = video.info?.has_1080p
     
     if (has720p) {
-      // Serve transcoded files directly from nginx when available
-      if (SERVED_BY === 'nginx') {
-        return `${URL}/_content/derived/${video.video_id}/${video.video_id}-720p.mp4`
-      }
-      return `${URL}/api/video?id=${video.video_id}&quality=720p`
+      return getVideoUrl(video.video_id, '720p', video.extension)
     }
     
     if (has1080p) {
-      // Serve transcoded files directly from nginx when available
-      if (SERVED_BY === 'nginx') {
-        return `${URL}/_content/derived/${video.video_id}/${video.video_id}-1080p.mp4`
-      }
-      return `${URL}/api/video?id=${video.video_id}&quality=1080p`
+      return getVideoUrl(video.video_id, '1080p', video.extension)
     }
     
     // Fall back to original
-    if (SERVED_BY === 'nginx') {
-      return `${URL}/_content/video/${getVideoPath(video.video_id, video.extension)}`
-    }
-    return `${URL}/api/video?id=${video.extension === '.mkv' ? `${video.video_id}&subid=1` : video.video_id}`
+    return getVideoUrl(video.video_id, 'original', video.extension)
   }
 
   return (
