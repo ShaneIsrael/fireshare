@@ -210,7 +210,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
             logger.warning("       runtime: nvidia")
             logger.warning("")
             logger.warning("  2. Missing libnvidia-encode.so.1 library")
-            if diag['libnvidia_encode_found']:
+            if diag['libnvidia_encode_found'] and diag['library_paths']:
                 logger.warning(f"     ✓ Found at: {diag['library_paths'][0]}")
                 logger.warning("     But it may not be in ffmpeg's library path")
                 logger.warning("     Try adding to LD_LIBRARY_PATH in docker config")
@@ -239,6 +239,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     # Add GPU acceleration if enabled
     if use_gpu:
         # Try AV1 NVENC first (requires RTX 40 series or newer)
+        # This will fail quickly on older GPUs and we'll fall back to H.264 NVENC
         logger.info(f"Transcoding video to {height}p using GPU AV1 (NVENC)")
         cmd.extend(['-c:v', 'av1_nvenc', '-preset', 'p4', '-cq:v', '30'])
         cmd.extend(['-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str])
