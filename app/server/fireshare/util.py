@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import json
 import subprocess as sp
+import tempfile
 import xxhash
 from fireshare import logger
 import time
@@ -188,8 +189,6 @@ def _test_encoder(video_path, encoder_config, height):
     Returns:
         bool: True if encoder works, False otherwise
     """
-    import tempfile
-    
     tmp_path = None
     try:
         # Create a temporary output file
@@ -207,6 +206,7 @@ def _test_encoder(video_path, encoder_config, height):
         cmd.append(tmp_path)
         
         logger.debug(f"Testing encoder: {' '.join(cmd)}")
+        # 30 second timeout is sufficient for testing encoder support without waiting too long
         result = sp.call(cmd, timeout=30)
         
         # Clean up temp file
@@ -220,7 +220,7 @@ def _test_encoder(video_path, encoder_config, height):
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)
-            except (OSError, FileNotFoundError) as cleanup_ex:
+            except OSError as cleanup_ex:
                 logger.debug(f"Failed to clean up temp file: {cleanup_ex}")
         return False
 
@@ -303,10 +303,10 @@ def _get_working_encoder(video_path, height, use_gpu=False):
         else:
             logger.warning(f"✗ {encoder['name']} failed")
     
-    # If we get here, no encoder worked - this should never happen
-    logger.error("No working encoder found! This should not happen.")
-    # Return the last fallback as a desperate attempt
-    return encoders[-1]
+    # If we get here, no encoder worked - this indicates a serious configuration issue
+    error_msg = f"No working {mode.upper()} encoder found! Tested: {', '.join([e['name'] for e in encoders])}"
+    logger.error(error_msg)
+    raise RuntimeError(error_msg)
 
 def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     """
