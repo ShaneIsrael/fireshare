@@ -111,6 +111,26 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
   const previewVideoHeight =
     video.info?.width && video.info?.height ? cardWidth * (video.info.height / video.info.width) : cardWidth / 1.77
 
+  const getPreviewVideoUrl = () => {
+    // Prefer 720p if available, else 1080p, else original
+    const has720p = video.info?.has_720p
+    const has1080p = video.info?.has_1080p
+    
+    if (has720p) {
+      return `${URL}/api/video?id=${video.video_id}&quality=720p`
+    }
+    
+    if (has1080p) {
+      return `${URL}/api/video?id=${video.video_id}&quality=1080p`
+    }
+    
+    // Fall back to original
+    if (SERVED_BY === 'nginx') {
+      return `${URL}/_content/video/${getVideoPath(video.video_id, video.extension)}`
+    }
+    return `${URL}/api/video?id=${video.extension === '.mkv' ? `${video.video_id}&subid=1` : video.video_id}`
+  }
+
   return (
     <>
       <UpdateDetailsModal
@@ -278,11 +298,7 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
                 }}
                 width={cardWidth}
                 height={previewVideoHeight}
-                src={`${
-                  SERVED_BY === 'nginx'
-                    ? `${URL}/_content/video/${getVideoPath(video.video_id, video.extension)}`
-                    : `${URL}/api/video?id=${video.extension === '.mkv' ? `${video.video_id}&subid=1` : video.video_id}`
-                }`}
+                src={getPreviewVideoUrl()}
                 muted
                 autoPlay
                 disablePictureInPicture

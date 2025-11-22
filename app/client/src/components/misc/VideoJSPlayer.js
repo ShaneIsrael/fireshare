@@ -81,9 +81,7 @@ const VideoJSPlayer = ({
 
       // Enable quality selector if multiple sources
       if (sources && sources.length > 1) {
-        player.ready(() => {
-          player.controlBar.addChild('QualitySelector')
-        })
+        player.controlBar.addChild('QualitySelector')
       }
     } else {
       const player = playerRef.current
