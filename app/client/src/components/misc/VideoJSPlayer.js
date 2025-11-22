@@ -77,12 +77,13 @@ const VideoJSPlayer = ({
         if (onReadyRef.current) {
           onReadyRef.current(player)
         }
+        
+        // Enable quality selector if multiple sources
+        // Only add if not already present to avoid duplicates
+        if (sources && sources.length > 1 && !player.controlBar.getChild('QualitySelector')) {
+          player.controlBar.addChild('QualitySelector')
+        }
       })
-
-      // Enable quality selector if multiple sources
-      if (sources && sources.length > 1) {
-        player.controlBar.addChild('QualitySelector')
-      }
     } else {
       const player = playerRef.current
 
