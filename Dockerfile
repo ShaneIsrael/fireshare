@@ -91,6 +91,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     libffi-dev libc-dev \
     build-essential \
     wget curl ca-certificates \
+    tzdata \
     libx264-163 libx265-199 libvpx7 libaom3 \
     libopus0 libvorbis0a libvorbisenc2 \
     libass9 libfreetype6 libmp3lame0 \
@@ -125,6 +126,7 @@ ENV VIDEO_DIRECTORY /videos
 ENV PROCESSED_DIRECTORY /processed
 ENV TEMPLATE_PATH=/app/server/fireshare/templates
 ENV ADMIN_PASSWORD admin
+ENV TZ=UTC
 ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
 ENV PATH /usr/local/bin:$PATH
 
