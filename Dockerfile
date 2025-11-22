@@ -86,7 +86,7 @@ COPY --from=ffmpeg-builder /usr/local/lib/lib* /usr/local/lib/
 # Install runtime dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    nginx supervisor \
+    nginx-extras supervisor \
     python3.9 python3-pip python3-dev \
     libldap2-dev libsasl2-dev libssl-dev \
     libffi-dev libc-dev \
@@ -103,6 +103,8 @@ RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
     ln -sf /usr/local/bin/ffprobe /usr/bin/ffprobe && \
     echo "/usr/local/lib" > /etc/ld.so.conf.d/usr-local.conf && \
     echo "/usr/local/cuda/lib64" >> /etc/ld.so.conf.d/usr-local.conf && \
+    echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
+    echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf && \
     ldconfig && \
     ffmpeg -version && \
     echo "Available encoders:" && \
@@ -128,7 +130,7 @@ ENV PROCESSED_DIRECTORY /processed
 ENV TEMPLATE_PATH=/app/server/fireshare/templates
 ENV ADMIN_PASSWORD admin
 ENV TZ=UTC
-ENV LD_LIBRARY_PATH /usr/local/lib:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 ENV PATH /usr/local/bin:$PATH
 
 EXPOSE 80
