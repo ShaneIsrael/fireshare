@@ -75,7 +75,7 @@ RUN ffmpeg -version && \
     ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|264|265|vpx|aom)" | head -20
 
 # Main application stage
-FROM nvidia/cuda:11.8.0-base-ubuntu22.04
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
 WORKDIR /
 
 # Copy FFmpeg from builder
