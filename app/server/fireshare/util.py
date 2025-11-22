@@ -62,6 +62,11 @@ def create_poster(video_path, out_path, second=0):
 # Cache for NVENC availability check to avoid repeated subprocess calls
 _nvenc_availability_cache = {}
 
+def clear_nvenc_cache():
+    """Clear the NVENC availability cache to force a re-check."""
+    global _nvenc_availability_cache
+    _nvenc_availability_cache = {}
+
 def diagnose_nvenc_setup():
     """
     Diagnose NVENC setup issues and log helpful information.
@@ -204,19 +209,19 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
             logger.warning("")
             
             # Try to automatically fix the library path issue
-            if diag['libnvidia_encode_found'] and diag['library_paths']:
+            if diag['libnvidia_encode_found'] and diag['library_paths'] and len(diag['library_paths']) > 0:
                 library_dir = str(Path(diag['library_paths'][0]).parent)
                 current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+                current_paths = current_ld_path.split(':') if current_ld_path else []
                 
                 # Add the library directory to LD_LIBRARY_PATH if not already present
-                if library_dir not in current_ld_path.split(':'):
+                if library_dir not in current_paths:
                     new_ld_path = f"{library_dir}:{current_ld_path}" if current_ld_path else library_dir
                     os.environ['LD_LIBRARY_PATH'] = new_ld_path
                     logger.info(f"Automatically added {library_dir} to LD_LIBRARY_PATH")
                     
                     # Clear the cache and retry the check
-                    global _nvenc_availability_cache
-                    _nvenc_availability_cache = {}
+                    clear_nvenc_cache()
                     
                     if check_nvenc_available():
                         logger.info("✓ NVENC is now available! Continuing with GPU transcoding")
