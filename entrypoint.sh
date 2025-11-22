@@ -32,7 +32,7 @@ runuser -u appuser -- rm /jobs.sqlite
 
 # Ensure PATH and LD_LIBRARY_PATH are set for all processes
 export PATH=/usr/local/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
 runuser -u appuser -- env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" flask db upgrade
 
