@@ -8,7 +8,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import { VideoService } from '../services'
-import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath } from '../common/utils'
+import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoSources } from '../common/utils'
 import VideoJSPlayer from '../components/misc/VideoJSPlayer'
 
 const URL = getUrl()
@@ -86,44 +86,7 @@ const Watch = ({ authenticated }) => {
     }
   }
 
-  const getVideoSources = () => {
-    const sources = []
-    
-    // Add original quality
-    if (SERVED_BY === 'nginx') {
-      const videoPath = getVideoPath(id, details?.extension || '.mp4')
-      sources.push({
-        src: `${URL}/_content/video/${videoPath}`,
-        type: 'video/mp4',
-        label: 'Original',
-      })
-    } else {
-      sources.push({
-        src: `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`,
-        type: 'video/mp4',
-        label: 'Original',
-      })
-    }
 
-    // Add transcoded qualities
-    if (details?.info?.has_1080p) {
-      sources.push({
-        src: `${URL}/api/video?id=${id}&quality=1080p`,
-        type: 'video/mp4',
-        label: '1080p',
-      })
-    }
-    
-    if (details?.info?.has_720p) {
-      sources.push({
-        src: `${URL}/api/video?id=${id}&quality=720p`,
-        type: 'video/mp4',
-        label: '720p',
-      })
-    }
-
-    return sources
-  }
 
   const getPosterUrl = () => {
     if (SERVED_BY === 'nginx') {
@@ -230,7 +193,7 @@ const Watch = ({ authenticated }) => {
       <Grid container>
         <Grid item xs={12}>
           <VideoJSPlayer
-            sources={getVideoSources()}
+            sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
             poster={getPosterUrl()}
             autoplay={true}
             controls={true}

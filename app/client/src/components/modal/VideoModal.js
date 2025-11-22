@@ -8,7 +8,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoPath } from '../../common/utils'
+import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoSources } from '../../common/utils'
 import { ConfigService, VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../misc/VideoJSPlayer'
@@ -169,44 +169,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     }
   }
 
-  const getVideoSources = () => {
-    const sources = []
-    
-    // Add original quality
-    if (SERVED_BY === 'nginx') {
-      const videoPath = getVideoPath(vid.video_id, vid.extension)
-      sources.push({
-        src: `${URL}/_content/video/${videoPath}`,
-        type: 'video/mp4',
-        label: 'Original',
-      })
-    } else {
-      sources.push({
-        src: `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`,
-        type: 'video/mp4',
-        label: 'Original',
-      })
-    }
 
-    // Add transcoded qualities
-    if (vid?.info?.has_1080p) {
-      sources.push({
-        src: `${URL}/api/video?id=${vid.video_id}&quality=1080p`,
-        type: 'video/mp4',
-        label: '1080p',
-      })
-    }
-    
-    if (vid?.info?.has_720p) {
-      sources.push({
-        src: `${URL}/api/video?id=${vid.video_id}&quality=720p`,
-        type: 'video/mp4',
-        label: '720p',
-      })
-    }
-
-    return sources
-  }
 
   const getPosterUrl = () => {
     if (SERVED_BY === 'nginx') {
@@ -248,7 +211,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             <Grid container justifyContent="center">
               <Grid item xs={12}>
                 <VideoJSPlayer
-                  sources={getVideoSources()}
+                  sources={getVideoSources(vid.video_id, vid?.info, vid.extension)}
                   poster={getPosterUrl()}
                   autoplay={autoplay}
                   controls={true}

@@ -421,9 +421,6 @@ function Navbar20({
               color: '#888',
               fontWeight: 600,
               fontSize: 13,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
           >
             
