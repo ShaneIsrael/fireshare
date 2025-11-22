@@ -67,6 +67,9 @@ _nvenc_availability_cache = {}
 # Format: {'gpu': 'av1_nvenc'/'h264_nvenc'/None, 'cpu': 'libaom-av1'/'libx264'/None}
 _working_encoder_cache = {'gpu': None, 'cpu': None}
 
+# Timeout for testing encoder support (seconds)
+ENCODER_TEST_TIMEOUT_SECONDS = 30
+
 def clear_nvenc_cache():
     """Clear the NVENC availability cache to force a re-check."""
     global _nvenc_availability_cache
@@ -189,11 +192,12 @@ def _test_encoder(video_path, encoder_config, height):
     Returns:
         bool: True if encoder works, False otherwise
     """
+    tmp_fd = None
     tmp_path = None
     try:
-        # Create a temporary output file
-        with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_file:
-            tmp_path = tmp_file.name
+        # Create a temporary output file using mkstemp for better control
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix='.mp4')
+        os.close(tmp_fd)  # Close the file descriptor as ffmpeg will open it
         
         cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
         cmd.extend(['-c:v', encoder_config['video_codec']])
@@ -206,23 +210,24 @@ def _test_encoder(video_path, encoder_config, height):
         cmd.append(tmp_path)
         
         logger.debug(f"Testing encoder: {' '.join(cmd)}")
-        # 30 second timeout is sufficient for testing encoder support without waiting too long
-        result = sp.call(cmd, timeout=30)
+        # Use subprocess.run with timeout for proper timeout support
+        result = sp.run(cmd, timeout=ENCODER_TEST_TIMEOUT_SECONDS)
         
         # Clean up temp file
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
         
-        return result == 0
+        return result.returncode == 0
     except Exception as ex:
         logger.debug(f"Encoder test failed with exception: {ex}")
-        # Clean up temp file on error
+        return False
+    finally:
+        # Ensure cleanup happens even if there's an error
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)
             except OSError as cleanup_ex:
                 logger.debug(f"Failed to clean up temp file: {cleanup_ex}")
-        return False
 
 def transcode_video(video_path, out_path):
     s = time.time()
