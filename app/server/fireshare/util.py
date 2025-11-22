@@ -190,6 +190,7 @@ def _test_encoder(video_path, encoder_config, height):
     """
     import tempfile
     
+    tmp_path = None
     try:
         # Create a temporary output file
         with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_file:
@@ -216,11 +217,11 @@ def _test_encoder(video_path, encoder_config, height):
     except Exception as ex:
         logger.debug(f"Encoder test failed with exception: {ex}")
         # Clean up temp file on error
-        try:
-            if os.path.exists(tmp_path):
+        if tmp_path and os.path.exists(tmp_path):
+            try:
                 os.remove(tmp_path)
-        except:
-            pass
+            except (OSError, FileNotFoundError) as cleanup_ex:
+                logger.debug(f"Failed to clean up temp file: {cleanup_ex}")
         return False
 
 def transcode_video(video_path, out_path):
@@ -250,9 +251,28 @@ def _get_working_encoder(video_path, height, use_gpu=False):
     
     logger.info(f"Detecting working {mode.upper()} encoder (this only happens once per session)...")
     
+    # CPU encoder configurations (shared between GPU and CPU modes)
+    cpu_encoders = [
+        {
+            'name': 'AV1 CPU',
+            'video_codec': 'libaom-av1',
+            'audio_codec': 'libopus',
+            'audio_bitrate': '96k',
+            'extra_args': ['-cpu-used', '4', '-crf', '30', '-b:v', '0']
+        },
+        {
+            'name': 'H.264 CPU',
+            'video_codec': 'libx264',
+            'audio_codec': 'aac',
+            'audio_bitrate': '128k',
+            'extra_args': ['-preset', 'medium', '-crf', '23']
+        }
+    ]
+    
     # Define encoder configurations to try in order
     if use_gpu:
-        encoders = [
+        # GPU mode: try GPU encoders first, then fall back to CPU encoders
+        gpu_encoders = [
             {
                 'name': 'AV1 NVENC',
                 'video_codec': 'av1_nvenc',
@@ -266,39 +286,12 @@ def _get_working_encoder(video_path, height, use_gpu=False):
                 'audio_codec': 'aac',
                 'audio_bitrate': '128k',
                 'extra_args': ['-preset', 'p4', '-cq:v', '23']
-            },
-            {
-                'name': 'AV1 CPU',
-                'video_codec': 'libaom-av1',
-                'audio_codec': 'libopus',
-                'audio_bitrate': '96k',
-                'extra_args': ['-cpu-used', '4', '-crf', '30', '-b:v', '0']
-            },
-            {
-                'name': 'H.264 CPU',
-                'video_codec': 'libx264',
-                'audio_codec': 'aac',
-                'audio_bitrate': '128k',
-                'extra_args': ['-preset', 'medium', '-crf', '23']
             }
         ]
+        encoders = gpu_encoders + cpu_encoders
     else:
-        encoders = [
-            {
-                'name': 'AV1 CPU',
-                'video_codec': 'libaom-av1',
-                'audio_codec': 'libopus',
-                'audio_bitrate': '96k',
-                'extra_args': ['-cpu-used', '4', '-crf', '30', '-b:v', '0']
-            },
-            {
-                'name': 'H.264 CPU',
-                'video_codec': 'libx264',
-                'audio_codec': 'aac',
-                'audio_bitrate': '128k',
-                'extra_args': ['-preset', 'medium', '-crf', '23']
-            }
-        ]
+        # CPU mode: only try CPU encoders
+        encoders = cpu_encoders
     
     # Try each encoder until one works
     for encoder in encoders:
