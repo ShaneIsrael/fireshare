@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
-import 'videojs-contrib-quality-levels'
 
 // Import and register the quality selector plugin
 import '@silvermine/videojs-quality-selector'

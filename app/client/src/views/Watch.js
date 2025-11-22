@@ -80,12 +80,9 @@ const Watch = ({ authenticated }) => {
   }
 
   const handleTimeUpdate = (e) => {
-    if (!viewAdded) {
-      const currentTime = e.playedSeconds || 0
-      if (currentTime >= 10) {
-        setViewAdded(true)
-        VideoService.addView(id).catch((err) => console.error(err))
-      }
+    if (!viewAdded && e.playedSeconds >= 10) {
+      setViewAdded(true)
+      VideoService.addView(id).catch((err) => console.error(err))
     }
   }
 
