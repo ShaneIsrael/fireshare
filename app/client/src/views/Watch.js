@@ -63,7 +63,8 @@ const Watch = ({ authenticated }) => {
 
   const getCurrentTime = () => {
     if (videoPlayerRef.current && typeof videoPlayerRef.current.currentTime === 'function') {
-      return videoPlayerRef.current.currentTime()
+      const time = videoPlayerRef.current.currentTime()
+      return (time && !isNaN(time)) ? time : 0
     }
     return 0
   }

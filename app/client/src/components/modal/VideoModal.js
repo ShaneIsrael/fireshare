@@ -143,7 +143,11 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const copyTimestamp = () => {
-    const currentTime = playerRef.current?.currentTime?.() || 0
+    let currentTime = 0
+    if (playerRef.current && typeof playerRef.current.currentTime === 'function') {
+      const time = playerRef.current.currentTime()
+      currentTime = (time && !isNaN(time)) ? time : 0
+    }
     copyToClipboard(`${PURL}${vid.video_id}?t=${currentTime}`)
     setAlert({
       type: 'info',

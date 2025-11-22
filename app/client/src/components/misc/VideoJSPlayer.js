@@ -50,7 +50,8 @@ const VideoJSPlayer = ({
       // Handle time updates
       if (onTimeUpdate) {
         player.on('timeupdate', () => {
-          onTimeUpdate({ target: player.el(), playedSeconds: player.currentTime() })
+          const currentTime = player.currentTime()
+          onTimeUpdate({ playedSeconds: currentTime || 0 })
         })
       }
 
