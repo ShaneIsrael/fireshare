@@ -64,11 +64,9 @@ def create_poster(video_path, out_path, second=0):
 _nvenc_availability_cache = {}
 
 # Cache for the working encoder to avoid trying failed encoders repeatedly
-# Format: {'gpu': 'av1_nvenc'/'h264_nvenc'/None, 'cpu': 'libaom-av1'/'libx264'/None}
+# Format: {'gpu': encoder_dict, 'cpu': encoder_dict}
+# where encoder_dict contains 'name', 'video_codec', 'audio_codec', 'extra_args'
 _working_encoder_cache = {'gpu': None, 'cpu': None}
-
-# Timeout for testing encoder support (seconds)
-ENCODER_TEST_TIMEOUT_SECONDS = 30
 
 def clear_nvenc_cache():
     """Clear the NVENC availability cache to force a re-check."""
@@ -180,50 +178,7 @@ def check_nvenc_available(encoder=None):
         _nvenc_availability_cache[cache_key] = False
         return False
 
-def _test_encoder(video_path, encoder_config, height):
-    """
-    Test if a specific encoder works by attempting a quick transcode.
-    
-    Args:
-        video_path: Path to the source video
-        encoder_config: Dict with 'video_codec', 'audio_codec', 'extra_args' (list)
-        height: Target height for the test
-    
-    Returns:
-        bool: True if encoder works, False otherwise
-    """
-    tmp_fd = None
-    tmp_path = None
-    try:
-        # Create a temporary output file using mkstemp for better control
-        tmp_fd, tmp_path = tempfile.mkstemp(suffix='.mp4')
-        os.close(tmp_fd)  # Close the file descriptor as ffmpeg will open it
-        
-        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
-        cmd.extend(['-c:v', encoder_config['video_codec']])
-        
-        if 'extra_args' in encoder_config:
-            cmd.extend(encoder_config['extra_args'])
-        
-        cmd.extend(['-vf', f'scale=-2:{height}'])
-        cmd.extend(['-c:a', encoder_config['audio_codec'], '-b:a', encoder_config.get('audio_bitrate', '128k')])
-        cmd.append(tmp_path)
-        
-        logger.debug(f"Testing encoder: {' '.join(cmd)}")
-        # Use subprocess.run with timeout and capture output to avoid interfering with logs
-        result = sp.run(cmd, timeout=ENCODER_TEST_TIMEOUT_SECONDS, capture_output=True)
-        
-        return result.returncode == 0
-    except Exception as ex:
-        logger.debug(f"Encoder test failed with exception: {ex}")
-        return False
-    finally:
-        # Ensure cleanup happens even if there's an error
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except OSError as cleanup_ex:
-                logger.debug(f"Failed to clean up temp file: {cleanup_ex}")
+
 
 def transcode_video(video_path, out_path):
     s = time.time()
@@ -234,24 +189,16 @@ def transcode_video(video_path, out_path):
     e = time.time()
     logger.info(f'Transcoded {str(out_path)} in {e-s}s')
 
-def _get_working_encoder(video_path, height, use_gpu=False):
+def _get_encoder_candidates(use_gpu=False):
     """
-    Determine and cache the working encoder for this session.
+    Get the list of encoder configurations to try in priority order.
+    
+    Args:
+        use_gpu: Whether to include GPU encoders in the list
     
     Returns:
-        dict: Encoder configuration with 'video_codec', 'audio_codec', 'extra_args', 'name'
+        list: List of encoder configurations to try in order
     """
-    global _working_encoder_cache
-    
-    mode = 'gpu' if use_gpu else 'cpu'
-    
-    # Return cached encoder if available
-    if _working_encoder_cache[mode]:
-        logger.debug(f"Using cached {mode.upper()} encoder: {_working_encoder_cache[mode]['name']}")
-        return _working_encoder_cache[mode]
-    
-    logger.info(f"Detecting working {mode.upper()} encoder (this only happens once per session)...")
-    
     # CPU encoder configurations (shared between GPU and CPU modes)
     cpu_encoders = [
         {
@@ -289,32 +236,17 @@ def _get_working_encoder(video_path, height, use_gpu=False):
                 'extra_args': ['-preset', 'p4', '-cq:v', '23']
             }
         ]
-        encoders = gpu_encoders + cpu_encoders
+        return gpu_encoders + cpu_encoders
     else:
         # CPU mode: only try CPU encoders
-        encoders = cpu_encoders
-    
-    # Try each encoder until one works
-    for encoder in encoders:
-        logger.info(f"Testing {encoder['name']}...")
-        if _test_encoder(video_path, encoder, height):
-            logger.info(f"✓ {encoder['name']} works! Using it for all transcodes this session.")
-            _working_encoder_cache[mode] = encoder
-            return encoder
-        else:
-            logger.warning(f"✗ {encoder['name']} failed")
-    
-    # If we get here, no encoder worked - this indicates a serious configuration issue
-    error_msg = f"No working {mode.upper()} encoder found! Tested: {', '.join([e['name'] for e in encoders])}"
-    logger.error(error_msg)
-    raise RuntimeError(error_msg)
+        return cpu_encoders
 
 def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     """
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
     
-    Detects which encoder works on first transcode, then uses that encoder for all subsequent
-    transcodes until the application is restarted.
+    Tries encoders in priority order during actual transcoding, then caches the first
+    successful encoder for all subsequent transcodes until the application is restarted.
     
     Fallback chain when GPU is enabled:
     1. AV1 with GPU (av1_nvenc) - RTX 40 series or newer
@@ -328,10 +260,13 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         height: Target height in pixels (e.g., 720, 1080)
         use_gpu: Whether to use GPU acceleration (NVENC if available)
     """
+    global _working_encoder_cache
     s = time.time()
     
     # Determine output container based on codec
     out_path_str = str(out_path)
+    
+    mode = 'gpu' if use_gpu else 'cpu'
     
     # Check if GPU is requested but not available
     if use_gpu and not check_nvenc_available():
@@ -378,6 +313,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                         logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
                         logger.info("Falling back to CPU transcoding")
                         use_gpu = False
+                        mode = 'cpu'
                 else:
                     logger.warning(f"Library found at: {diag['library_paths'][0]}")
                     logger.warning(f"But {library_dir} is already in LD_LIBRARY_PATH")
@@ -394,6 +330,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                     logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
                     logger.info("Falling back to CPU transcoding")
                     use_gpu = False
+                    mode = 'cpu'
             else:
                 logger.warning("Common causes on Unraid/Docker:")
                 logger.warning("  1. NVIDIA driver libraries not mounted in container")
@@ -409,6 +346,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                 logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
                 logger.info("Falling back to CPU transcoding")
                 use_gpu = False
+                mode = 'cpu'
         else:
             logger.warning("Common causes:")
             logger.warning("  1. NVIDIA drivers are not installed on the host")
@@ -419,35 +357,84 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
             logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
             logger.info("Falling back to CPU transcoding")
             use_gpu = False
+            mode = 'cpu'
     
-    # Get the working encoder (will detect and cache on first call)
-    encoder = _get_working_encoder(video_path, height, use_gpu)
+    # Check if we have a cached working encoder
+    if _working_encoder_cache[mode]:
+        encoder = _working_encoder_cache[mode]
+        logger.debug(f"Using cached {mode.upper()} encoder: {encoder['name']}")
+        
+        # Build ffmpeg command using the cached encoder
+        logger.info(f"Transcoding video to {height}p using {encoder['name']}")
+        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
+        cmd.extend(['-c:v', encoder['video_codec']])
+        
+        if 'extra_args' in encoder:
+            cmd.extend(encoder['extra_args'])
+        
+        cmd.extend(['-vf', f'scale=-2:{height}'])
+        cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder.get('audio_bitrate', '128k')])
+        cmd.append(out_path_str)
+        
+        logger.debug(f"$: {' '.join(cmd)}")
+        
+        try:
+            result = sp.call(cmd)
+            if result != 0:
+                logger.error(f"Transcode failed with {encoder['name']}")
+                raise Exception(f"Transcode failed with exit code {result}")
+        except Exception as ex:
+            logger.error(f"Error transcoding video: {ex}")
+            raise
+        
+        e = time.time()
+        logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
+        return
     
-    # Build ffmpeg command using the working encoder
-    logger.info(f"Transcoding video to {height}p using {encoder['name']}")
-    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
-    cmd.extend(['-c:v', encoder['video_codec']])
+    # No cached encoder - try encoders in priority order with actual transcoding
+    logger.info(f"Detecting working {mode.upper()} encoder by attempting transcode...")
+    encoders = _get_encoder_candidates(use_gpu)
     
-    if 'extra_args' in encoder:
-        cmd.extend(encoder['extra_args'])
+    last_exception = None
+    for encoder in encoders:
+        logger.info(f"Trying {encoder['name']}...")
+        
+        # Build ffmpeg command
+        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
+        cmd.extend(['-c:v', encoder['video_codec']])
+        
+        if 'extra_args' in encoder:
+            cmd.extend(encoder['extra_args'])
+        
+        cmd.extend(['-vf', f'scale=-2:{height}'])
+        cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder.get('audio_bitrate', '128k')])
+        cmd.append(out_path_str)
+        
+        logger.debug(f"$: {' '.join(cmd)}")
+        
+        try:
+            result = sp.call(cmd)
+            if result == 0:
+                # Success! Cache this encoder and return
+                logger.info(f"✓ {encoder['name']} works! Using it for all transcodes this session.")
+                _working_encoder_cache[mode] = encoder
+                e = time.time()
+                logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
+                return
+            else:
+                logger.warning(f"✗ {encoder['name']} failed with exit code {result}")
+                last_exception = Exception(f"Transcode failed with exit code {result}")
+        except Exception as ex:
+            logger.warning(f"✗ {encoder['name']} failed: {ex}")
+            last_exception = ex
     
-    cmd.extend(['-vf', f'scale=-2:{height}'])
-    cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder.get('audio_bitrate', '128k')])
-    cmd.append(out_path_str)
-    
-    logger.debug(f"$: {' '.join(cmd)}")
-    
-    try:
-        result = sp.call(cmd)
-        if result != 0:
-            logger.error(f"Transcode failed with {encoder['name']}")
-            raise Exception(f"Transcode failed with exit code {result}")
-    except Exception as ex:
-        logger.error(f"Error transcoding video: {ex}")
-        raise
-    
-    e = time.time()
-    logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
+    # If we get here, no encoder worked
+    error_msg = f"No working {mode.upper()} encoder found! Tried: {', '.join([e['name'] for e in encoders])}"
+    logger.error(error_msg)
+    if last_exception:
+        raise RuntimeError(error_msg) from last_exception
+    else:
+        raise RuntimeError(error_msg)
 
 def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
     # https://stackoverflow.com/questions/65874316/trim-a-video-and-add-the-boomerang-effect-on-it-with-ffmpeg
