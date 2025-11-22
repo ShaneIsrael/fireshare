@@ -208,7 +208,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             >
               <CloseIcon sx={{ width: 35, height: 35 }} />
             </IconButton>
-            <Grid container justifyContent="center">
+            <Grid container justifyContent="center" sx={{ gap: '6px' }}>
               <Grid item xs={12}>
                 <VideoJSPlayer
                   sources={getVideoSources(vid.video_id, vid?.info, vid.extension)}
