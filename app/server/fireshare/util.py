@@ -5,6 +5,7 @@ import subprocess as sp
 import xxhash
 from fireshare import logger
 import time
+import glob
 
 def lock_exists(path: Path):
     """
@@ -60,6 +61,61 @@ def create_poster(video_path, out_path, second=0):
 
 # Cache for NVENC availability check to avoid repeated subprocess calls
 _nvenc_availability_cache = {}
+
+def diagnose_nvenc_setup():
+    """
+    Diagnose NVENC setup issues and log helpful information.
+    Returns diagnostic information about the NVENC setup.
+    """
+    diagnostics = {
+        'nvidia_smi_available': False,
+        'libnvidia_encode_found': False,
+        'library_paths': [],
+        'ffmpeg_has_nvenc': False
+    }
+    
+    # Check if nvidia-smi is available
+    try:
+        result = sp.run(['nvidia-smi'], capture_output=True, timeout=5)
+        diagnostics['nvidia_smi_available'] = result.returncode == 0
+        if result.returncode == 0:
+            logger.debug("nvidia-smi is available - GPU is accessible")
+    except Exception:
+        logger.debug("nvidia-smi not available")
+    
+    # Check for libnvidia-encode.so.1
+    search_paths = [
+        '/usr/lib/x86_64-linux-gnu',
+        '/usr/lib64',
+        '/usr/local/nvidia/lib',
+        '/usr/local/nvidia/lib64',
+        '/usr/lib',
+    ]
+    
+    for path in search_paths:
+        matches = glob.glob(f"{path}/*nvidia-encode*.so*")
+        if matches:
+            diagnostics['libnvidia_encode_found'] = True
+            diagnostics['library_paths'].extend(matches)
+    
+    # Check current LD_LIBRARY_PATH
+    ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+    logger.debug(f"LD_LIBRARY_PATH: {ld_path}")
+    
+    # Check if ffmpeg has nvenc
+    try:
+        result = sp.run(
+            ['ffmpeg', '-hide_banner', '-encoders'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            diagnostics['ffmpeg_has_nvenc'] = 'h264_nvenc' in result.stdout
+    except Exception:
+        pass
+    
+    return diagnostics
 
 def check_nvenc_available(encoder=None):
     """
@@ -138,11 +194,40 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     # Check if GPU is requested but not available
     if use_gpu and not check_nvenc_available():
         logger.warning("GPU transcoding requested but NVENC not available")
-        logger.warning("This typically means:")
-        logger.warning("  1. NVIDIA drivers are not installed on the host")
-        logger.warning("  2. NVIDIA Container Toolkit is not installed")
-        logger.warning("  3. Docker is not configured with the nvidia runtime")
-        logger.warning("  4. The GPU does not support NVENC")
+        
+        # Run diagnostics to help user understand the issue
+        diag = diagnose_nvenc_setup()
+        
+        if diag['nvidia_smi_available']:
+            logger.warning("✓ GPU is accessible (nvidia-smi works)")
+            logger.warning("✗ But NVENC encoder is not available to ffmpeg")
+            logger.warning("")
+            logger.warning("Common causes on Unraid/Docker:")
+            logger.warning("  1. NVIDIA driver libraries not mounted in container")
+            logger.warning("     Solution: Add to docker run or docker-compose:")
+            logger.warning("       --gpus all")
+            logger.warning("       or")
+            logger.warning("       runtime: nvidia")
+            logger.warning("")
+            logger.warning("  2. Missing libnvidia-encode.so.1 library")
+            if diag['libnvidia_encode_found']:
+                logger.warning(f"     ✓ Found at: {diag['library_paths'][0]}")
+                logger.warning("     But it may not be in ffmpeg's library path")
+                logger.warning("     Try adding to LD_LIBRARY_PATH in docker config")
+            else:
+                logger.warning("     ✗ Library not found in standard paths")
+                logger.warning("     Ensure NVIDIA Container Toolkit is installed on host")
+            logger.warning("")
+            logger.warning("  3. FFmpeg not compiled with NVENC support")
+            logger.warning("     (This shouldn't happen with the official image)")
+        else:
+            logger.warning("Common causes:")
+            logger.warning("  1. NVIDIA drivers are not installed on the host")
+            logger.warning("  2. NVIDIA Container Toolkit is not installed")
+            logger.warning("  3. Docker is not configured with the nvidia runtime")
+            logger.warning("  4. The GPU does not support NVENC")
+        
+        logger.warning("")
         logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
         logger.info("Falling back to CPU transcoding")
         use_gpu = False
