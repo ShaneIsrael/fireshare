@@ -123,7 +123,7 @@ export const getVideoUrl = (videoId, quality, extension) => {
 
 /**
  * Generates video sources array for Video.js player with quality options
- * Prefers 720p if available, else 1080p, else original
+ * Defaults to original quality, with 720p and 1080p as alternatives
  * @param {string} videoId - The video ID
  * @param {Object} videoInfo - Video info object containing has_720p, has_1080p flags
  * @param {string} extension - Video file extension (e.g., '.mp4', '.mkv')
@@ -132,17 +132,15 @@ export const getVideoUrl = (videoId, quality, extension) => {
 export const getVideoSources = (videoId, videoInfo, extension) => {
   const sources = []
   
-  // Prefer 720p if available, else 1080p, else original
   const has720p = videoInfo?.has_720p
   const has1080p = videoInfo?.has_1080p
   
-  // Add 720p (preferred first)
+  // Add 720p
   if (has720p) {
     sources.push({
       src: getVideoUrl(videoId, '720p', extension),
       type: 'video/mp4',
       label: '720p',
-      selected: true, // Always prefer 720p if available
     })
   }
   
@@ -152,16 +150,15 @@ export const getVideoSources = (videoId, videoInfo, extension) => {
       src: getVideoUrl(videoId, '1080p', extension),
       type: 'video/mp4',
       label: '1080p',
-      selected: !has720p, // Select 1080p only if 720p is not available
     })
   }
 
-  // Add original quality
+  // Add original quality - always selected by default
   sources.push({
     src: getVideoUrl(videoId, 'original', extension),
     type: 'video/mp4',
     label: 'Original',
-    selected: !has720p && !has1080p, // Select original only if no transcoded versions
+    selected: true, // Always default to original quality
   })
 
   return sources
