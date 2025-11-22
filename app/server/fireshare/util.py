@@ -324,7 +324,7 @@ def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
     boomerang_filter = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat'
     cmd = ['ffmpeg', '-v', 'quiet', '-ss', '0', '-t', str(clip_duration),
         '-i', str(video_path), '-y', '-filter_complex', boomerang_filter_480p, '-an', str(out_path)]
-    logger.info(f"Creating boomering preview")
+    logger.info(f"Creating boomerang preview")
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)
     e = time.time()
