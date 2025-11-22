@@ -58,13 +58,26 @@ def create_poster(video_path, out_path, second=0):
     e = time.time()
     logger.info(f'Generated poster {str(out_path)} in {e-s}s')
 
-def check_nvenc_available():
+# Cache for NVENC availability check to avoid repeated subprocess calls
+_nvenc_availability_cache = {}
+
+def check_nvenc_available(encoder=None):
     """
     Check if NVENC (NVIDIA GPU encoding) is available.
     
+    Args:
+        encoder: Optional specific encoder to check ('h264_nvenc' or 'av1_nvenc').
+                 If None, checks if any NVENC encoder is available.
+    
     Returns:
-        bool: True if NVENC encoders are available, False otherwise
+        bool: True if the specified NVENC encoder (or any NVENC encoder) is available, False otherwise
     """
+    cache_key = encoder or 'any_nvenc'
+    
+    # Return cached result if available
+    if cache_key in _nvenc_availability_cache:
+        return _nvenc_availability_cache[cache_key]
+    
     try:
         # Try to get the list of encoders from ffmpeg
         result = sp.run(
@@ -75,11 +88,21 @@ def check_nvenc_available():
         )
         
         if result.returncode == 0:
-            # Check if h264_nvenc is in the list of encoders
-            return 'h264_nvenc' in result.stdout
+            if encoder:
+                # Check for specific encoder
+                available = encoder in result.stdout
+            else:
+                # Check if any NVENC encoder is available (h264_nvenc is the baseline)
+                available = 'h264_nvenc' in result.stdout
+            
+            _nvenc_availability_cache[cache_key] = available
+            return available
+        
+        _nvenc_availability_cache[cache_key] = False
         return False
     except Exception as ex:
         logger.debug(f"Could not check for NVENC availability: {ex}")
+        _nvenc_availability_cache[cache_key] = False
         return False
 
 def transcode_video(video_path, out_path):
