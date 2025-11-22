@@ -3,8 +3,11 @@ import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
 
 // Import and register the quality selector plugin
-import '@silvermine/videojs-quality-selector'
+import qualitySelectorPlugin from '@silvermine/videojs-quality-selector'
 import '@silvermine/videojs-quality-selector/dist/css/quality-selector.css'
+
+// Register the quality selector plugin with videojs
+qualitySelectorPlugin(videojs)
 
 const VideoJSPlayer = ({ 
   sources, 
