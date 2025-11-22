@@ -9,6 +9,9 @@ import '@silvermine/videojs-quality-selector/dist/css/quality-selector.css'
 // Register the quality selector plugin with videojs
 qualitySelectorPlugin(videojs)
 
+// Tolerance threshold for checking if player is already at the desired start time (in seconds)
+const SEEK_TOLERANCE_SECONDS = 0.5
+
 const VideoJSPlayer = ({ 
   sources, 
   poster, 
@@ -99,7 +102,7 @@ const VideoJSPlayer = ({
         // Also seek when user manually plays if not already at the correct time
         // This handles cases where autoplay is blocked
         player.one('play', () => {
-          if (Math.abs(player.currentTime() - startTime) > 0.5) {
+          if (Math.abs(player.currentTime() - startTime) > SEEK_TOLERANCE_SECONDS) {
             player.currentTime(startTime)
           }
         })
