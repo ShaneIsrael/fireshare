@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 import json
 import subprocess as sp
-import tempfile
 import xxhash
 from fireshare import logger
 import time
