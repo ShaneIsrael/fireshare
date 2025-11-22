@@ -241,6 +241,31 @@ def _get_encoder_candidates(use_gpu=False):
         # CPU mode: only try CPU encoders
         return cpu_encoders
 
+def _build_transcode_command(video_path, out_path, height, encoder):
+    """
+    Build an ffmpeg command for transcoding with the given encoder.
+    
+    Args:
+        video_path: Path to the source video
+        out_path: Path for the transcoded output
+        height: Target height in pixels
+        encoder: Encoder configuration dict
+    
+    Returns:
+        list: ffmpeg command as a list of arguments
+    """
+    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
+    cmd.extend(['-c:v', encoder['video_codec']])
+    
+    if 'extra_args' in encoder:
+        cmd.extend(encoder['extra_args'])
+    
+    cmd.extend(['-vf', f'scale=-2:{height}'])
+    cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder.get('audio_bitrate', '128k')])
+    cmd.append(str(out_path))
+    
+    return cmd
+
 def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     """
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
@@ -366,30 +391,26 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         
         # Build ffmpeg command using the cached encoder
         logger.info(f"Transcoding video to {height}p using {encoder['name']}")
-        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
-        cmd.extend(['-c:v', encoder['video_codec']])
-        
-        if 'extra_args' in encoder:
-            cmd.extend(encoder['extra_args'])
-        
-        cmd.extend(['-vf', f'scale=-2:{height}'])
-        cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder.get('audio_bitrate', '128k')])
-        cmd.append(out_path_str)
+        cmd = _build_transcode_command(video_path, out_path, height, encoder)
         
         logger.debug(f"$: {' '.join(cmd)}")
         
         try:
             result = sp.call(cmd)
-            if result != 0:
-                logger.error(f"Transcode failed with {encoder['name']}")
-                raise Exception(f"Transcode failed with exit code {result}")
+            if result == 0:
+                e = time.time()
+                logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
+                return
+            else:
+                # Cached encoder failed - clear cache and fall through to try all encoders
+                logger.warning(f"Cached encoder {encoder['name']} failed with exit code {result}")
+                logger.info("Clearing encoder cache and retrying with all available encoders...")
+                _working_encoder_cache[mode] = None
         except Exception as ex:
-            logger.error(f"Error transcoding video: {ex}")
-            raise
-        
-        e = time.time()
-        logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
-        return
+            # Cached encoder failed - clear cache and fall through to try all encoders
+            logger.warning(f"Cached encoder {encoder['name']} failed: {ex}")
+            logger.info("Clearing encoder cache and retrying with all available encoders...")
+            _working_encoder_cache[mode] = None
     
     # No cached encoder - try encoders in priority order with actual transcoding
     logger.info(f"Detecting working {mode.upper()} encoder by attempting transcode...")
@@ -400,15 +421,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         logger.info(f"Trying {encoder['name']}...")
         
         # Build ffmpeg command
-        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
-        cmd.extend(['-c:v', encoder['video_codec']])
-        
-        if 'extra_args' in encoder:
-            cmd.extend(encoder['extra_args'])
-        
-        cmd.extend(['-vf', f'scale=-2:{height}'])
-        cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder.get('audio_bitrate', '128k')])
-        cmd.append(out_path_str)
+        cmd = _build_transcode_command(video_path, out_path, height, encoder)
         
         logger.debug(f"$: {' '.join(cmd)}")
         
@@ -424,9 +437,23 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
             else:
                 logger.warning(f"✗ {encoder['name']} failed with exit code {result}")
                 last_exception = Exception(f"Transcode failed with exit code {result}")
+                # Clean up failed output file before trying next encoder
+                if os.path.exists(out_path_str):
+                    try:
+                        os.remove(out_path_str)
+                        logger.debug(f"Cleaned up failed output file: {out_path_str}")
+                    except OSError as cleanup_ex:
+                        logger.debug(f"Could not clean up failed output: {cleanup_ex}")
         except Exception as ex:
             logger.warning(f"✗ {encoder['name']} failed: {ex}")
             last_exception = ex
+            # Clean up failed output file before trying next encoder
+            if os.path.exists(out_path_str):
+                try:
+                    os.remove(out_path_str)
+                    logger.debug(f"Cleaned up failed output file: {out_path_str}")
+                except OSError as cleanup_ex:
+                    logger.debug(f"Could not clean up failed output: {cleanup_ex}")
     
     # If we get here, no encoder worked
     error_msg = f"No working {mode.upper()} encoder found! Tried: {', '.join([e['name'] for e in encoders])}"
