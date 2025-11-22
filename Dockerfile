@@ -86,7 +86,7 @@ COPY --from=ffmpeg-builder /usr/local/lib/lib* /usr/local/lib/
 # Install runtime dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    nginx supervisor \
+    nginx-extras supervisor \
     python3.9 python3-pip python3-dev \
     libldap2-dev libsasl2-dev libssl-dev \
     libffi-dev libc-dev \
