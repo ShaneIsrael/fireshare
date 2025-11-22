@@ -104,6 +104,7 @@ export const copyToClipboard = (textToCopy) => {
  * @returns {Array} Array of video sources for Video.js
  */
 export const getVideoSources = (videoId, videoInfo, extension) => {
+  // Cache these values as they don't change during application lifecycle
   const URL = getUrl()
   const SERVED_BY = getServedBy()
   const sources = []
@@ -114,22 +115,42 @@ export const getVideoSources = (videoId, videoInfo, extension) => {
   
   // Add 720p (preferred first)
   if (has720p) {
-    sources.push({
-      src: `${URL}/api/video?id=${videoId}&quality=720p`,
-      type: 'video/mp4',
-      label: '720p',
-      selected: true, // Always prefer 720p if available
-    })
+    if (SERVED_BY === 'nginx') {
+      // Serve transcoded files directly from nginx
+      sources.push({
+        src: `${URL}/_content/derived/${videoId}/${videoId}-720p.mp4`,
+        type: 'video/mp4',
+        label: '720p',
+        selected: true, // Always prefer 720p if available
+      })
+    } else {
+      sources.push({
+        src: `${URL}/api/video?id=${videoId}&quality=720p`,
+        type: 'video/mp4',
+        label: '720p',
+        selected: true, // Always prefer 720p if available
+      })
+    }
   }
   
   // Add 1080p
   if (has1080p) {
-    sources.push({
-      src: `${URL}/api/video?id=${videoId}&quality=1080p`,
-      type: 'video/mp4',
-      label: '1080p',
-      selected: !has720p, // Select 1080p only if 720p is not available
-    })
+    if (SERVED_BY === 'nginx') {
+      // Serve transcoded files directly from nginx
+      sources.push({
+        src: `${URL}/_content/derived/${videoId}/${videoId}-1080p.mp4`,
+        type: 'video/mp4',
+        label: '1080p',
+        selected: !has720p, // Select 1080p only if 720p is not available
+      })
+    } else {
+      sources.push({
+        src: `${URL}/api/video?id=${videoId}&quality=1080p`,
+        type: 'video/mp4',
+        label: '1080p',
+        selected: !has720p, // Select 1080p only if 720p is not available
+      })
+    }
   }
 
   // Add original quality

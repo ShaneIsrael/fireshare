@@ -117,10 +117,18 @@ const CompactVideoCard = ({ video, openVideoHandler, alertHandler, cardWidth, au
     const has1080p = video.info?.has_1080p
     
     if (has720p) {
+      // Serve transcoded files directly from nginx when available
+      if (SERVED_BY === 'nginx') {
+        return `${URL}/_content/derived/${video.video_id}/${video.video_id}-720p.mp4`
+      }
       return `${URL}/api/video?id=${video.video_id}&quality=720p`
     }
     
     if (has1080p) {
+      // Serve transcoded files directly from nginx when available
+      if (SERVED_BY === 'nginx') {
+        return `${URL}/_content/derived/${video.video_id}/${video.video_id}-1080p.mp4`
+      }
       return `${URL}/api/video?id=${video.video_id}&quality=1080p`
     }
     
