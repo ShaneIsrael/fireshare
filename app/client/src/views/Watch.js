@@ -190,7 +190,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:video:height" value={details?.info?.height} />
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
-      <Grid container>
+      <Grid container sx={{ gap: '6px' }}>
         <Grid item xs={12}>
           <VideoJSPlayer
             sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
