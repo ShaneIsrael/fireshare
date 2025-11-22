@@ -94,3 +94,61 @@ export const copyToClipboard = (textToCopy) => {
     })
   }
 }
+
+/**
+ * Generates video sources array for Video.js player with quality options
+ * Prefers 720p if available, else 1080p, else original
+ * @param {string} videoId - The video ID
+ * @param {Object} videoInfo - Video info object containing has_720p, has_1080p flags
+ * @param {string} extension - Video file extension (e.g., '.mp4', '.mkv')
+ * @returns {Array} Array of video sources for Video.js
+ */
+export const getVideoSources = (videoId, videoInfo, extension) => {
+  const URL = getUrl()
+  const SERVED_BY = getServedBy()
+  const sources = []
+  
+  // Prefer 720p if available, else 1080p, else original
+  const has720p = videoInfo?.has_720p
+  const has1080p = videoInfo?.has_1080p
+  
+  // Add 720p (preferred first)
+  if (has720p) {
+    sources.push({
+      src: `${URL}/api/video?id=${videoId}&quality=720p`,
+      type: 'video/mp4',
+      label: '720p',
+      selected: true, // Always prefer 720p if available
+    })
+  }
+  
+  // Add 1080p
+  if (has1080p) {
+    sources.push({
+      src: `${URL}/api/video?id=${videoId}&quality=1080p`,
+      type: 'video/mp4',
+      label: '1080p',
+      selected: !has720p, // Select 1080p only if 720p is not available
+    })
+  }
+
+  // Add original quality
+  if (SERVED_BY === 'nginx') {
+    const videoPath = getVideoPath(videoId, extension)
+    sources.push({
+      src: `${URL}/_content/video/${videoPath}`,
+      type: 'video/mp4',
+      label: 'Original',
+      selected: !has720p && !has1080p, // Select original only if no transcoded versions
+    })
+  } else {
+    sources.push({
+      src: `${URL}/api/video?id=${extension === '.mkv' ? `${videoId}&subid=1` : videoId}`,
+      type: 'video/mp4',
+      label: 'Original',
+      selected: !has720p && !has1080p, // Select original only if no transcoded versions
+    })
+  }
+
+  return sources
+}

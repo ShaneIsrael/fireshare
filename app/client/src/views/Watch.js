@@ -8,7 +8,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import { VideoService } from '../services'
-import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoPath } from '../common/utils'
+import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoSources } from '../common/utils'
 import VideoJSPlayer from '../components/misc/VideoJSPlayer'
 
 const URL = getUrl()
@@ -86,53 +86,7 @@ const Watch = ({ authenticated }) => {
     }
   }
 
-  const getVideoSources = () => {
-    const sources = []
-    
-    // Prefer 720p if available, else 1080p, else original
-    const has720p = details?.info?.has_720p
-    const has1080p = details?.info?.has_1080p
-    
-    // Add 720p (preferred first)
-    if (has720p) {
-      sources.push({
-        src: `${URL}/api/video?id=${id}&quality=720p`,
-        type: 'video/mp4',
-        label: '720p',
-        selected: true, // Always prefer 720p if available
-      })
-    }
-    
-    // Add 1080p
-    if (has1080p) {
-      sources.push({
-        src: `${URL}/api/video?id=${id}&quality=1080p`,
-        type: 'video/mp4',
-        label: '1080p',
-        selected: !has720p, // Select 1080p only if 720p is not available
-      })
-    }
 
-    // Add original quality
-    if (SERVED_BY === 'nginx') {
-      const videoPath = getVideoPath(id, details?.extension || '.mp4')
-      sources.push({
-        src: `${URL}/_content/video/${videoPath}`,
-        type: 'video/mp4',
-        label: 'Original',
-        selected: !has720p && !has1080p, // Select original only if no transcoded versions
-      })
-    } else {
-      sources.push({
-        src: `${URL}/api/video?id=${details?.extension === '.mkv' ? `${id}&subid=1` : id}`,
-        type: 'video/mp4',
-        label: 'Original',
-        selected: !has720p && !has1080p, // Select original only if no transcoded versions
-      })
-    }
-
-    return sources
-  }
 
   const getPosterUrl = () => {
     if (SERVED_BY === 'nginx') {
@@ -239,7 +193,7 @@ const Watch = ({ authenticated }) => {
       <Grid container>
         <Grid item xs={12}>
           <VideoJSPlayer
-            sources={getVideoSources()}
+            sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
             poster={getPosterUrl()}
             autoplay={true}
             controls={true}
