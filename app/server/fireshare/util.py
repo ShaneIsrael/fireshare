@@ -58,6 +58,30 @@ def create_poster(video_path, out_path, second=0):
     e = time.time()
     logger.info(f'Generated poster {str(out_path)} in {e-s}s')
 
+def check_nvenc_available():
+    """
+    Check if NVENC (NVIDIA GPU encoding) is available.
+    
+    Returns:
+        bool: True if NVENC encoders are available, False otherwise
+    """
+    try:
+        # Try to get the list of encoders from ffmpeg
+        result = sp.run(
+            ['ffmpeg', '-hide_banner', '-encoders'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        
+        if result.returncode == 0:
+            # Check if h264_nvenc is in the list of encoders
+            return 'h264_nvenc' in result.stdout
+        return False
+    except Exception as ex:
+        logger.debug(f"Could not check for NVENC availability: {ex}")
+        return False
+
 def transcode_video(video_path, out_path):
     s = time.time()
     logger.info(f"Transcoding video")
@@ -87,6 +111,18 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     
     # Determine output container based on codec
     out_path_str = str(out_path)
+    
+    # Check if GPU is requested but not available
+    if use_gpu and not check_nvenc_available():
+        logger.warning("GPU transcoding requested but NVENC not available")
+        logger.warning("This typically means:")
+        logger.warning("  1. NVIDIA drivers are not installed on the host")
+        logger.warning("  2. NVIDIA Container Toolkit is not installed")
+        logger.warning("  3. Docker is not configured with the nvidia runtime")
+        logger.warning("  4. The GPU does not support NVENC")
+        logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
+        logger.info("Falling back to CPU transcoding")
+        use_gpu = False
     
     # Build ffmpeg command
     # Use 'error' level to see actual errors while keeping output clean
