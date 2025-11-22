@@ -292,12 +292,8 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     
     mode = 'gpu' if use_gpu else 'cpu'
     
-    # First, check if we have a cached working encoder for the requested mode.
-    # This ensures that once we find a working encoder, we keep using it
-    # without re-checking NVENC availability on every video.
-    # This is critical for bulk transcoding where re-checking GPU availability
-    # on every video can cause unnecessary fallbacks to CPU mode.
-    if _working_encoder_cache[mode]:
+    # Use cached encoder if available to avoid redundant NVENC checks during bulk transcoding.
+    if _working_encoder_cache[mode] is not None:
         encoder = _working_encoder_cache[mode]
         logger.debug(f"Using cached {mode.upper()} encoder: {encoder['name']}")
         
