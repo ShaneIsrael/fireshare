@@ -210,12 +210,8 @@ def _test_encoder(video_path, encoder_config, height):
         cmd.append(tmp_path)
         
         logger.debug(f"Testing encoder: {' '.join(cmd)}")
-        # Use subprocess.run with timeout for proper timeout support
-        result = sp.run(cmd, timeout=ENCODER_TEST_TIMEOUT_SECONDS)
-        
-        # Clean up temp file
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        # Use subprocess.run with timeout and capture output to avoid interfering with logs
+        result = sp.run(cmd, timeout=ENCODER_TEST_TIMEOUT_SECONDS, capture_output=True)
         
         return result.returncode == 0
     except Exception as ex:
