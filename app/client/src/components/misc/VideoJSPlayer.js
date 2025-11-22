@@ -53,6 +53,27 @@ const VideoJSPlayer = ({
           nativeAudioTracks: false,
           nativeTextTracks: false,
         },
+        controlBar: {
+          children: [
+            'playToggle',
+            'volumePanel',
+            'currentTimeDisplay',
+            'timeDivider',
+            'durationDisplay',
+            'progressControl',
+            'liveDisplay',
+            'seekToLive',
+            'remainingTimeDisplay',
+            'customControlSpacer',
+            'playbackRateMenuButton',
+            'chaptersButton',
+            'descriptionsButton',
+            'subsCapsButton',
+            'audioTrackButton',
+            'qualitySelector',
+            'fullscreenToggle',
+          ],
+        },
       }))
 
       // Set up sources
@@ -70,8 +91,17 @@ const VideoJSPlayer = ({
 
       // Seek to start time if provided
       if (startTime) {
+        // Try to seek immediately when metadata is loaded
         player.one('loadedmetadata', () => {
           player.currentTime(startTime)
+        })
+        
+        // Also seek when user manually plays if not already at the correct time
+        // This handles cases where autoplay is blocked
+        player.one('play', () => {
+          if (Math.abs(player.currentTime() - startTime) > 0.5) {
+            player.currentTime(startTime)
+          }
         })
       }
 
@@ -79,12 +109,6 @@ const VideoJSPlayer = ({
       player.ready(() => {
         if (onReadyRef.current) {
           onReadyRef.current(player)
-        }
-        
-        // Enable quality selector if multiple sources
-        // Only add if not already present to avoid duplicates
-        if (sources && sources.length > 1 && !player.controlBar.getChild('QualitySelector')) {
-          player.controlBar.addChild('QualitySelector')
         }
       })
     } else {
