@@ -432,7 +432,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         cmd.extend(encoder['extra_args'])
     
     cmd.extend(['-vf', f'scale=-2:{height}'])
-    cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder['audio_bitrate']])
+    cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder.get('audio_bitrate', '128k')])
     cmd.append(out_path_str)
     
     logger.debug(f"$: {' '.join(cmd)}")
