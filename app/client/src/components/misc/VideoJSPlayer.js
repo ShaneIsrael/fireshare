@@ -9,6 +9,9 @@ import '@silvermine/videojs-quality-selector/dist/css/quality-selector.css'
 // Register the quality selector plugin with videojs
 qualitySelectorPlugin(videojs)
 
+// Tolerance threshold for checking if player is already at the desired start time (in seconds)
+const SEEK_TOLERANCE_SECONDS = 0.5
+
 const VideoJSPlayer = ({ 
   sources, 
   poster, 
@@ -53,6 +56,27 @@ const VideoJSPlayer = ({
           nativeAudioTracks: false,
           nativeTextTracks: false,
         },
+        controlBar: {
+          children: [
+            'playToggle',
+            'volumePanel',
+            'currentTimeDisplay',
+            'timeDivider',
+            'durationDisplay',
+            'progressControl',
+            'liveDisplay',
+            'seekToLive',
+            'remainingTimeDisplay',
+            'customControlSpacer',
+            'playbackRateMenuButton',
+            'chaptersButton',
+            'descriptionsButton',
+            'subsCapsButton',
+            'audioTrackButton',
+            'qualitySelector',
+            'fullscreenToggle',
+          ],
+        },
       }))
 
       // Set up sources
@@ -70,8 +94,17 @@ const VideoJSPlayer = ({
 
       // Seek to start time if provided
       if (startTime) {
+        // Try to seek immediately when metadata is loaded
         player.one('loadedmetadata', () => {
           player.currentTime(startTime)
+        })
+        
+        // Also seek when user manually plays if not already at the correct time
+        // This handles cases where autoplay is blocked
+        player.one('play', () => {
+          if (Math.abs(player.currentTime() - startTime) > SEEK_TOLERANCE_SECONDS) {
+            player.currentTime(startTime)
+          }
         })
       }
 
@@ -79,12 +112,6 @@ const VideoJSPlayer = ({
       player.ready(() => {
         if (onReadyRef.current) {
           onReadyRef.current(player)
-        }
-        
-        // Enable quality selector if multiple sources
-        // Only add if not already present to avoid duplicates
-        if (sources && sources.length > 1 && !player.controlBar.getChild('QualitySelector')) {
-          player.controlBar.addChild('QualitySelector')
         }
       })
     } else {
