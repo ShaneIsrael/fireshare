@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField, Select, MenuItem } from '@mui/material'
+import { Button, ButtonGroup, Grid, IconButton, InputAdornment, Modal, Paper, Slide, TextField } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
@@ -11,6 +11,7 @@ import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoPath } from '../../common/utils'
 import { ConfigService, VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
+import VideoJSPlayer from '../misc/VideoJSPlayer'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -25,8 +26,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [viewAdded, setViewAdded] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
   const [autoplay, setAutoplay] = useState(false);
-  const [quality, setQuality] = React.useState('auto')
-
 
   const playerRef = React.useRef()
 
@@ -144,7 +143,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const copyTimestamp = () => {
-    copyToClipboard(`${PURL}${vid.video_id}?t=${playerRef.current?.currentTime}`)
+    const currentTime = playerRef.current?.currentTime?.() || 0
+    copyToClipboard(`${PURL}${vid.video_id}?t=${currentTime}`)
     setAlert({
       type: 'info',
       message: 'Time stamped link copied to clipboard',
@@ -154,51 +154,61 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
   const handleTimeUpdate = (e) => {
     if (!viewAdded) {
+      const currentTime = e.playedSeconds || 0
       if (!vid.info?.duration || vid.info?.duration < 10) {
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
-      } else if (e.target.currentTime >= 10) {
+      } else if (currentTime >= 10) {
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
       }
     }
   }
 
-  const getVideoUrl = () => {
+  const getVideoSources = () => {
+    const sources = []
+    
+    // Add original quality
     if (SERVED_BY === 'nginx') {
       const videoPath = getVideoPath(vid.video_id, vid.extension)
-      if (quality !== 'auto') {
-        return `${URL}/api/video?id=${vid.video_id}&quality=${quality}`
-      }
-      return `${URL}/_content/video/${videoPath}`
+      sources.push({
+        src: `${URL}/_content/video/${videoPath}`,
+        type: 'video/mp4',
+        label: 'Original',
+      })
     } else {
-      const baseUrl = `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
-      if (quality !== 'auto') {
-        return `${baseUrl}&quality=${quality}`
-      }
-      return baseUrl
+      sources.push({
+        src: `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`,
+        type: 'video/mp4',
+        label: 'Original',
+      })
     }
-  }
 
-  const availableQualities = () => {
-    const qualities = [{ value: 'auto', label: 'Auto' }]
-    if (vid?.info?.has_720p) {
-      qualities.push({ value: '720p', label: '720p' })
-    }
+    // Add transcoded qualities
     if (vid?.info?.has_1080p) {
-      qualities.push({ value: '1080p', label: '1080p' })
+      sources.push({
+        src: `${URL}/api/video?id=${vid.video_id}&quality=1080p`,
+        type: 'video/mp4',
+        label: '1080p',
+      })
     }
-    return qualities
+    
+    if (vid?.info?.has_720p) {
+      sources.push({
+        src: `${URL}/api/video?id=${vid.video_id}&quality=720p`,
+        type: 'video/mp4',
+        label: '720p',
+      })
+    }
+
+    return sources
   }
 
-  const handleQualityChange = (newQuality) => {
-    const currentTime = playerRef.current?.currentTime || 0
-    setQuality(newQuality)
-    setTimeout(() => {
-      if (playerRef.current && playerRef.current.currentTime !== undefined) {
-        playerRef.current.currentTime = currentTime
-      }
-    }, 100)
+  const getPosterUrl = () => {
+    if (SERVED_BY === 'nginx') {
+      return `${URL}/_content/derived/${vid.video_id}/poster.jpg`
+    }
+    return `${URL}/api/video/poster?id=${vid.video_id}`
   }
 
   if (!vid) return null
@@ -233,16 +243,15 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             </IconButton>
             <Grid container justifyContent="center">
               <Grid item xs={12}>
-                <video
-                  key={quality}
-                  ref={playerRef}
-                  width="100%"
-                  height="auto"
-                  src={getVideoUrl()}
-                  autoPlay={autoplay}  
-                  disablePictureInPicture
-                  controls
+                <VideoJSPlayer
+                  sources={getVideoSources()}
+                  poster={getPosterUrl()}
+                  autoplay={autoplay}
+                  controls={true}
                   onTimeUpdate={handleTimeUpdate}
+                  onReady={(player) => {
+                    playerRef.current = player
+                  }}
                 />
               </Grid>
               <Grid item>
@@ -316,37 +325,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                     <AccessTimeIcon />
                   </Button>
                 </ButtonGroup>
-                {availableQualities().length > 1 && (
-                  <Select
-                    size="small"
-                    value={quality}
-                    onChange={(e) => handleQualityChange(e.target.value)}
-                    sx={{
-                      ml: 1,
-                      minWidth: 100,
-                      color: 'white',
-                      background: 'rgba(50, 50, 50, 0.9)',
-                      '.MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.23)',
-                      },
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'rgba(255, 255, 255, 0.4)',
-                      },
-                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'primary.main',
-                      },
-                      '.MuiSvgIcon-root': {
-                        color: 'white',
-                      },
-                    }}
-                  >
-                    {availableQualities().map((q) => (
-                      <MenuItem key={q.value} value={q.value}>
-                        {q.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                )}
                 {(authenticated || description) && (
                   <Paper sx={{ mt: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
                     <TextField
