@@ -202,35 +202,81 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
             logger.warning("✓ GPU is accessible (nvidia-smi works)")
             logger.warning("✗ But NVENC encoder is not available to ffmpeg")
             logger.warning("")
-            logger.warning("Common causes on Unraid/Docker:")
-            logger.warning("  1. NVIDIA driver libraries not mounted in container")
-            logger.warning("     Solution: Add to docker run or docker-compose:")
-            logger.warning("       --gpus all")
-            logger.warning("       or")
-            logger.warning("       runtime: nvidia")
-            logger.warning("")
-            logger.warning("  2. Missing libnvidia-encode.so.1 library")
+            
+            # Try to automatically fix the library path issue
             if diag['libnvidia_encode_found'] and diag['library_paths']:
-                logger.warning(f"     ✓ Found at: {diag['library_paths'][0]}")
-                logger.warning("     But it may not be in ffmpeg's library path")
-                logger.warning("     Try adding to LD_LIBRARY_PATH in docker config")
+                library_dir = str(Path(diag['library_paths'][0]).parent)
+                current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+                
+                # Add the library directory to LD_LIBRARY_PATH if not already present
+                if library_dir not in current_ld_path.split(':'):
+                    new_ld_path = f"{library_dir}:{current_ld_path}" if current_ld_path else library_dir
+                    os.environ['LD_LIBRARY_PATH'] = new_ld_path
+                    logger.info(f"Automatically added {library_dir} to LD_LIBRARY_PATH")
+                    
+                    # Clear the cache and retry the check
+                    global _nvenc_availability_cache
+                    _nvenc_availability_cache = {}
+                    
+                    if check_nvenc_available():
+                        logger.info("✓ NVENC is now available! Continuing with GPU transcoding")
+                        # Don't set use_gpu to False, let it continue
+                    else:
+                        logger.warning("✗ NVENC still not available after adding library path")
+                        logger.warning("Common causes on Unraid/Docker:")
+                        logger.warning("  1. NVIDIA driver libraries not mounted in container")
+                        logger.warning("     Solution: Add to docker run or docker-compose:")
+                        logger.warning("       --gpus all")
+                        logger.warning("       or")
+                        logger.warning("       runtime: nvidia")
+                        logger.warning("")
+                        logger.warning("  2. FFmpeg not compiled with NVENC support")
+                        logger.warning("     (This shouldn't happen with the official image)")
+                        logger.warning("")
+                        logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
+                        logger.info("Falling back to CPU transcoding")
+                        use_gpu = False
+                else:
+                    logger.warning(f"Library found at: {diag['library_paths'][0]}")
+                    logger.warning(f"But {library_dir} is already in LD_LIBRARY_PATH")
+                    logger.warning("Common causes on Unraid/Docker:")
+                    logger.warning("  1. NVIDIA driver libraries not mounted in container")
+                    logger.warning("     Solution: Add to docker run or docker-compose:")
+                    logger.warning("       --gpus all")
+                    logger.warning("       or")
+                    logger.warning("       runtime: nvidia")
+                    logger.warning("")
+                    logger.warning("  2. FFmpeg not compiled with NVENC support")
+                    logger.warning("     (This shouldn't happen with the official image)")
+                    logger.warning("")
+                    logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
+                    logger.info("Falling back to CPU transcoding")
+                    use_gpu = False
             else:
+                logger.warning("Common causes on Unraid/Docker:")
+                logger.warning("  1. NVIDIA driver libraries not mounted in container")
+                logger.warning("     Solution: Add to docker run or docker-compose:")
+                logger.warning("       --gpus all")
+                logger.warning("       or")
+                logger.warning("       runtime: nvidia")
+                logger.warning("")
+                logger.warning("  2. Missing libnvidia-encode.so.1 library")
                 logger.warning("     ✗ Library not found in standard paths")
                 logger.warning("     Ensure NVIDIA Container Toolkit is installed on host")
-            logger.warning("")
-            logger.warning("  3. FFmpeg not compiled with NVENC support")
-            logger.warning("     (This shouldn't happen with the official image)")
+                logger.warning("")
+                logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
+                logger.info("Falling back to CPU transcoding")
+                use_gpu = False
         else:
             logger.warning("Common causes:")
             logger.warning("  1. NVIDIA drivers are not installed on the host")
             logger.warning("  2. NVIDIA Container Toolkit is not installed")
             logger.warning("  3. Docker is not configured with the nvidia runtime")
             logger.warning("  4. The GPU does not support NVENC")
-        
-        logger.warning("")
-        logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
-        logger.info("Falling back to CPU transcoding")
-        use_gpu = False
+            logger.warning("")
+            logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
+            logger.info("Falling back to CPU transcoding")
+            use_gpu = False
     
     # Build ffmpeg command
     # Use 'error' level to see actual errors while keeping output clean
