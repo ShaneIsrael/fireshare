@@ -24,6 +24,8 @@ services:
       - ENABLE_TRANSCODING=false
       # Enable GPU acceleration for transcoding using NVENC (requires nvidia-docker runtime, default: false)
       - TRANSCODE_GPU=false
+      # Required for GPU transcoding - enables NVIDIA driver capabilities
+      # - NVIDIA_DRIVER_CAPABILITIES=all
     # Uncomment the following lines to enable GPU passthrough for transcoding
     # runtime: nvidia
     # deploy:

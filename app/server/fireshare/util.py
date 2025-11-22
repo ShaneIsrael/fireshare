@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import json
 import subprocess as sp
+import tempfile
 import xxhash
 from fireshare import logger
 import time
@@ -62,10 +63,23 @@ def create_poster(video_path, out_path, second=0):
 # Cache for NVENC availability check to avoid repeated subprocess calls
 _nvenc_availability_cache = {}
 
+# Cache for the working encoder to avoid trying failed encoders repeatedly
+# Format: {'gpu': 'av1_nvenc'/'h264_nvenc'/None, 'cpu': 'libaom-av1'/'libx264'/None}
+_working_encoder_cache = {'gpu': None, 'cpu': None}
+
+# Timeout for testing encoder support (seconds)
+ENCODER_TEST_TIMEOUT_SECONDS = 30
+
 def clear_nvenc_cache():
     """Clear the NVENC availability cache to force a re-check."""
     global _nvenc_availability_cache
     _nvenc_availability_cache = {}
+
+def clear_encoder_cache():
+    """Clear the working encoder cache to force encoder re-detection."""
+    global _working_encoder_cache
+    _working_encoder_cache = {'gpu': None, 'cpu': None}
+    logger.info("Encoder cache cleared - will re-detect working encoders on next transcode")
 
 def diagnose_nvenc_setup():
     """
@@ -166,6 +180,51 @@ def check_nvenc_available(encoder=None):
         _nvenc_availability_cache[cache_key] = False
         return False
 
+def _test_encoder(video_path, encoder_config, height):
+    """
+    Test if a specific encoder works by attempting a quick transcode.
+    
+    Args:
+        video_path: Path to the source video
+        encoder_config: Dict with 'video_codec', 'audio_codec', 'extra_args' (list)
+        height: Target height for the test
+    
+    Returns:
+        bool: True if encoder works, False otherwise
+    """
+    tmp_fd = None
+    tmp_path = None
+    try:
+        # Create a temporary output file using mkstemp for better control
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix='.mp4')
+        os.close(tmp_fd)  # Close the file descriptor as ffmpeg will open it
+        
+        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
+        cmd.extend(['-c:v', encoder_config['video_codec']])
+        
+        if 'extra_args' in encoder_config:
+            cmd.extend(encoder_config['extra_args'])
+        
+        cmd.extend(['-vf', f'scale=-2:{height}'])
+        cmd.extend(['-c:a', encoder_config['audio_codec'], '-b:a', encoder_config.get('audio_bitrate', '128k')])
+        cmd.append(tmp_path)
+        
+        logger.debug(f"Testing encoder: {' '.join(cmd)}")
+        # Use subprocess.run with timeout and capture output to avoid interfering with logs
+        result = sp.run(cmd, timeout=ENCODER_TEST_TIMEOUT_SECONDS, capture_output=True)
+        
+        return result.returncode == 0
+    except Exception as ex:
+        logger.debug(f"Encoder test failed with exception: {ex}")
+        return False
+    finally:
+        # Ensure cleanup happens even if there's an error
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError as cleanup_ex:
+                logger.debug(f"Failed to clean up temp file: {cleanup_ex}")
+
 def transcode_video(video_path, out_path):
     s = time.time()
     logger.info(f"Transcoding video")
@@ -175,9 +234,87 @@ def transcode_video(video_path, out_path):
     e = time.time()
     logger.info(f'Transcoded {str(out_path)} in {e-s}s')
 
+def _get_working_encoder(video_path, height, use_gpu=False):
+    """
+    Determine and cache the working encoder for this session.
+    
+    Returns:
+        dict: Encoder configuration with 'video_codec', 'audio_codec', 'extra_args', 'name'
+    """
+    global _working_encoder_cache
+    
+    mode = 'gpu' if use_gpu else 'cpu'
+    
+    # Return cached encoder if available
+    if _working_encoder_cache[mode]:
+        logger.debug(f"Using cached {mode.upper()} encoder: {_working_encoder_cache[mode]['name']}")
+        return _working_encoder_cache[mode]
+    
+    logger.info(f"Detecting working {mode.upper()} encoder (this only happens once per session)...")
+    
+    # CPU encoder configurations (shared between GPU and CPU modes)
+    cpu_encoders = [
+        {
+            'name': 'AV1 CPU',
+            'video_codec': 'libaom-av1',
+            'audio_codec': 'libopus',
+            'audio_bitrate': '96k',
+            'extra_args': ['-cpu-used', '4', '-crf', '30', '-b:v', '0']
+        },
+        {
+            'name': 'H.264 CPU',
+            'video_codec': 'libx264',
+            'audio_codec': 'aac',
+            'audio_bitrate': '128k',
+            'extra_args': ['-preset', 'medium', '-crf', '23']
+        }
+    ]
+    
+    # Define encoder configurations to try in order
+    if use_gpu:
+        # GPU mode: try GPU encoders first, then fall back to CPU encoders
+        gpu_encoders = [
+            {
+                'name': 'AV1 NVENC',
+                'video_codec': 'av1_nvenc',
+                'audio_codec': 'libopus',
+                'audio_bitrate': '96k',
+                'extra_args': ['-preset', 'p4', '-cq:v', '30']
+            },
+            {
+                'name': 'H.264 NVENC',
+                'video_codec': 'h264_nvenc',
+                'audio_codec': 'aac',
+                'audio_bitrate': '128k',
+                'extra_args': ['-preset', 'p4', '-cq:v', '23']
+            }
+        ]
+        encoders = gpu_encoders + cpu_encoders
+    else:
+        # CPU mode: only try CPU encoders
+        encoders = cpu_encoders
+    
+    # Try each encoder until one works
+    for encoder in encoders:
+        logger.info(f"Testing {encoder['name']}...")
+        if _test_encoder(video_path, encoder, height):
+            logger.info(f"✓ {encoder['name']} works! Using it for all transcodes this session.")
+            _working_encoder_cache[mode] = encoder
+            return encoder
+        else:
+            logger.warning(f"✗ {encoder['name']} failed")
+    
+    # If we get here, no encoder worked - this indicates a serious configuration issue
+    error_msg = f"No working {mode.upper()} encoder found! Tested: {', '.join([e['name'] for e in encoders])}"
+    logger.error(error_msg)
+    raise RuntimeError(error_msg)
+
 def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     """
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
+    
+    Detects which encoder works on first transcode, then uses that encoder for all subsequent
+    transcodes until the application is restarted.
     
     Fallback chain when GPU is enabled:
     1. AV1 with GPU (av1_nvenc) - RTX 40 series or newer
@@ -283,83 +420,31 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
             logger.info("Falling back to CPU transcoding")
             use_gpu = False
     
-    # Build ffmpeg command
-    # Use 'error' level to see actual errors while keeping output clean
-    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
+    # Get the working encoder (will detect and cache on first call)
+    encoder = _get_working_encoder(video_path, height, use_gpu)
     
-    # Add GPU acceleration if enabled
-    if use_gpu:
-        # Try AV1 NVENC first (requires RTX 40 series or newer)
-        # This will fail quickly on older GPUs and we'll fall back to H.264 NVENC
-        logger.info(f"Transcoding video to {height}p using GPU AV1 (NVENC)")
-        cmd.extend(['-c:v', 'av1_nvenc', '-preset', 'p4', '-cq:v', '30'])
-        cmd.extend(['-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str])
-    else:
-        # Use libaom-av1 for CPU encoding with reasonable settings
-        logger.info(f"Transcoding video to {height}p using CPU AV1")
-        cmd.extend(['-c:v', 'libaom-av1', '-cpu-used', '4', '-crf', '30', '-b:v', '0'])
-        cmd.extend(['-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str])
+    # Build ffmpeg command using the working encoder
+    logger.info(f"Transcoding video to {height}p using {encoder['name']}")
+    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path)]
+    cmd.extend(['-c:v', encoder['video_codec']])
+    
+    if 'extra_args' in encoder:
+        cmd.extend(encoder['extra_args'])
+    
+    cmd.extend(['-vf', f'scale=-2:{height}'])
+    cmd.extend(['-c:a', encoder['audio_codec'], '-b:a', encoder.get('audio_bitrate', '128k')])
+    cmd.append(out_path_str)
     
     logger.debug(f"$: {' '.join(cmd)}")
     
     try:
         result = sp.call(cmd)
-        if result != 0 and use_gpu:
-            # GPU AV1 NVENC failed - try H.264 NVENC (works on older GPUs)
-            logger.warning(f"GPU AV1 NVENC transcoding failed (likely requires RTX 40 series+)")
-            logger.info(f"Trying GPU H.264 NVENC (works on GTX 1050+/Pascal or newer)")
-            cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
-                   '-c:v', 'h264_nvenc', '-preset', 'p4', '-cq:v', '23',
-                   '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
-            logger.debug(f"$: {' '.join(cmd)}")
-            result = sp.call(cmd)
-            if result != 0:
-                # H.264 NVENC also failed, fall back to CPU AV1
-                logger.warning(f"GPU H.264 NVENC also failed, falling back to CPU AV1")
-                cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
-                       '-c:v', 'libaom-av1', '-cpu-used', '4', '-crf', '30', '-b:v', '0',
-                       '-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str]
-                logger.debug(f"$: {' '.join(cmd)}")
-                result = sp.call(cmd)
-                if result != 0:
-                    # AV1 CPU encoding failed, fallback to H.264 CPU as last resort
-                    logger.warning(f"CPU AV1 encoding failed, falling back to CPU H.264")
-                    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
-                           '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
-                           '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
-                    logger.debug(f"$: {' '.join(cmd)}")
-                    sp.call(cmd)
+        if result != 0:
+            logger.error(f"Transcode failed with {encoder['name']}")
+            raise Exception(f"Transcode failed with exit code {result}")
     except Exception as ex:
         logger.error(f"Error transcoding video: {ex}")
-        if use_gpu:
-            # Try H.264 NVENC fallback on exception
-            logger.warning(f"GPU AV1 transcoding encountered error, trying GPU H.264 NVENC")
-            try:
-                cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
-                       '-c:v', 'h264_nvenc', '-preset', 'p4', '-cq:v', '23',
-                       '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
-                logger.debug(f"$: {' '.join(cmd)}")
-                result = sp.call(cmd)
-                if result != 0:
-                    # Try CPU AV1
-                    logger.warning(f"GPU H.264 NVENC failed, falling back to CPU AV1")
-                    cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
-                           '-c:v', 'libaom-av1', '-cpu-used', '4', '-crf', '30', '-b:v', '0',
-                           '-vf', f'scale=-2:{height}', '-c:a', 'libopus', '-b:a', '96k', out_path_str]
-                    logger.debug(f"$: {' '.join(cmd)}")
-                    result = sp.call(cmd)
-                    if result != 0:
-                        # Final fallback to H.264 CPU
-                        logger.warning(f"CPU AV1 encoding failed, falling back to CPU H.264")
-                        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(video_path),
-                               '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
-                               '-vf', f'scale=-2:{height}', '-c:a', 'aac', '-b:a', '128k', out_path_str]
-                        logger.debug(f"$: {' '.join(cmd)}")
-                        sp.call(cmd)
-            except Exception:
-                raise
-        else:
-            raise
+        raise
     
     e = time.time()
     logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')

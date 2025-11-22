@@ -227,6 +227,7 @@ services:
     environment:
       - ENABLE_TRANSCODING=true
       - TRANSCODE_GPU=true
+      - NVIDIA_DRIVER_CAPABILITIES=all
     runtime: nvidia
     deploy:
       resources:
@@ -382,6 +383,7 @@ For Unraid users who want to pass their NVIDIA GPU to the Fireshare container:
      ```
      ENABLE_TRANSCODING=true
      TRANSCODE_GPU=true
+     NVIDIA_DRIVER_CAPABILITIES=all
      ```
    
 3. **Enable GPU Passthrough:**
