@@ -292,9 +292,40 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
     
     mode = 'gpu' if use_gpu else 'cpu'
     
-    # Check if GPU is requested but not available
+    # First, check if we have a cached working encoder for the requested mode
+    # This ensures that once we find a working encoder, we keep using it
+    # without re-checking NVENC availability on every video
+    if _working_encoder_cache[mode]:
+        encoder = _working_encoder_cache[mode]
+        logger.debug(f"Using cached {mode.upper()} encoder: {encoder['name']}")
+        
+        # Build ffmpeg command using the cached encoder
+        logger.info(f"Transcoding video to {height}p using {encoder['name']}")
+        cmd = _build_transcode_command(video_path, out_path, height, encoder)
+        
+        logger.debug(f"$: {' '.join(cmd)}")
+        
+        try:
+            result = sp.call(cmd)
+            if result == 0:
+                e = time.time()
+                logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
+                return
+            else:
+                # Cached encoder failed - clear cache and fall through to try all encoders
+                logger.warning(f"Cached encoder {encoder['name']} failed with exit code {result}")
+                logger.info("Clearing encoder cache and retrying with all available encoders...")
+                _working_encoder_cache[mode] = None
+        except Exception as ex:
+            # Cached encoder failed - clear cache and fall through to try all encoders
+            logger.warning(f"Cached encoder {encoder['name']} failed: {ex}")
+            logger.info("Clearing encoder cache and retrying with all available encoders...")
+            _working_encoder_cache[mode] = None
+    
+    # No cached encoder - need to detect a working encoder
+    # Check if GPU is requested but NVENC is not available in ffmpeg
     if use_gpu and not check_nvenc_available():
-        logger.warning("GPU transcoding requested but NVENC not available")
+        logger.warning("GPU transcoding requested but NVENC not available in ffmpeg")
         
         # Run diagnostics to help user understand the issue
         diag = diagnose_nvenc_setup()
@@ -335,9 +366,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                         logger.warning("     (This shouldn't happen with the official image)")
                         logger.warning("")
                         logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
-                        logger.info("Falling back to CPU transcoding")
-                        use_gpu = False
-                        mode = 'cpu'
+                        logger.info("Will attempt GPU transcoding anyway and fall back to CPU if needed")
                 else:
                     logger.warning(f"Library found at: {diag['library_paths'][0]}")
                     logger.warning(f"But {library_dir} is already in LD_LIBRARY_PATH")
@@ -352,9 +381,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                     logger.warning("     (This shouldn't happen with the official image)")
                     logger.warning("")
                     logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
-                    logger.info("Falling back to CPU transcoding")
-                    use_gpu = False
-                    mode = 'cpu'
+                    logger.info("Will attempt GPU transcoding anyway and fall back to CPU if needed")
             else:
                 logger.warning("Common causes on Unraid/Docker:")
                 logger.warning("  1. NVIDIA driver libraries not mounted in container")
@@ -368,9 +395,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                 logger.warning("     Ensure NVIDIA Container Toolkit is installed on host")
                 logger.warning("")
                 logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
-                logger.info("Falling back to CPU transcoding")
-                use_gpu = False
-                mode = 'cpu'
+                logger.info("Will attempt GPU transcoding anyway and fall back to CPU if needed")
         else:
             logger.warning("Common causes:")
             logger.warning("  1. NVIDIA drivers are not installed on the host")
@@ -379,39 +404,9 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
             logger.warning("  4. The GPU does not support NVENC")
             logger.warning("")
             logger.warning("See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html")
-            logger.info("Falling back to CPU transcoding")
-            use_gpu = False
-            mode = 'cpu'
+            logger.info("Will attempt GPU transcoding anyway and fall back to CPU if needed")
     
-    # Check if we have a cached working encoder
-    if _working_encoder_cache[mode]:
-        encoder = _working_encoder_cache[mode]
-        logger.debug(f"Using cached {mode.upper()} encoder: {encoder['name']}")
-        
-        # Build ffmpeg command using the cached encoder
-        logger.info(f"Transcoding video to {height}p using {encoder['name']}")
-        cmd = _build_transcode_command(video_path, out_path, height, encoder)
-        
-        logger.debug(f"$: {' '.join(cmd)}")
-        
-        try:
-            result = sp.call(cmd)
-            if result == 0:
-                e = time.time()
-                logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
-                return
-            else:
-                # Cached encoder failed - clear cache and fall through to try all encoders
-                logger.warning(f"Cached encoder {encoder['name']} failed with exit code {result}")
-                logger.info("Clearing encoder cache and retrying with all available encoders...")
-                _working_encoder_cache[mode] = None
-        except Exception as ex:
-            # Cached encoder failed - clear cache and fall through to try all encoders
-            logger.warning(f"Cached encoder {encoder['name']} failed: {ex}")
-            logger.info("Clearing encoder cache and retrying with all available encoders...")
-            _working_encoder_cache[mode] = None
-    
-    # No cached encoder - try encoders in priority order with actual transcoding
+    # Try encoders in priority order with actual transcoding
     logger.info(f"Detecting working {mode.upper()} encoder by attempting transcode...")
     encoders = _get_encoder_candidates(use_gpu)
     
