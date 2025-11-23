@@ -51,6 +51,56 @@ def get_media_info(path):
         logger.warning('Could not extract video info')
         return None
 
+def get_video_duration(path):
+    """
+    Get the duration of a video file in seconds.
+    
+    Args:
+        path: Path to the video file
+    
+    Returns:
+        float: Duration in seconds, or None if unable to determine
+    """
+    try:
+        cmd = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_entries', 'format=duration', str(path)]
+        logger.debug(f"$ {' '.join(cmd)}")
+        data = json.loads(sp.check_output(cmd).decode('utf-8'))
+        if 'format' in data and 'duration' in data['format']:
+            return float(data['format']['duration'])
+    except Exception as ex:
+        logger.debug(f'Could not extract video duration: {ex}')
+    return None
+
+def calculate_transcode_timeout(video_path, base_timeout=7200):
+    """
+    Calculate a smart timeout for video transcoding based on video duration.
+    
+    For CPU encoding, a reasonable estimate is:
+    - Real-time encoding takes duration * 1x
+    - Slow CPU encoding can take 10-20x the duration
+    - We add a safety margin of 3x on top
+    
+    Args:
+        video_path: Path to the video file
+        base_timeout: Base timeout in seconds (used if duration can't be determined)
+    
+    Returns:
+        int: Timeout in seconds
+    """
+    duration = get_video_duration(video_path)
+    
+    if duration:
+        # Use 60x the video duration as timeout (assumes worst case 20x encoding + 3x safety margin)
+        # Minimum of 600 seconds (10 minutes) for very short videos
+        calculated_timeout = max(int(duration * 60), 600)
+        # Cap at 8 hours to prevent truly stuck processes
+        calculated_timeout = min(calculated_timeout, 28800)
+        logger.debug(f"Calculated transcode timeout: {calculated_timeout}s for video duration {duration}s")
+        return calculated_timeout
+    else:
+        logger.debug(f"Could not determine video duration, using base timeout: {base_timeout}s")
+        return base_timeout
+
 def create_poster(video_path, out_path, second=0):
     s = time.time()
     cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', '-vf', 'scale=iw:ih:force_original_aspect_ratio=decrease', str(out_path)]
@@ -265,7 +315,7 @@ def _build_transcode_command(video_path, out_path, height, encoder):
     
     return cmd
 
-def transcode_video_quality(video_path, out_path, height, use_gpu=False):
+def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout_seconds=None):
     """
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
     
@@ -283,9 +333,19 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         out_path: Path for the transcoded output
         height: Target height in pixels (e.g., 720, 1080)
         use_gpu: Whether to use GPU acceleration (NVENC if available)
+        timeout_seconds: Maximum time allowed for encoding (default: calculated based on video duration)
+    
+    Returns:
+        bool: True if transcoding succeeded, False if all encoders failed
     """
     global _working_encoder_cache
     s = time.time()
+    
+    # Calculate smart timeout based on video duration if not provided
+    if timeout_seconds is None:
+        timeout_seconds = calculate_transcode_timeout(video_path)
+    
+    logger.info(f"Using transcode timeout of {timeout_seconds}s ({timeout_seconds/60:.1f} minutes)")
     
     # Determine output container based on codec
     out_path_str = str(out_path)
@@ -304,16 +364,27 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         logger.debug(f"$: {' '.join(cmd)}")
         
         try:
-            result = sp.call(cmd)
-            if result == 0:
+            result = sp.run(cmd, timeout=timeout_seconds)
+            if result.returncode == 0:
                 e = time.time()
                 logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
-                return
+                return True
             else:
                 # Cached encoder failed - clear cache and fall through to try all encoders
-                logger.warning(f"Cached encoder {encoder['name']} failed with exit code {result}")
+                logger.warning(f"Cached encoder {encoder['name']} failed with exit code {result.returncode}")
                 logger.info("Clearing encoder cache and retrying with all available encoders...")
                 _working_encoder_cache[mode] = None
+        except sp.TimeoutExpired:
+            logger.warning(f"Cached encoder {encoder['name']} timed out after {timeout_seconds} seconds")
+            logger.info("Clearing encoder cache and retrying with all available encoders...")
+            _working_encoder_cache[mode] = None
+            # Clean up the process and any partial output
+            if os.path.exists(out_path_str):
+                try:
+                    os.remove(out_path_str)
+                    logger.debug(f"Cleaned up timed out output file: {out_path_str}")
+                except OSError as cleanup_ex:
+                    logger.debug(f"Could not clean up timed out output: {cleanup_ex}")
         except Exception as ex:
             # Cached encoder failed - clear cache and fall through to try all encoders
             logger.warning(f"Cached encoder {encoder['name']} failed: {ex}")
@@ -420,17 +491,17 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         logger.debug(f"$: {' '.join(cmd)}")
         
         try:
-            result = sp.call(cmd)
-            if result == 0:
+            result = sp.run(cmd, timeout=timeout_seconds)
+            if result.returncode == 0:
                 # Success! Cache this encoder and return
                 logger.info(f"✓ {encoder['name']} works! Using it for all transcodes this session.")
                 _working_encoder_cache[mode] = encoder
                 e = time.time()
                 logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
-                return
+                return True
             else:
-                logger.warning(f"✗ {encoder['name']} failed with exit code {result}")
-                last_exception = Exception(f"Transcode failed with exit code {result}")
+                logger.warning(f"✗ {encoder['name']} failed with exit code {result.returncode}")
+                last_exception = Exception(f"Transcode failed with exit code {result.returncode}")
                 # Clean up failed output file before trying next encoder
                 if os.path.exists(out_path_str):
                     try:
@@ -438,6 +509,16 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                         logger.debug(f"Cleaned up failed output file: {out_path_str}")
                     except OSError as cleanup_ex:
                         logger.debug(f"Could not clean up failed output: {cleanup_ex}")
+        except sp.TimeoutExpired:
+            logger.warning(f"✗ {encoder['name']} timed out after {timeout_seconds} seconds")
+            last_exception = Exception(f"Transcode timed out after {timeout_seconds} seconds")
+            # Clean up failed output file before trying next encoder
+            if os.path.exists(out_path_str):
+                try:
+                    os.remove(out_path_str)
+                    logger.debug(f"Cleaned up timed out output file: {out_path_str}")
+                except OSError as cleanup_ex:
+                    logger.debug(f"Could not clean up timed out output: {cleanup_ex}")
         except Exception as ex:
             logger.warning(f"✗ {encoder['name']} failed: {ex}")
             last_exception = ex
@@ -450,12 +531,14 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                     logger.debug(f"Could not clean up failed output: {cleanup_ex}")
     
     # If we get here, no encoder worked
-    error_msg = f"No working {mode.upper()} encoder found! Tried: {', '.join([e['name'] for e in encoders])}"
+    error_msg = f"No working {mode.upper()} encoder found for video. Tried: {', '.join([e['name'] for e in encoders])}"
     logger.error(error_msg)
     if last_exception:
-        raise RuntimeError(error_msg) from last_exception
-    else:
-        raise RuntimeError(error_msg)
+        logger.error(f"Last error was: {last_exception}")
+    
+    # Return False to indicate failure instead of raising exception
+    # This allows the calling code to continue processing other videos
+    return False
 
 def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
     # https://stackoverflow.com/questions/65874316/trim-a-video-and-add-the-boomerang-effect-on-it-with-ffmpeg
