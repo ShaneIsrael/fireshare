@@ -265,7 +265,7 @@ def _build_transcode_command(video_path, out_path, height, encoder):
     
     return cmd
 
-def transcode_video_quality(video_path, out_path, height, use_gpu=False):
+def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout_seconds=3600):
     """
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
     
@@ -283,6 +283,10 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         out_path: Path for the transcoded output
         height: Target height in pixels (e.g., 720, 1080)
         use_gpu: Whether to use GPU acceleration (NVENC if available)
+        timeout_seconds: Maximum time allowed for encoding (default: 3600 seconds/1 hour)
+    
+    Returns:
+        bool: True if transcoding succeeded, False if all encoders failed
     """
     global _working_encoder_cache
     s = time.time()
@@ -304,16 +308,27 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         logger.debug(f"$: {' '.join(cmd)}")
         
         try:
-            result = sp.call(cmd)
-            if result == 0:
+            result = sp.run(cmd, timeout=timeout_seconds)
+            if result.returncode == 0:
                 e = time.time()
                 logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
-                return
+                return True
             else:
                 # Cached encoder failed - clear cache and fall through to try all encoders
-                logger.warning(f"Cached encoder {encoder['name']} failed with exit code {result}")
+                logger.warning(f"Cached encoder {encoder['name']} failed with exit code {result.returncode}")
                 logger.info("Clearing encoder cache and retrying with all available encoders...")
                 _working_encoder_cache[mode] = None
+        except sp.TimeoutExpired:
+            logger.warning(f"Cached encoder {encoder['name']} timed out after {timeout_seconds} seconds")
+            logger.info("Clearing encoder cache and retrying with all available encoders...")
+            _working_encoder_cache[mode] = None
+            # Clean up the process and any partial output
+            if os.path.exists(out_path_str):
+                try:
+                    os.remove(out_path_str)
+                    logger.debug(f"Cleaned up timed out output file: {out_path_str}")
+                except OSError as cleanup_ex:
+                    logger.debug(f"Could not clean up timed out output: {cleanup_ex}")
         except Exception as ex:
             # Cached encoder failed - clear cache and fall through to try all encoders
             logger.warning(f"Cached encoder {encoder['name']} failed: {ex}")
@@ -420,17 +435,17 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
         logger.debug(f"$: {' '.join(cmd)}")
         
         try:
-            result = sp.call(cmd)
-            if result == 0:
+            result = sp.run(cmd, timeout=timeout_seconds)
+            if result.returncode == 0:
                 # Success! Cache this encoder and return
                 logger.info(f"✓ {encoder['name']} works! Using it for all transcodes this session.")
                 _working_encoder_cache[mode] = encoder
                 e = time.time()
                 logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
-                return
+                return True
             else:
-                logger.warning(f"✗ {encoder['name']} failed with exit code {result}")
-                last_exception = Exception(f"Transcode failed with exit code {result}")
+                logger.warning(f"✗ {encoder['name']} failed with exit code {result.returncode}")
+                last_exception = Exception(f"Transcode failed with exit code {result.returncode}")
                 # Clean up failed output file before trying next encoder
                 if os.path.exists(out_path_str):
                     try:
@@ -438,6 +453,16 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                         logger.debug(f"Cleaned up failed output file: {out_path_str}")
                     except OSError as cleanup_ex:
                         logger.debug(f"Could not clean up failed output: {cleanup_ex}")
+        except sp.TimeoutExpired:
+            logger.warning(f"✗ {encoder['name']} timed out after {timeout_seconds} seconds")
+            last_exception = Exception(f"Transcode timed out after {timeout_seconds} seconds")
+            # Clean up failed output file before trying next encoder
+            if os.path.exists(out_path_str):
+                try:
+                    os.remove(out_path_str)
+                    logger.debug(f"Cleaned up timed out output file: {out_path_str}")
+                except OSError as cleanup_ex:
+                    logger.debug(f"Could not clean up timed out output: {cleanup_ex}")
         except Exception as ex:
             logger.warning(f"✗ {encoder['name']} failed: {ex}")
             last_exception = ex
@@ -450,12 +475,14 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False):
                     logger.debug(f"Could not clean up failed output: {cleanup_ex}")
     
     # If we get here, no encoder worked
-    error_msg = f"No working {mode.upper()} encoder found! Tried: {', '.join([e['name'] for e in encoders])}"
+    error_msg = f"No working {mode.upper()} encoder found for video. Tried: {', '.join([e['name'] for e in encoders])}"
     logger.error(error_msg)
     if last_exception:
-        raise RuntimeError(error_msg) from last_exception
-    else:
-        raise RuntimeError(error_msg)
+        logger.error(f"Last error was: {last_exception}")
+    
+    # Return False to indicate failure instead of raising exception
+    # This allows the calling code to continue processing other videos
+    return False
 
 def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
     # https://stackoverflow.com/questions/65874316/trim-a-video-and-add-the-boomerang-effect-on-it-with-ffmpeg

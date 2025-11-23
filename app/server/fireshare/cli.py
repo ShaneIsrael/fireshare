@@ -466,13 +466,13 @@ def transcode_videos(regenerate, video):
             transcode_1080p_path = derived_path / f"{vi.video_id}-1080p.mp4"
             if original_height > 1080 and (not transcode_1080p_path.exists() or regenerate):
                 logger.info(f"Transcoding {vi.video_id} to 1080p")
-                try:
-                    util.transcode_video_quality(video_path, transcode_1080p_path, 1080, use_gpu)
+                success = util.transcode_video_quality(video_path, transcode_1080p_path, 1080, use_gpu)
+                if success:
                     vi.has_1080p = True
                     db.session.add(vi)
                     db.session.commit()
-                except Exception as ex:
-                    logger.error(f"Failed to transcode {vi.video_id} to 1080p: {ex}")
+                else:
+                    logger.warning(f"Skipping video {vi.video_id} 1080p transcode - all encoders failed")
             elif transcode_1080p_path.exists():
                 logger.debug(f"Skipping 1080p transcode for {vi.video_id} (already exists)")
                 vi.has_1080p = True
@@ -483,13 +483,13 @@ def transcode_videos(regenerate, video):
             transcode_720p_path = derived_path / f"{vi.video_id}-720p.mp4"
             if original_height > 720 and (not transcode_720p_path.exists() or regenerate):
                 logger.info(f"Transcoding {vi.video_id} to 720p")
-                try:
-                    util.transcode_video_quality(video_path, transcode_720p_path, 720, use_gpu)
+                success = util.transcode_video_quality(video_path, transcode_720p_path, 720, use_gpu)
+                if success:
                     vi.has_720p = True
                     db.session.add(vi)
                     db.session.commit()
-                except Exception as ex:
-                    logger.error(f"Failed to transcode {vi.video_id} to 720p: {ex}")
+                else:
+                    logger.warning(f"Skipping video {vi.video_id} 720p transcode - all encoders failed")
             elif transcode_720p_path.exists():
                 logger.debug(f"Skipping 720p transcode for {vi.video_id} (already exists)")
                 vi.has_720p = True
