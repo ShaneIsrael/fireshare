@@ -467,7 +467,9 @@ def transcode_videos(regenerate, video):
             transcode_1080p_path = derived_path / f"{vi.video_id}-1080p.mp4"
             if original_height > 1080 and (not transcode_1080p_path.exists() or regenerate):
                 logger.info(f"Transcoding {vi.video_id} to 1080p")
-                success = util.transcode_video_quality(video_path, transcode_1080p_path, 1080, use_gpu)
+                # Pass None for timeout to use smart calculation, or pass base_timeout if needed
+                timeout = None  # Uses smart calculation based on video duration
+                success = util.transcode_video_quality(video_path, transcode_1080p_path, 1080, use_gpu, timeout)
                 if success:
                     vi.has_1080p = True
                     db.session.add(vi)
@@ -484,7 +486,9 @@ def transcode_videos(regenerate, video):
             transcode_720p_path = derived_path / f"{vi.video_id}-720p.mp4"
             if original_height > 720 and (not transcode_720p_path.exists() or regenerate):
                 logger.info(f"Transcoding {vi.video_id} to 720p")
-                success = util.transcode_video_quality(video_path, transcode_720p_path, 720, use_gpu)
+                # Pass None for timeout to use smart calculation, or pass base_timeout if needed
+                timeout = None  # Uses smart calculation based on video duration
+                success = util.transcode_video_quality(video_path, transcode_720p_path, 720, use_gpu, timeout)
                 if success:
                     vi.has_720p = True
                     db.session.add(vi)

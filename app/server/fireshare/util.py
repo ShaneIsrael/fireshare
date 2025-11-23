@@ -62,9 +62,9 @@ def get_video_duration(path):
         float: Duration in seconds, or None if unable to determine
     """
     try:
-        cmd = f'ffprobe -v quiet -print_format json -show_entries format=duration {path}'
-        logger.debug(f"$ {cmd}")
-        data = json.loads(sp.check_output(cmd.split()).decode('utf-8'))
+        cmd = ['ffprobe', '-v', 'quiet', '-print_format', 'json', '-show_entries', 'format=duration', str(path)]
+        logger.debug(f"$ {' '.join(cmd)}")
+        data = json.loads(sp.check_output(cmd).decode('utf-8'))
         if 'format' in data and 'duration' in data['format']:
             return float(data['format']['duration'])
     except Exception as ex:
