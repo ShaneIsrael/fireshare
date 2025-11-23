@@ -51,6 +51,56 @@ def get_media_info(path):
         logger.warning('Could not extract video info')
         return None
 
+def get_video_duration(path):
+    """
+    Get the duration of a video file in seconds.
+    
+    Args:
+        path: Path to the video file
+    
+    Returns:
+        float: Duration in seconds, or None if unable to determine
+    """
+    try:
+        cmd = f'ffprobe -v quiet -print_format json -show_entries format=duration {path}'
+        logger.debug(f"$ {cmd}")
+        data = json.loads(sp.check_output(cmd.split()).decode('utf-8'))
+        if 'format' in data and 'duration' in data['format']:
+            return float(data['format']['duration'])
+    except Exception as ex:
+        logger.debug(f'Could not extract video duration: {ex}')
+    return None
+
+def calculate_transcode_timeout(video_path, base_timeout=7200):
+    """
+    Calculate a smart timeout for video transcoding based on video duration.
+    
+    For CPU encoding, a reasonable estimate is:
+    - Real-time encoding takes duration * 1x
+    - Slow CPU encoding can take 10-20x the duration
+    - We add a safety margin of 3x on top
+    
+    Args:
+        video_path: Path to the video file
+        base_timeout: Base timeout in seconds (used if duration can't be determined)
+    
+    Returns:
+        int: Timeout in seconds
+    """
+    duration = get_video_duration(video_path)
+    
+    if duration:
+        # Use 60x the video duration as timeout (assumes worst case 20x encoding + 3x safety margin)
+        # Minimum of 600 seconds (10 minutes) for very short videos
+        calculated_timeout = max(int(duration * 60), 600)
+        # Cap at 8 hours to prevent truly stuck processes
+        calculated_timeout = min(calculated_timeout, 28800)
+        logger.debug(f"Calculated transcode timeout: {calculated_timeout}s for video duration {duration}s")
+        return calculated_timeout
+    else:
+        logger.debug(f"Could not determine video duration, using base timeout: {base_timeout}s")
+        return base_timeout
+
 def create_poster(video_path, out_path, second=0):
     s = time.time()
     cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', '-vf', 'scale=iw:ih:force_original_aspect_ratio=decrease', str(out_path)]
@@ -265,7 +315,7 @@ def _build_transcode_command(video_path, out_path, height, encoder):
     
     return cmd
 
-def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout_seconds=3600):
+def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout_seconds=None):
     """
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
     
@@ -283,13 +333,19 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
         out_path: Path for the transcoded output
         height: Target height in pixels (e.g., 720, 1080)
         use_gpu: Whether to use GPU acceleration (NVENC if available)
-        timeout_seconds: Maximum time allowed for encoding (default: 3600 seconds/1 hour)
+        timeout_seconds: Maximum time allowed for encoding (default: calculated based on video duration)
     
     Returns:
         bool: True if transcoding succeeded, False if all encoders failed
     """
     global _working_encoder_cache
     s = time.time()
+    
+    # Calculate smart timeout based on video duration if not provided
+    if timeout_seconds is None:
+        timeout_seconds = calculate_transcode_timeout(video_path)
+    
+    logger.info(f"Using transcode timeout of {timeout_seconds}s ({timeout_seconds/60:.1f} minutes)")
     
     # Determine output container based on codec
     out_path_str = str(out_path)

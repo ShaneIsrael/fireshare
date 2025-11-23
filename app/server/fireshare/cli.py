@@ -443,10 +443,11 @@ def transcode_videos(regenerate, video):
         
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
         use_gpu = current_app.config.get('TRANSCODE_GPU', False)
+        base_timeout = current_app.config.get('TRANSCODE_TIMEOUT', 7200)
         
         # Get videos to transcode
         vinfos = VideoInfo.query.filter(VideoInfo.video_id==video).all() if video else VideoInfo.query.all()
-        logger.info(f'Processing {len(vinfos):,} videos for transcoding (GPU: {use_gpu})')
+        logger.info(f'Processing {len(vinfos):,} videos for transcoding (GPU: {use_gpu}, Base timeout: {base_timeout}s)')
         
         for vi in vinfos:
             derived_path = Path(processed_root, "derived", vi.video_id)
