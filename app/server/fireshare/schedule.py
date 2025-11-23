@@ -10,7 +10,7 @@ logger.setLevel(logging.DEBUG)
 
 def fireshare_scan():
     logger.info('Starting scheduled scan...')
-    Popen("fireshare bulk-import", shell=True)
+    Popen(["fireshare", "bulk-import"], shell=False)
 
 def init_schedule(dburl, mins_between_scan=5):
     if mins_between_scan > 0:
