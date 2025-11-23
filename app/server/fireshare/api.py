@@ -432,7 +432,7 @@ def upload_videoChunked():
     fileName = secure_filename(request.form.get('fileName'))
     fileSize = int(request.form.get('fileSize'))
     
-    if not fileName or fileName.strip() == '':
+    if not fileName:
         return Response(status=400)
     
     filetype = fileName.split('.')[-1]
