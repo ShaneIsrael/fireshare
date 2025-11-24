@@ -120,8 +120,9 @@ const VideoJSPlayer = ({
       // Update sources if they change
       if (sources && sources.length > 0) {
         const currentSrc = player.currentSrc()
-        const newSrc = sources[0].src
-        if (currentSrc !== newSrc) {
+        // Check if the current source is in the new sources array
+        const sourceExists = sources.some(source => source.src === currentSrc)
+        if (!sourceExists) {
           const currentTime = player.currentTime()
           player.src(sources)
           player.one('loadedmetadata', () => {
