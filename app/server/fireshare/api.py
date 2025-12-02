@@ -11,9 +11,10 @@ from flask_cors import CORS
 from sqlalchemy.sql import text
 from pathlib import Path
 import time
+from werkzeug.utils import secure_filename
 
 
-from . import db
+from . import db, logger
 from .models import Video, VideoInfo, VideoView
 from .constants import SUPPORTED_FILE_TYPES
 
@@ -22,11 +23,21 @@ api = Blueprint('api', __name__, template_folder=templates_path)
 
 CORS(api, supports_credentials=True)
 
-def get_video_path(id, subid=None):
+def get_video_path(id, subid=None, quality=None):
     video = Video.query.filter_by(video_id=id).first()
     if not video:
         raise Exception(f"No video found for {id}")
     paths = current_app.config['PATHS']
+    
+    # Handle quality variants (720p, 1080p)
+    if quality and quality in ['720p', '1080p']:
+        # Check if the transcoded version exists
+        derived_path = paths["processed"] / "derived" / id / f"{id}-{quality}.mp4"
+        if derived_path.exists():
+            return str(derived_path)
+        # Fall back to original if quality doesn't exist
+        logger.warning(f"Requested quality {quality} for video {id} not found, falling back to original")
+    
     subid_suffix = f"-{subid}" if subid else ""
     ext = ".mp4" if subid else video.extension
     video_path = paths["processed"] / "video_links" / f"{id}{subid_suffix}{ext}"
@@ -93,7 +104,7 @@ def manual_scan():
         return Response(response='You must be running in production for this task to work.', status=400)
     else:
         current_app.logger.info(f"Executed manual scan")
-        Popen("fireshare bulk-import", shell=True)
+        Popen(["fireshare", "bulk-import"], shell=False)
     return Response(status=200)
 
 @api.route('/api/videos')
@@ -287,8 +298,10 @@ def public_upload_video():
     file = request.files['file']
     if file.filename == '':
         return Response(status=400)
-    filename = file.filename
-    filetype = file.filename.split('.')[-1]
+    filename = secure_filename(file.filename)
+    if not filename:
+        return Response(status=400)
+    filetype = filename.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
     upload_directory = paths['video'] / upload_folder
@@ -300,7 +313,7 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
+    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
     return Response(status=201)
 
 @api.route('/api/uploadChunked/public', methods=['POST'])
@@ -330,8 +343,10 @@ def public_upload_videoChunked():
     checkSum = request.form.get('checkSum')
     if not blob.filename or blob.filename.strip() == '' or blob.filename == 'blob':
         return Response(status=400)
-    filename = blob.filename
-    filetype = blob.filename.split('.')[-1] # TODO, probe filetype with fmpeg instead and remux to supporrted
+    filename = secure_filename(blob.filename)
+    if not filename:
+        return Response(status=400)
+    filetype = filename.split('.')[-1] # TODO, probe filetype with fmpeg instead and remux to supporrted
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
      
@@ -352,7 +367,7 @@ def public_upload_videoChunked():
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     
     os.rename(tempPath, save_path)
-    Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
+    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
     return Response(status=201)
 
 @api.route('/api/upload', methods=['POST'])
@@ -373,8 +388,10 @@ def upload_video():
     file = request.files['file']
     if file.filename == '':
         return Response(status=400)
-    filename = file.filename
-    filetype = file.filename.split('.')[-1]
+    filename = secure_filename(file.filename)
+    if not filename:
+        return Response(status=400)
+    filetype = filename.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
     upload_directory = paths['video'] / upload_folder
@@ -386,7 +403,7 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
+    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
     return Response(status=201)
 
 @api.route('/api/uploadChunked', methods=['POST'])
@@ -412,10 +429,10 @@ def upload_videoChunked():
     chunkPart = int(request.form.get('chunkPart'))
     totalChunks = int(request.form.get('totalChunks'))
     checkSum = request.form.get('checkSum')
-    fileName = request.form.get('fileName')
+    fileName = secure_filename(request.form.get('fileName'))
     fileSize = int(request.form.get('fileSize'))
     
-    if not fileName or fileName.strip() == '':
+    if not fileName:
         return Response(status=400)
     
     filetype = fileName.split('.')[-1]
@@ -476,14 +493,15 @@ def upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
-    Popen(f"fireshare scan-video --path=\"{save_path}\"", shell=True)
+    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
     return Response(status=201)
 
 @api.route('/api/video')
 def get_video():
     video_id = request.args.get('id')
     subid = request.args.get('subid')
-    video_path = get_video_path(video_id, subid)
+    quality = request.args.get('quality')  # Support quality parameter (720p, 1080p)
+    video_path = get_video_path(video_id, subid, quality)
     file_size = os.stat(video_path).st_size
     start = 0
     length = 10240

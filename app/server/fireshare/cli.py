@@ -82,10 +82,26 @@ def scan_videos(root):
 
         logger.info(f"Scanning {str(videos_path)} for {', '.join(SUPPORTED_FILE_EXTENSIONS)} video files")
         CHUNK_FILE_PATTERN = re.compile(r'\.part\d{4}$')
-        video_files = [f for f in (videos_path / root if root else videos_path).glob('**/*') 
-                      if f.is_file() 
-                      and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS 
-                      and not CHUNK_FILE_PATTERN.search(f.name)]
+        TRANSCODE_PATTERN = re.compile(r'-(?:720p|1080p)\.mp4$', re.IGNORECASE)
+        
+        # Collect all video files and filter out transcoded versions
+        all_files = [f for f in (videos_path / root if root else videos_path).glob('**/*') 
+                     if f.is_file() and f.suffix.lower() in SUPPORTED_FILE_EXTENSIONS]
+        
+        video_files = []
+        skipped_count = 0
+        for f in all_files:
+            if CHUNK_FILE_PATTERN.search(f.name):
+                continue  # Skip chunk files silently
+            elif TRANSCODE_PATTERN.search(f.name):
+                logger.debug(f"Skipping transcoded file: {f.name}")
+                skipped_count += 1
+            else:
+                video_files.append(f)
+        
+        if skipped_count > 0:
+            logger.info(f"Skipped {skipped_count} transcoded video file(s)")
+        
         video_rows = Video.query.all()
 
         new_videos = []
@@ -150,7 +166,7 @@ def scan_videos(root):
             file_path = Path((paths["video"] / ev.path).absolute())
             logger.debug(f"Verifying video {ev.video_id} at {file_path} is available")
             if not file_path.exists():
-                logger.warn(f"Video {ev.video_id} at {file_path} was not found")
+                logger.warning(f"Video {ev.video_id} at {file_path} was not found")
                 db.session.query(Video).filter_by(video_id=ev.video_id).update({ "available": False})
         db.session.commit()
 
@@ -180,9 +196,17 @@ def scan_video(ctx, path):
             video_links.mkdir()
         
         CHUNK_FILE_PATTERN = re.compile(r'\.part\d{4}$')
+        TRANSCODE_PATTERN = re.compile(r'-(?:720p|1080p)\.mp4$', re.IGNORECASE)
+        
+        # Check if the file is a transcoded version and skip it
+        if (videos_path / path).is_file() and TRANSCODE_PATTERN.search((videos_path / path).name):
+            logger.warning(f"Skipping transcoded file: {path}. Transcoded files should not be scanned.")
+            return
+        
         video_file = ((videos_path / path) if (videos_path / path).is_file() 
                      and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS 
-                     and not CHUNK_FILE_PATTERN.search((videos_path / path).name) else None)
+                     and not CHUNK_FILE_PATTERN.search((videos_path / path).name)
+                     and not TRANSCODE_PATTERN.search((videos_path / path).name) else None)
         if video_file:
             video_rows = Video.query.all()
             logger.info(f"Scanning {str(video_file)}")
@@ -251,7 +275,7 @@ def scan_video(ctx, path):
                         video_url = get_public_watch_url(video_id, config, domain)
                         send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
                 else:
-                    logger.warn(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+                    logger.warning(f"Skipping creation of poster for video {info.video_id} because the video at {str(video_path)} does not exist or is not accessible")
         else:
             logger.info(f"Invalid video file, unable to scan: {str(videos_path / path)}")
 
@@ -297,9 +321,9 @@ def sync_metadata(video):
                         corruptVideoWarning = "There may be a corrupt video in your video Directory. See your logs for more info!"
                         if not corruptVideoWarning in current_app.config['WARNINGS']:
                             current_app.config['WARNINGS'].append(corruptVideoWarning)
-                        logger.warn(f"[{v.video.path}] - There may be a corrupt file in your video directory. Or, you may be recording to the video directory and haven't finished yet.")
-                        logger.warn(f"For more info and to find the offending file, run this command in your container: \"stat {vpath}\"")
-                        logger.warn("I'll try to process this file again in 60 seconds...")
+                        logger.warning(f"[{v.video.path}] - There may be a corrupt file in your video directory. Or, you may be recording to the video directory and haven't finished yet.")
+                        logger.warning(f"For more info and to find the offending file, run this command in your container: \"stat {vpath}\"")
+                        logger.warning("I'll try to process this file again in 60 seconds...")
                         time.sleep(60)
                 
                 corruptVideoWarning = "There may be a corrupt video in your video Directory. See your logs for more info!"
@@ -325,7 +349,7 @@ def sync_metadata(video):
                 db.session.add(v)
                 db.session.commit()
             else:
-                logger.warn(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
+                logger.warning(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
 
 @cli.command()
 def create_web_videos():
@@ -359,7 +383,7 @@ def create_web_videos():
                     logger.debug(f"Skipping {v.video_id} because {str(out_mp4_fn)} already exists")
 
             else:
-                logger.warn(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
+                logger.warning(f"Missing or invalid symlink at {vpath} to video {v.video_id} (original location: {v.video.path})")
         
 
 @cli.command()
@@ -374,7 +398,7 @@ def create_posters(regenerate, skip):
             derived_path = Path(processed_root, "derived", vi.video_id)
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
             if not video_path.exists():
-                logger.warn(f"Skipping creation of poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
+                logger.warning(f"Skipping creation of poster for video {vi.video_id} because the video at {str(video_path)} does not exist or is not accessible")
                 continue
             poster_path = Path(derived_path, "poster.jpg")
             should_create_poster = (not poster_path.exists() or regenerate)
@@ -408,6 +432,78 @@ def create_boomerang_posters(regenerate):
                 logger.info(f"Skipping creation of boomerang poster for video {vi.video_id} because it exists at {str(poster_path)}")
 
 @cli.command()
+@click.option("--regenerate", "-r", help="Overwrite existing transcoded videos", is_flag=True)
+@click.option("--video", "-v", help="Transcode a specific video by id", default=None)
+def transcode_videos(regenerate, video):
+    """Transcode videos to 1080p and 720p variants"""
+    with create_app().app_context():
+        if not current_app.config.get('ENABLE_TRANSCODING'):
+            logger.info("Transcoding is disabled. Set ENABLE_TRANSCODING=true to enable.")
+            return
+        
+        processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+        use_gpu = current_app.config.get('TRANSCODE_GPU', False)
+        base_timeout = current_app.config.get('TRANSCODE_TIMEOUT', 7200)
+        
+        # Get videos to transcode
+        vinfos = VideoInfo.query.filter(VideoInfo.video_id==video).all() if video else VideoInfo.query.all()
+        logger.info(f'Processing {len(vinfos):,} videos for transcoding (GPU: {use_gpu}, Base timeout: {base_timeout}s)')
+        
+        for vi in vinfos:
+            derived_path = Path(processed_root, "derived", vi.video_id)
+            video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
+            
+            if not video_path.exists():
+                logger.warning(f"Skipping transcoding for video {vi.video_id} because the video at {str(video_path)} does not exist")
+                continue
+            
+            if not derived_path.exists():
+                derived_path.mkdir(parents=True)
+            
+            # Determine which qualities to transcode
+            original_height = vi.height or 0
+            
+            # Transcode to 1080p if original is higher and 1080p doesn't exist
+            transcode_1080p_path = derived_path / f"{vi.video_id}-1080p.mp4"
+            if original_height > 1080 and (not transcode_1080p_path.exists() or regenerate):
+                logger.info(f"Transcoding {vi.video_id} to 1080p")
+                # Pass None for timeout to use smart calculation, or pass base_timeout if needed
+                timeout = None  # Uses smart calculation based on video duration
+                success = util.transcode_video_quality(video_path, transcode_1080p_path, 1080, use_gpu, timeout)
+                if success:
+                    vi.has_1080p = True
+                    db.session.add(vi)
+                    db.session.commit()
+                else:
+                    logger.warning(f"Skipping video {vi.video_id} 1080p transcode - all encoders failed")
+            elif transcode_1080p_path.exists():
+                logger.debug(f"Skipping 1080p transcode for {vi.video_id} (already exists)")
+                vi.has_1080p = True
+                db.session.add(vi)
+                db.session.commit()
+            
+            # Transcode to 720p if original is higher than 720p and 720p doesn't exist
+            transcode_720p_path = derived_path / f"{vi.video_id}-720p.mp4"
+            if original_height > 720 and (not transcode_720p_path.exists() or regenerate):
+                logger.info(f"Transcoding {vi.video_id} to 720p")
+                # Pass None for timeout to use smart calculation, or pass base_timeout if needed
+                timeout = None  # Uses smart calculation based on video duration
+                success = util.transcode_video_quality(video_path, transcode_720p_path, 720, use_gpu, timeout)
+                if success:
+                    vi.has_720p = True
+                    db.session.add(vi)
+                    db.session.commit()
+                else:
+                    logger.warning(f"Skipping video {vi.video_id} 720p transcode - all encoders failed")
+            elif transcode_720p_path.exists():
+                logger.debug(f"Skipping 720p transcode for {vi.video_id} (already exists)")
+                vi.has_720p = True
+                db.session.add(vi)
+                db.session.commit()
+        
+        logger.info("Transcoding complete")
+
+@cli.command()
 @click.pass_context
 @click.option("--root", "-r", help="root video path to scan", required=False)
 def bulk_import(ctx, root):
@@ -434,6 +530,12 @@ def bulk_import(ctx, root):
         s = time.time()
         ctx.invoke(create_posters, skip=thumbnail_skip)
         timing['create_posters'] = time.time() - s
+        
+        # Transcode videos if transcoding is enabled
+        if current_app.config.get('ENABLE_TRANSCODING'):
+            s = time.time()
+            ctx.invoke(transcode_videos)
+            timing['transcode_videos'] = time.time() - s
 
         logger.info(f"Finished bulk import. Timing info: {json.dumps(timing)}")
 

@@ -8,9 +8,10 @@ import CloseIcon from '@mui/icons-material/Close'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoPath } from '../../common/utils'
+import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoSources } from '../../common/utils'
 import { ConfigService, VideoService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
+import VideoJSPlayer from '../misc/VideoJSPlayer'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -24,8 +25,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [vid, setVideo] = React.useState(null)
   const [viewAdded, setViewAdded] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
-  const [autoplay, setAutoplay] = useState(false);  
-
+  const [autoplay, setAutoplay] = useState(false);
 
   const playerRef = React.useRef()
 
@@ -143,7 +143,12 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const copyTimestamp = () => {
-    copyToClipboard(`${PURL}${vid.video_id}?t=${playerRef.current?.currentTime}`)
+    let currentTime = 0
+    if (playerRef.current && typeof playerRef.current.currentTime === 'function') {
+      const time = playerRef.current.currentTime()
+      currentTime = (time && !isNaN(time)) ? time : 0
+    }
+    copyToClipboard(`${PURL}${vid.video_id}?t=${currentTime}`)
     setAlert({
       type: 'info',
       message: 'Time stamped link copied to clipboard',
@@ -153,14 +158,24 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
   const handleTimeUpdate = (e) => {
     if (!viewAdded) {
+      const currentTime = e.playedSeconds || 0
       if (!vid.info?.duration || vid.info?.duration < 10) {
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
-      } else if (e.target.currentTime >= 10) {
+      } else if (currentTime >= 10) {
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
       }
     }
+  }
+
+
+
+  const getPosterUrl = () => {
+    if (SERVED_BY === 'nginx') {
+      return `${URL}/_content/derived/${vid.video_id}/poster.jpg`
+    }
+    return `${URL}/api/video/poster?id=${vid.video_id}`
   }
 
   if (!vid) return null
@@ -193,21 +208,17 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             >
               <CloseIcon sx={{ width: 35, height: 35 }} />
             </IconButton>
-            <Grid container justifyContent="center">
+            <Grid container justifyContent="center" sx={{ gap: '6px' }}>
               <Grid item xs={12}>
-                <video
-                  ref={playerRef}
-                  width="100%"
-                  height="auto"
-                  src={`${
-                    SERVED_BY === 'nginx'
-                      ? `${URL}/_content/video/${getVideoPath(vid.video_id, vid.extension)}`
-                      : `${URL}/api/video?id=${vid.extension === '.mkv' ? `${vid.video_id}&subid=1` : vid.video_id}`
-                  }`}
-                  autoPlay={autoplay}  
-                  disablePictureInPicture
-                  controls
+                <VideoJSPlayer
+                  sources={getVideoSources(vid.video_id, vid?.info, vid.extension)}
+                  poster={getPosterUrl()}
+                  autoplay={autoplay}
+                  controls={true}
                   onTimeUpdate={handleTimeUpdate}
+                  onReady={(player) => {
+                    playerRef.current = player
+                  }}
                 />
               </Grid>
               <Grid item>

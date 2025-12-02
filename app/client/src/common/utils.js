@@ -94,3 +94,72 @@ export const copyToClipboard = (textToCopy) => {
     })
   }
 }
+
+/**
+ * Gets the URL for a specific video quality
+ * @param {string} videoId - The video ID
+ * @param {string} quality - Quality ('720p', '1080p', or 'original')
+ * @param {string} extension - Video file extension (e.g., '.mp4', '.mkv')
+ * @returns {string} Video URL
+ */
+export const getVideoUrl = (videoId, quality, extension) => {
+  const URL = getUrl()
+  const SERVED_BY = getServedBy()
+  
+  if (quality === '720p' || quality === '1080p') {
+    if (SERVED_BY === 'nginx') {
+      return `${URL}/_content/derived/${videoId}/${videoId}-${quality}.mp4`
+    }
+    return `${URL}/api/video?id=${videoId}&quality=${quality}`
+  }
+  
+  // Original quality
+  if (SERVED_BY === 'nginx') {
+    const videoPath = getVideoPath(videoId, extension)
+    return `${URL}/_content/video/${videoPath}`
+  }
+  return `${URL}/api/video?id=${extension === '.mkv' ? `${videoId}&subid=1` : videoId}`
+}
+
+/**
+ * Generates video sources array for Video.js player with quality options
+ * Defaults to original quality, with 720p and 1080p as alternatives
+ * @param {string} videoId - The video ID
+ * @param {Object} videoInfo - Video info object containing has_720p, has_1080p flags
+ * @param {string} extension - Video file extension (e.g., '.mp4', '.mkv')
+ * @returns {Array} Array of video sources for Video.js
+ */
+export const getVideoSources = (videoId, videoInfo, extension) => {
+  const sources = []
+  
+  const has720p = videoInfo?.has_720p
+  const has1080p = videoInfo?.has_1080p
+  
+  // Add 720p
+  if (has720p) {
+    sources.push({
+      src: getVideoUrl(videoId, '720p', extension),
+      type: 'video/mp4',
+      label: '720p',
+    })
+  }
+  
+  // Add 1080p
+  if (has1080p) {
+    sources.push({
+      src: getVideoUrl(videoId, '1080p', extension),
+      type: 'video/mp4',
+      label: '1080p',
+    })
+  }
+
+  // Add original quality - always selected by default
+  sources.push({
+    src: getVideoUrl(videoId, 'original', extension),
+    type: 'video/mp4',
+    label: 'Original',
+    selected: true, // Always default to original quality
+  })
+
+  return sources
+}
