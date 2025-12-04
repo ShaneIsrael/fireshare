@@ -96,6 +96,7 @@ const Watch = ({ authenticated }) => {
   }
 
   if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
+  if (!details) return null
 
   const controls = () => (
     <>
