@@ -485,7 +485,12 @@ def sync_metadata(video):
                     position = current_app.config['WARNINGS'].index(corruptVideoWarning)
                     current_app.config['WARNINGS'].pop(position)
 
-                vcodec = [i for i in info if i['codec_type'] == 'video'][0]
+                video_codecs = [i for i in info if i['codec_type'] == 'video']
+                if not video_codecs:
+                    logger.warning(f"No video stream found in {v.video.path} (video_id={v.video_id}). Skipping metadata sync.")
+                    mark_video_corrupt(v.video_id)
+                    continue
+                vcodec = video_codecs[0]
                 duration = 0
                 if 'duration' in vcodec:
                     duration = float(vcodec['duration'])
