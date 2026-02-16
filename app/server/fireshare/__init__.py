@@ -189,7 +189,8 @@ def create_app(init_schedule=False):
     if app.config["LDAP_ENABLE"]:
         if ldap is None:
             app.logger.error("LDAP is enabled but python-ldap is not installed. "
-                             "Install system dependencies and run: pip install python-ldap")
+                             "Install system dependencies (libldap2-dev libsasl2-dev on Linux, "
+                             "openldap on macOS) and run: pip install python-ldap")
             exit(1)
         if not app.config["LDAP_URL"] or not app.config["LDAP_BINDDN"] or not app.config["LDAP_BASEDN"] or not app.config["LDAP_USER_FILTER"]:
             app.logger.error("Missing parameters for LDAP")
