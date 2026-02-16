@@ -344,23 +344,26 @@ def get_transcoding_status():
 @login_required
 def admin_event_stream():
     """SSE endpoint for real-time admin events (transcoding, etc.)."""
-    global _transcoding_process
     import time
+    from queue import Queue, Empty
+    import threading
 
-    def generate():
+    # Capture config before entering generator (Flask context unavailable inside)
+    paths = current_app.config['PATHS']
+    enabled = current_app.config.get('ENABLE_TRANSCODING', False)
+    gpu_enabled = current_app.config.get('TRANSCODE_GPU', False)
+
+    # Use a queue to communicate between polling thread and generator
+    event_queue = Queue()
+    stop_event = threading.Event()
+
+    def poll_status():
         last_transcoding_state = None
-        last_heartbeat = time.time()
-        paths = current_app.config['PATHS']
-        enabled = current_app.config.get('ENABLE_TRANSCODING', False)
-        gpu_enabled = current_app.config.get('TRANSCODE_GPU', False)
-
-        while True:
+        while not stop_event.is_set():
             try:
-                # --- Transcoding status ---
-                subprocess_running = _transcoding_process is not None and _transcoding_process.poll() is None
                 progress = util.read_transcoding_status(paths['data'])
-                pid_alive = _is_pid_running(progress.get('pid'))
-                is_running = subprocess_running or (progress.get('is_running', False) and pid_alive)
+                pid = progress.get('pid')
+                is_running = progress.get('is_running', False) and pid and _is_pid_running(pid)
 
                 if progress.get('is_running') and not is_running:
                     util.clear_transcoding_status(paths['data'])
@@ -376,20 +379,36 @@ def admin_event_stream():
                 }
 
                 if transcoding_state != last_transcoding_state:
-                    yield f"event: transcoding\ndata: {json.dumps(transcoding_state)}\n\n"
+                    event_queue.put(f"event: transcoding\ndata: {json.dumps(transcoding_state)}\n\n")
                     last_transcoding_state = transcoding_state.copy()
-                    last_heartbeat = time.time()
-
-                # --- Future admin events can be added here ---
-
-                # Heartbeat to keep connection alive
-                if time.time() - last_heartbeat >= 30:
-                    yield ": heartbeat\n\n"
-                    last_heartbeat = time.time()
 
                 time.sleep(1.5)
-            except GeneratorExit:
+            except Exception as e:
+                logger.error(f"SSE poll error: {e}")
                 break
+
+    def generate():
+        # Start polling in background thread
+        poll_thread = threading.Thread(target=poll_status, daemon=True)
+        poll_thread.start()
+
+        last_heartbeat = time.time()
+        try:
+            while True:
+                try:
+                    # Wait for events with timeout for heartbeat
+                    event = event_queue.get(timeout=10)
+                    yield event
+                    last_heartbeat = time.time()
+                except Empty:
+                    # Send heartbeat if no events
+                    if time.time() - last_heartbeat >= 30:
+                        yield ": heartbeat\n\n"
+                        last_heartbeat = time.time()
+        except GeneratorExit:
+            pass
+        finally:
+            stop_event.set()
 
     return Response(generate(), mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
