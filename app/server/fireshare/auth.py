@@ -5,7 +5,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
 from .api import _get_local_version, _fetch_release_notes
-import ldap
+try:
+    import ldap
+except ImportError:
+    ldap = None
 import logging
 
 def auth_user_ldap(username, password):
