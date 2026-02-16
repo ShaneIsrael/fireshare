@@ -1823,10 +1823,10 @@ def rss_feed():
     # URL for viewing (frontend)
     # If we are on localhost:5000, the user wants both the link and video to point to the public dev port (3000)
     frontend_domain = backend_domain
-    if "localhost:5000" in frontend_domain:
-        frontend_domain = frontend_domain.replace("localhost:5000", "localhost:3000")
-    elif "127.0.0.1:5000" in frontend_domain:
-        frontend_domain = frontend_domain.replace("127.0.0.1:5000", "localhost:3000")
+    if "localhost:3001" in frontend_domain:
+        frontend_domain = frontend_domain.replace("localhost:3001", "localhost:3000")
+    elif "127.0.0.1:3001" in frontend_domain:
+        frontend_domain = frontend_domain.replace("127.0.0.1:3001", "localhost:3000")
 
     # Load custom RSS config if it exists
     paths = current_app.config['PATHS']

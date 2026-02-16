@@ -24,7 +24,7 @@
     "typeface-roboto": "^1.1.13",
     "video.js": "^8.23.4"
   },
-  "proxy": "http://localhost:5000",
+  "proxy": "http://localhost:3001",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
