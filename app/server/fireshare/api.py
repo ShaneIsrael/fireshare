@@ -340,6 +340,56 @@ def get_transcoding_status():
     })
 
 
+@api.route('/api/admin/transcoding/stream')
+@login_required
+def stream_transcoding_status():
+    """SSE endpoint for real-time transcoding status updates."""
+    global _transcoding_process
+    import time
+
+    def generate():
+        last_state = None
+        last_heartbeat = time.time()
+        paths = current_app.config['PATHS']
+        enabled = current_app.config.get('ENABLE_TRANSCODING', False)
+        gpu_enabled = current_app.config.get('TRANSCODE_GPU', False)
+
+        while True:
+            try:
+                subprocess_running = _transcoding_process is not None and _transcoding_process.poll() is None
+                progress = util.read_transcoding_status(paths['data'])
+                pid_alive = _is_pid_running(progress.get('pid'))
+                is_running = subprocess_running or (progress.get('is_running', False) and pid_alive)
+
+                if progress.get('is_running') and not is_running:
+                    util.clear_transcoding_status(paths['data'])
+                    progress = {"current": 0, "total": 0, "current_video": None}
+
+                current_state = {
+                    "enabled": enabled,
+                    "gpu_enabled": gpu_enabled,
+                    "is_running": is_running,
+                    "current": progress.get('current', 0),
+                    "total": progress.get('total', 0),
+                    "current_video": progress.get('current_video')
+                }
+
+                if current_state != last_state:
+                    yield f"data: {json.dumps(current_state)}\n\n"
+                    last_state = current_state.copy()
+                    last_heartbeat = time.time()
+                elif time.time() - last_heartbeat >= 30:
+                    yield ": heartbeat\n\n"
+                    last_heartbeat = time.time()
+
+                time.sleep(1.5)
+            except GeneratorExit:
+                break
+
+    return Response(generate(), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
 @api.route('/api/admin/transcoding/start', methods=["POST"])
 @login_required
 def start_transcoding():
