@@ -2,59 +2,8 @@ import * as React from 'react'
 import { Grid, Box, IconButton } from '@mui/material'
 import Typography from '@mui/material/Typography'
 import Tooltip from '@mui/material/Tooltip'
-import { ConfigService } from '../../services'
+import adminSSE from '../../services/AdminSSE'
 import SyncIcon from '@mui/icons-material/Sync'
-
-// Module-level singleton polling to prevent duplicate requests
-// when multiple component instances are mounted (e.g. mobile + desktop drawers)
-let subscribers = new Set()
-let pollingTimer = null
-let isRunning = false
-
-function notifySubscribers(data) {
-  subscribers.forEach((cb) => cb(data))
-}
-
-async function checkStatus() {
-  if (subscribers.size === 0) return
-  try {
-    const res = await ConfigService.getTranscodingStatus()
-    if (subscribers.size === 0) return
-    if (res.data.is_running) {
-      isRunning = true
-      notifySubscribers(res.data)
-      scheduleNext(3000)
-    } else {
-      isRunning = false
-      notifySubscribers(null)
-      scheduleNext(15000)
-    }
-  } catch (e) {
-    if (subscribers.size > 0) {
-      scheduleNext(isRunning ? 3000 : 15000)
-    }
-  }
-}
-
-function scheduleNext(delay) {
-  clearTimeout(pollingTimer)
-  pollingTimer = setTimeout(checkStatus, delay)
-}
-
-function subscribe(cb) {
-  const wasEmpty = subscribers.size === 0
-  subscribers.add(cb)
-  if (wasEmpty) {
-    checkStatus()
-  }
-  return () => {
-    subscribers.delete(cb)
-    if (subscribers.size === 0) {
-      clearTimeout(pollingTimer)
-      pollingTimer = null
-    }
-  }
-}
 
 const TranscodingStatus = ({ open }) => {
   const [status, setStatus] = React.useState(null)
@@ -73,7 +22,9 @@ const TranscodingStatus = ({ open }) => {
   }, [])
 
   React.useEffect(() => {
-    return subscribe(setStatus)
+    return adminSSE.subscribeTranscoding((data) => {
+      setStatus(data?.is_running ? data : null)
+    })
   }, [])
 
   if (!status && !stoppedMessage) return null

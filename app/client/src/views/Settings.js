@@ -30,6 +30,7 @@ import LightTooltip from '../components/misc/LightTooltip'
 
 import _ from 'lodash'
 import WarningService from "../services/WarningService";
+import adminSSE from '../services/AdminSSE'
 
 const isValidDiscordWebhook = (url) => {
   const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/;
@@ -50,15 +51,6 @@ const Settings = ({ authenticated }) => {
   })
   const isDiscordUsed = discordUrl.trim() !== ''
 
-  const fetchRunningStatus = async () => {
-    try {
-      const status = (await ConfigService.getTranscodingStatus()).data
-      setTranscodingStatus((prev) => ({ ...prev, is_running: status.is_running }))
-    } catch (err) {
-      console.error('Failed to fetch transcoding status:', err)
-    }
-  }
-
   React.useEffect(() => {
     async function fetch() {
       try {
@@ -72,10 +64,7 @@ const Settings = ({ authenticated }) => {
             enabled: conf.transcoding_status.enabled,
             gpu_enabled: conf.transcoding_status.gpu_enabled,
           }))
-          // Only check is_running if transcoding is enabled
-          if (conf.transcoding_status.enabled) {
-            await fetchRunningStatus()
-          }
+          // SSE will provide real-time is_running updates
         }
         await checkForWarnings()
       } catch (err) {
@@ -91,16 +80,13 @@ const Settings = ({ authenticated }) => {
     }
   }, [updatedConfig, config])
 
-  // Poll for is_running status while transcoding is active
+  // Subscribe to SSE for real-time transcoding status
   React.useEffect(() => {
-    if (!transcodingStatus.enabled || !transcodingStatus.is_running) return
-
-    const interval = setInterval(() => {
-      fetchRunningStatus()
-    }, 3000)
-
-    return () => clearInterval(interval)
-  }, [transcodingStatus.enabled, transcodingStatus.is_running])
+    if (!transcodingStatus.enabled) return
+    return adminSSE.subscribeTranscoding((data) => {
+      setTranscodingStatus((prev) => ({ ...prev, is_running: data.is_running }))
+    })
+  }, [transcodingStatus.enabled])
 
   React.useEffect(() => {
     if (updatedConfig.integrations?.discord_webhook_url) {
@@ -648,8 +634,6 @@ const Settings = ({ authenticated }) => {
                           onClick={async () => {
                             try {
                               await ConfigService.startTranscoding()
-                              window.dispatchEvent(new Event('transcodingStarted'))
-                              fetchRunningStatus()
                             } catch (err) {
                               setAlert({ open: true, message: err.response?.data || 'Failed to start', type: 'error' })
                             }
@@ -667,7 +651,6 @@ const Settings = ({ authenticated }) => {
                             try {
                               await ConfigService.cancelTranscoding()
                               window.dispatchEvent(new Event('transcodingCancelled'))
-                              fetchRunningStatus()
                             } catch (err) {
                               setAlert({ open: true, message: err.response?.data || 'Failed to cancel', type: 'error' })
                             }
