@@ -13,13 +13,16 @@ from flask_cors import CORS
 from sqlalchemy.sql import text
 from pathlib import Path
 import requests
-from werkzeug.utils import secure_filename
 
 
 from . import db, logger, util
 from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule
 from .constants import SUPPORTED_FILE_TYPES
 from datetime import datetime
+
+def secure_filename(filename):
+    clean = re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F]", "-", filename)
+    return clean
 
 def add_cache_headers(response, cache_key, max_age=604800):
     """Add cache headers for static assets (default: 7 days)."""
@@ -335,6 +338,80 @@ def get_transcoding_status():
         "total": progress.get('total', 0),
         "current_video": progress.get('current_video')
     })
+
+
+@api.route('/api/admin/stream')
+@login_required
+def admin_event_stream():
+    """SSE endpoint for real-time admin events (transcoding, etc.)."""
+    import time
+    from queue import Queue, Empty
+    import threading
+
+    # Capture config before entering generator (Flask context unavailable inside)
+    paths = current_app.config['PATHS']
+    enabled = current_app.config.get('ENABLE_TRANSCODING', False)
+    gpu_enabled = current_app.config.get('TRANSCODE_GPU', False)
+
+    # Use a queue to communicate between polling thread and generator
+    event_queue = Queue()
+    stop_event = threading.Event()
+
+    def poll_status():
+        last_transcoding_state = None
+        while not stop_event.is_set():
+            try:
+                progress = util.read_transcoding_status(paths['data'])
+                pid = progress.get('pid')
+                is_running = progress.get('is_running', False) and pid and _is_pid_running(pid)
+
+                if progress.get('is_running') and not is_running:
+                    util.clear_transcoding_status(paths['data'])
+                    progress = {"current": 0, "total": 0, "current_video": None}
+
+                transcoding_state = {
+                    "enabled": enabled,
+                    "gpu_enabled": gpu_enabled,
+                    "is_running": is_running,
+                    "current": progress.get('current', 0),
+                    "total": progress.get('total', 0),
+                    "current_video": progress.get('current_video')
+                }
+
+                if transcoding_state != last_transcoding_state:
+                    event_queue.put(f"event: transcoding\ndata: {json.dumps(transcoding_state)}\n\n")
+                    last_transcoding_state = transcoding_state.copy()
+
+                time.sleep(1.5)
+            except Exception as e:
+                logger.error(f"SSE poll error: {e}")
+                break
+
+    def generate():
+        # Start polling in background thread
+        poll_thread = threading.Thread(target=poll_status, daemon=True)
+        poll_thread.start()
+
+        last_heartbeat = time.time()
+        try:
+            while True:
+                try:
+                    # Wait for events with timeout for heartbeat
+                    event = event_queue.get(timeout=10)
+                    yield event
+                    last_heartbeat = time.time()
+                except Empty:
+                    # Send heartbeat if no events
+                    if time.time() - last_heartbeat >= 30:
+                        yield ": heartbeat\n\n"
+                        last_heartbeat = time.time()
+        except GeneratorExit:
+            pass
+        finally:
+            stop_event.set()
+
+    return Response(generate(), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 @api.route('/api/admin/transcoding/start', methods=["POST"])
@@ -1911,10 +1988,10 @@ def rss_feed():
     # URL for viewing (frontend)
     # If we are on localhost:5000, the user wants both the link and video to point to the public dev port (3000)
     frontend_domain = backend_domain
-    if "localhost:5000" in frontend_domain:
-        frontend_domain = frontend_domain.replace("localhost:5000", "localhost:3000")
-    elif "127.0.0.1:5000" in frontend_domain:
-        frontend_domain = frontend_domain.replace("127.0.0.1:5000", "localhost:3000")
+    if "localhost:3001" in frontend_domain:
+        frontend_domain = frontend_domain.replace("localhost:3001", "localhost:3000")
+    elif "127.0.0.1:3001" in frontend_domain:
+        frontend_domain = frontend_domain.replace("127.0.0.1:3001", "localhost:3000")
 
     # Load custom RSS config if it exists
     paths = current_app.config['PATHS']

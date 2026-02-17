@@ -242,7 +242,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       </SnackbarAlert>
       <Modal open={open} onClose={onClose} closeAfterTransition disableAutoFocus={true}>
         <Slide in={open}>
-          <Paper sx={{ height: '100%', borderRadius: '0px', overflowY: 'auto', background: 'rgba(0, 0, 0, 0.4)', px: '20px', pt: '20px', pb: 0 }}>
+          <Paper sx={{ height: '100%', borderRadius: '0px', overflow: 'hidden', background: 'rgba(0, 0, 0, 0.4)', px: '20px', pt: '20px', pb: 0 }}>
             <IconButton
               color="inherit"
               onClick={onClose}
@@ -268,16 +268,19 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                maxHeight: 'calc(100vh - 40px)',
+                height: 'calc(100% - 20px)',
                 overflow: 'hidden',
               }}
             >
+              {/* Video player area - shrinks to make room for controls */}
               <Box
                 sx={{
+                  flex: 1,
+                  minHeight: 0,
                   width: '100%',
-                  maxWidth: 'min(calc((100vh - 40px - 200px) * 16 / 9), calc(100vw - 40px))',
                   display: 'flex',
-                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
                 <VideoJSPlayer
@@ -291,6 +294,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                     playerRef.current = player
                   }}
                 />
+              </Box>
+              {/* Controls area - always visible at bottom */}
+              <Box sx={{ flexShrink: 0, width: '100%', pb: 1 }}>
                 <Grid container justifyContent="center" sx={{ mt: 1 }}>
                   <Grid item>
                     <ButtonGroup variant="contained" onClick={(e) => e.stopPropagation()}>

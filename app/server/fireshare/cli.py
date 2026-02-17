@@ -213,6 +213,8 @@ def scan_videos(root):
         for f in all_files:
             if CHUNK_FILE_PATTERN.search(f.name):
                 continue  # Skip chunk files silently
+            elif f.name.startswith('._'):
+                continue  # Skip macOS sidecar files silently
             elif TRANSCODE_PATTERN.search(f.name):
                 logger.debug(f"Skipping transcoded file: {f.name}")
                 skipped_count += 1
@@ -369,10 +371,11 @@ def scan_video(ctx, path):
             logger.warning(f"Skipping transcoded file: {path}. Transcoded files should not be scanned.")
             return
         
-        video_file = ((videos_path / path) if (videos_path / path).is_file() 
-                     and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS 
+        video_file = ((videos_path / path) if (videos_path / path).is_file()
+                     and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS
                      and not CHUNK_FILE_PATTERN.search((videos_path / path).name)
-                     and not TRANSCODE_PATTERN.search((videos_path / path).name) else None)
+                     and not TRANSCODE_PATTERN.search((videos_path / path).name)
+                     and not (videos_path / path).name.startswith('._') else None)
         if video_file:
             video_rows = Video.query.all()
             logger.info(f"Scanning {str(video_file)}")
@@ -530,7 +533,12 @@ def sync_metadata(video):
                     position = current_app.config['WARNINGS'].index(corruptVideoWarning)
                     current_app.config['WARNINGS'].pop(position)
 
-                vcodec = [i for i in info if i['codec_type'] == 'video'][0]
+                video_codecs = [i for i in info if i['codec_type'] == 'video']
+                if not video_codecs:
+                    logger.warning(f"No video stream found in {v.video.path} (video_id={v.video_id}). Skipping metadata sync.")
+                    mark_video_corrupt(v.video_id)
+                    continue
+                vcodec = video_codecs[0]
                 duration = 0
                 if 'duration' in vcodec:
                     duration = float(vcodec['duration'])
