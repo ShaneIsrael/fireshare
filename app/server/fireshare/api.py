@@ -298,6 +298,12 @@ def _is_pid_running(pid):
     if pid is None:
         return False
     try:
+        pid = int(pid)
+        if pid <= 0:
+            return False
+    except (TypeError, ValueError):
+        return False
+    try:
         os.kill(pid, 0)  # Signal 0 doesn't kill, just checks if process exists
         return True
     except ProcessLookupError:
@@ -1272,6 +1278,25 @@ def get_video_views(video_id):
     views = VideoView.count(video_id)
     return str(views)
 
+
+def _launch_scan_video(save_path, config):
+    """
+    Launch scan-video and publish an initial transcoding-running status when
+    auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
+    """
+    scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+
+    transcoding_enabled = current_app.config.get('ENABLE_TRANSCODING', False)
+    auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
+    if transcoding_enabled and auto_transcode:
+        try:
+            paths = current_app.config['PATHS']
+            util.write_transcoding_status(paths['data'], 0, 0, None, scan_proc.pid)
+        except Exception as e:
+            logger.warning(f"Failed to write initial upload transcoding status: {e}")
+
+    return scan_proc
+
 @api.route('/api/upload/public', methods=['POST'])
 def public_upload_video():
     paths = current_app.config['PATHS']
@@ -1309,7 +1334,7 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/uploadChunked/public', methods=['POST'])
@@ -1363,7 +1388,7 @@ def public_upload_videoChunked():
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     
     os.rename(tempPath, save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/upload', methods=['POST'])
@@ -1399,7 +1424,7 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/uploadChunked', methods=['POST'])
@@ -1489,7 +1514,7 @@ def upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/video')

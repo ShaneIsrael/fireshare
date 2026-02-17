@@ -81,14 +81,14 @@ def write_transcoding_status(data_path: Path, current: int, total: int, current_
     """
     Writes the current transcoding progress to a status file.
     Called by the CLI during transcoding to report progress.
-    If pid is provided, it will be included. Otherwise, preserves existing PID from the file.
+    If pid is provided, it will be included. Otherwise, uses the current process PID.
     """
     status_file = data_path / TRANSCODING_STATUS_FILE
 
-    # Preserve existing PID if not provided (so CLI updates don't lose the PID)
+    # Always include a concrete PID for liveness checks in SSE/API consumers.
+    # CLI calls omit pid, so stamp the current process PID in that case.
     if pid is None:
-        existing = read_transcoding_status(data_path)
-        pid = existing.get('pid')
+        pid = os.getpid()
 
     status = {
         "is_running": True,
@@ -97,11 +97,19 @@ def write_transcoding_status(data_path: Path, current: int, total: int, current_
         "current_video": current_video,
         "pid": pid
     }
+    tmp_file = status_file.with_suffix(f"{status_file.suffix}.tmp")
     try:
-        with open(status_file, 'w') as f:
+        with open(tmp_file, 'w') as f:
             json.dump(status, f)
+        # Atomic replace prevents readers from seeing partial JSON.
+        os.replace(tmp_file, status_file)
     except Exception as e:
         logger.warning(f"Failed to write transcoding status: {e}")
+        try:
+            if tmp_file.exists():
+                os.remove(tmp_file)
+        except Exception:
+            pass
 
 def read_transcoding_status(data_path: Path) -> dict:
     """
@@ -109,7 +117,7 @@ def read_transcoding_status(data_path: Path) -> dict:
     Returns default values if file doesn't exist or is invalid.
     """
     status_file = data_path / TRANSCODING_STATUS_FILE
-    default_status = {"is_running": False, "current": 0, "total": 0, "current_video": None}
+    default_status = {"is_running": False, "current": 0, "total": 0, "current_video": None, "pid": None}
 
     if not status_file.exists():
         return default_status

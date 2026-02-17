@@ -79,7 +79,6 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
           open: true,
           // onClose: () => fetchVideos(),
         })
-        setTimeout(() => window.dispatchEvent(new Event('transcodingStarted')), 5000)
       } catch (err) {
         handleAlert({
           type: 'error',
@@ -128,7 +127,6 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
           open: true,
           // onClose: () => fetchVideos(),
         });
-        setTimeout(() => window.dispatchEvent(new Event('transcodingStarted')), 5000)
       } catch (err) {
         handleAlert({
           type: 'error',
