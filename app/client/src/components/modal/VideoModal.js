@@ -31,6 +31,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [selectedGame, setSelectedGame] = React.useState(null)
 
   const playerRef = React.useRef()
+  const videoContainerRef = React.useRef(null)
 
   const getRandomVideo = async () => {
     try {
@@ -233,6 +234,35 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     return `${URL}/api/video/poster?id=${vid.video_id}`
   }
 
+  // Constrain video player dimensions to fit within available space while maintaining aspect ratio
+  React.useEffect(() => {
+    const container = videoContainerRef.current
+    if (!container) return
+
+    const aspectRatio = (vid?.info?.width && vid?.info?.height)
+      ? vid.info.width / vid.info.height
+      : 16 / 9
+
+    const computeSize = () => {
+      const availW = container.clientWidth
+      const availH = container.clientHeight
+      if (availW <= 0 || availH <= 0) return
+
+      let w = availW
+      let h = w / aspectRatio
+
+      if (h > availH) {
+        h = availH
+        w = h * aspectRatio
+      }
+    }
+
+    const observer = new ResizeObserver(computeSize)
+    observer.observe(container)
+
+    return () => observer.disconnect()
+  }, [vid?.info?.width, vid?.info?.height])
+
   if (!vid) return null
 
   return (
@@ -263,193 +293,172 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             >
               <CloseIcon sx={{ width: 35, height: 35 }} />
             </IconButton>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                height: 'calc(100% - 20px)',
-                overflow: 'hidden',
-              }}
-            >
-              {/* Video player area - shrinks to make room for controls */}
-              <Box
-                sx={{
-                  flex: 1,
-                  minHeight: 0,
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <VideoJSPlayer
-                  key={vid.video_id}
-                  sources={getVideoSources(vid.video_id, vid?.info, vid.extension)}
-                  poster={getPosterUrl()}
-                  autoplay={autoplay}
-                  controls={true}
-                  onTimeUpdate={handleTimeUpdate}
-                  onReady={(player) => {
-                    playerRef.current = player
-                  }}
-                />
-              </Box>
-              {/* Controls area - always visible at bottom */}
-              <Box sx={{ flexShrink: 0, width: '100%', pb: 1 }}>
-                <Grid container justifyContent="center" sx={{ mt: 1 }}>
-                  <Grid item>
-                    <ButtonGroup variant="contained" onClick={(e) => e.stopPropagation()}>
-                      <Button onClick={getRandomVideo}>
-                        <ShuffleIcon />
-                      </Button>
-                      {authenticated && (
-                        <Button onClick={handlePrivacyChange} edge="end">
-                          {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                        </Button>
-                      )}
-                      <TextField
+            <div style={{ display: 'flex', height: '100%', flexDirection: 'column', alignItems: 'center' }}>
+              <div ref={videoContainerRef} style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  <VideoJSPlayer
+                    key={vid.video_id}
+                    sources={getVideoSources(vid.video_id, vid?.info, vid.extension)}
+                    poster={getPosterUrl()}
+                    autoplay={autoplay}
+                    controls={true}
+                    onTimeUpdate={handleTimeUpdate}
+                    onReady={(player) => {
+                      playerRef.current = player
+                    }}
+                    fluid={false}
+                    fill={true}
+                  />
+              </div>
+              <div style={{ flex: '0 0 auto', marginTop: 8, marginBottom: 8}}>
+                <ButtonGroup variant="contained" onClick={(e) => e.stopPropagation()}>
+                  <Button onClick={getRandomVideo}>
+                    <ShuffleIcon />
+                  </Button>
+                  {authenticated && (
+                    <Button onClick={handlePrivacyChange} edge="end">
+                      {privateView ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    </Button>
+                  )}
+                  <TextField
+                    sx={{
+                      textAlign: 'center',
+                      background: 'rgba(50, 50, 50, 0.9)',
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 0,
+                        width: {
+                          xs: 'auto',
+                          sm: 350,
+                          md: 450,
+                        },
+                      },
+                      '& .MuiInputBase-input.Mui-disabled': {
+                        WebkitTextFillColor: '#fff',
+                      },
+                    }}
+                    size="small"
+                    value={title}
+                    placeholder="Video Title"
+                    disabled={!authenticated}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && update()}
+                    InputProps={{
+                      endAdornment: authenticated && (
+                        <InputAdornment position="end">
+                          <IconButton
+                            disabled={!updateable}
+                            sx={
+                              updateable
+                                ? {
+                                    animation: 'blink-blue 0.5s ease-in-out infinite alternate',
+                                  }
+                                : {}
+                            }
+                            onClick={update}
+                            edge="end"
+                          >
+                            <SaveIcon />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                  <CopyToClipboard text={`${PURL}${vid.video_id}`}>
+                    <Button
+                      onMouseDown={handleMouseDown}
+                      onClick={() =>
+                        setAlert({
+                          type: 'info',
+                          message: 'Link copied to clipboard',
+                          open: true,
+                        })
+                      }
+                    >
+                      <LinkIcon />
+                    </Button>
+                  </CopyToClipboard>
+                  <Button onClick={copyTimestamp}>
+                    <AccessTimeIcon />
+                  </Button>
+                </ButtonGroup>
+                {(authenticated || description) && (
+                  <Paper sx={{ mt: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
+                    <TextField
+                      fullWidth
+                      disabled={!authenticated}
+                      sx={{
+                        '& .MuiInputBase-input.Mui-disabled': {
+                          WebkitTextFillColor: '#fff',
+                        },
+                        '& .MuiOutlinedInput-notchedOutline': {
+                          border: 'none',
+                        },
+                      }}
+                      size="small"
+                      placeholder="Enter a video description..."
+                      value={description || ''}
+                      onChange={(e) => handleDescriptionChange(e.target.value)}
+                      rows={2}
+                      multiline
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Paper>
+                )}
+                {/* Game linking */}
+                {(authenticated || getSetting('ui_config')?.allow_public_game_tag) && (
+                  <Paper sx={{ mt: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
+                    {selectedGame ? (
+                      <Box
                         sx={{
-                          textAlign: 'center',
-                          background: 'rgba(50, 50, 50, 0.9)',
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 0,
-                            width: {
-                              xs: 'auto',
-                              sm: 350,
-                              md: 450,
-                            },
-                          },
-                          '& .MuiInputBase-input.Mui-disabled': {
-                            WebkitTextFillColor: '#fff',
-                          },
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          height: 40,
+                          pl: 1.75,
+                          pr: 0.5,
                         }}
-                        size="small"
-                        value={title}
-                        placeholder="Video Title"
-                        disabled={!authenticated}
-                        onChange={(e) => handleTitleChange(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && update()}
-                        InputProps={{
-                          endAdornment: authenticated && (
-                            <InputAdornment position="end">
-                              <IconButton
-                                disabled={!updateable}
-                                sx={
-                                  updateable
-                                    ? {
-                                        animation: 'blink-blue 0.5s ease-in-out infinite alternate',
-                                      }
-                                    : {}
-                                }
-                                onClick={update}
-                                edge="end"
-                              >
-                                <SaveIcon />
-                              </IconButton>
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                      <CopyToClipboard text={`${PURL}${vid.video_id}`}>
-                        <Button
-                          onMouseDown={handleMouseDown}
-                          onClick={() =>
-                            setAlert({
-                              type: 'info',
-                              message: 'Link copied to clipboard',
-                              open: true,
-                            })
-                          }
-                        >
-                          <LinkIcon />
-                        </Button>
-                      </CopyToClipboard>
-                      <Button onClick={copyTimestamp}>
-                        <AccessTimeIcon />
-                      </Button>
-                    </ButtonGroup>
-                    {(authenticated || description) && (
-                      <Paper sx={{ mt: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
-                        <TextField
-                          fullWidth
-                          disabled={!authenticated}
-                          sx={{
-                            '& .MuiInputBase-input.Mui-disabled': {
-                              WebkitTextFillColor: '#fff',
-                            },
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              border: 'none',
-                            },
-                          }}
-                          size="small"
-                          placeholder="Enter a video description..."
-                          value={description || ''}
-                          onChange={(e) => handleDescriptionChange(e.target.value)}
-                          rows={2}
-                          multiline
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </Paper>
-                    )}
-                    {/* Game linking */}
-                    {(authenticated || getSetting('ui_config')?.allow_public_game_tag) && (
-                      <Paper sx={{ mt: 1, background: 'rgba(50, 50, 50, 0.9)' }}>
-                        {selectedGame ? (
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <SportsEsportsIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
                           <Box
+                            component="span"
                             sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              height: 40,
-                              pl: 1.75,
-                              pr: 0.5,
+                              color: 'rgba(255, 255, 255, 0.7)',
+                              fontSize: '0.875rem',
                             }}
                           >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <SportsEsportsIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
-                              <Box
-                                component="span"
-                                sx={{
-                                  color: 'rgba(255, 255, 255, 0.7)',
-                                  fontSize: '0.875rem',
-                                }}
-                              >
-                                {selectedGame.name}
-                              </Box>
-                            </Box>
-                            <IconButton
-                              onClick={handleUnlinkGame}
-                              size="small"
-                              sx={{
-                                color: 'rgba(255, 255, 255, 0.5)',
-                                '&:hover': {
-                                  color: 'rgba(255, 255, 255, 0.9)',
-                                },
-                              }}
-                            >
-                              <CloseIcon fontSize="small" />
-                            </IconButton>
+                            {selectedGame.name}
                           </Box>
-                        ) : (
-                          <GameSearch
-                            onGameLinked={handleGameLinked}
-                            onError={(err) =>
-                              setAlert({
-                                open: true,
-                                type: 'error',
-                                message: err.response?.data || 'Error linking game',
-                              })
-                            }
-                            placeholder="Search for a game..."
-                          />
-                        )}
-                      </Paper>
+                        </Box>
+                        <IconButton
+                          onClick={handleUnlinkGame}
+                          size="small"
+                          sx={{
+                            color: 'rgba(255, 255, 255, 0.5)',
+                            '&:hover': {
+                              color: 'rgba(255, 255, 255, 0.9)',
+                            },
+                          }}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    ) : (
+                      <GameSearch
+                        onGameLinked={handleGameLinked}
+                        onError={(err) =>
+                          setAlert({
+                            open: true,
+                            type: 'error',
+                            message: err.response?.data || 'Error linking game',
+                          })
+                        }
+                        placeholder="Search for a game..."
+                      />
                     )}
-                  </Grid>
-                </Grid>
-              </Box>
-            </Box>
+                  </Paper>
+                )}
+              </div>
+            </div>
           </Paper>
         </Slide>
       </Modal>
