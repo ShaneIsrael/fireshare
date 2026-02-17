@@ -45,7 +45,6 @@ const VideoJSPlayer = ({
         autoplay,
         controls,
         responsive: true,
-        fluid: true,
         poster,
         preload: 'auto',
         html5: {
