@@ -16,7 +16,9 @@ const VideoJSPlayer = ({
   sources, 
   poster, 
   autoplay = false, 
-  controls = true, 
+  controls = true,
+  fluid = true,
+  fill = false,
   onTimeUpdate, 
   onReady,
   startTime,
@@ -45,6 +47,8 @@ const VideoJSPlayer = ({
         autoplay,
         controls,
         responsive: true,
+        fluid,
+        fill,
         poster,
         preload: 'auto',
         html5: {
@@ -146,7 +150,7 @@ const VideoJSPlayer = ({
   }, [])
 
   return (
-    <div data-vjs-player className={className} style={style}>
+    <div data-vjs-player className={className} style={{ maxWidth: '100%', ...style }}>
       <video ref={videoRef} className="video-js vjs-big-play-centered" />
     </div>
   )

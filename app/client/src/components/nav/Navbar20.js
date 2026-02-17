@@ -587,6 +587,7 @@ function Navbar20({
           flexGrow: 1,
           p: page !== '/w' ? mainPadding : 0,
           width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` },
+          height: 'calc(100vh - 64px)',
         }}
       >
         {toolbar && <Toolbar />}
