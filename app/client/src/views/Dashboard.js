@@ -379,10 +379,10 @@ const Dashboard = ({
                 <IconButton
                   onClick={handleEditModeToggle}
                   sx={{
-                    bgcolor: editMode ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
+                    bgcolor: editMode ? 'primary.main' : '#001E3C',
                     borderRadius: '8px',
-                    width: '40px',
                     height: '38px',
+                    border: !editMode ? '1px solid #2684FF' : 'none',
                     '&:hover': {
                       bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
                     },
