@@ -142,7 +142,7 @@ const VideoCards = ({
 
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
-        <Grid container justifyContent="flex-start">
+        <Grid container justifyContent="center">
           {(() => {
             // Pre-compute counts per date
             const dateCounts = {}

@@ -5,6 +5,7 @@ import {
   Grid,
   IconButton,
   Button,
+  ButtonGroup,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -34,7 +35,14 @@ const createSelectFolders = (folders) => {
   return folders.map((f) => ({ value: f, label: f }))
 }
 
-const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showReleaseNotes, releaseNotes: releaseNotesProp }) => {
+const Dashboard = ({
+  authenticated,
+  searchText,
+  cardSize,
+  listStyle,
+  showReleaseNotes,
+  releaseNotes: releaseNotesProp,
+}) => {
   const [videos, setVideos] = React.useState([])
   const [search, setSearch] = React.useState(searchText)
   const [filteredVideos, setFilteredVideos] = React.useState([])
@@ -244,9 +252,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
   const handleNewGameCreated = async (game) => {
     // Link all selected videos to the newly created game
     try {
-      const linkPromises = Array.from(selectedVideos).map((videoId) =>
-        GameService.linkVideoToGame(videoId, game.id),
-      )
+      const linkPromises = Array.from(selectedVideos).map((videoId) => GameService.linkVideoToGame(videoId, game.id))
       await Promise.all(linkPromises)
 
       setAlert({
@@ -310,21 +316,22 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      {toolbarTarget && ReactDOM.createPortal(
-        <Box sx={{ minWidth: 200 }}>
-          <Select
-            value={dateSortOrder}
-            options={SORT_OPTIONS}
-            onChange={setDateSortOrder}
-            styles={selectSortTheme}
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
-            blurInputOnSelect
-            isSearchable={false}
-          />
-        </Box>,
-        toolbarTarget,
-      )}
+      {toolbarTarget &&
+        ReactDOM.createPortal(
+          <Box sx={{ minWidth: 200 }}>
+            <Select
+              value={dateSortOrder}
+              options={SORT_OPTIONS}
+              onChange={setDateSortOrder}
+              styles={selectSortTheme}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              blurInputOnSelect
+              isSearchable={false}
+            />
+          </Box>,
+          toolbarTarget,
+        )}
       <Box sx={{ height: '100%' }}>
         <Grid container item justifyContent="center">
           <Grid item xs={12}>
@@ -342,59 +349,54 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
             </Grid>
             {/* Edit mode buttons */}
             {authenticated && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 2, px: 3 }}>
-                {editMode && (
-                  <Box sx={{ display: 'flex' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <ButtonGroup variant="contained" size="sm">
+                    {editMode && (
+                      <Button color="primary" onClick={handleSelectAllToggle}>
+                        {allSelected ? 'Select None' : 'Select All'}
+                      </Button>
+                    )}
+                    {editMode && (
+                      <Button
+                        color="primary"
+                        startIcon={<LinkIcon />}
+                        onClick={handleLinkGameClick}
+                        disabled={selectedVideos.size === 0}
+                      >
+                        Link to Game {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                      </Button>
+                    )}
+                    {editMode && (
+                      <Button
+                        color="error"
+                        startIcon={<DeleteIcon />}
+                        onClick={handleDeleteClick}
+                        disabled={selectedVideos.size === 0}
+                      >
+                        Delete {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                      </Button>
+                    )}
+                    {editMode && (
+                      <Button
+                        startIcon={editMode ? <CheckIcon /> : <EditIcon />}
+                        onClick={handleEditModeToggle}
+                        color="primary"
+                      />
+                    )}
+                  </ButtonGroup>
+                  {!editMode && (
                     <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleSelectAllToggle}
+                      onClick={handleEditModeToggle}
                       sx={{
-                        borderRadius: '8px 0 0 8px',
+                        bgcolor: editMode ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
+                        color: '#fff',
                       }}
                     >
-                      {allSelected ? 'Select None' : 'Select All'}
+                      {editMode ? <CheckIcon /> : <EditIcon />}
                     </Button>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<LinkIcon />}
-                      onClick={handleLinkGameClick}
-                      disabled={selectedVideos.size === 0}
-                      sx={{
-                        borderRadius: 0,
-                      }}
-                    >
-                      Link to Game {selectedVideos.size > 0 && `(${selectedVideos.size})`}
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={handleDeleteClick}
-                      disabled={selectedVideos.size === 0}
-                      sx={{
-                        borderRadius: '0 8px 8px 0',
-                      }}
-                    >
-                      Delete {selectedVideos.size > 0 && `(${selectedVideos.size})`}
-                    </Button>
-                  </Box>
-                )}
-                <IconButton
-                  onClick={handleEditModeToggle}
-                  sx={{
-                    bgcolor: editMode ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    width: '40px',
-                    height: '40px',
-                    '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
-                    },
-                  }}
-                >
-                  {editMode ? <CheckIcon /> : <EditIcon />}
-                </IconButton>
+                  )}
+                </Box>
               </Box>
             )}
             <Box>
@@ -447,7 +449,9 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
 
       {/* Link to Game Dialog */}
       <Dialog open={linkGameDialogOpen} onClose={handleLinkGameCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>Link {selectedVideos.size} Clip{selectedVideos.size !== 1 ? 's' : ''} to Game</DialogTitle>
+        <DialogTitle>
+          Link {selectedVideos.size} Clip{selectedVideos.size !== 1 ? 's' : ''} to Game
+        </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           {!showAddNewGame ? (
             <>
@@ -477,7 +481,11 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
                     }}
                   >
                     {option.icon_url && (
-                      <img src={option.icon_url} alt={option.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                      <img
+                        src={option.icon_url}
+                        alt={option.name}
+                        style={{ width: 32, height: 32, objectFit: 'contain' }}
+                      />
                     )}
                     <Typography>{option.name}</Typography>
                   </Box>
@@ -517,9 +525,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
 
       {/* Release Notes Dialog */}
       <Dialog open={featureAlertOpen} onClose={handleFeatureAlertClose} maxWidth="sm" scroll="paper">
-        <DialogTitle>
-          {releaseNotes?.name || `Update ${releaseNotes?.version}`}
-        </DialogTitle>
+        <DialogTitle>{releaseNotes?.name || `Update ${releaseNotes?.version}`}</DialogTitle>
         <DialogContent sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <Box
             sx={{
@@ -543,7 +549,10 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
                     // Bold
                     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                     // Links
-                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+                    .replace(
+                      /\[([^\]]+)\]\(([^)]+)\)/g,
+                      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+                    )
                     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
                     // Line breaks
                     .replace(/\n\n/g, '</p><p>')
@@ -555,12 +564,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
           />
           {releaseNotes?.html_url && (
             <Typography variant="caption" sx={{ display: 'block', mt: 2 }}>
-              <a
-                href={releaseNotes.html_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'inherit' }}
-              >
+              <a href={releaseNotes.html_url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
                 View full release on GitHub
               </a>
             </Typography>
