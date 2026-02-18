@@ -149,7 +149,6 @@ function Navbar20({
   mainPadding = 3,
   children,
 }) {
-
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
   const [open, setOpen] = React.useState(!collapsed)
@@ -213,23 +212,23 @@ function Navbar20({
 
   // Load pending folder suggestions on mount
   React.useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated) return
 
     const loadPendingSuggestions = async () => {
       try {
-        const res = await GameService.getFolderSuggestions();
-        const suggestions = res.data;
+        const res = await GameService.getFolderSuggestions()
+        const suggestions = res.data
         if (Object.keys(suggestions).length > 0) {
-          setFolderSuggestions(suggestions);
-          setCurrentSuggestionFolder(Object.keys(suggestions)[0]);
+          setFolderSuggestions(suggestions)
+          setCurrentSuggestionFolder(Object.keys(suggestions)[0])
         }
       } catch (err) {
         // Ignore errors
       }
-    };
+    }
 
-    loadPendingSuggestions();
-  }, [authenticated]);
+    loadPendingSuggestions()
+  }, [authenticated])
 
   // Game scan complete handler
   const handleGameScanComplete = React.useCallback(async (data) => {
@@ -237,12 +236,10 @@ function Navbar20({
     setAlert({
       open: true,
       type: 'success',
-      message: data.total > 0
-        ? `Game scan complete! Check remaining suggestions in My Videos.`
-        : 'Game scan complete!',
-    });
+      message: data.total > 0 ? `Game scan complete! Check remaining suggestions in My Videos.` : 'Game scan complete!',
+    })
 
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
     try {
       console.log('[Navbar20] Fetching folder suggestions...')
@@ -257,7 +254,7 @@ function Navbar20({
     } catch (err) {
       console.error('[Navbar20] Error fetching folder suggestions:', err)
     }
-  }, []);
+  }, [])
 
   const handleFolderSuggestionApplied = (folderName, gameName, videoCount) => {
     setAlert({
@@ -372,7 +369,7 @@ function Navbar20({
         </>
       )}
       <Divider />
-      <UploadCard  authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open}  />
+      <UploadCard authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} />
 
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
         <GameScanStatus open={open} onComplete={handleGameScanComplete} />
@@ -529,7 +526,7 @@ function Navbar20({
           >
             <IconButton onClick={handleDrawerCollapse}>{open ? <ChevronLeftIcon /> : <ChevronRightIcon />}</IconButton>
           </DrawerControl>
-          <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 2 }}>
+          <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1, justifyContent: 'center' }}>
             <IconButton
               color="inherit"
               aria-label="open drawer"
@@ -540,13 +537,11 @@ function Navbar20({
               <MenuIcon />
             </IconButton>
             {searchable && (
-              <Search
-                placeholder={searchPlaceholder}
-                searchHandler={(value) => setSearchText(value)}
-                sx={{ flexGrow: 1, minWidth: 0, ml: { xs: 0, sm: 2 } }}
-              />
+              <Box id="navbar-search-container" sx={{ flexGrow: 1, minWidth: 0, ml: { xs: 0, sm: 2 } }}>
+                <Search placeholder={searchPlaceholder} searchHandler={(value) => setSearchText(value)} />
+              </Box>
             )}
-            <Box id="navbar-toolbar-extra" sx={{ display: 'flex', alignItems: 'center' }} />
+            <Box id="navbar-toolbar-extra" />
           </Toolbar>
         </AppBar>
       )}
@@ -594,7 +589,14 @@ function Navbar20({
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
-        {React.cloneElement(children, { authenticated, searchText, listStyle, cardSize, showReleaseNotes, releaseNotes })}
+        {React.cloneElement(children, {
+          authenticated,
+          searchText,
+          listStyle,
+          cardSize,
+          showReleaseNotes,
+          releaseNotes,
+        })}
       </Box>
     </Box>
   )
