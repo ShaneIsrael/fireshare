@@ -13,6 +13,8 @@ import {
   Typography,
   Autocomplete,
   TextField,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -69,6 +71,8 @@ const Dashboard = ({
   const [featureAlertOpen, setFeatureAlertOpen] = React.useState(showReleaseNotes)
   const releaseNotes = releaseNotesProp
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
+  const theme = useTheme()
+  const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
 
   if (searchText !== search) {
     setSearch(searchText)
@@ -119,6 +123,14 @@ const Dashboard = ({
   React.useEffect(() => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
+
+  // Hide search bar when in edit mode on md and smaller
+  React.useEffect(() => {
+    const searchContainer = document.getElementById('navbar-search-container')
+    if (searchContainer) {
+      searchContainer.style.display = editMode && isMdDown ? 'none' : ''
+    }
+  }, [editMode, isMdDown])
 
   const handleFeatureAlertClose = () => {
     if (releaseNotes?.version && authenticated) {
@@ -318,17 +330,68 @@ const Dashboard = ({
       </SnackbarAlert>
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ minWidth: 200 }}>
-            <Select
-              value={dateSortOrder}
-              options={SORT_OPTIONS}
-              onChange={setDateSortOrder}
-              styles={selectSortTheme}
-              menuPortalTarget={document.body}
-              menuPosition="fixed"
-              blurInputOnSelect
-              isSearchable={false}
-            />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {!(editMode && isMdDown) && (
+              <Box sx={{ minWidth: 150 }}>
+                <Select
+                  value={dateSortOrder}
+                  options={SORT_OPTIONS}
+                  onChange={setDateSortOrder}
+                  styles={selectSortTheme}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  blurInputOnSelect
+                  isSearchable={false}
+                />
+              </Box>
+            )}
+            {authenticated && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {editMode && (
+                  <ButtonGroup
+                    variant="contained"
+                    sx={{
+                      height: 38,
+                      minWidth: 351,
+                    }}
+                  >
+                    <Button color="primary" onClick={handleSelectAllToggle}>
+                      {allSelected ? 'Select None' : 'Select All'}
+                    </Button>
+                    <Button
+                      color="primary"
+                      startIcon={<LinkIcon />}
+                      onClick={handleLinkGameClick}
+                      disabled={selectedVideos.size === 0}
+                    >
+                      Link to Game {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                    </Button>
+                    <Button
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={handleDeleteClick}
+                      disabled={selectedVideos.size === 0}
+                    >
+                      Delete {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                    </Button>
+                  </ButtonGroup>
+                )}
+                <IconButton
+                  onClick={handleEditModeToggle}
+                  sx={{
+                    bgcolor: editMode ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    width: '40px',
+                    height: '38px',
+                    '&:hover': {
+                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                    },
+                  }}
+                >
+                  {editMode ? <CheckIcon /> : <EditIcon />}
+                </IconButton>
+              </Box>
+            )}
           </Box>,
           toolbarTarget,
         )}
@@ -347,58 +410,6 @@ const Dashboard = ({
                 />
               </Grid>
             </Grid>
-            {/* Edit mode buttons */}
-            {authenticated && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2, gap: 2 }}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <ButtonGroup variant="contained" size="sm">
-                    {editMode && (
-                      <Button color="primary" onClick={handleSelectAllToggle}>
-                        {allSelected ? 'Select None' : 'Select All'}
-                      </Button>
-                    )}
-                    {editMode && (
-                      <Button
-                        color="primary"
-                        startIcon={<LinkIcon />}
-                        onClick={handleLinkGameClick}
-                        disabled={selectedVideos.size === 0}
-                      >
-                        Link to Game {selectedVideos.size > 0 && `(${selectedVideos.size})`}
-                      </Button>
-                    )}
-                    {editMode && (
-                      <Button
-                        color="error"
-                        startIcon={<DeleteIcon />}
-                        onClick={handleDeleteClick}
-                        disabled={selectedVideos.size === 0}
-                      >
-                        Delete {selectedVideos.size > 0 && `(${selectedVideos.size})`}
-                      </Button>
-                    )}
-                    {editMode && (
-                      <Button
-                        startIcon={editMode ? <CheckIcon /> : <EditIcon />}
-                        onClick={handleEditModeToggle}
-                        color="primary"
-                      />
-                    )}
-                  </ButtonGroup>
-                  {!editMode && (
-                    <Button
-                      onClick={handleEditModeToggle}
-                      sx={{
-                        bgcolor: editMode ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
-                        color: '#fff',
-                      }}
-                    >
-                      {editMode ? <CheckIcon /> : <EditIcon />}
-                    </Button>
-                  )}
-                </Box>
-              </Box>
-            )}
             <Box>
               {listStyle === 'list' && (
                 <VideoList
