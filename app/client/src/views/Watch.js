@@ -173,6 +173,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:type" value="video" />
         <meta property="og:url" value={window.location.href} />
         <meta property="og:title" value={details?.info?.title} />
+        <meta property="og:description" value={details?.info?.description} />
         <meta
           property="og:image"
           value={
