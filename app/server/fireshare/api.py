@@ -369,7 +369,8 @@ def admin_event_stream():
             try:
                 progress = util.read_transcoding_status(paths['data'])
                 pid = progress.get('pid')
-                is_running = progress.get('is_running', False) and pid and _is_pid_running(pid)
+                # Trust is_running flag; only verify process if pid present
+                is_running = progress.get('is_running', False) and (pid is None or _is_pid_running(pid))
 
                 if progress.get('is_running') and not is_running:
                     util.clear_transcoding_status(paths['data'])
@@ -641,8 +642,6 @@ def reset_database():
 @api.route('/api/manual/scan')
 @login_required
 def manual_scan():
-    if not current_app.config["ENVIRONMENT"] == 'production':
-        return Response(response='You must be running in production for this task to work.', status=400)
     current_app.logger.info(f"Executed manual scan")
     Popen(["fireshare", "bulk-import"], shell=False)
     return Response(status=200)

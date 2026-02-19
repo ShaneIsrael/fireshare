@@ -136,18 +136,20 @@ const Settings = ({ authenticated }) => {
   }
 
   const handleScan = async () => {
-    VideoService.scan().catch((err) =>
+    try {
+      await VideoService.scan()
+      setAlert({
+        open: true,
+        type: 'info',
+        message: 'Scan initiated. This could take a few minutes.',
+      })
+    } catch (err) {
       setAlert({
         open: true,
         type: 'error',
         message: err.response?.data || 'Unknown Error',
-      }),
-    )
-    setAlert({
-      open: true,
-      type: 'info',
-      message: 'Scan initiated. This could take a few minutes.',
-    })
+      })
+    }
   }
 
   const handleScanGames = async () => {
