@@ -159,6 +159,7 @@ const Games = ({ authenticated, searchText }) => {
                     variant="contained"
                     sx={{
                       height: 38,
+                      minWidth: 'fit-content',
                     }}
                   >
                     <Button color="primary" onClick={handleSelectAllToggle}>

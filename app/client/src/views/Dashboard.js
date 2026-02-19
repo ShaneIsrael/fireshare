@@ -352,7 +352,7 @@ const Dashboard = ({
                     variant="contained"
                     sx={{
                       height: 38,
-                      minWidth: 351,
+                      minWidth: 'fit-content',
                     }}
                   >
                     <Button color="primary" onClick={handleSelectAllToggle}>
