@@ -419,7 +419,7 @@ const CompactVideoCard = ({
                   borderRadius: '4px',
                 }}
               >
-                {`${video.view_count} ${video.view_count === 1 ? 'View' : 'Views'}`}
+                {`${video.view_count} ${video.view_count === 1 ? 'view' : 'views'}`}
               </Typography>
             </Box>
           </div>

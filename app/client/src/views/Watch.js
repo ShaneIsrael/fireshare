@@ -161,7 +161,7 @@ const Watch = ({ authenticated }) => {
               textOverflow: 'ellipsis',
             }}
           >
-            {`${views} ${views === 1 ? 'View' : 'Views'}`}
+            {`${views} ${views === 1 ? 'view' : 'views'}`}
           </div>
         </Button>
         <Button
@@ -177,7 +177,6 @@ const Watch = ({ authenticated }) => {
             style={{
               overflow: 'hidden',
               color: 'white',
-              textTransform: 'uppercase',
               whiteSpace: 'nowrap',
               textOverflow: 'ellipsis',
             }}
