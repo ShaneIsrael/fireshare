@@ -794,7 +794,7 @@ const Settings = ({ authenticated }) => {
 
             {/* Folders */}
             {activeTab === 6 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+              <Stack spacing={2} sx={{ maxWidth: 500 }}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
                     Folder Rules
@@ -809,99 +809,99 @@ const Settings = ({ authenticated }) => {
                   </Typography>
                 ) : (
                   <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
-                  <Stack spacing={1}>
-                    {folderRules.map((item) => (
-                      <Box
-                        key={item.folder_path}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          p: 1.5,
-                          borderRadius: 2,
-                          background: 'rgba(255, 255, 255, 0.05)',
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-                          <FolderIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {item.folder_path}
-                              <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                                ({item.video_count} videos)
+                    <Stack spacing={1}>
+                      {folderRules.map((item) => (
+                        <Box
+                          key={item.folder_path}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1.5,
+                            borderRadius: 2,
+                            background: 'rgba(255, 255, 255, 0.05)',
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+                            <FolderIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {item.folder_path}
+                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                                  ({item.video_count} videos)
+                                </Typography>
                               </Typography>
-                            </Typography>
-                            {editingFolder === item.folder_path ? (
-                              <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Box sx={{ flex: 1 }}>
-                                  <GameSearch
-                                    placeholder="Search for a game..."
-                                    onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
-                                    onError={() => setAlert({ open: true, type: 'error', message: 'Failed to search games' })}
-                                  />
+                              {editingFolder === item.folder_path ? (
+                                <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Box sx={{ flex: 1 }}>
+                                    <GameSearch
+                                      placeholder="Search for a game..."
+                                      onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
+                                      onError={() => setAlert({ open: true, type: 'error', message: 'Failed to search games' })}
+                                    />
+                                  </Box>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => setEditingFolder(null)}
+                                    sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                                  >
+                                    <CloseIcon fontSize="small" />
+                                  </IconButton>
                                 </Box>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => setEditingFolder(null)}
-                                  sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                              ) : item.rule ? (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'primary.main',
+                                    cursor: 'pointer',
+                                    '&:hover': { textDecoration: 'underline' },
+                                  }}
+                                  onClick={() => setEditingFolder(item.folder_path)}
                                 >
-                                  <CloseIcon fontSize="small" />
-                                </IconButton>
-                              </Box>
-                            ) : item.rule ? (
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  color: 'primary.main',
-                                  cursor: 'pointer',
-                                  '&:hover': { textDecoration: 'underline' },
-                                }}
-                                onClick={() => setEditingFolder(item.folder_path)}
-                              >
-                                → {item.rule.game?.name || 'Unknown game'}
-                              </Typography>
-                            ) : item.suggested_game ? (
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  color: 'warning.main',
-                                  cursor: 'pointer',
-                                  '&:hover': { textDecoration: 'underline' },
-                                }}
-                                onClick={() => handleUpdateFolderRule(item.folder_path, item.suggested_game)}
-                              >
-                                Suggested: {item.suggested_game.name} (click to apply)
-                              </Typography>
-                            ) : (
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  color: 'text.secondary',
-                                  cursor: 'pointer',
-                                  '&:hover': { textDecoration: 'underline' },
-                                }}
-                                onClick={() => setEditingFolder(item.folder_path)}
-                              >
-                                No game linked - click to add
-                              </Typography>
-                            )}
+                                  → {item.rule.game?.name || 'Unknown game'}
+                                </Typography>
+                              ) : item.suggested_game ? (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'warning.main',
+                                    cursor: 'pointer',
+                                    '&:hover': { textDecoration: 'underline' },
+                                  }}
+                                  onClick={() => handleUpdateFolderRule(item.folder_path, item.suggested_game)}
+                                >
+                                  Suggested: {item.suggested_game.name} (click to apply)
+                                </Typography>
+                              ) : (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'text.secondary',
+                                    cursor: 'pointer',
+                                    '&:hover': { textDecoration: 'underline' },
+                                  }}
+                                  onClick={() => setEditingFolder(item.folder_path)}
+                                >
+                                  No game linked - click to add
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
+                          {item.rule && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                setDeleteMenuAnchor(e.currentTarget)
+                                setDeleteMenuRuleId(item.rule.id)
+                              }}
+                              sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          )}
                         </Box>
-                        {item.rule && (
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              setDeleteMenuAnchor(e.currentTarget)
-                              setDeleteMenuRuleId(item.rule.id)
-                            }}
-                            sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
-                          >
-                            <MoreVertIcon fontSize="small" />
-                          </IconButton>
-                        )}
-                      </Box>
-                    ))}
-                  </Stack>
+                      ))}
+                    </Stack>
                   </Box>
                 )}
                 <Menu
