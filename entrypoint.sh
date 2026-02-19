@@ -14,9 +14,9 @@ groupmod -o -g "$PGID" appuser
 usermod -o -u "$PUID" appuser
 
 # Set ownership of directories
-chown -R appuser:appuser $DATA_DIRECTORY
-chown -R appuser:appuser $VIDEO_DIRECTORY
-chown -R appuser:appuser $PROCESSED_DIRECTORY
+chown -R appuser:appuser $DATA_DIRECTORY || >&2 echo "WARNING: Could not chown the data directory ($DATA_DIRECTORY) to $PUID:$PGID. Make sure the container has permissions to access this directory."
+chown -R appuser:appuser $VIDEO_DIRECTORY || >&2 echo "WARNING: Could not chown the video directory ($DATA_DIRECTORY) to $PUID:$PGID. Make sure the container has permissions to access this directory."
+chown -R appuser:appuser $PROCESSED_DIRECTORY || >&2 echo "WARNING: Could not chown the processed directory ($DATA_DIRECTORY) to $PUID:$PGID. Make sure the container has permissions to access this directory."
 
 echo '-------------------------------------'
 echo "User uid:      $(id -u appuser)"
