@@ -364,7 +364,7 @@ const Dashboard = ({
                       onClick={handleLinkGameClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Link to Game {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                      Link to Game {selectedVideos.size > 0 && !isMdDown && `(${selectedVideos.size})`}
                     </Button>
                     <Button
                       color="error"
@@ -372,7 +372,7 @@ const Dashboard = ({
                       onClick={handleDeleteClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Delete {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                      Delete {selectedVideos.size > 0 && !isMdDown && `(${selectedVideos.size})`}
                     </Button>
                   </ButtonGroup>
                 )}
