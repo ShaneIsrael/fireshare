@@ -7,7 +7,10 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  IconButton,
   InputLabel,
+  Menu,
+  MenuItem,
   NativeSelect,
   Stack,
   Tab,
@@ -23,12 +26,16 @@ import SensorsIcon from '@mui/icons-material/Sensors'
 import RssFeedIcon from '@mui/icons-material/RssFeed'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import FolderIcon from '@mui/icons-material/Folder'
+import CloseIcon from '@mui/icons-material/Close'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
-import { ConfigService, VideoService } from '../services'
+import { ConfigService, VideoService, GameService } from '../services'
 import LightTooltip from '../components/misc/LightTooltip'
+import GameSearch from '../components/game/GameSearch'
 
 import _ from 'lodash'
 import WarningService from "../services/WarningService";
@@ -52,20 +59,29 @@ const Settings = ({ authenticated }) => {
     gpu_enabled: false,
     is_running: false,
   })
+  const [folderRules, setFolderRules] = React.useState([])
+  const [deleteMenuAnchor, setDeleteMenuAnchor] = React.useState(null)
+  const [deleteMenuRuleId, setDeleteMenuRuleId] = React.useState(null)
+  const [editingFolder, setEditingFolder] = React.useState(null)
   const isDiscordUsed = discordUrl.trim() !== ''
 
   React.useEffect(() => {
     async function fetch() {
       try {
-        const conf = (await ConfigService.getAdminConfig()).data
-        setConfig(conf)
-        setUpdatedConfig(conf)
+        // Fetch folder rules in parallel with config
+        const [conf, rulesRes] = await Promise.all([
+          ConfigService.getAdminConfig(),
+          GameService.getFolderRules(),
+        ])
+        setConfig(conf.data)
+        setUpdatedConfig(conf.data)
+        setFolderRules(rulesRes.data)
         // Set transcoding enabled/gpu from config (only changes on container restart)
-        if (conf.transcoding_status) {
+        if (conf.data.transcoding_status) {
           setTranscodingStatus((prev) => ({
             ...prev,
-            enabled: conf.transcoding_status.enabled,
-            gpu_enabled: conf.transcoding_status.gpu_enabled,
+            enabled: conf.data.transcoding_status.enabled,
+            gpu_enabled: conf.data.transcoding_status.gpu_enabled,
           }))
           // SSE will provide real-time is_running updates
         }
@@ -120,18 +136,20 @@ const Settings = ({ authenticated }) => {
   }
 
   const handleScan = async () => {
-    VideoService.scan().catch((err) =>
+    try {
+      await VideoService.scan()
+      setAlert({
+        open: true,
+        type: 'info',
+        message: 'Scan initiated. This could take a few minutes.',
+      })
+    } catch (err) {
       setAlert({
         open: true,
         type: 'error',
         message: err.response?.data || 'Unknown Error',
-      }),
-    )
-    setAlert({
-      open: true,
-      type: 'info',
-      message: 'Scan initiated. This could take a few minutes.',
-    })
+      })
+    }
   }
 
   const handleScanGames = async () => {
@@ -173,6 +191,50 @@ const Settings = ({ authenticated }) => {
         open: true,
         type: 'error',
         message: err.response?.data?.error || 'Failed to scan videos for dates',
+      })
+    }
+  }
+
+  const handleDeleteFolderRule = async (unlinkVideos = false) => {
+    const ruleId = deleteMenuRuleId
+    setDeleteMenuAnchor(null)
+    setDeleteMenuRuleId(null)
+    if (!ruleId) return
+
+    try {
+      await GameService.deleteFolderRule(ruleId, unlinkVideos)
+      const rulesRes = await GameService.getFolderRules()
+      setFolderRules(rulesRes.data)
+      setAlert({
+        open: true,
+        type: 'success',
+        message: unlinkVideos ? 'Folder rule deleted and videos unlinked' : 'Folder rule deleted',
+      })
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to delete folder rule',
+      })
+    }
+  }
+
+  const handleUpdateFolderRule = async (folderPath, game) => {
+    try {
+      await GameService.createFolderRule(folderPath, game.id)
+      const rulesRes = await GameService.getFolderRules()
+      setFolderRules(rulesRes.data)
+      setEditingFolder(null)
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Updated: ${folderPath} → ${game.name}`,
+      })
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to update folder rule',
       })
     }
   }
@@ -250,6 +312,7 @@ const Settings = ({ authenticated }) => {
           <Tab label="Integrations" />
           <Tab label="Transcoding" />
           <Tab label="Feeds" />
+          <Tab label="Folders" />
           <Tab label="Actions" />
         </Tabs>
 
@@ -729,8 +792,138 @@ const Settings = ({ authenticated }) => {
               </Stack>
             )}
 
-            {/* Actions */}
+            {/* Folders */}
             {activeTab === 6 && (
+              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
+                    Folder Rules
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Clips in these folders will be linked to the selected game. Modify these if your setup is not detected automatically.
+                  </Typography>
+                </Box>
+                {folderRules.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                    No folders found.
+                  </Typography>
+                ) : (
+                  <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
+                  <Stack spacing={1}>
+                    {folderRules.map((item) => (
+                      <Box
+                        key={item.folder_path}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          p: 1.5,
+                          borderRadius: 2,
+                          background: 'rgba(255, 255, 255, 0.05)',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+                          <FolderIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {item.folder_path}
+                              <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                                ({item.video_count} videos)
+                              </Typography>
+                            </Typography>
+                            {editingFolder === item.folder_path ? (
+                              <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Box sx={{ flex: 1 }}>
+                                  <GameSearch
+                                    placeholder="Search for a game..."
+                                    onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
+                                    onError={() => setAlert({ open: true, type: 'error', message: 'Failed to search games' })}
+                                  />
+                                </Box>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => setEditingFolder(null)}
+                                  sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                                >
+                                  <CloseIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            ) : item.rule ? (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: 'primary.main',
+                                  cursor: 'pointer',
+                                  '&:hover': { textDecoration: 'underline' },
+                                }}
+                                onClick={() => setEditingFolder(item.folder_path)}
+                              >
+                                → {item.rule.game?.name || 'Unknown game'}
+                              </Typography>
+                            ) : item.suggested_game ? (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: 'warning.main',
+                                  cursor: 'pointer',
+                                  '&:hover': { textDecoration: 'underline' },
+                                }}
+                                onClick={() => handleUpdateFolderRule(item.folder_path, item.suggested_game)}
+                              >
+                                Suggested: {item.suggested_game.name} (click to apply)
+                              </Typography>
+                            ) : (
+                              <Typography
+                                variant="caption"
+                                sx={{
+                                  color: 'text.secondary',
+                                  cursor: 'pointer',
+                                  '&:hover': { textDecoration: 'underline' },
+                                }}
+                                onClick={() => setEditingFolder(item.folder_path)}
+                              >
+                                No game linked - click to add
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                        {item.rule && (
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              setDeleteMenuAnchor(e.currentTarget)
+                              setDeleteMenuRuleId(item.rule.id)
+                            }}
+                            sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Box>
+                    ))}
+                  </Stack>
+                  </Box>
+                )}
+                <Menu
+                  anchorEl={deleteMenuAnchor}
+                  open={Boolean(deleteMenuAnchor)}
+                  onClose={() => {
+                    setDeleteMenuAnchor(null)
+                    setDeleteMenuRuleId(null)
+                  }}
+                >
+                  <MenuItem onClick={() => handleDeleteFolderRule(false)}>
+                    Delete rule only
+                  </MenuItem>
+                  <MenuItem onClick={() => handleDeleteFolderRule(true)}>
+                    Delete rule & unlink videos
+                  </MenuItem>
+                </Menu>
+              </Stack>
+            )}
+
+            {/* Actions */}
+            {activeTab === 7 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Button variant="contained" startIcon={<SensorsIcon />} onClick={handleScan} size='large' sx={{ width: 400}}>
                   Scan for New Videos
@@ -746,7 +939,7 @@ const Settings = ({ authenticated }) => {
           </Box>
 
           {/* Save button pinned to bottom */}
-          {activeTab !== 6 && (
+          {activeTab !== 6 && activeTab !== 7 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
               <Button

@@ -33,6 +33,9 @@ const FolderSuggestionInline = ({ open, suggestion, folderName, onApplied, onDis
       )
       await Promise.all(linkPromises)
 
+      // Create folder rule for auto-tagging future videos
+      await GameService.createFolderRule(folderName, game.id)
+
       await GameService.dismissFolderSuggestion(folderName)
       onApplied(folderName, game.name, suggestion.video_ids.length)
     } catch (err) {

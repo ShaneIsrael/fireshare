@@ -15,7 +15,7 @@ import json
 import secrets
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
 from sqlite3 import Connection as SQLite3Connection
 
 logger = logging.getLogger('fireshare')
@@ -118,14 +118,11 @@ def create_app(init_schedule=False):
 
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/db.sqlite'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    # Configure SQLite connection for better concurrency handling
-    # StaticPool maintains a single persistent connection shared across threads in the process
-    # This works optimally with WAL mode which is designed for persistent connections
+    # Configure SQLite connection for thread safety with Flask's --with-threads
+    # NullPool creates a fresh connection per request, avoiding thread conflicts
+    # WAL mode (set in pragma) handles concurrent reads/writes efficiently
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'poolclass': StaticPool,
-        'connect_args': {
-            'check_same_thread': False,  # Required for StaticPool with SQLite
-        },
+        'poolclass': NullPool,
     }
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/jobs.sqlite'
     app.config['INIT_SCHEDULE'] = init_schedule

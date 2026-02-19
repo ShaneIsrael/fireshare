@@ -44,6 +44,22 @@ const service = {
   dismissFolderSuggestion(folderName) {
     return Api().post(`/api/folder-suggestions/${encodeURIComponent(folderName)}/dismiss`)
   },
+  getFolderRules() {
+    return Api().get('/api/folder-rules')
+  },
+  createFolderRule(folderPath, gameId) {
+    return Api().post('/api/folder-rules', {
+      folder_path: folderPath,
+      game_id: gameId,
+    })
+  },
+  deleteFolderRule(ruleId, unlinkVideos = false) {
+    return Api().delete(`/api/folder-rules/${ruleId}`, {
+      params: {
+        unlink_videos: unlinkVideos,
+      },
+    })
+  },
 }
 
 export default service

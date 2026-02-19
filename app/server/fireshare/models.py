@@ -158,6 +158,27 @@ class VideoGameLink(db.Model):
     def __repr__(self):
         return "<VideoGameLink video:{} game:{}>".format(self.video_id, self.game_id)
 
+class FolderRule(db.Model):
+    __tablename__ = "folder_rule"
+
+    id          = db.Column(db.Integer, primary_key=True)
+    folder_path = db.Column(db.String(2048), unique=True, nullable=False)
+    game_id     = db.Column(db.Integer, db.ForeignKey("game_metadata.id"), nullable=False)
+
+    game        = db.relationship("GameMetadata")
+
+    def json(self):
+        return {
+            "id": self.id,
+            "folder_path": self.folder_path,
+            "game_id": self.game_id,
+            "game": self.game.json() if self.game else None,
+        }
+
+    def __repr__(self):
+        return "<FolderRule {} -> game:{}>".format(self.folder_path, self.game_id)
+
+
 class VideoView(db.Model):
     __tablename__ = "video_view"
     __table_args__ = (

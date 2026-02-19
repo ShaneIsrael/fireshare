@@ -16,7 +16,7 @@ import requests
 
 
 from . import db, logger, util
-from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink
+from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule
 from .constants import SUPPORTED_FILE_TYPES
 from datetime import datetime
 
@@ -298,6 +298,12 @@ def _is_pid_running(pid):
     if pid is None:
         return False
     try:
+        pid = int(pid)
+        if pid <= 0:
+            return False
+    except (TypeError, ValueError):
+        return False
+    try:
         os.kill(pid, 0)  # Signal 0 doesn't kill, just checks if process exists
         return True
     except ProcessLookupError:
@@ -363,7 +369,8 @@ def admin_event_stream():
             try:
                 progress = util.read_transcoding_status(paths['data'])
                 pid = progress.get('pid')
-                is_running = progress.get('is_running', False) and pid and _is_pid_running(pid)
+                # Trust is_running flag; only verify process if pid present
+                is_running = progress.get('is_running', False) and (pid is None or _is_pid_running(pid))
 
                 if progress.get('is_running') and not is_running:
                     util.clear_transcoding_status(paths['data'])
@@ -638,11 +645,8 @@ def reset_database():
 @api.route('/api/manual/scan')
 @login_required
 def manual_scan():
-    if not current_app.config["ENVIRONMENT"] == 'production':
-        return Response(response='You must be running in production for this task to work.', status=400)
-    else:
-        current_app.logger.info(f"Executed manual scan")
-        Popen(["fireshare", "bulk-import"], shell=False)
+    current_app.logger.info(f"Executed manual scan")
+    Popen(["fireshare", "bulk-import"], shell=False)
     return Response(status=200)
 
 @api.route('/api/manual/scan-dates')
@@ -720,12 +724,172 @@ def dismiss_folder_suggestion(folder_name):
     logger.info(f"Dismissed folder suggestion: {folder_name} ({video_count} videos)")
     return jsonify({'dismissed': True})
 
+
+@api.route('/api/folder-rules')
+@login_required
+def get_folder_rules():
+    """Get all folders with their rules and suggested games based on linked videos"""
+    from collections import Counter
+    from fireshare.constants import DEFAULT_CONFIG
+
+    # Skip upload folders
+    upload_folders = {
+        DEFAULT_CONFIG['app_config']['admin_upload_folder_name'].lower(),
+        DEFAULT_CONFIG['app_config']['public_upload_folder_name'].lower(),
+    }
+
+    # Get existing rules keyed by folder
+    rules = {rule.folder_path: rule for rule in FolderRule.query.all()}
+
+    # Build folder -> video_ids and video -> game_id maps
+    folders = {}
+    video_to_game = {link.video_id: link.game_id for link in VideoGameLink.query.all()}
+    games = {g.id: g for g in GameMetadata.query.all()}
+
+    for video in Video.query.all():
+        parts = video.path.replace('\\', '/').split('/')
+        if len(parts) > 1:
+            folder = parts[0]
+            if folder.lower() in upload_folders:
+                continue
+            if folder not in folders:
+                folders[folder] = []
+            folders[folder].append(video.video_id)
+
+    result = []
+    for folder in sorted(folders.keys()):
+        video_ids = folders[folder]
+        rule = rules.get(folder)
+
+        # Find most common game among linked videos in this folder
+        game_counts = Counter(video_to_game[vid] for vid in video_ids if vid in video_to_game)
+        suggested_game = None
+        if game_counts:
+            top_game = games.get(game_counts.most_common(1)[0][0])
+            if top_game:
+                suggested_game = top_game.json()
+
+        result.append({
+            'folder_path': folder,
+            'rule': rule.json() if rule else None,
+            'suggested_game': suggested_game,
+            'video_count': len(video_ids)
+        })
+
+    return jsonify(result)
+
+
+@api.route('/api/folder-rules', methods=['POST'])
+@login_required
+def create_folder_rule():
+    """Create a folder rule and backfill existing untagged videos"""
+    from .cli import _load_suggestions, _save_suggestions
+    data = request.get_json()
+
+    if not data or not data.get('folder_path') or not data.get('game_id'):
+        return jsonify({'error': 'folder_path and game_id are required'}), 400
+
+    folder_path = data['folder_path']
+    game_id = data['game_id']
+
+    # Check if rule already exists for this folder
+    existing = FolderRule.query.filter_by(folder_path=folder_path).first()
+    if existing:
+        existing.game_id = game_id
+        db.session.commit()
+        logger.info(f"Updated folder rule: {folder_path} -> game {game_id}")
+        rule = existing
+        is_new = False
+    else:
+        rule = FolderRule(
+            folder_path=folder_path,
+            game_id=game_id
+        )
+        db.session.add(rule)
+        db.session.commit()
+        logger.info(f"Created folder rule: {folder_path} -> game {game_id}")
+        is_new = True
+
+    # Tag ALL videos in this folder to the new game (update existing + create new)
+    videos_in_folder = Video.query.filter(Video.path.like(f"{folder_path}/%")).all()
+    video_ids = [v.video_id for v in videos_in_folder]
+    existing_links = {link.video_id: link for link in VideoGameLink.query.filter(VideoGameLink.video_id.in_(video_ids)).all()}
+
+    updated = 0
+    created = 0
+
+    for video in videos_in_folder:
+        if video.video_id in existing_links:
+            # Update existing link to new game
+            existing_links[video.video_id].game_id = game_id
+            updated += 1
+        else:
+            # Create new link
+            link = VideoGameLink(
+                video_id=video.video_id,
+                game_id=game_id,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(link)
+            created += 1
+
+    if updated or created:
+        db.session.commit()
+        logger.info(f"Folder '{folder_path}': updated {updated}, created {created} link(s) to game {game_id}")
+
+    # Clear individual suggestions for videos in this folder only
+    suggestions = _load_suggestions()
+    cleared_suggestions = 0
+    video_ids_in_folder = {v.video_id for v in videos_in_folder}
+    for video_id in list(suggestions.keys()):
+        if video_id in video_ids_in_folder and video_id != '_folders':
+            del suggestions[video_id]
+            cleared_suggestions += 1
+            logger.info(f"[Backfill] Cleared suggestion for {video_id}")
+    if cleared_suggestions:
+        _save_suggestions(suggestions)
+        logger.info(f"Cleared {cleared_suggestions} individual suggestion(s) for folder '{folder_path}'")
+
+    response = rule.json()
+    response['backfilled'] = updated + created
+    response['cleared_suggestions'] = cleared_suggestions
+    return jsonify(response), 201 if is_new else 200
+
+
+@api.route('/api/folder-rules/<int:rule_id>', methods=['DELETE'])
+@login_required
+def delete_folder_rule(rule_id):
+    """Delete a folder rule, optionally unlinking videos"""
+    rule = FolderRule.query.get(rule_id)
+    if not rule:
+        return jsonify({'error': 'Folder rule not found'}), 404
+
+    unlink_videos = request.args.get('unlink_videos', 'false').lower() == 'true'
+    unlinked_count = 0
+
+    if unlink_videos:
+        # Batch query: get only video IDs in folder, then delete matching links in one query
+        video_ids = [v[0] for v in db.session.query(Video.video_id).filter(Video.path.like(f"{rule.folder_path}/%")).all()]
+        if video_ids:
+            unlinked_count = VideoGameLink.query.filter(
+                VideoGameLink.video_id.in_(video_ids),
+                VideoGameLink.game_id == rule.game_id
+            ).delete(synchronize_session=False)
+
+    folder_path = rule.folder_path
+    db.session.delete(rule)
+    db.session.commit()
+
+    logger.info(f"Deleted folder rule: {folder_path} (unlinked {unlinked_count} videos)")
+    return jsonify({'deleted': True, 'unlinked_count': unlinked_count})
+
+
 @api.route('/api/manual/scan-games')
 @login_required
 def manual_scan_games():
     """Start game scan in background thread"""
     from fireshare import util
-    from fireshare.cli import save_game_suggestion, _load_suggestions
+    from fireshare.cli import save_game_suggestions_batch, _load_suggestions
 
     # Check if already running
     with _game_scan_state['lock']:
@@ -842,6 +1006,7 @@ def manual_scan_games():
                     _save_suggestions(existing_suggestions)
 
                 # Process remaining individual videos (not in folder suggestions and no existing suggestion)
+                pending_suggestions = {}
                 for i, video in enumerate(videos_needing_suggestions):
                     _game_scan_state['current'] = i + 1
 
@@ -852,10 +1017,15 @@ def manual_scan_games():
                     detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=video.path)
 
                     if detected_game and detected_game['confidence'] >= 0.65:
-                        save_game_suggestion(video.video_id, detected_game)
+                        pending_suggestions[video.video_id] = detected_game
                         suggestions_created += 1
                         _game_scan_state['suggestions_created'] = suggestions_created
-                        logger.info(f"Created game suggestion for video {video.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
+                        logger.info(f"Queued game suggestion for video {video.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
+
+                # Batch save all suggestions at once
+                if pending_suggestions:
+                    save_game_suggestions_batch(pending_suggestions)
+                    logger.info(f"Saved {len(pending_suggestions)} suggestion(s) in batch")
 
                 logger.info(f"Game scan complete: {suggestions_created} suggestions created from {len(unlinked_videos)} unlinked videos")
 
@@ -1110,6 +1280,25 @@ def get_video_views(video_id):
     views = VideoView.count(video_id)
     return str(views)
 
+
+def _launch_scan_video(save_path, config):
+    """
+    Launch scan-video and publish an initial transcoding-running status when
+    auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
+    """
+    scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+
+    transcoding_enabled = current_app.config.get('ENABLE_TRANSCODING', False)
+    auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
+    if transcoding_enabled and auto_transcode:
+        try:
+            paths = current_app.config['PATHS']
+            util.write_transcoding_status(paths['data'], 0, 0, None, scan_proc.pid)
+        except Exception as e:
+            logger.warning(f"Failed to write initial upload transcoding status: {e}")
+
+    return scan_proc
+
 @api.route('/api/upload/public', methods=['POST'])
 def public_upload_video():
     paths = current_app.config['PATHS']
@@ -1147,7 +1336,7 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/uploadChunked/public', methods=['POST'])
@@ -1201,7 +1390,7 @@ def public_upload_videoChunked():
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     
     os.rename(tempPath, save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/upload', methods=['POST'])
@@ -1237,7 +1426,7 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/uploadChunked', methods=['POST'])
@@ -1327,7 +1516,7 @@ def upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/video')

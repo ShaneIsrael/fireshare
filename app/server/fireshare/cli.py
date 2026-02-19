@@ -7,7 +7,7 @@ import click
 from datetime import datetime
 from flask import current_app, request
 from fireshare import create_app, db, util, logger
-from fireshare.models import User, Video, VideoInfo
+from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink
 from werkzeug.security import generate_password_hash
 from pathlib import Path
 from sqlalchemy import func
@@ -54,6 +54,14 @@ def save_game_suggestion(video_id, suggestion):
     """Save a game suggestion for a video"""
     suggestions = _load_suggestions()
     suggestions[video_id] = suggestion
+    _save_suggestions(suggestions)
+
+def save_game_suggestions_batch(new_suggestions):
+    """Save multiple game suggestions at once"""
+    if not new_suggestions:
+        return
+    suggestions = _load_suggestions()
+    suggestions.update(new_suggestions)
     _save_suggestions(suggestions)
 
 def delete_game_suggestion(video_id):
@@ -275,11 +283,33 @@ def scan_videos(root):
                 video_url = get_public_watch_url(nv.video_id, config, domain)
                 send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
 
-        # Automatic game detection for new videos
+        # Auto-tag new videos based on folder rules
+        auto_tagged = set()
+        if new_videos:
+            folder_rules = {rule.folder_path: rule.game_id for rule in FolderRule.query.all()}
+            if folder_rules:
+                logger.info(f"Checking {len(new_videos)} new video(s) against {len(folder_rules)} folder rule(s)")
+            for nv in new_videos:
+                parts = nv.path.split('/')
+                if len(parts) > 1:
+                    folder = parts[0]
+                    if folder in folder_rules:
+                        game_id = folder_rules[folder]
+                        link = VideoGameLink(video_id=nv.video_id, game_id=game_id, created_at=datetime.utcnow())
+                        db.session.add(link)
+                        auto_tagged.add(nv.video_id)
+                        logger.info(f"[Folder Rule] Auto-tagged {nv.video_id} to game {game_id} (folder: {folder})")
+            if auto_tagged:
+                db.session.commit()
+                logger.info(f"Auto-tagged {len(auto_tagged)} video(s) via folder rules")
+
+        # Automatic game detection for new videos (skip already tagged)
         steamgriddb_api_key = config.get("integrations", {}).get("steamgriddb_api_key")
         if new_videos:
-            logger.info(f"Running game detection for {len(new_videos)} new video(s)...")
-            for nv in new_videos:
+            videos_needing_detection = [nv for nv in new_videos if nv.video_id not in auto_tagged]
+            logger.info(f"Running game detection for {len(videos_needing_detection)} new video(s)...")
+            pending_suggestions = {}
+            for nv in videos_needing_detection:
                 filename = Path(nv.path).stem
                 logger.info(f"[Game Detection] Video: {nv.video_id}, Path: {nv.path}, Filename: {filename}")
                 detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=nv.path)
@@ -287,12 +317,16 @@ def scan_videos(root):
                 if detected_game:
                     logger.info(f"[Game Detection] Result: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
                     if detected_game['confidence'] >= 0.65:
-                        save_game_suggestion(nv.video_id, detected_game)
-                        logger.info(f"[Game Detection] Saved suggestion for {nv.video_id}")
+                        pending_suggestions[nv.video_id] = detected_game
+                        logger.info(f"[Game Detection] Queued suggestion for {nv.video_id}")
                     else:
                         logger.info(f"[Game Detection] Confidence too low, skipping suggestion")
                 else:
                     logger.info(f"[Game Detection] No match found for {nv.video_id}")
+            # Batch save all suggestions at once
+            if pending_suggestions:
+                save_game_suggestions_batch(pending_suggestions)
+                logger.info(f"[Game Detection] Saved {len(pending_suggestions)} suggestion(s) in batch")
 
         existing_videos = Video.query.filter_by(available=True).all()
         logger.info(f"Verifying {len(existing_videos):,} video files still exist...")
@@ -385,17 +419,31 @@ def scan_video(ctx, path):
                 db.session.add(info)
                 db.session.commit()
 
-                # Automatic game detection
-                logger.info("Attempting automatic game detection...")
-                steamgriddb_api_key = config.get("integrations", {}).get("steamgriddb_api_key")
-                filename = Path(v.path).stem
-                detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=v.path)
+                # Check folder rules for auto-tagging
+                auto_tagged = False
+                parts = v.path.split('/')
+                if len(parts) > 1:
+                    folder = parts[0]
+                    folder_rule = FolderRule.query.filter_by(folder_path=folder).first()
+                    if folder_rule:
+                        link = VideoGameLink(video_id=v.video_id, game_id=folder_rule.game_id, created_at=datetime.utcnow())
+                        db.session.add(link)
+                        db.session.commit()
+                        auto_tagged = True
+                        logger.info(f"[Folder Rule] Auto-tagged {v.video_id} to game {folder_rule.game_id} (folder: {folder})")
 
-                if detected_game and detected_game['confidence'] >= 0.65:
-                    save_game_suggestion(v.video_id, detected_game)
-                    logger.info(f"Created game suggestion for video {v.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
-                else:
-                    logger.info(f"No confident game match found for video {v.video_id}")
+                # Automatic game detection (skip if already auto-tagged)
+                if not auto_tagged:
+                    logger.info("Attempting automatic game detection...")
+                    steamgriddb_api_key = config.get("integrations", {}).get("steamgriddb_api_key")
+                    filename = Path(v.path).stem
+                    detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=v.path)
+
+                    if detected_game and detected_game['confidence'] >= 0.65:
+                        save_game_suggestion(v.video_id, detected_game)
+                        logger.info(f"Created game suggestion for video {v.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
+                    else:
+                        logger.info(f"No confident game match found for video {v.video_id}")
 
                 logger.info("Syncing metadata")
                 ctx.invoke(sync_metadata, video=video_id)
