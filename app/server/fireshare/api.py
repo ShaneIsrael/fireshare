@@ -420,12 +420,13 @@ def get_folder_size(folder_path):
 @login_required
 def folder_size():
     print("Folder size endpoint was hit!")  # Debugging line
-    path = request.args.get('path', default='.', type=str)
+    video_path = current_app.config['PATHS']['video']
+    path = request.args.get('path', default=video_path, type=str)
     size_bytes = get_folder_size(path)
     size_mb = size_bytes / (1024 * 1024)
 
     if size_mb < 1024:
-        rounded_mb = round(size_mb / 100) * 100
+        rounded_mb = round(size_mb)
         size_pretty = f"{rounded_mb} MB"
     elif size_mb < 1024 * 1024:
         size_gb = size_mb / 1024
