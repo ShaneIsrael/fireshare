@@ -500,7 +500,8 @@ def get_folder_size(folder_path):
 @login_required
 def folder_size():
     print("Folder size endpoint was hit!")  # Debugging line
-    video_path = current_app.config['PATHS']['video']
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
     path = request.args.get('path', default=video_path, type=str)
     size_bytes = get_folder_size(path)
     size_mb = size_bytes / (1024 * 1024)
@@ -520,6 +521,7 @@ def folder_size():
         "size_bytes": size_bytes,
         "size_pretty": size_pretty
     })
+
 @api.route('/api/admin/reset-database', methods=["POST"])
 @login_required
 def reset_database():
