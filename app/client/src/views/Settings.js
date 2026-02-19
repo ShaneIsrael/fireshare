@@ -310,6 +310,7 @@ const Settings = ({ authenticated }) => {
           <Tab label="Integrations" />
           <Tab label="Transcoding" />
           <Tab label="Feeds" />
+          <Tab label="Folders" />
           <Tab label="Actions" />
         </Tabs>
 
@@ -786,7 +787,12 @@ const Settings = ({ authenticated }) => {
                 >
                   Copy RSS Feed URL
                 </Button>
-                <Divider />
+              </Stack>
+            )}
+
+            {/* Folders */}
+            {activeTab === 6 && (
+              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
                     Folder Rules
@@ -800,6 +806,7 @@ const Settings = ({ authenticated }) => {
                     No folders found.
                   </Typography>
                 ) : (
+                  <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
                   <Stack spacing={1}>
                     {folderRules.map((item) => (
                       <Box
@@ -893,6 +900,7 @@ const Settings = ({ authenticated }) => {
                       </Box>
                     ))}
                   </Stack>
+                  </Box>
                 )}
                 <Menu
                   anchorEl={deleteMenuAnchor}
@@ -913,7 +921,7 @@ const Settings = ({ authenticated }) => {
             )}
 
             {/* Actions */}
-            {activeTab === 6 && (
+            {activeTab === 7 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Button variant="contained" startIcon={<SensorsIcon />} onClick={handleScan} size='large' sx={{ width: 400}}>
                   Scan for New Videos
@@ -929,7 +937,7 @@ const Settings = ({ authenticated }) => {
           </Box>
 
           {/* Save button pinned to bottom */}
-          {activeTab !== 6 && (
+          {activeTab !== 6 && activeTab !== 7 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
               <Button
