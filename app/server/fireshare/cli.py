@@ -688,7 +688,7 @@ def transcode_videos(regenerate, video, include_corrupt):
 
         # Get videos to transcode
         vinfos = VideoInfo.query.filter(VideoInfo.video_id==video).all() if video else VideoInfo.query.all()
-        
+
         # Filter out corrupt videos unless explicitly included
         corrupt_videos = set(get_all_corrupt_videos())
         if not include_corrupt and not video:
@@ -697,62 +697,64 @@ def transcode_videos(regenerate, video, include_corrupt):
             skipped_count = original_count - len(vinfos)
             if skipped_count > 0:
                 logger.info(f"Skipping {skipped_count} video(s) previously marked as corrupt. Use --include-corrupt to retry them.")
-        
-        total_videos = len(vinfos)
-        logger.info(f'Processing {total_videos:,} videos for transcoding (GPU: {use_gpu}, Encoder: {encoder_preference})')
 
-        # Write initial transcoding status with our PID so the API can track us
-        util.write_transcoding_status(paths['data'], 0, total_videos, pid=os.getpid())
-
-        for idx, vi in enumerate(vinfos, 1):
-            # Update transcoding progress with the video title
-            util.write_transcoding_status(paths['data'], idx, total_videos, vi.title)
-            derived_path = Path(processed_root, "derived", vi.video_id)
+        # Build work queue: list of (video_info, height) tuples that actually need transcoding
+        work_items = []
+        for vi in vinfos:
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
-            
             if not video_path.exists():
-                logger.warning(f"Skipping transcoding for video {vi.video_id} because the video at {str(video_path)} does not exist")
                 continue
-            
-            if not derived_path.exists():
-                derived_path.mkdir(parents=True)
-            
-            # Transcode to each enabled resolution
+            derived_path = Path(processed_root, "derived", vi.video_id)
             original_height = vi.height or 0
-            video_is_corrupt = False
-
             for height in resolutions:
-                if video_is_corrupt:
-                    break
-
                 if original_height <= height:
                     continue
-
                 transcode_path = derived_path / f"{vi.video_id}-{height}p.mp4"
-                has_attr = f'has_{height}p'
-
                 if not transcode_path.exists() or regenerate:
-                    logger.info(f"[{idx}/{total_videos}] Transcoding {vi.video_id} to {height}p ({vi.video.path})")
-                    success, failure_reason = util.transcode_video_quality(
-                        video_path, transcode_path, height, use_gpu, None, encoder_preference
-                    )
-                    if success:
-                        setattr(vi, has_attr, True)
-                        if is_video_corrupt(vi.video_id):
-                            clear_video_corrupt(vi.video_id)
-                        db.session.add(vi)
-                        db.session.commit()
-                    elif failure_reason == 'corruption':
-                        logger.warning(f"Skipping video {vi.video_id} {height}p transcode - source file appears corrupt")
-                        mark_video_corrupt(vi.video_id)
-                        video_is_corrupt = True
-                    else:
-                        logger.warning(f"Skipping video {vi.video_id} {height}p transcode - all encoders failed")
-                elif transcode_path.exists():
-                    logger.debug(f"Skipping {height}p transcode for {vi.video_id} (already exists)")
-                    setattr(vi, has_attr, True)
-                    db.session.add(vi)
-                    db.session.commit()
+                    work_items.append((vi, height, video_path, derived_path, transcode_path))
+
+        total_jobs = len(work_items)
+        logger.info(f'Processing {total_jobs:,} transcode job(s) (GPU: {use_gpu}, Encoder: {encoder_preference})')
+
+        if total_jobs == 0:
+            logger.info("No videos need transcoding")
+            return
+
+        # Write initial transcoding status with our PID so the API can track us
+        util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
+
+        # Track corrupt videos to skip remaining heights for that video
+        corrupt_video_ids = set()
+
+        for idx, (vi, height, video_path, derived_path, transcode_path) in enumerate(work_items, 1):
+            # Skip if this video was marked corrupt during this run
+            if vi.video_id in corrupt_video_ids:
+                continue
+
+            # Update transcoding progress
+            util.write_transcoding_status(paths['data'], idx, total_jobs, f"{vi.title} ({height}p)")
+
+            if not derived_path.exists():
+                derived_path.mkdir(parents=True)
+
+            has_attr = f'has_{height}p'
+
+            logger.info(f"[{idx}/{total_jobs}] Transcoding {vi.video_id} to {height}p ({vi.video.path})")
+            success, failure_reason = util.transcode_video_quality(
+                video_path, transcode_path, height, use_gpu, None, encoder_preference
+            )
+            if success:
+                setattr(vi, has_attr, True)
+                if is_video_corrupt(vi.video_id):
+                    clear_video_corrupt(vi.video_id)
+                db.session.add(vi)
+                db.session.commit()
+            elif failure_reason == 'corruption':
+                logger.warning(f"Skipping video {vi.video_id} {height}p transcode - source file appears corrupt")
+                mark_video_corrupt(vi.video_id)
+                corrupt_video_ids.add(vi.video_id)
+            else:
+                logger.warning(f"Skipping video {vi.video_id} {height}p transcode - all encoders failed")
 
         util.clear_transcoding_status(paths['data'])
         logger.info("Transcoding complete")
