@@ -342,7 +342,10 @@ def get_transcoding_status():
         "is_running": is_running,
         "current": progress.get('current', 0),
         "total": progress.get('total', 0),
-        "current_video": progress.get('current_video')
+        "current_video": progress.get('current_video'),
+        "percent": progress.get('percent'),
+        "eta_seconds": progress.get('eta_seconds'),
+        "resolution": progress.get('resolution')
     })
 
 
@@ -382,7 +385,10 @@ def admin_event_stream():
                     "is_running": is_running,
                     "current": progress.get('current', 0),
                     "total": progress.get('total', 0),
-                    "current_video": progress.get('current_video')
+                    "current_video": progress.get('current_video'),
+                    "percent": progress.get('percent'),
+                    "eta_seconds": progress.get('eta_seconds'),
+                    "resolution": progress.get('resolution')
                 }
 
                 if transcoding_state != last_transcoding_state:
@@ -472,22 +478,36 @@ def cancel_transcoding():
     if pid_to_kill is None:
         status = util.read_transcoding_status(paths['data'])
         pid_to_kill = status.get('pid')
-        if pid_to_kill is None or not status.get('is_running', False):
+        # If status doesn't show running, nothing to cancel
+        if not status.get('is_running', False):
             return Response(status=400, response='No transcoding in progress')
 
-    try:
-        # Kill the entire process group (including ffmpeg child processes)
-        os.killpg(os.getpgid(pid_to_kill), signal.SIGTERM)
-        if _transcoding_process is not None:
-            _transcoding_process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        os.killpg(os.getpgid(pid_to_kill), signal.SIGKILL)
-    except ProcessLookupError:
-        pass  # Process already dead
-    except OSError:
-        pass  # Process group doesn't exist
+    # Try to kill the process if we have a PID
+    if pid_to_kill is not None:
+        try:
+            target_pgid = os.getpgid(pid_to_kill)
+            my_pgid = os.getpgid(os.getpid())
 
-    # Clear the status file
+            if target_pgid != my_pgid:
+                # Safe to kill the process group (won't kill Flask)
+                os.killpg(target_pgid, signal.SIGTERM)
+            else:
+                # Same process group as Flask - only kill the specific process
+                os.kill(pid_to_kill, signal.SIGTERM)
+
+            if _transcoding_process is not None:
+                _transcoding_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            if target_pgid != my_pgid:
+                os.killpg(target_pgid, signal.SIGKILL)
+            else:
+                os.kill(pid_to_kill, signal.SIGKILL)
+        except ProcessLookupError:
+            pass  # Process already dead
+        except OSError:
+            pass  # Process group doesn't exist
+
+    # Always clear the status file when cancel is requested
     util.clear_transcoding_status(paths['data'])
 
     _transcoding_process = None
@@ -646,7 +666,7 @@ def reset_database():
 @login_required
 def manual_scan():
     current_app.logger.info(f"Executed manual scan")
-    Popen(["fireshare", "bulk-import"], shell=False)
+    Popen(["fireshare", "bulk-import"], shell=False, start_new_session=True)
     return Response(status=200)
 
 @api.route('/api/manual/scan-dates')
@@ -1286,14 +1306,27 @@ def _launch_scan_video(save_path, config):
     Launch scan-video and publish an initial transcoding-running status when
     auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
     """
-    scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    paths = current_app.config['PATHS']
+    data_path = paths['data']
+    scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False, start_new_session=True)
+
+    def reap_and_cleanup():
+        try:
+            scan_proc.wait()
+            status = util.read_transcoding_status(data_path)
+            # Clear stale placeholder/status written for this upload process.
+            if status.get('pid') == scan_proc.pid:
+                util.clear_transcoding_status(data_path)
+        except Exception as e:
+            logger.debug(f"Scan process cleanup skipped: {e}")
+
+    threading.Thread(target=reap_and_cleanup, daemon=True).start()
 
     transcoding_enabled = current_app.config.get('ENABLE_TRANSCODING', False)
     auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
     if transcoding_enabled and auto_transcode:
         try:
-            paths = current_app.config['PATHS']
-            util.write_transcoding_status(paths['data'], 0, 0, None, scan_proc.pid)
+            util.write_transcoding_status(data_path, 0, 0, None, scan_proc.pid)
         except Exception as e:
             logger.warning(f"Failed to write initial upload transcoding status: {e}")
 

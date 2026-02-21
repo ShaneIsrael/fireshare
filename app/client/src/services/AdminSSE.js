@@ -51,4 +51,6 @@ class AdminSSEManager {
   }
 }
 
-export default new AdminSSEManager()
+const adminSSE = new AdminSSEManager()
+
+export default adminSSE
