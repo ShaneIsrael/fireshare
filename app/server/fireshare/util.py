@@ -77,11 +77,12 @@ def remove_lock(path: Path):
 # Transcoding status file functions
 TRANSCODING_STATUS_FILE = "transcoding_status.json"
 
-def write_transcoding_status(data_path: Path, current: int, total: int, current_video: str = None, pid: int = None):
+def write_transcoding_status(data_path: Path, current: int, total: int, current_video: str = None, pid: int = None, percent: float = None, speed: float = None):
     """
     Writes the current transcoding progress to a status file.
     Called by the CLI during transcoding to report progress.
     If pid is provided, it will be included. Otherwise, uses the current process PID.
+    percent and speed are optional per-video progress info from ffmpeg.
     """
     status_file = data_path / TRANSCODING_STATUS_FILE
 
@@ -97,6 +98,11 @@ def write_transcoding_status(data_path: Path, current: int, total: int, current_
         "current_video": current_video,
         "pid": pid
     }
+    # Include progress data if available
+    if percent is not None:
+        status["percent"] = round(percent, 1)
+    if speed is not None:
+        status["speed"] = round(speed, 2)
     tmp_file = status_file.with_suffix(f"{status_file.suffix}.tmp")
     try:
         with open(tmp_file, 'w') as f:
@@ -531,9 +537,70 @@ def _get_encoder_candidates(use_gpu=False, encoder_preference='auto'):
             return [h264_nvenc, av1_nvenc, h264_cpu, av1_cpu]
         return [h264_cpu, av1_cpu]
 
-def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None):
-    """Run an FFmpeg command with timeout support."""
-    return sp.run(cmd, timeout=timeout_seconds)
+def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_path=None):
+    """
+    Run an FFmpeg command with real-time progress tracking via -progress flag.
+
+    If data_path is provided, reads the existing status file and updates it with
+    percent/speed. Progress is throttled to every 0.5 seconds to avoid I/O overhead.
+    """
+    # Insert -progress pipe:1 before output file (last arg)
+    cmd_with_progress = cmd[:-1] + ['-progress', 'pipe:1'] + [cmd[-1]]
+
+    process = sp.Popen(cmd_with_progress, stdout=sp.PIPE, stderr=sp.PIPE, text=True)
+    last_update = 0
+    speed = None
+    percent = None
+
+    # -progress outputs clean key=value lines:
+    # out_time_us=83450000
+    # speed=1.5x
+    # progress=continue
+    try:
+        for line in process.stdout:
+            line = line.strip()
+            if '=' not in line:
+                continue
+
+            key, value = line.split('=', 1)
+
+            if key == 'out_time_us' and total_duration:
+                try:
+                    current_us = int(value)
+                    percent = min(100, (current_us / 1_000_000) / total_duration * 100)
+                except ValueError:
+                    pass
+
+            elif key == 'speed' and value.endswith('x'):
+                try:
+                    speed = float(value.rstrip('x'))
+                except ValueError:
+                    pass
+
+            elif key == 'progress':
+                # 'continue' or 'end' - good time to update status
+                now = time.time()
+                if now - last_update >= 0.5 and data_path and percent is not None:
+                    # Read existing status and update with progress
+                    existing = read_transcoding_status(data_path)
+                    write_transcoding_status(
+                        data_path,
+                        existing.get('current', 0),
+                        existing.get('total', 0),
+                        existing.get('current_video'),
+                        existing.get('pid'),
+                        percent,
+                        speed
+                    )
+                    last_update = now
+
+        process.wait(timeout=timeout_seconds)
+    except sp.TimeoutExpired:
+        process.kill()
+        process.wait()
+        raise
+
+    return process
 
 
 def _build_transcode_command(video_path, out_path, height, encoder):
@@ -550,7 +617,7 @@ def _build_transcode_command(video_path, out_path, height, encoder):
     
     return cmd
 
-def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout_seconds=None, encoder_preference='auto'):
+def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout_seconds=None, encoder_preference='auto', data_path=None):
     """
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
     
@@ -613,7 +680,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
         logger.debug(f"$: {' '.join(cmd)}")
 
         try:
-            result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds)
+            result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds, data_path)
             if result.returncode == 0:
                 e = time.time()
                 logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
@@ -740,7 +807,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
         logger.debug(f"$: {' '.join(cmd)}")
 
         try:
-            result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds)
+            result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds, data_path)
             if result.returncode == 0:
                 # Success! Cache this encoder and return
                 logger.info(f"✓ {encoder['name']} works! Using it for all transcodes this session.")
