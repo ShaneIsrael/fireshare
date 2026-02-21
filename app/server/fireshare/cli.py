@@ -732,7 +732,7 @@ def transcode_videos(regenerate, video, include_corrupt):
                 continue
 
             # Update transcoding progress
-            util.write_transcoding_status(paths['data'], idx, total_jobs, f"{vi.title} ({height}p)")
+            util.write_transcoding_status(paths['data'], idx, total_jobs, vi.title, resolution=f"{height}p")
 
             if not derived_path.exists():
                 derived_path.mkdir(parents=True)

@@ -77,12 +77,13 @@ def remove_lock(path: Path):
 # Transcoding status file functions
 TRANSCODING_STATUS_FILE = "transcoding_status.json"
 
-def write_transcoding_status(data_path: Path, current: int, total: int, current_video: str = None, pid: int = None, percent: float = None, speed: float = None):
+def write_transcoding_status(data_path: Path, current: int, total: int, current_video: str = None, pid: int = None, percent: float = None, eta_seconds: float = None, resolution: str = None):
     """
     Writes the current transcoding progress to a status file.
     Called by the CLI during transcoding to report progress.
     If pid is provided, it will be included. Otherwise, uses the current process PID.
-    percent and speed are optional per-video progress info from ffmpeg.
+    percent and eta_seconds are optional per-video progress info from ffmpeg.
+    resolution is the target resolution (e.g., "1080p").
     """
     status_file = data_path / TRANSCODING_STATUS_FILE
 
@@ -101,8 +102,10 @@ def write_transcoding_status(data_path: Path, current: int, total: int, current_
     # Include progress data if available
     if percent is not None:
         status["percent"] = round(percent, 1)
-    if speed is not None:
-        status["speed"] = round(speed, 2)
+    if eta_seconds is not None:
+        status["eta_seconds"] = round(eta_seconds)
+    if resolution is not None:
+        status["resolution"] = resolution
     tmp_file = status_file.with_suffix(f"{status_file.suffix}.tmp")
     try:
         with open(tmp_file, 'w') as f:
@@ -551,6 +554,7 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
     last_update = 0
     speed = None
     percent = None
+    current_seconds = 0
 
     # -progress outputs clean key=value lines:
     # out_time_us=83450000
@@ -567,7 +571,8 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
             if key == 'out_time_us' and total_duration:
                 try:
                     current_us = int(value)
-                    percent = min(100, (current_us / 1_000_000) / total_duration * 100)
+                    current_seconds = current_us / 1_000_000
+                    percent = min(100, (current_seconds / total_duration) * 100)
                 except ValueError:
                     pass
 
@@ -581,6 +586,12 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
                 # 'continue' or 'end' - good time to update status
                 now = time.time()
                 if now - last_update >= 0.5 and data_path and percent is not None:
+                    # Calculate ETA: remaining time / encoding speed
+                    eta_seconds = None
+                    if speed and speed > 0 and total_duration:
+                        remaining_seconds = total_duration - current_seconds
+                        eta_seconds = remaining_seconds / speed
+
                     # Read existing status and update with progress
                     existing = read_transcoding_status(data_path)
                     write_transcoding_status(
@@ -590,7 +601,8 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
                         existing.get('current_video'),
                         existing.get('pid'),
                         percent,
-                        speed
+                        eta_seconds,
+                        existing.get('resolution')
                     )
                     last_update = now
 

@@ -344,7 +344,8 @@ def get_transcoding_status():
         "total": progress.get('total', 0),
         "current_video": progress.get('current_video'),
         "percent": progress.get('percent'),
-        "speed": progress.get('speed')
+        "eta_seconds": progress.get('eta_seconds'),
+        "resolution": progress.get('resolution')
     })
 
 
@@ -386,7 +387,8 @@ def admin_event_stream():
                     "total": progress.get('total', 0),
                     "current_video": progress.get('current_video'),
                     "percent": progress.get('percent'),
-                    "speed": progress.get('speed')
+                    "eta_seconds": progress.get('eta_seconds'),
+                    "resolution": progress.get('resolution')
                 }
 
                 if transcoding_state != last_transcoding_state:
