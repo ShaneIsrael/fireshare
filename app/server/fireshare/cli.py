@@ -456,7 +456,7 @@ def scan_video(ctx, path):
                 if video_path.exists():
                     
                     poster_path = Path(derived_path, "poster.jpg")
-                    should_create_poster = (not poster_path.exists() or regenerate)
+                    should_create_poster = not poster_path.exists()
                     if should_create_poster:
                         if not derived_path.exists():
                             derived_path.mkdir(parents=True)
@@ -718,6 +718,7 @@ def transcode_videos(regenerate, video, include_corrupt):
 
         if total_jobs == 0:
             logger.info("No videos need transcoding")
+            util.clear_transcoding_status(paths['data'])
             return
 
         # Write initial transcoding status with our PID so the API can track us

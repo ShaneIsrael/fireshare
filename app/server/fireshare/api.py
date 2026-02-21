@@ -1306,14 +1306,27 @@ def _launch_scan_video(save_path, config):
     Launch scan-video and publish an initial transcoding-running status when
     auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
     """
+    paths = current_app.config['PATHS']
+    data_path = paths['data']
     scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False, start_new_session=True)
+
+    def reap_and_cleanup():
+        try:
+            scan_proc.wait()
+            status = util.read_transcoding_status(data_path)
+            # Clear stale placeholder/status written for this upload process.
+            if status.get('pid') == scan_proc.pid:
+                util.clear_transcoding_status(data_path)
+        except Exception as e:
+            logger.debug(f"Scan process cleanup skipped: {e}")
+
+    threading.Thread(target=reap_and_cleanup, daemon=True).start()
 
     transcoding_enabled = current_app.config.get('ENABLE_TRANSCODING', False)
     auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
     if transcoding_enabled and auto_transcode:
         try:
-            paths = current_app.config['PATHS']
-            util.write_transcoding_status(paths['data'], 0, 0, None, scan_proc.pid)
+            util.write_transcoding_status(data_path, 0, 0, None, scan_proc.pid)
         except Exception as e:
             logger.warning(f"Failed to write initial upload transcoding status: {e}")
 
