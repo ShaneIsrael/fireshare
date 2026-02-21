@@ -741,7 +741,8 @@ def transcode_videos(regenerate, video, include_corrupt):
 
             logger.info(f"[{idx}/{total_jobs}] Transcoding {vi.video_id} to {height}p ({vi.video.path})")
             success, failure_reason = util.transcode_video_quality(
-                video_path, transcode_path, height, use_gpu, None, encoder_preference
+                video_path, transcode_path, height, use_gpu, None, encoder_preference,
+                data_path=paths['data']
             )
             if success:
                 setattr(vi, has_attr, True)

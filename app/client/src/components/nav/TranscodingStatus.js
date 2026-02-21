@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Grid, Box, IconButton } from '@mui/material'
 import Typography from '@mui/material/Typography'
 import Tooltip from '@mui/material/Tooltip'
+import { motion } from 'framer-motion'
 import adminSSE from '../../services/AdminSSE'
 import SyncIcon from '@mui/icons-material/Sync'
 
@@ -117,7 +118,6 @@ const TranscodingStatus = ({ open }) => {
                   )}
                 </Typography>
                 {status.current_video && (
-
                   <Typography
                     sx={{
                       fontFamily: 'monospace',
@@ -130,6 +130,33 @@ const TranscodingStatus = ({ open }) => {
                   >
                     {status.current_video}
                   </Typography>
+                )}
+                {typeof status.percent === 'number' && (
+                  <Box sx={{ mt: 1, width: '100%' }}>
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: 'rgba(194, 224, 255, 0.1)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${status.percent}%` }}
+                        transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                        style={{
+                          height: '100%',
+                          backgroundColor: '#2684FF',
+                          borderRadius: 4,
+                        }}
+                      />
+                    </Box>
+                    <Typography sx={{ fontSize: 10, color: '#999', mt: 0.5 }}>
+                      {status.percent.toFixed(0)}%{status.speed ? ` • ${status.speed}x` : ''}
+                    </Typography>
+                  </Box>
                 )}
               </Grid>
             </Grid>
