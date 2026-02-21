@@ -16,9 +16,6 @@ const service = {
     const payload = options ? { options } : undefined
     return Api().post('/api/admin/reset-database', payload)
   },
-  getTranscodingStatus() {
-    return Api().get('/api/admin/transcoding/status')
-  },
   startTranscoding() {
     return Api().post('/api/admin/transcoding/start')
   },

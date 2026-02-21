@@ -161,7 +161,7 @@ const Watch = ({ authenticated }) => {
               textOverflow: 'ellipsis',
             }}
           >
-            {`${views} ${views === 1 ? 'View' : 'Views'}`}
+            {`${views} ${views === 1 ? 'view' : 'views'}`}
           </div>
         </Button>
         <Button
@@ -177,7 +177,6 @@ const Watch = ({ authenticated }) => {
             style={{
               overflow: 'hidden',
               color: 'white',
-              textTransform: 'uppercase',
               whiteSpace: 'nowrap',
               textOverflow: 'ellipsis',
             }}
@@ -200,6 +199,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:type" value="video" />
         <meta property="og:url" value={window.location.href} />
         <meta property="og:title" value={details?.info?.title} />
+        {details?.info?.description && <meta property="og:description" value={details?.info?.description} />}
         <meta
           property="og:image"
           value={

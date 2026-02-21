@@ -1,5 +1,13 @@
 import { getUrl } from '../common/utils'
 
+const getAdminStreamBaseUrl = () => {
+  const isLocalhost = (window.location.hostname.indexOf('localhost') >= 0 || window.location.hostname.indexOf('127.0.0.1') >= 0) && window.location.port !== ''
+  if (isLocalhost) {
+    return `http://${window.location.hostname}:${process.env.REACT_APP_SERVER_PORT || '3001'}`
+  }
+  return getUrl()
+}
+
 class AdminSSEManager {
   constructor() {
     this.eventSource = null
@@ -19,7 +27,7 @@ class AdminSSEManager {
 
   connect() {
     this.eventSource = new EventSource(
-      `${getUrl()}/api/admin/stream`,
+      `${getAdminStreamBaseUrl()}/api/admin/stream`,
       { withCredentials: true }
     )
 
@@ -43,4 +51,6 @@ class AdminSSEManager {
   }
 }
 
-export default new AdminSSEManager()
+const adminSSE = new AdminSSEManager()
+
+export default adminSSE

@@ -119,6 +119,7 @@ COPY app/nginx/prod.conf /etc/nginx/nginx.conf
 COPY app/server/ /app/server
 COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
+COPY --from=client /app/package.json /app
 RUN pip install --no-cache-dir /app/server
 
 ENV FLASK_APP /app/server/fireshare:create_app()
