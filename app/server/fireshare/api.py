@@ -472,22 +472,25 @@ def cancel_transcoding():
     if pid_to_kill is None:
         status = util.read_transcoding_status(paths['data'])
         pid_to_kill = status.get('pid')
-        if pid_to_kill is None or not status.get('is_running', False):
+        # If status doesn't show running, nothing to cancel
+        if not status.get('is_running', False):
             return Response(status=400, response='No transcoding in progress')
 
-    try:
-        # Kill the entire process group (including ffmpeg child processes)
-        os.killpg(os.getpgid(pid_to_kill), signal.SIGTERM)
-        if _transcoding_process is not None:
-            _transcoding_process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        os.killpg(os.getpgid(pid_to_kill), signal.SIGKILL)
-    except ProcessLookupError:
-        pass  # Process already dead
-    except OSError:
-        pass  # Process group doesn't exist
+    # Try to kill the process if we have a PID
+    if pid_to_kill is not None:
+        try:
+            # Kill the entire process group (including ffmpeg child processes)
+            os.killpg(os.getpgid(pid_to_kill), signal.SIGTERM)
+            if _transcoding_process is not None:
+                _transcoding_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            os.killpg(os.getpgid(pid_to_kill), signal.SIGKILL)
+        except ProcessLookupError:
+            pass  # Process already dead
+        except OSError:
+            pass  # Process group doesn't exist
 
-    # Clear the status file
+    # Always clear the status file when cancel is requested
     util.clear_transcoding_status(paths['data'])
 
     _transcoding_process = None
