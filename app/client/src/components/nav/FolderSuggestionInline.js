@@ -2,7 +2,6 @@ import React from 'react'
 import { Box, Typography, IconButton, CircularProgress, Tooltip } from '@mui/material'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
-import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { GameService } from '../../services'
 
