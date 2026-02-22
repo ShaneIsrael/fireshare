@@ -2,6 +2,7 @@ import React from 'react'
 import { Box, Grid, Paper, Stack, Typography } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
+import { motion } from 'framer-motion'
 import { VideoService } from '../../services'
 import { getSetting } from '../../common/utils'
 
@@ -17,29 +18,39 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
   const [progress, setProgress] = React.useState(0)
   const [uploadRate, setUploadRate] = React.useState()
   const uiConfig = getSetting('ui_config')
+  const lastProgressUpdate = React.useRef(0)
 
   const changeHandler = (event) => {
     setProgress(0)
+    lastProgressUpdate.current = 0
     setSelectedFile(event.target.files[0])
     setIsSelected(true)
   }
 
   const uploadProgress = (progress, rate) => {
     if (progress <= 1 && progress >= 0) {
-      setProgress(progress)
-      setUploadRate((prev) => ({ ...rate }))
+      const now = Date.now()
+      if (progress === 1 || now - lastProgressUpdate.current >= 1000) {
+        lastProgressUpdate.current = now
+        setProgress(progress)
+        setUploadRate(() => ({ ...rate }))
+      }
     }
   }
 
   const uploadProgressChunked = (progress, progressTotal, rate) => {
+    const now = Date.now()
+    const stale = now - lastProgressUpdate.current >= 1000
     if (progressTotal <= 1 && progressTotal >= 0) {
-      setProgress(progressTotal);
-      setUploadRate((prev) => ({ ...rate }))
-    } else {
-      if (progress <= 1 && progress >= 0) {
-        setProgress(progress)
-        setUploadRate((prev) => ({ ...rate }))
+      if (progressTotal === 1 || stale) {
+        lastProgressUpdate.current = now
+        setProgress(progressTotal)
+        setUploadRate(() => ({ ...rate }))
       }
+    } else if (progress <= 1 && progress >= 0 && (progress === 1 || stale)) {
+      lastProgressUpdate.current = now
+      setProgress(progress)
+      setUploadRate(() => ({ ...rate }))
     }
   }
 
@@ -160,7 +171,7 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
           sx={{
             position: 'relative',
             width: '100%',
-            height: '50px',
+            height: '64px',
             cursor: 'pointer',
             background: 'rgba(0,0,0,0)',
             overflow: 'hidden',
@@ -169,8 +180,8 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
           onDrop={dropHandler}
           onDragOver={dragOverHandler}
         >
-          <Box sx={{ display: 'flex', p: 1, height: '100%' }} justifyContent="center" alignItems="center">
-            <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center" justifyContent="center">
+          <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
+            <Stack sx={{ zIndex: 0 }} alignItems="center" justifyContent="center">
               {!isSelected && (
                 <Input
                   id="icon-button-file"
@@ -220,13 +231,16 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
               )}
             </Stack>
           </Box>
-          <Box
-            sx={{
+          <motion.div
+            animate={{
+              height: mini ? `${progress * 100}%` : '100%',
+              width: mini ? '100%' : `${progress * 100}%`,
+            }}
+            transition={progress === 0 ? { duration: 0 } : { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+            style={{
               position: 'absolute',
               bottom: 0,
               zIndex: -1,
-              height: mini ? `${progress * 100}%` : '100%',
-              width: mini ? '100%' : `${progress * 100}%`,
               backgroundImage: 'linear-gradient(90deg, #BC00E6DF, #FF3729D9)',
               borderRadius: '10px',
             }}
