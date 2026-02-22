@@ -771,7 +771,10 @@ def bulk_import(ctx, root):
             logger.info(f"A scan process is currently active... Aborting. (Remove {paths['data']/'fireshare.lock'} to continue anyway)")
             return
         util.create_lock(paths["data"])
-        
+
+        if current_app.config.get('ENABLE_TRANSCODING'):
+            util.write_transcoding_status(paths['data'], 0, 0, None, os.getpid())
+
         thumbnail_skip = current_app.config['THUMBNAIL_VIDEO_LOCATION'] or 0
         if thumbnail_skip > 0 and thumbnail_skip <= 100:
             thumbnail_skip = thumbnail_skip / 100
@@ -808,6 +811,7 @@ def bulk_import(ctx, root):
 
         logger.info(f"Finished bulk import. Timing info: {json.dumps(timing)}")
 
+        util.clear_transcoding_status(paths['data'])
         util.remove_lock(paths["data"])
 
 if __name__=="__main__":

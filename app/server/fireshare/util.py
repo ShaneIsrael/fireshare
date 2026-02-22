@@ -49,20 +49,34 @@ AV1_CODEC_NAMES = frozenset([
 
 def lock_exists(path: Path):
     """
-    Checks if a lockfile currently exists
+    Checks if a lockfile exists and the owning process is still alive.
+    Automatically removes stale locks left by crashed processes.
     """
     lockfile = path / "fireshare.lock"
-    return lockfile.exists()
+    if not lockfile.exists():
+        return False
+    try:
+        with open(lockfile, 'r') as f:
+            pid = int(f.read().strip())
+        os.kill(pid, 0)  # signal 0 just checks liveness, sends nothing
+        return True
+    except (ValueError, ProcessLookupError, OSError):
+        logger.debug(f"Removing stale lockfile at {str(lockfile)}")
+        try:
+            os.remove(lockfile)
+        except Exception:
+            pass
+        return False
 
 def create_lock(path: Path):
     """
-    Creates the lock file
+    Creates the lock file, writing the current PID so stale locks can be detected.
     """
     lockfile = path / "fireshare.lock"
     if not lockfile.exists():
         logger.debug(f"A lockfile has been created at {str(lockfile)}")
-        fp = open(lockfile, 'x')
-        fp.close()
+        with open(lockfile, 'w') as f:
+            f.write(str(os.getpid()))
 
 def remove_lock(path: Path):
     """
