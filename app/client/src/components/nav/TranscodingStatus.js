@@ -82,7 +82,7 @@ const TranscodingStatus = ({ open }) => {
       <Tooltip title={status.current_video || 'Not transcoding'} arrow placement="right">
         <Box sx={{ ...styles.card, ...styles.cardExpanded }}>
           <Grid container alignItems="center">
-            <Grid item sx={{ overflow: 'hidden' }}>
+            <Grid item xs={12} sx={{ overflow: 'hidden' }}>
               <Typography sx={styles.textPrimary}>
                 {status.total === 0 ? (
                   'Preparing transcode...'
