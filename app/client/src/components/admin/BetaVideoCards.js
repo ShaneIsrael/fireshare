@@ -12,8 +12,6 @@ const BetaVideoCards = ({
   videos,
   loadingIcon = null,
   feedView = false,
-  showUploadCard = false,
-  fetchVideos,
   authenticated,
   size,
 }) => {
@@ -147,18 +145,6 @@ const BetaVideoCards = ({
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
         <Grid container justifyContent="flex-start" spacing={3}>
-          {showUploadCard && (
-            <Grid item>
-              <UploadCard
-                authenticated={authenticated}
-                feedView={feedView}
-                cardWidth={size}
-                handleAlert={memoizedHandleAlert}
-                fetchVideos={fetchVideos}
-                publicUpload={feedView}
-              />
-            </Grid>
-          )}
           {vids.map((v, index) => (
             <Grid item key={v.path + v.video_id}>
               <motion.div

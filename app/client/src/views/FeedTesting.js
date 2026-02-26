@@ -412,8 +412,6 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
                       videos={sortedVideos}
                       authenticated={authenticated}
                       size={cardSize}
-                      showUploadCard={selectedFolder.value === 'All Videos'}
-                      fetchVideos={fetchVideos}
                     />
                   )}
                 </Box>

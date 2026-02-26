@@ -1,12 +1,16 @@
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Box, Typography, IconButton } from '@mui/material'
+import { Box, Typography, IconButton, Menu, MenuItem, ListItemIcon } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import EditIcon from '@mui/icons-material/Edit'
+import SlowMotionVideoIcon from '@mui/icons-material/SlowMotionVideo'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, getVideoUrl } from '../../common/utils'
 import { GameService, VideoService } from '../../services'
+import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import _ from 'lodash'
 
 const URL = getUrl()
@@ -25,11 +29,18 @@ const CompactBetaVideoCard = ({
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
   const [game, setGame] = React.useState(null)
   const [privateView, setPrivateView] = React.useState(video.info?.private)
+  const [title, setTitle] = React.useState(video.info?.title || 'Untitled')
+  const [description, setDescription] = React.useState(video.info?.description || '')
+  const [menuAnchorEl, setMenuAnchorEl] = React.useState(null)
+  const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
+  const menuOpen = Boolean(menuAnchorEl)
 
   const previousVideoRef = React.useRef()
   const previousVideo = previousVideoRef.current
   if (!_.isEqual(video, previousVideo) && !_.isEqual(video, intVideo)) {
     setIntVideo(video)
+    setTitle(video.info?.title || 'Untitled')
+    setDescription(video.info?.description || '')
   }
   React.useEffect(() => {
     previousVideoRef.current = video
@@ -97,11 +108,28 @@ const CompactBetaVideoCard = ({
     return getVideoUrl(video.video_id, 'original', video.extension)
   }
 
-  const title = video.info?.title || 'Untitled'
   const gameName = game?.name || ''
   const viewCount = video.view_count || 0
 
+  const handleDetailsModalClose = (update) => {
+    setDetailsModalOpen(false)
+    if (update && update !== 'delete') {
+      if (update.title !== undefined) setTitle(update.title || 'Untitled')
+      if (update.description !== undefined) setDescription(update.description || '')
+    }
+  }
+
   return (
+    <>
+    <UpdateDetailsModal
+      open={detailsModalOpen}
+      close={handleDetailsModalClose}
+      videoId={video.video_id}
+      currentTitle={title}
+      currentDescription={description}
+      currentRecordedAt={video.recorded_at}
+      alertHandler={alertHandler}
+    />
     <Box
       sx={{
         width: cardWidth,
@@ -342,8 +370,65 @@ const CompactBetaVideoCard = ({
             {viewCount} {viewCount === 1 ? 'view' : 'views'}
           </Typography>
         </Box>
+
+        {/* 3-dot menu toggle */}
+        <IconButton
+          size="small"
+          onClick={(e) => { e.stopPropagation(); setMenuAnchorEl(e.currentTarget) }}
+          sx={{
+            alignSelf: 'flex-start',
+            color: menuOpen ? 'primary.main' : 'rgba(255, 255, 255, 0.35)',
+            transition: 'color 0.2s',
+            p: 0.5,
+            mt: 0.25,
+          }}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
       </Box>
+
+      {/* Floating context menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={menuOpen}
+        onClose={() => setMenuAnchorEl(null)}
+        onClick={(e) => e.stopPropagation()}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: '#0b132b',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '10px',
+              minWidth: 160,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+              mt: 0.5,
+            },
+          },
+        }}
+      >
+        <MenuItem
+          onClick={() => { setDetailsModalOpen(true); setMenuAnchorEl(null) }}
+          sx={{ gap: 1.5, py: 1.25, fontSize: 14, color: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: 'rgba(255,255,255,0.07)' } }}
+        >
+          <ListItemIcon sx={{ minWidth: 0, color: '#3399FF' }}>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          Edit Info
+        </MenuItem>
+        <MenuItem
+          onClick={() => setMenuAnchorEl(null)}
+          sx={{ gap: 1.5, py: 1.25, fontSize: 14, color: 'rgba(255,255,255,0.5)', '&:hover': { bgcolor: 'rgba(255,255,255,0.07)' } }}
+        >
+          <ListItemIcon sx={{ minWidth: 0, color: 'rgba(255,255,255,0.4)' }}>
+            <SlowMotionVideoIcon fontSize="small" />
+          </ListItemIcon>
+          Transcode
+        </MenuItem>
+      </Menu>
     </Box>
+    </>
   )
 }
 
