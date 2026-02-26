@@ -1,4 +1,5 @@
 import React from 'react'
+import { motion } from 'framer-motion'
 import { Box, Typography, IconButton } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -108,13 +109,11 @@ const CompactBetaVideoCard = ({
       }}
     >
       {/* Thumbnail */}
-      <Box
-        sx={{
-          position: 'relative',
-          cursor: 'pointer',
-          borderRadius: '8px',
-          overflow: 'hidden',
-        }}
+      <Box sx={{ borderRadius: '8px', overflow: 'hidden' }}>
+      <motion.div
+        whileHover={{ scale: 1.03 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        style={{ position: 'relative', cursor: 'pointer' }}
         onClick={() => openVideoHandler(video.video_id)}
         onMouseEnter={(e) => {
           setThumbnailHover(true)
@@ -253,6 +252,7 @@ const CompactBetaVideoCard = ({
             </IconButton>
           </Box>
         )}
+      </motion.div>
       </Box>
 
       {/* Info section below thumbnail */}

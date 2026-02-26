@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { Box, Button, Grid, Paper, Typography } from '@mui/material'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoModal from '../modal/VideoModal'
@@ -158,15 +159,21 @@ const BetaVideoCards = ({
               />
             </Grid>
           )}
-          {vids.map((v) => (
+          {vids.map((v, index) => (
             <Grid item key={v.path + v.video_id}>
-              <CompactBetaVideoCard
-                video={v}
-                openVideoHandler={openVideo}
-                cardWidth={size}
-                alertHandler={memoizedHandleAlert}
-                authenticated={authenticated}
-              />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.5) }}
+              >
+                <CompactBetaVideoCard
+                  video={v}
+                  openVideoHandler={openVideo}
+                  cardWidth={size}
+                  alertHandler={memoizedHandleAlert}
+                  authenticated={authenticated}
+                />
+              </motion.div>
             </Grid>
           ))}
         </Grid>
