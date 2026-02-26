@@ -7,7 +7,7 @@ import click
 from datetime import datetime
 from flask import current_app, request
 from fireshare import create_app, db, util, logger
-from fireshare.models import User, Video, VideoInfo
+from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink
 from werkzeug.security import generate_password_hash
 from pathlib import Path
 from sqlalchemy import func
@@ -54,6 +54,14 @@ def save_game_suggestion(video_id, suggestion):
     """Save a game suggestion for a video"""
     suggestions = _load_suggestions()
     suggestions[video_id] = suggestion
+    _save_suggestions(suggestions)
+
+def save_game_suggestions_batch(new_suggestions):
+    """Save multiple game suggestions at once"""
+    if not new_suggestions:
+        return
+    suggestions = _load_suggestions()
+    suggestions.update(new_suggestions)
     _save_suggestions(suggestions)
 
 def delete_game_suggestion(video_id):
@@ -205,6 +213,8 @@ def scan_videos(root):
         for f in all_files:
             if CHUNK_FILE_PATTERN.search(f.name):
                 continue  # Skip chunk files silently
+            elif f.name.startswith('._'):
+                continue  # Skip macOS sidecar files silently
             elif TRANSCODE_PATTERN.search(f.name):
                 logger.debug(f"Skipping transcoded file: {f.name}")
                 skipped_count += 1
@@ -273,11 +283,33 @@ def scan_videos(root):
                 video_url = get_public_watch_url(nv.video_id, config, domain)
                 send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
 
-        # Automatic game detection for new videos
+        # Auto-tag new videos based on folder rules
+        auto_tagged = set()
+        if new_videos:
+            folder_rules = {rule.folder_path: rule.game_id for rule in FolderRule.query.all()}
+            if folder_rules:
+                logger.info(f"Checking {len(new_videos)} new video(s) against {len(folder_rules)} folder rule(s)")
+            for nv in new_videos:
+                parts = nv.path.split('/')
+                if len(parts) > 1:
+                    folder = parts[0]
+                    if folder in folder_rules:
+                        game_id = folder_rules[folder]
+                        link = VideoGameLink(video_id=nv.video_id, game_id=game_id, created_at=datetime.utcnow())
+                        db.session.add(link)
+                        auto_tagged.add(nv.video_id)
+                        logger.info(f"[Folder Rule] Auto-tagged {nv.video_id} to game {game_id} (folder: {folder})")
+            if auto_tagged:
+                db.session.commit()
+                logger.info(f"Auto-tagged {len(auto_tagged)} video(s) via folder rules")
+
+        # Automatic game detection for new videos (skip already tagged)
         steamgriddb_api_key = config.get("integrations", {}).get("steamgriddb_api_key")
         if new_videos:
-            logger.info(f"Running game detection for {len(new_videos)} new video(s)...")
-            for nv in new_videos:
+            videos_needing_detection = [nv for nv in new_videos if nv.video_id not in auto_tagged]
+            logger.info(f"Running game detection for {len(videos_needing_detection)} new video(s)...")
+            pending_suggestions = {}
+            for nv in videos_needing_detection:
                 filename = Path(nv.path).stem
                 logger.info(f"[Game Detection] Video: {nv.video_id}, Path: {nv.path}, Filename: {filename}")
                 detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=nv.path)
@@ -285,12 +317,16 @@ def scan_videos(root):
                 if detected_game:
                     logger.info(f"[Game Detection] Result: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
                     if detected_game['confidence'] >= 0.65:
-                        save_game_suggestion(nv.video_id, detected_game)
-                        logger.info(f"[Game Detection] Saved suggestion for {nv.video_id}")
+                        pending_suggestions[nv.video_id] = detected_game
+                        logger.info(f"[Game Detection] Queued suggestion for {nv.video_id}")
                     else:
                         logger.info(f"[Game Detection] Confidence too low, skipping suggestion")
                 else:
                     logger.info(f"[Game Detection] No match found for {nv.video_id}")
+            # Batch save all suggestions at once
+            if pending_suggestions:
+                save_game_suggestions_batch(pending_suggestions)
+                logger.info(f"[Game Detection] Saved {len(pending_suggestions)} suggestion(s) in batch")
 
         existing_videos = Video.query.filter_by(available=True).all()
         logger.info(f"Verifying {len(existing_videos):,} video files still exist...")
@@ -335,10 +371,11 @@ def scan_video(ctx, path):
             logger.warning(f"Skipping transcoded file: {path}. Transcoded files should not be scanned.")
             return
         
-        video_file = ((videos_path / path) if (videos_path / path).is_file() 
-                     and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS 
+        video_file = ((videos_path / path) if (videos_path / path).is_file()
+                     and (videos_path / path).suffix.lower() in SUPPORTED_FILE_EXTENSIONS
                      and not CHUNK_FILE_PATTERN.search((videos_path / path).name)
-                     and not TRANSCODE_PATTERN.search((videos_path / path).name) else None)
+                     and not TRANSCODE_PATTERN.search((videos_path / path).name)
+                     and not (videos_path / path).name.startswith('._') else None)
         if video_file:
             video_rows = Video.query.all()
             logger.info(f"Scanning {str(video_file)}")
@@ -382,17 +419,31 @@ def scan_video(ctx, path):
                 db.session.add(info)
                 db.session.commit()
 
-                # Automatic game detection
-                logger.info("Attempting automatic game detection...")
-                steamgriddb_api_key = config.get("integrations", {}).get("steamgriddb_api_key")
-                filename = Path(v.path).stem
-                detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=v.path)
+                # Check folder rules for auto-tagging
+                auto_tagged = False
+                parts = v.path.split('/')
+                if len(parts) > 1:
+                    folder = parts[0]
+                    folder_rule = FolderRule.query.filter_by(folder_path=folder).first()
+                    if folder_rule:
+                        link = VideoGameLink(video_id=v.video_id, game_id=folder_rule.game_id, created_at=datetime.utcnow())
+                        db.session.add(link)
+                        db.session.commit()
+                        auto_tagged = True
+                        logger.info(f"[Folder Rule] Auto-tagged {v.video_id} to game {folder_rule.game_id} (folder: {folder})")
 
-                if detected_game and detected_game['confidence'] >= 0.65:
-                    save_game_suggestion(v.video_id, detected_game)
-                    logger.info(f"Created game suggestion for video {v.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
-                else:
-                    logger.info(f"No confident game match found for video {v.video_id}")
+                # Automatic game detection (skip if already auto-tagged)
+                if not auto_tagged:
+                    logger.info("Attempting automatic game detection...")
+                    steamgriddb_api_key = config.get("integrations", {}).get("steamgriddb_api_key")
+                    filename = Path(v.path).stem
+                    detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=v.path)
+
+                    if detected_game and detected_game['confidence'] >= 0.65:
+                        save_game_suggestion(v.video_id, detected_game)
+                        logger.info(f"Created game suggestion for video {v.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
+                    else:
+                        logger.info(f"No confident game match found for video {v.video_id}")
 
                 logger.info("Syncing metadata")
                 ctx.invoke(sync_metadata, video=video_id)
@@ -405,7 +456,7 @@ def scan_video(ctx, path):
                 if video_path.exists():
                     
                     poster_path = Path(derived_path, "poster.jpg")
-                    should_create_poster = (not poster_path.exists() or regenerate)
+                    should_create_poster = not poster_path.exists()
                     if should_create_poster:
                         if not derived_path.exists():
                             derived_path.mkdir(parents=True)
@@ -482,7 +533,12 @@ def sync_metadata(video):
                     position = current_app.config['WARNINGS'].index(corruptVideoWarning)
                     current_app.config['WARNINGS'].pop(position)
 
-                vcodec = [i for i in info if i['codec_type'] == 'video'][0]
+                video_codecs = [i for i in info if i['codec_type'] == 'video']
+                if not video_codecs:
+                    logger.warning(f"No video stream found in {v.video.path} (video_id={v.video_id}). Skipping metadata sync.")
+                    mark_video_corrupt(v.video_id)
+                    continue
+                vcodec = video_codecs[0]
                 duration = 0
                 if 'duration' in vcodec:
                     duration = float(vcodec['duration'])
@@ -632,7 +688,7 @@ def transcode_videos(regenerate, video, include_corrupt):
 
         # Get videos to transcode
         vinfos = VideoInfo.query.filter(VideoInfo.video_id==video).all() if video else VideoInfo.query.all()
-        
+
         # Filter out corrupt videos unless explicitly included
         corrupt_videos = set(get_all_corrupt_videos())
         if not include_corrupt and not video:
@@ -641,62 +697,66 @@ def transcode_videos(regenerate, video, include_corrupt):
             skipped_count = original_count - len(vinfos)
             if skipped_count > 0:
                 logger.info(f"Skipping {skipped_count} video(s) previously marked as corrupt. Use --include-corrupt to retry them.")
-        
-        total_videos = len(vinfos)
-        logger.info(f'Processing {total_videos:,} videos for transcoding (GPU: {use_gpu}, Encoder: {encoder_preference})')
 
-        # Write initial transcoding status with our PID so the API can track us
-        util.write_transcoding_status(paths['data'], 0, total_videos, pid=os.getpid())
-
-        for idx, vi in enumerate(vinfos, 1):
-            # Update transcoding progress with the video title
-            util.write_transcoding_status(paths['data'], idx, total_videos, vi.title)
-            derived_path = Path(processed_root, "derived", vi.video_id)
+        # Build work queue: list of (video_info, height) tuples that actually need transcoding
+        work_items = []
+        for vi in vinfos:
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
-            
             if not video_path.exists():
-                logger.warning(f"Skipping transcoding for video {vi.video_id} because the video at {str(video_path)} does not exist")
                 continue
-            
-            if not derived_path.exists():
-                derived_path.mkdir(parents=True)
-            
-            # Transcode to each enabled resolution
+            derived_path = Path(processed_root, "derived", vi.video_id)
             original_height = vi.height or 0
-            video_is_corrupt = False
-
             for height in resolutions:
-                if video_is_corrupt:
-                    break
-
                 if original_height <= height:
                     continue
-
                 transcode_path = derived_path / f"{vi.video_id}-{height}p.mp4"
-                has_attr = f'has_{height}p'
-
                 if not transcode_path.exists() or regenerate:
-                    logger.info(f"[{idx}/{total_videos}] Transcoding {vi.video_id} to {height}p ({vi.video.path})")
-                    success, failure_reason = util.transcode_video_quality(
-                        video_path, transcode_path, height, use_gpu, None, encoder_preference
-                    )
-                    if success:
-                        setattr(vi, has_attr, True)
-                        if is_video_corrupt(vi.video_id):
-                            clear_video_corrupt(vi.video_id)
-                        db.session.add(vi)
-                        db.session.commit()
-                    elif failure_reason == 'corruption':
-                        logger.warning(f"Skipping video {vi.video_id} {height}p transcode - source file appears corrupt")
-                        mark_video_corrupt(vi.video_id)
-                        video_is_corrupt = True
-                    else:
-                        logger.warning(f"Skipping video {vi.video_id} {height}p transcode - all encoders failed")
-                elif transcode_path.exists():
-                    logger.debug(f"Skipping {height}p transcode for {vi.video_id} (already exists)")
-                    setattr(vi, has_attr, True)
-                    db.session.add(vi)
-                    db.session.commit()
+                    work_items.append((vi, height, video_path, derived_path, transcode_path))
+
+        total_jobs = len(work_items)
+        logger.info(f'Processing {total_jobs:,} transcode job(s) (GPU: {use_gpu}, Encoder: {encoder_preference})')
+
+        if total_jobs == 0:
+            logger.info("No videos need transcoding")
+            util.clear_transcoding_status(paths['data'])
+            return
+
+        # Write initial transcoding status with our PID so the API can track us
+        util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
+
+        # Track corrupt videos to skip remaining heights for that video
+        corrupt_video_ids = set()
+
+        for idx, (vi, height, video_path, derived_path, transcode_path) in enumerate(work_items, 1):
+            # Skip if this video was marked corrupt during this run
+            if vi.video_id in corrupt_video_ids:
+                continue
+
+            # Update transcoding progress
+            util.write_transcoding_status(paths['data'], idx, total_jobs, vi.title, resolution=f"{height}p")
+
+            if not derived_path.exists():
+                derived_path.mkdir(parents=True)
+
+            has_attr = f'has_{height}p'
+
+            logger.info(f"[{idx}/{total_jobs}] Transcoding {vi.video_id} to {height}p ({vi.video.path})")
+            success, failure_reason = util.transcode_video_quality(
+                video_path, transcode_path, height, use_gpu, None, encoder_preference,
+                data_path=paths['data']
+            )
+            if success:
+                setattr(vi, has_attr, True)
+                if is_video_corrupt(vi.video_id):
+                    clear_video_corrupt(vi.video_id)
+                db.session.add(vi)
+                db.session.commit()
+            elif failure_reason == 'corruption':
+                logger.warning(f"Skipping video {vi.video_id} {height}p transcode - source file appears corrupt")
+                mark_video_corrupt(vi.video_id)
+                corrupt_video_ids.add(vi.video_id)
+            else:
+                logger.warning(f"Skipping video {vi.video_id} {height}p transcode - all encoders failed")
 
         util.clear_transcoding_status(paths['data'])
         logger.info("Transcoding complete")
@@ -711,7 +771,10 @@ def bulk_import(ctx, root):
             logger.info(f"A scan process is currently active... Aborting. (Remove {paths['data']/'fireshare.lock'} to continue anyway)")
             return
         util.create_lock(paths["data"])
-        
+
+        if current_app.config.get('ENABLE_TRANSCODING'):
+            util.write_transcoding_status(paths['data'], 0, 0, None, os.getpid())
+
         thumbnail_skip = current_app.config['THUMBNAIL_VIDEO_LOCATION'] or 0
         if thumbnail_skip > 0 and thumbnail_skip <= 100:
             thumbnail_skip = thumbnail_skip / 100
@@ -748,6 +811,7 @@ def bulk_import(ctx, root):
 
         logger.info(f"Finished bulk import. Timing info: {json.dumps(timing)}")
 
+        util.clear_transcoding_status(paths['data'])
         util.remove_lock(paths["data"])
 
 if __name__=="__main__":

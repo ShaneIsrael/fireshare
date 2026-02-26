@@ -1,15 +1,8 @@
 from setuptools import setup, find_packages
-import pkg_resources
-import pathlib
 
-# Use path relative to this setup.py file
-here = pathlib.Path(__file__).parent.resolve()
-with (here / 'requirements.txt').open() as requirements_txt:
-    install_requires = [
-        str(requirement)
-        for requirement
-        in pkg_resources.parse_requirements(requirements_txt)
-    ]
+def read_requirements():
+    with open("requirements.txt", "r") as f:
+        return [line.strip() for line in f if line.strip() and not line.startswith("#")]
 
 setup(
     name="fireshare",
@@ -20,5 +13,5 @@ setup(
             "fireshare=fireshare.cli:cli"
         ]
     },
-    install_requires=install_requires,
+    install_requires=read_requirements(),
 )

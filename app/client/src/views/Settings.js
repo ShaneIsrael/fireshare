@@ -7,12 +7,17 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
-  Grid,
+  IconButton,
   InputLabel,
+  Menu,
+  MenuItem,
   NativeSelect,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   ToggleButton,
+  Tooltip,
   Typography,
 } from '@mui/material'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
@@ -21,15 +26,20 @@ import SensorsIcon from '@mui/icons-material/Sensors'
 import RssFeedIcon from '@mui/icons-material/RssFeed'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import MoreVertIcon from '@mui/icons-material/MoreVert'
+import FolderIcon from '@mui/icons-material/Folder'
+import CloseIcon from '@mui/icons-material/Close'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
-import { ConfigService, VideoService } from '../services'
+import { ConfigService, VideoService, GameService } from '../services'
 import LightTooltip from '../components/misc/LightTooltip'
+import GameSearch from '../components/game/GameSearch'
 
 import _ from 'lodash'
 import WarningService from "../services/WarningService";
+import adminSSE from '../services/AdminSSE'
 
 const isValidDiscordWebhook = (url) => {
   const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/;
@@ -43,39 +53,37 @@ const Settings = ({ authenticated }) => {
   const [updateable, setUpdateable] = React.useState(false)
   const [discordUrl, setDiscordUrl] = React.useState('')
   const [showSteamGridKey, setShowSteamGridKey] = React.useState(false)
+  const [activeTab, setActiveTab] = React.useState(0)
   const [transcodingStatus, setTranscodingStatus] = React.useState({
     enabled: false,
     gpu_enabled: false,
     is_running: false,
   })
+  const [folderRules, setFolderRules] = React.useState([])
+  const [deleteMenuAnchor, setDeleteMenuAnchor] = React.useState(null)
+  const [deleteMenuRuleId, setDeleteMenuRuleId] = React.useState(null)
+  const [editingFolder, setEditingFolder] = React.useState(null)
   const isDiscordUsed = discordUrl.trim() !== ''
-
-  const fetchRunningStatus = async () => {
-    try {
-      const status = (await ConfigService.getTranscodingStatus()).data
-      setTranscodingStatus((prev) => ({ ...prev, is_running: status.is_running }))
-    } catch (err) {
-      console.error('Failed to fetch transcoding status:', err)
-    }
-  }
 
   React.useEffect(() => {
     async function fetch() {
       try {
-        const conf = (await ConfigService.getAdminConfig()).data
-        setConfig(conf)
-        setUpdatedConfig(conf)
+        // Fetch folder rules in parallel with config
+        const [conf, rulesRes] = await Promise.all([
+          ConfigService.getAdminConfig(),
+          GameService.getFolderRules(),
+        ])
+        setConfig(conf.data)
+        setUpdatedConfig(conf.data)
+        setFolderRules(rulesRes.data)
         // Set transcoding enabled/gpu from config (only changes on container restart)
-        if (conf.transcoding_status) {
+        if (conf.data.transcoding_status) {
           setTranscodingStatus((prev) => ({
             ...prev,
-            enabled: conf.transcoding_status.enabled,
-            gpu_enabled: conf.transcoding_status.gpu_enabled,
+            enabled: conf.data.transcoding_status.enabled,
+            gpu_enabled: conf.data.transcoding_status.gpu_enabled,
           }))
-          // Only check is_running if transcoding is enabled
-          if (conf.transcoding_status.enabled) {
-            await fetchRunningStatus()
-          }
+          // SSE will provide real-time is_running updates
         }
         await checkForWarnings()
       } catch (err) {
@@ -91,16 +99,13 @@ const Settings = ({ authenticated }) => {
     }
   }, [updatedConfig, config])
 
-  // Poll for is_running status while transcoding is active
+  // Subscribe to SSE for real-time transcoding status
   React.useEffect(() => {
-    if (!transcodingStatus.enabled || !transcodingStatus.is_running) return
-
-    const interval = setInterval(() => {
-      fetchRunningStatus()
-    }, 3000)
-
-    return () => clearInterval(interval)
-  }, [transcodingStatus.enabled, transcodingStatus.is_running])
+    if (!transcodingStatus.enabled) return
+    return adminSSE.subscribeTranscoding((data) => {
+      setTranscodingStatus((prev) => ({ ...prev, is_running: data.is_running }))
+    })
+  }, [transcodingStatus.enabled])
 
   React.useEffect(() => {
     if (updatedConfig.integrations?.discord_webhook_url) {
@@ -131,18 +136,20 @@ const Settings = ({ authenticated }) => {
   }
 
   const handleScan = async () => {
-    VideoService.scan().catch((err) =>
+    try {
+      await VideoService.scan()
+      setAlert({
+        open: true,
+        type: 'info',
+        message: 'Scan initiated. This could take a few minutes.',
+      })
+    } catch (err) {
       setAlert({
         open: true,
         type: 'error',
         message: err.response?.data || 'Unknown Error',
-      }),
-    )
-    setAlert({
-      open: true,
-      type: 'info',
-      message: 'Scan initiated. This could take a few minutes.',
-    })
+      })
+    }
   }
 
   const handleScanGames = async () => {
@@ -188,6 +195,50 @@ const Settings = ({ authenticated }) => {
     }
   }
 
+  const handleDeleteFolderRule = async (unlinkVideos = false) => {
+    const ruleId = deleteMenuRuleId
+    setDeleteMenuAnchor(null)
+    setDeleteMenuRuleId(null)
+    if (!ruleId) return
+
+    try {
+      await GameService.deleteFolderRule(ruleId, unlinkVideos)
+      const rulesRes = await GameService.getFolderRules()
+      setFolderRules(rulesRes.data)
+      setAlert({
+        open: true,
+        type: 'success',
+        message: unlinkVideos ? 'Folder rule deleted and videos unlinked' : 'Folder rule deleted',
+      })
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to delete folder rule',
+      })
+    }
+  }
+
+  const handleUpdateFolderRule = async (folderPath, game) => {
+    try {
+      await GameService.createFolderRule(folderPath, game.id)
+      const rulesRes = await GameService.getFolderRules()
+      setFolderRules(rulesRes.data)
+      setEditingFolder(null)
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Updated: ${folderPath} → ${game.name}`,
+      })
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to update folder rule',
+      })
+    }
+  }
+
   const checkForWarnings = async () => {
     let warnings = await WarningService.getAdminWarnings()
 
@@ -207,8 +258,11 @@ const Settings = ({ authenticated }) => {
                 href="#steamgrid-settings"
                 onClick={(e) => {
                   e.preventDefault();
-                  document.getElementById('steamgrid-api-key-field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  document.getElementById('steamgrid-api-key-field')?.focus();
+                  setActiveTab(3);
+                  setTimeout(() => {
+                    document.getElementById('steamgrid-api-key-field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById('steamgrid-api-key-field')?.focus();
+                  }, 100);
                 }}
                 style={{ color: '#2684FF', textDecoration: 'underline', cursor: 'pointer', marginLeft: '4px' }}
               >
@@ -233,33 +287,52 @@ const Settings = ({ authenticated }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Box sx={{ height: '100%' }}>
-        <Grid container item justifyContent="center" spacing={2}>
-          <Grid item xs={12}>
-            <Grid container sx={{ pr: 2, pl: 2 }}>
-              <Grid item xs sx={{ display: { xs: 'flex', sm: 'none' } }}></Grid>
-            </Grid>
-          </Grid>
-          <Grid item>
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent: 'flex-start',
-                maxWidth: {
-                  xs: 400,
-                  sm: 500,
-                },
-                p: 4,
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.1)',
-              }}
-            >
-              <Stack spacing={2}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
-                    Privacy & Upload
-                  </Typography>
-                </Box>
+      <Box sx={{ display: 'flex', height: 'calc(100vh - 112px)' }}>
+        {/* Vertical Tabs */}
+        <Tabs
+          orientation="vertical"
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{
+            borderRight: 1,
+            borderColor: 'divider',
+            minWidth: 160,
+            flexShrink: 0,
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 600,
+              alignItems: 'flex-start',
+              textAlign: 'left',
+            },
+          }}
+        >
+          <Tab label="Privacy & Upload" />
+          <Tab label="Video" />
+          <Tab label="Sidebar" />
+          <Tab label="Integrations" />
+          <Tab label="Transcoding" />
+          <Tab label="Feeds" />
+          <Tab label="Folders" />
+          <Tab label="Actions" />
+        </Tabs>
+
+        {/* Tab Content Panel */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            px: 4,
+            py: 2,
+            minHeight: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Scrollable content area */}
+          <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            {/* Privacy & Upload */}
+            {activeTab === 0 && (
+              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Box>
                   <LightTooltip
                     title={updatedConfig.app_config?.video_defaults?.private ? 'Private' : 'Public'}
@@ -368,12 +441,12 @@ const Settings = ({ authenticated }) => {
                     }))
                   }
                 />
-                <Divider></Divider>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
-                    Video
-                  </Typography>
-                </Box>
+              </Stack>
+            )}
+
+            {/* Video */}
+            {activeTab === 1 && (
+              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -408,12 +481,12 @@ const Settings = ({ authenticated }) => {
                   }
                   label="Group Videos by Date"
                 />
-                <Divider />
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
-                    Sidebar
-                  </Typography>
-                </Box>
+              </Stack>
+            )}
+
+            {/* Sidebar */}
+            {activeTab === 2 && (
+              <Stack spacing={2} sx={{ maxWidth: 500 }}>
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -456,12 +529,12 @@ const Settings = ({ authenticated }) => {
                   }
                   label="Games"
                 />
-                <Divider />
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
-                    Integrations
-                  </Typography>
-                </Box>
+              </Stack>
+            )}
+
+            {/* Integrations */}
+            {activeTab === 3 && (
+              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <TextField
                   size="small"
                   label="Discord Webhook URL"
@@ -523,25 +596,25 @@ const Settings = ({ authenticated }) => {
                     ),
                   }}
                 />
-                <Divider />
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
-                    Transcoding
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Transcoding can convert your videos to multiple quality levels for smoother streaming on slower connections.
-                  </Typography>
-                </Box>
+              </Stack>
+            )}
+
+            {/* Transcoding */}
+            {activeTab === 4 && (
+              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Transcoding will convert your videos to multiple quality levels to allow for additional quality selection options when streaming from Fireshare.
+                </Typography>
                 {!transcodingStatus.enabled ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <Chip
-                      label="Disabled"
-                      color="error"
-                      size="small"
-                    />
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                      Set ENABLE_TRANSCODING=true in your docker container to enable.
-                    </Typography>
+                    <Tooltip title="Set ENABLE_TRANSCODING=true in your docker container to enable.">
+                      <Chip
+                        label="Disabled"
+                        color="error"
+                        size="small"
+                        sx={{ cursor: 'default'}}
+                      />
+                    </Tooltip>
                   </Box>
                 ) : (
                   <>
@@ -572,7 +645,7 @@ const Settings = ({ authenticated }) => {
                           }))
                         }
                       >
-                        <option value="auto">Autodetect</option>
+                        <option value="auto">Auto</option>
                         <option value="h264">H.264</option>
                         <option value="av1">AV1</option>
                       </NativeSelect>
@@ -648,8 +721,6 @@ const Settings = ({ authenticated }) => {
                           onClick={async () => {
                             try {
                               await ConfigService.startTranscoding()
-                              window.dispatchEvent(new Event('transcodingStarted'))
-                              fetchRunningStatus()
                             } catch (err) {
                               setAlert({ open: true, message: err.response?.data || 'Failed to start', type: 'error' })
                             }
@@ -667,7 +738,6 @@ const Settings = ({ authenticated }) => {
                             try {
                               await ConfigService.cancelTranscoding()
                               window.dispatchEvent(new Event('transcodingCancelled'))
-                              fetchRunningStatus()
                             } catch (err) {
                               setAlert({ open: true, message: err.response?.data || 'Failed to cancel', type: 'error' })
                             }
@@ -680,12 +750,12 @@ const Settings = ({ authenticated }) => {
                     </Box>
                   </>
                 )}
-                <Divider />
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
-                    Feeds
-                  </Typography>
-                </Box>
+              </Stack>
+            )}
+
+            {/* Feeds */}
+            {activeTab === 5 && (
+              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <TextField
                   size="small"
                   label="RSS Feed Title"
@@ -719,33 +789,171 @@ const Settings = ({ authenticated }) => {
                 >
                   Copy RSS Feed URL
                 </Button>
-                <Divider />
-                <Button
-                  variant="contained"
-                  startIcon={<SaveIcon />}
-                  disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed)}
-                  onClick={handleSave}
+              </Stack>
+            )}
+
+            {/* Folders */}
+            {activeTab === 6 && (
+              <Stack spacing={2} sx={{ maxWidth: 500 }}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
+                    Folder Rules
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Clips in these folders will be linked to the selected game. Modify these if your setup is not detected automatically.
+                  </Typography>
+                </Box>
+                {folderRules.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                    No folders found.
+                  </Typography>
+                ) : (
+                  <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
+                    <Stack spacing={1}>
+                      {folderRules.map((item) => (
+                        <Box
+                          key={item.folder_path}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1.5,
+                            borderRadius: 2,
+                            background: 'rgba(255, 255, 255, 0.05)',
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+                            <FolderIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {item.folder_path}
+                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                                  ({item.video_count} videos)
+                                </Typography>
+                              </Typography>
+                              {editingFolder === item.folder_path ? (
+                                <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Box sx={{ flex: 1 }}>
+                                    <GameSearch
+                                      placeholder="Search for a game..."
+                                      onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
+                                      onError={() => setAlert({ open: true, type: 'error', message: 'Failed to search games' })}
+                                    />
+                                  </Box>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => setEditingFolder(null)}
+                                    sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                                  >
+                                    <CloseIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+                              ) : item.rule ? (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'primary.main',
+                                    cursor: 'pointer',
+                                    '&:hover': { textDecoration: 'underline' },
+                                  }}
+                                  onClick={() => setEditingFolder(item.folder_path)}
+                                >
+                                  → {item.rule.game?.name || 'Unknown game'}
+                                </Typography>
+                              ) : item.suggested_game ? (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'warning.main',
+                                    cursor: 'pointer',
+                                    '&:hover': { textDecoration: 'underline' },
+                                  }}
+                                  onClick={() => handleUpdateFolderRule(item.folder_path, item.suggested_game)}
+                                >
+                                  Suggested: {item.suggested_game.name} (click to apply)
+                                </Typography>
+                              ) : (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'text.secondary',
+                                    cursor: 'pointer',
+                                    '&:hover': { textDecoration: 'underline' },
+                                  }}
+                                  onClick={() => setEditingFolder(item.folder_path)}
+                                >
+                                  No game linked - click to add
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                          {item.rule && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                setDeleteMenuAnchor(e.currentTarget)
+                                setDeleteMenuRuleId(item.rule.id)
+                              }}
+                              sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                        </Box>
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+                <Menu
+                  anchorEl={deleteMenuAnchor}
+                  open={Boolean(deleteMenuAnchor)}
+                  onClose={() => {
+                    setDeleteMenuAnchor(null)
+                    setDeleteMenuRuleId(null)
+                  }}
                 >
-                  Save Changes
+                  <MenuItem onClick={() => handleDeleteFolderRule(false)}>
+                    Delete rule only
+                  </MenuItem>
+                  <MenuItem onClick={() => handleDeleteFolderRule(true)}>
+                    Delete rule & unlink videos
+                  </MenuItem>
+                </Menu>
+              </Stack>
+            )}
+
+            {/* Actions */}
+            {activeTab === 7 && (
+              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                <Button variant="contained" startIcon={<SensorsIcon />} onClick={handleScan} size='large' sx={{ width: 400}}>
+                  Scan for New Videos
+                </Button>
+                <Button variant="contained" startIcon={<SportsEsportsIcon />} onClick={handleScanGames} size='large' sx={{ width: 400}}>
+                  Scan for Missing Games
+                </Button>
+                <Button variant="contained" startIcon={<CalendarMonthIcon />} onClick={handleScanDates} size='large' sx={{ width: 400}}>
+                  Scan for Missing Dates
                 </Button>
               </Stack>
+            )}
+          </Box>
+
+          {/* Save button pinned to bottom */}
+          {activeTab !== 6 && activeTab !== 7 && (
+            <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
+              <Divider sx={{ mb: 2 }} />
+              <Button
+                variant="contained"
+                startIcon={<SaveIcon />}
+                disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed)}
+                onClick={handleSave}
+                fullWidth
+              >
+                Save Changes
+              </Button>
             </Box>
-          </Grid>
-          <Grid item xs={12}>
-            <Divider sx={{ mb: 2 }} light />
-            <Box sx={{ display: 'flex', width: '100%', pr: 2, gap: 2 }} justifyContent="flex-start">
-              <Button variant="contained" startIcon={<SensorsIcon />} onClick={handleScan}>
-                Scan Library
-              </Button>
-              <Button variant="contained" startIcon={<SportsEsportsIcon />} onClick={handleScanGames}>
-                Start Manual Scan for Missing Games
-              </Button>
-              <Button variant="contained" startIcon={<CalendarMonthIcon />} onClick={handleScanDates}>
-                Scan for Missing Dates
-              </Button>
-            </Box>
-          </Grid>
-        </Grid>
+          )}
+        </Box>
       </Box>
     </>
   )

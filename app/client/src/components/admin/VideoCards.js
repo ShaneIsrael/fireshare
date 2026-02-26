@@ -5,7 +5,6 @@ import VisibilityCard from './VisibilityCard'
 import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
-import UploadCard from './UploadCard'
 import { formatDate } from '../../common/utils'
 
 const getDateKey = (video) => {
@@ -18,8 +17,6 @@ const VideoCards = ({
   videos,
   loadingIcon = null,
   feedView = false,
-  showUploadCard = false,
-  fetchVideos,
   authenticated,
   size,
   editMode = false,
@@ -121,17 +118,6 @@ const VideoCards = ({
         )}
         {loadingIcon}
       </Grid>
-      {!loadingIcon && (
-        <Grid container justifyContent="center">
-          <UploadCard
-            authenticated={authenticated}
-            feedView={feedView}
-            cardWidth={250}
-            handleAlert={memoizedHandleAlert}
-            publicUpload={feedView}
-          />
-        </Grid>
-      )}
     </Paper>
   )
 
@@ -156,18 +142,7 @@ const VideoCards = ({
 
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
-        <Grid container justifyContent="flex-start">
-          {showUploadCard && (
-            <UploadCard
-              authenticated={authenticated}
-              feedView={feedView}
-              cardWidth={size}
-              handleAlert={memoizedHandleAlert}
-              fetchVideos={fetchVideos}
-              publicUpload={feedView}
-              reserveDateSpace={showDateHeaders}
-            />
-          )}
+        <Grid container justifyContent="center">
           {(() => {
             // Pre-compute counts per date
             const dateCounts = {}
@@ -175,7 +150,6 @@ const VideoCards = ({
               const key = getDateKey(video)
               dateCounts[key] = (dateCounts[key] || 0) + 1
             })
-            const firstDateKey = vids.length > 0 ? getDateKey(vids[0]) : null
 
             return vids.map((v, index) => {
               const currentDateKey = getDateKey(v)
@@ -185,15 +159,13 @@ const VideoCards = ({
               const isLastOfDate = currentDateKey !== nextDateKey
               const formattedDate = currentDateKey !== 'unknown' ? formatDate(currentDateKey) : 'Unknown Date'
               const hasManyclips = dateCounts[currentDateKey] >= 6
-              // When upload card is shown, first date group uses inline labels to flow with it
-              const isFirstDateGroup = showUploadCard && currentDateKey === firstDateKey
               // Insert flex break after a large date group ends to keep it isolated
               // (applies even to first date group - it flows with upload card but still needs isolation from next date)
               const needsBreakAfter = showDateHeaders && isLastOfDate && hasManyclips && nextDateKey !== null
 
               return (
                 <React.Fragment key={v.path + v.video_id}>
-                  {isNewDate && hasManyclips && !isFirstDateGroup && (
+                  {isNewDate && hasManyclips && (
                     <Box
                       sx={{
                         width: '100%',
@@ -219,8 +191,8 @@ const VideoCards = ({
                     editMode={editMode}
                     isSelected={selectedVideos.has(v.video_id)}
                     onSelect={onVideoSelect}
-                    dateLabel={isNewDate && (!hasManyclips || isFirstDateGroup) ? formattedDate : null}
-                    reserveDateSpace={showDateHeaders && (!hasManyclips || isFirstDateGroup)}
+                    dateLabel={isNewDate && !hasManyclips ? formattedDate : null}
+                    reserveDateSpace={showDateHeaders && !hasManyclips}
                   />
                   {needsBreakAfter && (
                     <Box sx={{ flexBasis: '100%', height: 0 }} />

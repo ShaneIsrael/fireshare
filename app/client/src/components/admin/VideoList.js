@@ -5,7 +5,6 @@ import VideoModal from '../modal/VideoModal'
 import VideoListItem from './VideoListItem'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
-import UploadCard from './UploadCard'
 
 const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated }) => {
   const [vids, setVideos] = React.useState(videos)
@@ -23,16 +22,16 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
     previousVideosRef.current = videos
   })
 
+  const memoizedHandleAlert = React.useCallback((alert) => {
+    setAlert(alert)
+  }, [])
+
   const openVideo = (id) => {
     setVideoModal({
       open: true,
       id,
     })
   }
-
-  const memoizedHandleAlert = useCallback((alert) => {
-    setAlert(alert)
-  }, [])
 
   const handleScan = () => {
     VideoService.scan().catch((err) =>
@@ -98,17 +97,6 @@ const VideoList = ({ videos, loadingIcon = null, feedView = false, authenticated
         )}
         {loadingIcon}
       </Grid>
-      {!loadingIcon && (
-        <Grid container justifyContent="center">
-          <UploadCard
-            authenticated={authenticated}
-            feedView={feedView}
-            cardWidth={250}
-            handleAlert={memoizedHandleAlert}
-            publicUpload={feedView}
-          />
-        </Grid>
-      )}
     </Paper>
   )
 

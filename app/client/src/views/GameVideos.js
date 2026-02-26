@@ -28,12 +28,9 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
   }
 
   React.useEffect(() => {
-    Promise.all([
-      GameService.getGames(),
-      GameService.getGameVideos(gameId)
-    ])
+    Promise.all([GameService.getGames(), GameService.getGameVideos(gameId)])
       .then(([gamesRes, videosRes]) => {
-        const foundGame = gamesRes.data.find(g => g.steamgriddb_id === parseInt(gameId))
+        const foundGame = gamesRes.data.find((g) => g.steamgriddb_id === parseInt(gameId))
         setGame(foundGame)
         const fetchedVideos = videosRes.data || []
         setVideos(fetchedVideos)
@@ -49,12 +46,6 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
   React.useEffect(() => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
-
-  function fetchVideos() {
-    GameService.getGameVideos(gameId)
-      .then((res) => setVideos(res.data || []))
-      .catch((err) => console.error(err))
-  }
 
   // Check if date grouping should be shown
   const showDateGroups = getSetting('ui_config')?.show_date_groups !== false
@@ -76,37 +67,33 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     })
   }, [filteredVideos, sortOrder])
 
-
   if (loading) return <LoadingSpinner />
 
   return (
     <Box>
-      {toolbarTarget && ReactDOM.createPortal(
-        <Box sx={{ minWidth: 200 }}>
-          <Select
-            value={sortOrder}
-            options={SORT_OPTIONS}
-            onChange={setSortOrder}
-            styles={selectSortTheme}
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
-            blurInputOnSelect
-            isSearchable={false}
-          />
-        </Box>,
-        toolbarTarget,
-      )}
-      <GameVideosHeader
-        game={game}
-      />
+      {toolbarTarget &&
+        ReactDOM.createPortal(
+          <Box sx={{ minWidth: 200 }}>
+            <Select
+              value={sortOrder}
+              options={SORT_OPTIONS}
+              onChange={setSortOrder}
+              styles={selectSortTheme}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              blurInputOnSelect
+              isSearchable={false}
+            />
+          </Box>,
+          toolbarTarget,
+        )}
+      <GameVideosHeader game={game} />
       <Box sx={{ p: 3 }}>
-
         <VideoCards
           videos={sortedVideos}
           authenticated={authenticated}
           size={cardSize}
           feedView={false}
-          fetchVideos={fetchVideos}
           showDateHeaders={!skipDateGrouping}
         />
       </Box>

@@ -2,6 +2,7 @@ import React from 'react'
 import { Box, Grid, Paper, Stack, Typography } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
+import { motion } from 'framer-motion'
 import { VideoService } from '../../services'
 import { getSetting } from '../../common/utils'
 
@@ -11,37 +12,45 @@ const Input = styled('input')({
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fetchVideos, cardWidth, handleAlert, reserveDateSpace = false }) => {
-  const cardHeight = cardWidth / 1.77 + 32
+const UploadCard = ({ authenticated, handleAlert, mini}) => {
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
   const [uploadRate, setUploadRate] = React.useState()
-  const app_config = getSetting('app_config')
   const uiConfig = getSetting('ui_config')
+  const lastProgressUpdate = React.useRef(0)
 
   const changeHandler = (event) => {
     setProgress(0)
+    lastProgressUpdate.current = 0
     setSelectedFile(event.target.files[0])
     setIsSelected(true)
   }
 
   const uploadProgress = (progress, rate) => {
     if (progress <= 1 && progress >= 0) {
-      setProgress(progress)
-      setUploadRate((prev) => ({ ...rate }))
+      const now = Date.now()
+      if (progress === 1 || now - lastProgressUpdate.current >= 1000) {
+        lastProgressUpdate.current = now
+        setProgress(progress)
+        setUploadRate(() => ({ ...rate }))
+      }
     }
   }
 
   const uploadProgressChunked = (progress, progressTotal, rate) => {
+    const now = Date.now()
+    const stale = now - lastProgressUpdate.current >= 1000
     if (progressTotal <= 1 && progressTotal >= 0) {
-      setProgress(progressTotal);
-      setUploadRate((prev) => ({ ...rate }))
-    } else {
-      if (progress <= 1 && progress >= 0) {
-        setProgress(progress)
-        setUploadRate((prev) => ({ ...rate }))
+      if (progressTotal === 1 || stale) {
+        lastProgressUpdate.current = now
+        setProgress(progressTotal)
+        setUploadRate(() => ({ ...rate }))
       }
+    } else if (progress <= 1 && progress >= 0 && (progress === 1 || stale)) {
+      lastProgressUpdate.current = now
+      setProgress(progress)
+      setUploadRate(() => ({ ...rate }))
     }
   }
 
@@ -69,20 +78,18 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
       const formData = new FormData()
       formData.append('file', selectedFile)
       try {
-        if (publicUpload) {
-          await VideoService.publicUpload(formData, uploadProgress)
-        }
-        if (!publicUpload && authenticated) {
+        if (authenticated) {
           await VideoService.upload(formData, uploadProgress)
+        } else {
+          await VideoService.publicUpload(formData, uploadProgress)
         }
         handleAlert({
           type: 'success',
           message: 'Your upload will be available in a few seconds.',
           autohideDuration: 3500,
           open: true,
-          onClose: () => fetchVideos(),
+          // onClose: () => fetchVideos(),
         })
-        setTimeout(() => window.dispatchEvent(new Event('transcodingStarted')), 5000)
       } catch (err) {
         handleAlert({
           type: 'error',
@@ -120,11 +127,8 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
           formData.append('lastModified', selectedFile.lastModified.toString());
           formData.append('fileType', selectedFile.type);
 
-          if (publicUpload) {
-            await VideoService.publicUploadChunked(formData, uploadProgressChunked, selectedFile.size, start);
-          } else if (!publicUpload && authenticated) {
-            await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start);
-          }
+          authenticated ? await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start) 
+            : await VideoService.publicUploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
         }
 
         handleAlert({
@@ -132,9 +136,8 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
           message: 'Your upload will be available in a few seconds.',
           autohideDuration: 3500,
           open: true,
-          onClose: () => fetchVideos(),
+          // onClose: () => fetchVideos(),
         });
-        setTimeout(() => window.dispatchEvent(new Event('transcodingStarted')), 5000)
       } catch (err) {
         handleAlert({
           type: 'error',
@@ -157,21 +160,18 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
     // eslint-disable-next-line
   }, [selectedFile])
 
-  if (feedView && !uiConfig?.allow_public_upload) return null
-  if (!feedView && !uiConfig?.show_admin_upload) return null
+  if (!authenticated && !uiConfig?.allow_public_upload) return null
+  if (authenticated && !uiConfig?.show_admin_upload) return null
 
   return (
-    <Grid item sx={{ ml: 0.75, mr: 0.75, mb: 3 }}>
-      {reserveDateSpace && (
-        <Box sx={{ height: 20, mb: 1 }} />
-      )}
+    <Grid item sx={{ mx: 1, mt: 2 }}>
       <label htmlFor="icon-button-file">
         {/* Add onDrop and onDragOver handlers */}
         <Paper
           sx={{
             position: 'relative',
-            width: cardWidth,
-            height: cardHeight,
+            width: '100%',
+            height: '64px',
             cursor: 'pointer',
             background: 'rgba(0,0,0,0)',
             overflow: 'hidden',
@@ -180,8 +180,8 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
           onDrop={dropHandler}
           onDragOver={dragOverHandler}
         >
-          <Box sx={{ display: 'flex', p: 2, height: '100%' }} justifyContent="center" alignItems="center">
-            <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center">
+          <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
+            <Stack sx={{ zIndex: 0 }} alignItems="center" justifyContent="center">
               {!isSelected && (
                 <Input
                   id="icon-button-file"
@@ -191,20 +191,27 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
                   onChange={changeHandler}
                 />
               )}
-              <CloudUploadIcon sx={{ fontSize: 75 }} />
+              {progress === 0 && !mini && <CloudUploadIcon sx={{ fontSize: 32 }} />}
+              {progress === 0 && mini && progress === 0 && <CloudUploadIcon sx={{ fontSize: 20 }} />}
               {progress !== 0 && progress !== 1 && (
                 <>
-                  <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
-                    Uploading... {(100 * progress).toFixed(0)}%
-                  </Typography>
-                  <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
-                    {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
-                    {numberFormat.format(uploadRate.total.toFixed(0))} MB's
-                  </Typography>
+                  {!mini ?
+                    <> 
+                      <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                        Uploading... {(100 * progress).toFixed(0)}%
+                      </Typography>
+                      <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                        {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
+                        {numberFormat.format(uploadRate.total.toFixed(0))} MB's
+                      </Typography>
+                    </> : <Typography component="div" variant="overline" align="center" justifyItems="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                        {(100 * progress).toFixed(0)}%
+                    </Typography>
+                  }
                 </>
               )}
-              {progress === 1 && (
-                <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 16 }}>
+              {progress === 1 && !mini && (
+                <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
                   Processing...
                   <Typography
                     component="span"
@@ -217,15 +224,23 @@ const UploadCard = ({ authenticated, feedView = false, publicUpload = false, fet
                   </Typography>
                 </Typography>
               )}
+              {progress === 1 && mini && (
+                <Typography component="div" variant="overline" align="center" justifyItems="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                  100%
+                </Typography>
+              )}
             </Stack>
           </Box>
-          <Box
-            sx={{
+          <motion.div
+            animate={{
+              height: mini ? `${progress * 100}%` : '100%',
+              width: mini ? '100%' : `${progress * 100}%`,
+            }}
+            transition={progress === 0 ? { duration: 0 } : { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+            style={{
               position: 'absolute',
               bottom: 0,
               zIndex: -1,
-              height: cardHeight,
-              width: cardWidth * progress,
               backgroundImage: 'linear-gradient(90deg, #BC00E6DF, #FF3729D9)',
               borderRadius: '10px',
             }}

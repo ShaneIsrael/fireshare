@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactDOM from 'react-dom'
 import {
   Box,
   Grid,
@@ -6,11 +7,14 @@ import {
   IconButton,
   Checkbox,
   Button,
+  ButtonGroup,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   FormControlLabel,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -28,14 +32,15 @@ const Games = ({ authenticated, searchText }) => {
   const [selectedGames, setSelectedGames] = React.useState(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [deleteAssociatedVideos, setDeleteAssociatedVideos] = React.useState(false)
+  const [toolbarTarget, setToolbarTarget] = React.useState(null)
   const navigate = useNavigate()
+  const theme = useTheme()
+  const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
 
   // Filter games based on search text
   const filteredGames = React.useMemo(() => {
     if (!searchText) return games
-    return games.filter((game) =>
-      (game.name || '').toLowerCase().includes(searchText.toLowerCase())
-    )
+    return games.filter((game) => (game.name || '').toLowerCase().includes(searchText.toLowerCase()))
   }, [games, searchText])
 
   React.useEffect(() => {
@@ -49,6 +54,18 @@ const Games = ({ authenticated, searchText }) => {
         setLoading(false)
       })
   }, [])
+
+  React.useEffect(() => {
+    setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
+  }, [])
+
+  // Hide search bar when in edit mode on md and smaller
+  React.useEffect(() => {
+    const searchContainer = document.getElementById('navbar-search-container')
+    if (searchContainer) {
+      searchContainer.style.display = editMode && isMdDown ? 'none' : ''
+    }
+  }, [editMode, isMdDown])
 
   const handleMouseMove = (e, gameId) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -97,7 +114,7 @@ const Games = ({ authenticated, searchText }) => {
   const handleDeleteConfirm = async () => {
     try {
       const deletePromises = Array.from(selectedGames).map((gameId) =>
-        GameService.deleteGame(gameId, deleteAssociatedVideos)
+        GameService.deleteGame(gameId, deleteAssociatedVideos),
       )
       await Promise.all(deletePromises)
 
@@ -132,150 +149,152 @@ const Games = ({ authenticated, searchText }) => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Edit button and Delete button */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 2, alignItems: 'flex-start' }}>
-        {editMode && (
-          <Box sx={{ display: 'flex' }}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSelectAllToggle}
-              sx={{
-                borderRadius: '8px 0 0 8px',
-              }}
-            >
-              {allSelected ? 'Select None' : 'Select All'}
-            </Button>
-            <Button
-              variant="contained"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={handleDeleteClick}
-              disabled={selectedGames.size === 0}
-              sx={{
-                borderRadius: '0 8px 8px 0',
-              }}
-            >
-              Delete {selectedGames.size > 0 && `(${selectedGames.size})`}
-            </Button>
-          </Box>
+      {toolbarTarget &&
+        ReactDOM.createPortal(
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {authenticated && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {editMode && (
+                  <ButtonGroup
+                    variant="contained"
+                    sx={{
+                      height: 38,
+                      minWidth: 'fit-content',
+                    }}
+                  >
+                    <Button color="primary" onClick={handleSelectAllToggle}>
+                      {allSelected ? 'Select None' : 'Select All'}
+                    </Button>
+                    <Button
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={handleDeleteClick}
+                      disabled={selectedGames.size === 0}
+                    >
+                      Delete {selectedGames.size > 0 && !isMdDown && `(${selectedGames.size})`}
+                    </Button>
+                  </ButtonGroup>
+                )}
+                <IconButton
+                  onClick={handleEditModeToggle}
+                  sx={{
+                    bgcolor: editMode ? 'primary.main' : '#001E3C',
+                    borderRadius: '8px',
+                    height: '38px',
+                    border: !editMode ? '1px solid #2684FF' : 'none',
+                    '&:hover': {
+                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                    },
+                  }}
+                >
+                  {editMode ? <CheckIcon /> : <EditIcon />}
+                </IconButton>
+              </Box>
+            )}
+          </Box>,
+          toolbarTarget,
         )}
-        {authenticated && (
-          <IconButton
-            onClick={handleEditModeToggle}
-            sx={{
-              bgcolor: editMode ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '8px',
-              width: '40px',
-              height: '40px',
-              '&:hover': {
-                bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
-              },
-            }}
-          >
-            {editMode ? <CheckIcon /> : <EditIcon />}
-          </IconButton>
-        )}
-      </Box>
 
       <Grid container spacing={2}>
         {[...filteredGames]
           .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
           .map((game) => {
-          const isHovered = hoveredGame === game.steamgriddb_id
-          const heroTransform = isHovered
-            ? `translate(${mousePos.x * -15}px, ${mousePos.y * -15}px) scale(1.1)`
-            : 'translate(0, 0) scale(1)'
-          const logoTransform = isHovered
-            ? `translate(calc(-50% + ${mousePos.x * 8}px), calc(-50% + ${mousePos.y * 8}px)) scale(1.05)`
-            : 'translate(-50%, -50%) scale(1)'
+            const isHovered = hoveredGame === game.steamgriddb_id
+            const heroTransform = isHovered
+              ? `translate(${mousePos.x * -15}px, ${mousePos.y * -15}px) scale(1.1)`
+              : 'translate(0, 0) scale(1)'
+            const logoTransform = isHovered
+              ? `translate(calc(-50% + ${mousePos.x * 8}px), calc(-50% + ${mousePos.y * 8}px)) scale(1.05)`
+              : 'translate(-50%, -50%) scale(1)'
 
-          const isSelected = selectedGames.has(game.steamgriddb_id)
+            const isSelected = selectedGames.has(game.steamgriddb_id)
 
-          return (
-            <Grid item xs={12} sm={6} md={4} key={game.id}>
-              <Box
-                onClick={() => handleGameClick(game.steamgriddb_id)}
-                onMouseMove={(e) => handleMouseMove(e, game.steamgriddb_id)}
-                onMouseLeave={handleMouseLeave}
-                sx={{
-                  position: 'relative',
-                  height: 170,
-                  borderRadius: 2,
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  transition: 'box-shadow 0.3s ease, border 0.3s ease',
-                  border: isSelected ? '3px solid' : '3px solid transparent',
-                  borderColor: isSelected ? 'primary.main' : 'transparent',
-                  '&:hover': {
-                    boxShadow: '0 0 20px rgba(255, 255, 255, 0.5)',
-                  },
-                }}
-              >
-                {/* Checkbox for edit mode */}
-                {editMode && (
-                  <Checkbox
-                    checked={isSelected}
-                    onChange={(e) => {
-                      e.stopPropagation()
-                      handleGameSelect(game.steamgriddb_id)
-                    }}
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      left: 8,
-                      zIndex: 2,
-                      color: 'white',
-                      bgcolor: 'rgba(0, 0, 0, 0.5)',
-                      borderRadius: '4px',
-                      '&.Mui-checked': {
-                        color: 'primary.main',
-                      },
-                    }}
-                  />
-                )}
+            return (
+              <Grid item xs={12} sm={6} md={4} key={game.id}>
+                <Box
+                  onClick={() => handleGameClick(game.steamgriddb_id)}
+                  onMouseMove={(e) => handleMouseMove(e, game.steamgriddb_id)}
+                  onMouseLeave={handleMouseLeave}
+                  sx={{
+                    position: 'relative',
+                    height: 170,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    transition: 'box-shadow 0.3s ease, border 0.3s ease',
+                    border: isSelected ? '3px solid' : '3px solid transparent',
+                    borderColor: isSelected ? 'primary.main' : 'transparent',
+                    '&:hover': {
+                      boxShadow: '0 0 20px rgba(255, 255, 255, 0.5)',
+                    },
+                  }}
+                >
+                  {/* Checkbox for edit mode */}
+                  {editMode && (
+                    <Checkbox
+                      checked={isSelected}
+                      onChange={(e) => {
+                        e.stopPropagation()
+                        handleGameSelect(game.steamgriddb_id)
+                      }}
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        left: 8,
+                        zIndex: 2,
+                        color: 'white',
+                        bgcolor: 'rgba(0, 0, 0, 0.5)',
+                        borderRadius: '4px',
+                        '&.Mui-checked': {
+                          color: 'primary.main',
+                        },
+                      }}
+                    />
+                  )}
 
-                {game.hero_url && (
-                  <Box
-                    component="img"
-                    src={game.hero_url}
-                    sx={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      position: 'absolute',
-                      transform: heroTransform,
-                      transition: 'transform 0.2s ease-out',
-                      filter: 'brightness(0.7)',
-                    }}
-                  />
-                )}
-                {game.logo_url && (
-                  <Box
-                    component="img"
-                    src={game.logo_url}
-                    sx={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: logoTransform,
-                      maxWidth: '65%',
-                      maxHeight: '65%',
-                      objectFit: 'contain',
-                      zIndex: 1,
-                      transition: 'transform 0.2s ease-out',
-                    }}
-                  />
-                )}
-              </Box>
-            </Grid>
-          )
-        })}
+                  {game.hero_url && (
+                    <Box
+                      component="img"
+                      src={game.hero_url}
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        position: 'absolute',
+                        transform: heroTransform,
+                        transition: 'transform 0.2s ease-out',
+                        filter: 'brightness(0.7)',
+                      }}
+                    />
+                  )}
+                  {game.logo_url && (
+                    <Box
+                      component="img"
+                      src={game.logo_url}
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: logoTransform,
+                        maxWidth: '65%',
+                        maxHeight: '65%',
+                        objectFit: 'contain',
+                        zIndex: 1,
+                        transition: 'transform 0.2s ease-out',
+                      }}
+                    />
+                  )}
+                </Box>
+              </Grid>
+            )
+          })}
       </Grid>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
-        <DialogTitle>Delete {selectedGames.size} Game{selectedGames.size > 1 ? 's' : ''}?</DialogTitle>
+        <DialogTitle>
+          Delete {selectedGames.size} Game{selectedGames.size > 1 ? 's' : ''}?
+        </DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2 }}>
             Are you sure you want to delete the selected game{selectedGames.size > 1 ? 's' : ''}?

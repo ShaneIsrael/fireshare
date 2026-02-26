@@ -31,7 +31,36 @@ const Watch = ({ authenticated }) => {
   const [viewAdded, setViewAdded] = React.useState(false)
 
   const videoPlayerRef = useRef(null)
+  const videoContainerRef = React.useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
+  
+  React.useEffect(() => {
+    const container = videoContainerRef.current
+    if (!container) return
+
+    const aspectRatio = (details?.info?.width && details?.info?.height)
+      ? details.info.width / details.info.height
+      : 16 / 9
+
+    const computeSize = () => {
+      const availW = container.clientWidth
+      const availH = container.clientHeight
+      if (availW <= 0 || availH <= 0) return
+
+      let w = availW
+      let h = w / aspectRatio
+
+      if (h > availH) {
+        h = availH
+        w = h * aspectRatio
+      }
+    }
+
+    const observer = new ResizeObserver(computeSize)
+    observer.observe(container)
+
+    return () => observer.disconnect()
+  }, [details?.info?.width, details?.info?.height])
 
   React.useEffect(() => {
     async function fetch() {
@@ -86,8 +115,6 @@ const Watch = ({ authenticated }) => {
     }
   }
 
-
-
   const getPosterUrl = () => {
     if (SERVED_BY === 'nginx') {
       return `${URL}/_content/derived/${id}/poster.jpg`
@@ -134,7 +161,7 @@ const Watch = ({ authenticated }) => {
               textOverflow: 'ellipsis',
             }}
           >
-            {`${views} ${views === 1 ? 'View' : 'Views'}`}
+            {`${views} ${views === 1 ? 'view' : 'views'}`}
           </div>
         </Button>
         <Button
@@ -150,7 +177,6 @@ const Watch = ({ authenticated }) => {
             style={{
               overflow: 'hidden',
               color: 'white',
-              textTransform: 'uppercase',
               whiteSpace: 'nowrap',
               textOverflow: 'ellipsis',
             }}
@@ -173,6 +199,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:type" value="video" />
         <meta property="og:url" value={window.location.href} />
         <meta property="og:title" value={details?.info?.title} />
+        {details?.info?.description && <meta property="og:description" value={details?.info?.description} />}
         <meta
           property="og:image"
           value={
@@ -191,23 +218,8 @@ const Watch = ({ authenticated }) => {
         <meta property="og:video:height" value={details?.info?.height} />
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          maxHeight: 'calc(100vh - 64px)',
-          overflow: 'hidden',
-        }}
-      >
-        <Box
-          sx={{
-            width: '100%',
-            maxWidth: 'min(calc((100vh - 64px - 120px) * 16 / 9), 100vw)',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
+      <div style={{ display: 'flex', height: '100%', flexDirection: 'column', alignItems: 'start' }}>
+        <div ref={videoContainerRef} style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingLeft: 8, paddingRight: 8 }}>
           <VideoJSPlayer
             sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
             poster={getPosterUrl()}
@@ -219,39 +231,41 @@ const Watch = ({ authenticated }) => {
             }}
             startTime={time ? parseFloat(time) : 0}
             style={{ backgroundColor: '#000' }}
+            fluid={false}
+            fill={true}
           />
-          <Paper width="100%" square sx={{ p: 1, background: 'rgba(0, 0, 0, 0.1)' }}>
-            <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
-              <Grid container spacing={1}>
-                <Grid item xs={12}>
-                  {controls()}
-                </Grid>
-                {details?.info?.description && (
-                  <Grid item xs={12}>
-                    <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
-                      <Typography variant="subtitle2">{details?.info?.description}</Typography>
-                    </Paper>
-                  </Grid>
-                )}
+        </div>
+        <Paper square sx={{ p: 1, background: 'rgba(0, 0, 0, 0.1)', width: '100%' }}>
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
+            <Grid container spacing={1}>
+              <Grid item xs={12}>
+                {controls()}
               </Grid>
-            </Box>
-            <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
-              <Grid container spacing={1}>
+              {details?.info?.description && (
                 <Grid item xs={12}>
-                  {controls()}
+                  <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
+                    <Typography variant="subtitle2">{details?.info?.description}</Typography>
+                  </Paper>
                 </Grid>
-                {details?.info?.description && (
-                  <Grid item xs={12}>
-                    <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
-                      <Typography variant="subtitle2">{details?.info?.description}</Typography>
-                    </Paper>
-                  </Grid>
-                )}
+              )}
+            </Grid>
+          </Box>
+          <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
+            <Grid container spacing={1}>
+              <Grid item xs={12}>
+                {controls()}
               </Grid>
-            </Box>
-          </Paper>
-        </Box>
-      </Box>
+              {details?.info?.description && (
+                <Grid item xs={12}>
+                  <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
+                    <Typography variant="subtitle2">{details?.info?.description}</Typography>
+                  </Paper>
+                </Grid>
+              )}
+            </Grid>
+          </Box>
+        </Paper>
+      </div>
     </>
   )
 }

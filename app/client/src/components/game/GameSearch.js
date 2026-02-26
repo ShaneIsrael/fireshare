@@ -1,6 +1,5 @@
 import React from 'react'
 import { Autocomplete, TextField, InputAdornment, Box, CircularProgress } from '@mui/material'
-import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import { GameService } from '../../services'
 
 /**
@@ -97,11 +96,6 @@ const GameSearch = ({ onGameLinked, onError, disabled = false, placeholder = 'Se
           }}
           InputProps={{
             ...params.InputProps,
-            startAdornment: (
-              <InputAdornment position="start">
-                <SportsEsportsIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
-              </InputAdornment>
-            ),
             endAdornment: (
               <>
                 {gameLinkLoading && (

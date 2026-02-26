@@ -196,7 +196,6 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
                       feedView={true}
                       size={cardSize}
                       showUploadCard={selectedFolder.value === 'All Videos'}
-                      fetchVideos={fetchVideos}
                       showDateHeaders={!skipDateGrouping}
                     />
                   )}

@@ -181,39 +181,42 @@ See the Fireshare Configuration Wiki: <a href="https://github.com/ShaneIsrael/fi
 For LDAP configuration, see [LDAP.md](./LDAP.md)
 
 ### Video Transcoding (Optional)
+Fireshare supports automatic transcoding of your videos to create multiple quality variants. This feature is **disabled by default** and must be enabled via environment variables.
 
-Fireshare supports automatic transcoding of videos to create 720p and 1080p quality variants using the AV1 codec for better compression. This feature is **disabled by default** and must be explicitly enabled.
+<img width="881" height="489" alt="Screenshot 2026-02-11 at 9 36 56 AM" src="https://github.com/user-attachments/assets/07fd2318-7852-4070-848b-cc78925b60e5" />
 
 **Benefits:**
 - Smaller file sizes with AV1 compression (up to 50% smaller than H.264)
 - Better streaming performance for users with limited bandwidth
 - Quality selection in the video player
+- Only videos larger than the target resolution are transcoded
+- Original files are never modified or deleted
 
-**Requirements:**
-- FFmpeg with NVENC, libaom-av1, VP9, and codec support (included in the Docker image)
-- CPU transcoding works out of the box
-
-**GPU Transcoding:**
-The Docker image includes FFmpeg compiled with NVENC support for GPU-accelerated transcoding. To use GPU transcoding:
-  - NVIDIA GPU with NVENC support (GTX 1050+ / Pascal or newer)
-  - NVIDIA drivers installed on the host system
-  - NVIDIA Container Toolkit on the host system
-  - See: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
-  
-Benefits of GPU transcoding:
-- 5-10x faster than CPU encoding
-- Lower power consumption
-- Frees up CPU for other tasks
+**How to Enable**
+- Add `ENABLE_TRANSCODING=true` to your environment variables
+- CPU transcoding works out of the box - no additional setup required
+- Manage transcoding from the **Settings** page in the settings page
 
 **Environment Variables:**
 ```yaml
-# Enable automatic transcoding during video scans (default: false)
+# Enable transcoding (default: false)
 ENABLE_TRANSCODING=true
 
-# Enable GPU acceleration for transcoding using NVENC (default: false)
-# Requires nvidia-docker runtime
+# Optional: Enable GPU acceleration (default: false)
+# Requires NVIDIA GPU setup - see below
 TRANSCODE_GPU=true
 ```
+
+---
+
+### GPU Transcoding (Optional)
+
+GPU transcoding is **optional** but provides 5-10x faster encoding if you have an NVIDIA GPU. CPU transcoding works out of the box without any of this setup.
+
+**Requirements:**
+- NVIDIA GPU with NVENC support (GTX 1050+ / Pascal or newer)
+- NVIDIA drivers installed on the host system
+- NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
 
 **Docker Compose GPU Setup:**
 ```yaml
@@ -234,218 +237,35 @@ services:
               capabilities: [gpu]
 ```
 
-**Manual Transcoding:**
-
-If you have existing videos that were scanned before enabling transcoding, you can manually transcode them:
-
+**Verify GPU Access:**
 ```bash
-# Transcode all videos in your library
-docker exec -it fireshare fireshare transcode-videos
-
-# Transcode a specific video by its ID
-docker exec -it fireshare fireshare transcode-videos --video VIDEO_ID
-
-# Regenerate transcoded versions (overwrites existing)
-docker exec -it fireshare fireshare transcode-videos --regenerate
+docker exec -it fireshare ffmpeg -encoders 2>/dev/null | grep nvenc
 ```
-
-**Important Notes for Existing Videos:**
-- The `transcode-videos` command only processes videos when `ENABLE_TRANSCODING=true` is set
-- Transcoding happens in the background and can take significant time depending on:
-  - Number and size of videos
-  - CPU/GPU performance
-  - Whether GPU acceleration is enabled
-- Progress is logged in the container logs: `docker logs -f fireshare`
-- Only videos larger than the target resolution will be transcoded (e.g., 4K videos will get 1080p and 720p variants)
-- Original files are never modified or deleted
-- You can check if a video has been transcoded by looking at the quality selector in the player
-- To find a video's ID, check the URL when viewing it (e.g., `/w/VIDEO_ID`)
-
-**Workflow for Upgrading Existing Installations:**
-
-1. **Pull the latest image** (if using Docker):
-   ```bash
-   docker pull shaneisrael/fireshare:latest
-   ```
-   
-   Or if using docker-compose:
-   ```bash
-   docker-compose pull
-   ```
-
-2. **Stop and remove the old container**:
-   ```bash
-   docker stop fireshare && docker rm fireshare
-   ```
-   
-   Or with docker-compose:
-   ```bash
-   docker-compose down
-   ```
-
-3. **Enable transcoding** by adding environment variables to your docker-compose.yml or docker run command:
-   ```yaml
-   ENABLE_TRANSCODING=true
-   TRANSCODE_GPU=true  # Optional, for GPU acceleration
-   ```
-
-4. **Start the container** - Database migrations will run automatically:
-   ```bash
-   docker-compose up -d
-   ```
-   
-   Or with docker run:
-   ```bash
-   docker run --name fireshare -v $(pwd)/fireshare:/data:rw -v $(pwd)/fireshare_processed:/processed:rw -v /path/to/videos:/videos:rw -p 8080:80 -e ADMIN_PASSWORD=your-password -e ENABLE_TRANSCODING=true -d shaneisrael/fireshare:latest
-   ```
-   
-   **Note:** The database migration to add transcoding columns runs automatically on container startup via `flask db upgrade` in the entrypoint.
-
-5. **Verify the migration ran successfully**:
-   ```bash
-   docker logs fireshare | grep "Running upgrade"
-   ```
-   You should see: `INFO  [alembic.runtime.migration] Running upgrade a4503f708aee -> b7e8541487dc, add transcoding support`
-
-6. **Transcode existing videos** using one of these approaches:
-
-   **Option A: Transcode everything at once (recommended for small libraries)**
-   ```bash
-   docker exec -it fireshare fireshare transcode-videos
-   ```
-
-   **Option B: Transcode videos gradually (recommended for large libraries)**
-   ```bash
-   # Get a list of video IDs from your admin dashboard
-   # Then transcode them one at a time or in batches
-   docker exec -it fireshare fireshare transcode-videos --video VIDEO_ID_1
-   docker exec -it fireshare fireshare transcode-videos --video VIDEO_ID_2
-   # ... etc
-   ```
-
-4. **Future videos** will be automatically transcoded during the scan process (every 5 minutes by default)
-
-**Monitoring Progress:**
-```bash
-# Watch transcoding logs in real-time
-docker logs -f fireshare
-
-# Check if transcoding is running
-docker exec -it fireshare ps aux | grep ffmpeg
-```
-
-**GPU Setup (Optional but Recommended):**
-
-To use GPU acceleration, you need to:
-
-1. Install NVIDIA drivers on your host system
-2. Install NVIDIA Container Toolkit:
-   ```bash
-   # Ubuntu/Debian
-   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-   curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-   curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
-     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-   sudo apt-get update
-   sudo apt-get install -y nvidia-container-toolkit
-   sudo systemctl restart docker
-   ```
-
-3. Verify GPU is available on host:
-   ```bash
-   docker run --rm --runtime=nvidia --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
-   ```
-   
-   **Note:** The Fireshare container doesn't include `nvidia-smi`. To verify GPU access in Fireshare, use:
-   ```bash
-   docker exec -it fireshare ffmpeg -encoders 2>/dev/null | grep nvenc
-   ```
-
-4. Update your docker-compose.yml with GPU configuration (see example above)
 
 **Unraid GPU Setup:**
 
-For Unraid users who want to pass their NVIDIA GPU to the Fireshare container:
-
-1. **Install NVIDIA Driver Plugin:**
-   - In Unraid, go to Apps/Community Applications
-   - Search for "NVIDIA Driver" and install the plugin
-   - The plugin will automatically install NVIDIA drivers on boot
-
-2. **Configure Fireshare Container in Unraid:**
-   - Edit the Fireshare container in Unraid's Docker tab
-   - Add the following environment variables:
-     ```
-     ENABLE_TRANSCODING=true
-     TRANSCODE_GPU=true
-     NVIDIA_DRIVER_CAPABILITIES=all
-     ```
-   
-3. **Enable GPU Passthrough:**
-   - In the container settings, scroll to "Extra Parameters"
-   - Add: `--gpus=all`
-   - **Important:** Use `--gpus=all` instead of `--runtime=nvidia` for Unraid
-
-4. **Verify GPU Access:**
-   
-   The Fireshare container doesn't include `nvidia-smi`, but you can verify GPU access in these ways:
-   
-   **Method 1: Check FFmpeg GPU encoders (Recommended)**
-   ```bash
-   docker exec -it fireshare ffmpeg -encoders 2>/dev/null | grep nvenc
+1. Install "NVIDIA Driver" plugin from Apps/Community Applications
+2. Add environment variables to the Fireshare container:
    ```
-   You should see output like:
+   ENABLE_TRANSCODING=true
+   TRANSCODE_GPU=true
+   NVIDIA_DRIVER_CAPABILITIES=all
    ```
-   V..... h264_nvenc           NVIDIA NVENC H.264 encoder
-   V..... hevc_nvenc           NVIDIA NVENC hevc encoder
-   ```
-   
-   **Method 2: Monitor transcoding logs**
-   - Enable transcoding with `TRANSCODE_GPU=true`
-   - Check the logs while a video is transcoding:
-     ```bash
-     docker logs -f fireshare
-     ```
-   - Look for "Transcoding video to 720p using GPU H.264 (NVENC)" messages
-   
-   **Method 3: Verify GPU usage (from Unraid host)**
-   - While transcoding is running, check GPU usage:
-     ```bash
-     nvidia-smi
-     ```
-   - You should see FFmpeg processes using the GPU with video encoder/decoder utilization
-
-5. **Advanced Configuration (Optional):**
-   - If you want to limit to specific GPUs, use:
-     ```
-     --gpus='"device=0"'
-     ```
-   - For multiple specific GPUs:
-     ```
-     --gpus='"device=0,1"'
-     ```
-
-**Notes:**
-- Transcoding only creates quality variants for videos larger than the target resolution
-- Original files are always preserved
-- The video player will automatically show a quality selector when transcoded versions are available
-- FFmpeg is compiled with NVENC support for GPU-accelerated transcoding
-- GPU transcoding is 5-10x faster than CPU transcoding
+3. In "Extra Parameters", add: `--gpus=all`
 
 **Transcoding Fallback Chain:**
 
+The system automatically selects the best available encoder:
+
 **GPU Mode** (`TRANSCODE_GPU=true`):
-1. **AV1 with GPU (av1_nvenc)** - Best compression, RTX 40 series or newer (Ada Lovelace)
-2. **H.264 with GPU (h264_nvenc)** - Fast and widely supported, GTX 1050+ (Pascal or newer)
-3. **AV1 with CPU (libaom-av1)** - Excellent compression if GPU encoding fails
-4. **H.264 with CPU (libx264)** - Final fallback, universally compatible
+1. AV1 with GPU (av1_nvenc) - RTX 40 series or newer
+2. H.264 with GPU (h264_nvenc) - GTX 1050+
+3. AV1 with CPU - fallback if GPU encoding fails
+4. H.264 with CPU - final fallback
 
-**CPU Mode** (`TRANSCODE_GPU=false` or GPU unavailable):
-1. **AV1 with CPU (libaom-av1)** - Best compression, slower
-2. **H.264 with CPU (libx264)** - Fallback if AV1 fails
-
-The system automatically tries AV1 NVENC first on all GPUs, then falls back to H.264 NVENC for older GPUs that don't support AV1 hardware encoding.
+**CPU Mode** (`TRANSCODE_GPU=false`):
+1. H.264 with CPU - Most compatible, faster encoding
+2. AV1 with CPU - best compression, slower on CPU
 
 # Local Development
 
