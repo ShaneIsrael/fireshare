@@ -10,6 +10,7 @@
     "@mui/material": "^5.8.1",
     "@silvermine/videojs-quality-selector": "^1.3.1",
     "axios": "^0.27.2",
+    "fast-average-color": "^9.5.0",
     "framer-motion": "^12.34.3",
     "lodash": "^4.17.21",
     "react": "^18.1.0",
