@@ -107,8 +107,11 @@ const VideoJSPlayer = ({
             if (currentTime > 0) {
               player.currentTime(currentTime)
             }
+            const playPromise = player.play()
+            if (playPromise !== undefined) {
+              playPromise.catch(() => {})
+            }
           })
-          player.play()
         }
       }
 
@@ -121,6 +124,17 @@ const VideoJSPlayer = ({
 
       // On error, try the next source in the list
       player.on('error', switchToNextSource)
+
+      // Sync currentSourceIndex when the source changes (e.g. user picks a quality)
+      player.on('loadstart', () => {
+        const current = player.currentSource()
+        if (current && current.label) {
+          const index = sources.findIndex((s) => s.label === current.label)
+          if (index !== -1) {
+            currentSourceIndex = index
+          }
+        }
+      })
 
       // Auto-downgrade quality when buffering stalls
       player.on('waiting', () => {
