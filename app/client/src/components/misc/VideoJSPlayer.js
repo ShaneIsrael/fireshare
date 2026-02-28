@@ -98,12 +98,21 @@ const VideoJSPlayer = ({
         if (sources && currentSourceIndex + 1 < sources.length) {
           const currentTime = player.currentTime() || 0
           currentSourceIndex += 1
+
+          // Clear any existing error state so the player can load the new source
+          player.error(null)
+          player.removeClass('vjs-error')
+
+          // Hide the big play button and poster to avoid the "play overlay" flash
+          player.bigPlayButton.hide()
+          player.hasStarted(true)
+
           const updatedSources = sources.map((s, i) => ({
             ...s,
             selected: i === currentSourceIndex,
           }))
           player.src(updatedSources)
-          player.one('loadedmetadata', () => {
+          player.one('canplay', () => {
             if (currentTime > 0) {
               player.currentTime(currentTime)
             }
