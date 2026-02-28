@@ -126,14 +126,12 @@ const VideoJSPlayer = ({
       player.on('waiting', () => {
         clearStallTimer()
         bufferStallTimer = setTimeout(() => {
-          // Still not playing after the timeout — switch to next source
           if (player.paused() || player.readyState() < 3) {
             switchToNextSource()
           }
         }, BUFFER_STALL_TIMEOUT_MS)
       })
 
-      // Cancel the stall timer when playback resumes or is paused intentionally
       player.on('playing', clearStallTimer)
       player.on('pause', clearStallTimer)
       player.on('seeked', clearStallTimer)
