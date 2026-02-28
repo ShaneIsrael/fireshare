@@ -12,18 +12,21 @@ qualitySelectorPlugin(videojs)
 // Tolerance threshold for checking if player is already at the desired start time (in seconds)
 const SEEK_TOLERANCE_SECONDS = 0.5
 
-const VideoJSPlayer = ({ 
-  sources, 
-  poster, 
-  autoplay = false, 
+// How long to wait while buffering before switching to a lower quality source (in ms)
+const BUFFER_STALL_TIMEOUT_MS = 5000
+
+const VideoJSPlayer = ({
+  sources,
+  poster,
+  autoplay = false,
   controls = true,
   fluid = true,
   fill = false,
-  onTimeUpdate, 
+  onTimeUpdate,
   onReady,
   startTime,
   className,
-  style 
+  style,
 }) => {
   const videoRef = useRef(null)
   const playerRef = useRef(null)
@@ -87,6 +90,52 @@ const VideoJSPlayer = ({
         player.src(sources)
       }
 
+      // Switch to a lower quality source if stuck buffering
+      let bufferStallTimer = null
+
+      const switchToNextSource = () => {
+        const currentSrc = player.currentSrc()
+        if (sources && sources.length > 1) {
+          const currentIndex = sources.findIndex((s) => s.src === currentSrc)
+          const nextIndex = currentIndex + 1
+          if (nextIndex < sources.length) {
+            const currentTime = player.currentTime() || 0
+            const remaining = sources.slice(nextIndex)
+            player.src(remaining)
+            player.one('loadedmetadata', () => {
+              if (currentTime > 0) {
+                player.currentTime(currentTime)
+              }
+            })
+            player.play()
+          }
+        }
+      }
+
+      const clearStallTimer = () => {
+        if (bufferStallTimer) {
+          clearTimeout(bufferStallTimer)
+          bufferStallTimer = null
+        }
+      }
+
+      // On error, try the next source in the list
+      player.on('error', switchToNextSource)
+
+      // Auto-downgrade quality when buffering stalls
+      player.on('waiting', () => {
+        clearStallTimer()
+        bufferStallTimer = setTimeout(() => {
+          if (player.paused() || player.readyState() < 3) {
+            switchToNextSource()
+          }
+        }, BUFFER_STALL_TIMEOUT_MS)
+      })
+
+      player.on('playing', clearStallTimer)
+      player.on('pause', clearStallTimer)
+      player.on('seeked', clearStallTimer)
+
       // Handle time updates using ref to avoid recreating player
       player.on('timeupdate', () => {
         const currentTime = player.currentTime()
@@ -101,7 +150,7 @@ const VideoJSPlayer = ({
         player.one('loadedmetadata', () => {
           player.currentTime(startTime)
         })
-        
+
         // Also seek when user manually plays if not already at the correct time
         // This handles cases where autoplay is blocked
         player.one('play', () => {
@@ -124,7 +173,7 @@ const VideoJSPlayer = ({
       if (sources && sources.length > 0) {
         const currentSrc = player.currentSrc()
         // Check if the current source is in the new sources array
-        const sourceExists = sources.some(source => source.src === currentSrc)
+        const sourceExists = sources.some((source) => source.src === currentSrc)
         if (!sourceExists) {
           const currentTime = player.currentTime()
           player.src(sources)
