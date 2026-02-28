@@ -92,23 +92,20 @@ const VideoJSPlayer = ({
 
       // Switch to a lower quality source if stuck buffering
       let bufferStallTimer = null
+      let currentSourceIndex = 0
 
       const switchToNextSource = () => {
-        const currentSrc = player.currentSrc()
-        if (sources && sources.length > 1) {
-          const currentIndex = sources.findIndex((s) => s.src === currentSrc)
-          const nextIndex = currentIndex + 1
-          if (nextIndex < sources.length) {
-            const currentTime = player.currentTime() || 0
-            const remaining = sources.slice(nextIndex)
-            player.src(remaining)
-            player.one('loadedmetadata', () => {
-              if (currentTime > 0) {
-                player.currentTime(currentTime)
-              }
-            })
-            player.play()
-          }
+        if (sources && currentSourceIndex + 1 < sources.length) {
+          const currentTime = player.currentTime() || 0
+          currentSourceIndex += 1
+          const remaining = sources.slice(currentSourceIndex)
+          player.src(remaining)
+          player.one('loadedmetadata', () => {
+            if (currentTime > 0) {
+              player.currentTime(currentTime)
+            }
+          })
+          player.play()
         }
       }
 
