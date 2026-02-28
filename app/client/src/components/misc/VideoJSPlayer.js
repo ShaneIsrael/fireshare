@@ -98,8 +98,11 @@ const VideoJSPlayer = ({
         if (sources && currentSourceIndex + 1 < sources.length) {
           const currentTime = player.currentTime() || 0
           currentSourceIndex += 1
-          const remaining = sources.slice(currentSourceIndex)
-          player.src(remaining)
+          const updatedSources = sources.map((s, i) => ({
+            ...s,
+            selected: i === currentSourceIndex,
+          }))
+          player.src(updatedSources)
           player.one('loadedmetadata', () => {
             if (currentTime > 0) {
               player.currentTime(currentTime)
