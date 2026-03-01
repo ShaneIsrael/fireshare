@@ -15,6 +15,12 @@ const SEEK_TOLERANCE_SECONDS = 0.5
 // How long to wait while buffering before switching to a lower quality source (in ms)
 const BUFFER_STALL_TIMEOUT_MS = 5000
 
+// Number of buffering events within the window that triggers a quality downgrade
+const BUFFER_COUNT_THRESHOLD = 4
+
+// Sliding window duration for counting buffering events (in ms)
+const BUFFER_COUNT_WINDOW_MS = 30000
+
 const VideoJSPlayer = ({
   sources,
   poster,
@@ -93,17 +99,27 @@ const VideoJSPlayer = ({
       // Switch to a lower quality source if stuck buffering
       let bufferStallTimer = null
       let currentSourceIndex = 0
+      let bufferTimestamps = []
 
       const switchToNextSource = () => {
         if (sources && currentSourceIndex + 1 < sources.length) {
           const currentTime = player.currentTime() || 0
           currentSourceIndex += 1
+
+          // Clear any existing error state so the player can load the new source
+          player.error(null)
+          player.removeClass('vjs-error')
+
+          // Hide the big play button and poster to avoid the "play overlay" flash
+          player.bigPlayButton.hide()
+          player.hasStarted(true)
+
           const updatedSources = sources.map((s, i) => ({
             ...s,
             selected: i === currentSourceIndex,
           }))
           player.src(updatedSources)
-          player.one('loadedmetadata', () => {
+          player.one('canplay', () => {
             if (currentTime > 0) {
               player.currentTime(currentTime)
             }
@@ -136,11 +152,25 @@ const VideoJSPlayer = ({
         }
       })
 
-      // Auto-downgrade quality when buffering stalls
+      // Auto-downgrade quality when buffering stalls or buffers too frequently
       player.on('waiting', () => {
+        // Track buffering frequency in a sliding window
+        const now = Date.now()
+        bufferTimestamps.push(now)
+        bufferTimestamps = bufferTimestamps.filter((t) => now - t < BUFFER_COUNT_WINDOW_MS)
+
+        if (bufferTimestamps.length >= BUFFER_COUNT_THRESHOLD) {
+          bufferTimestamps = []
+          clearStallTimer()
+          switchToNextSource()
+          return
+        }
+
+        // Single long stall fallback
         clearStallTimer()
         bufferStallTimer = setTimeout(() => {
           if (player.paused() || player.readyState() < 3) {
+            bufferTimestamps = []
             switchToNextSource()
           }
         }, BUFFER_STALL_TIMEOUT_MS)
