@@ -103,7 +103,6 @@ const CompactBetaVideoCard = ({
         if (color.error) return
         const [r, g, b] = color.value
         const [h, s] = rgbToHsl(r, g, b)
-        // Fix lightness/saturation so the card is always dark and vivid regardless of icon
         const tint = `hsla(${h}, ${Math.max(s, 55)}%, 12%, 0.85)`
         gameColorCache[cacheKey] = tint
         setCardColor(tint)
@@ -446,9 +445,7 @@ const CompactBetaVideoCard = ({
               color: 'white',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
+              whiteSpace: 'nowrap',
             }}
           >
             {title}
@@ -501,7 +498,7 @@ const CompactBetaVideoCard = ({
             mt: 0.25,
           }}
         >
-          <MoreVertIcon fontSize="small" />
+          <MoreVertIcon sx={{ fontSize: 24 }} />
         </IconButton>
       </Box>
 
