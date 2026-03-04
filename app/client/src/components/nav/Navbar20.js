@@ -192,9 +192,8 @@ function Navbar20({
       setSetting('listStyle', style)
     }
   }
-  const handleCardSizeChange = (e, value) => {
-    const modifier = value / 100
-    const newSize = CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER * modifier
+  const handleCardSizeChange = (e, newValue) => {
+    const newSize = Math.round((newValue / 100) * CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER)
     setCardSize(newSize)
     setSetting('cardSize', newSize)
   }
@@ -356,9 +355,9 @@ function Navbar20({
       {cardSlider && listStyle === 'card' && (
         <>
           <Divider />
-          <Box sx={{ display: 'flex', p: 2, height: open ? 'auto' : 125 }} justifyContent="center">
+          <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
             <SliderWrapper
-              width={open ? '100%' : 5}
+              width={open ? 150 : 10}
               cardSize={cardSize}
               defaultCardSize={CARD_SIZE_DEFAULT}
               cardSizeMultiplier={CARD_SIZE_MULTIPLIER}

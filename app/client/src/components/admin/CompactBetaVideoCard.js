@@ -22,7 +22,6 @@ const SERVED_BY = getServedBy()
 const CompactBetaVideoCard = ({
   video,
   openVideoHandler,
-  cardWidth,
   alertHandler,
   authenticated,
 }) => {
@@ -157,9 +156,6 @@ const CompactBetaVideoCard = ({
     }
   }
 
-  const previewVideoHeight =
-    video.info?.width && video.info?.height ? cardWidth * (video.info.height / video.info.width) : cardWidth / 1.77
-
   const getPreviewVideoUrl = () => {
     const has720p = video.info?.has_720p
     const has1080p = video.info?.has_1080p
@@ -216,16 +212,17 @@ const CompactBetaVideoCard = ({
     />
     <Box
       sx={{
-        width: cardWidth,
+        width: '100%',
+        height: '100%',
         bgcolor: '#00000066',
         borderRadius: '12px',
         overflow: 'hidden',
       }}
     >
       {/* Thumbnail */}
-      <Box sx={{ overflow: 'hidden' }}>
+      <Box sx={{ aspectRatio: '16 / 9', overflow: 'hidden', position: 'relative' }}>
       <motion.div
-        style={{ position: 'relative', cursor: 'pointer' }}
+        style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
         onClick={() => openVideoHandler(video.video_id)}
         onMouseEnter={(e) => {
           setThumbnailHover(true)
@@ -245,8 +242,9 @@ const CompactBetaVideoCard = ({
           }`}
           alt=""
           style={{
-            width: cardWidth,
-            minHeight: previewVideoHeight,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
             background: 'repeating-linear-gradient(45deg,#606dbc,#606dbc 10px,#465298 10px,#465298 20px)',
             display: 'block',
           }}
@@ -258,6 +256,9 @@ const CompactBetaVideoCard = ({
               position: 'absolute',
               top: 0,
               left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
               opacity: 0,
               animationName: 'fadeIn',
               animationDuration: '1.5s',
@@ -266,8 +267,6 @@ const CompactBetaVideoCard = ({
               WebkitAnimationDuration: '1.5s',
               WebkitAnimationFillMode: 'both',
             }}
-            width={cardWidth}
-            height={previewVideoHeight}
             src={getPreviewVideoUrl()}
             muted
             autoPlay
@@ -382,6 +381,64 @@ const CompactBetaVideoCard = ({
           </Box>
         )}
       </motion.div>
+
+      {/* Game detection suggestion bar — overlaid on thumbnail bottom */}
+      <AnimatePresence>
+        {canTagGames && gameSuggestion && showSuggestion && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2 }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: 2,
+                py: 1.25,
+                bgcolor: '#0b132b99',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                {suggestionIcon && (
+                  <img
+                    src={suggestionIcon}
+                    alt=""
+                    style={{ width: 30, height: 30, borderRadius: '4px', flexShrink: 0, objectFit: 'cover' }}
+                  />
+                )}
+                <Typography
+                  sx={{ fontSize: 15, color: '#FFFFFFD9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  Game Detected: <strong>{gameSuggestion.game_name}</strong>
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 0.75, flexShrink: 0 }}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); handleSuggestionAccept() }}
+                  disabled={suggestionLoading}
+                  sx={{ color: '#4caf50', bgcolor: '#4CAF501A', '&:hover': { bgcolor: '#4CAF5033' }, width: 34, height: 34 }}
+                >
+                  <CheckIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); handleSuggestionReject() }}
+                  disabled={suggestionLoading}
+                  sx={{ color: '#f44336', bgcolor: '#F443361A', '&:hover': { bgcolor: '#F4433633' }, width: 34, height: 34 }}
+                >
+                  <CloseIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Box>
+            </Box>
+          </motion.div>
+        )}
+      </AnimatePresence>
       </Box>
 
       {/* Info section below thumbnail */}
@@ -549,72 +606,6 @@ const CompactBetaVideoCard = ({
         </MenuItem>
       </Menu>
 
-      {/* Game detection suggestion bar */}
-      <AnimatePresence>
-        {canTagGames && gameSuggestion && showSuggestion && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            style={{ overflow: 'hidden' }}
-          >
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                mx: 1.5,
-                mb: 1.5,
-                px: 1.5,
-                py: 0.75,
-                bgcolor: '#0b132b',
-                border: '1px solid #3399FF40',
-                borderRadius: '8px',
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                {suggestionIcon && (
-                  <img
-                    src={suggestionIcon}
-                    alt=""
-                    style={{ width: 20, height: 20, borderRadius: '4px', flexShrink: 0, objectFit: 'cover' }}
-                  />
-                )}
-                <Typography
-                  sx={{
-                    fontSize: 13,
-                    color: '#FFFFFFD9',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Game Detected: <strong>{gameSuggestion.game_name}</strong>
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                <IconButton
-                  size="small"
-                  onClick={handleSuggestionAccept}
-                  disabled={suggestionLoading}
-                  sx={{ color: '#4caf50', bgcolor: '#4CAF501A', '&:hover': { bgcolor: '#4CAF5033' }, width: 26, height: 26 }}
-                >
-                  <CheckIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={handleSuggestionReject}
-                  disabled={suggestionLoading}
-                  sx={{ color: '#f44336', bgcolor: '#F443361A', '&:hover': { bgcolor: '#F4433633' }, width: 26, height: 26 }}
-                >
-                  <CloseIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Box>
-            </Box>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </Box>
     </>
   )

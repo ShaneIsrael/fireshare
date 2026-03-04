@@ -5,6 +5,7 @@ import {
   Grid,
   IconButton,
   Button,
+  ButtonGroup,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -311,17 +312,50 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
         {alert.message}
       </SnackbarAlert>
       {toolbarTarget && ReactDOM.createPortal(
-        <Box sx={{ minWidth: 200 }}>
-          <Select
-            value={dateSortOrder}
-            options={SORT_OPTIONS}
-            onChange={setDateSortOrder}
-            styles={selectSortTheme}
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
-            blurInputOnSelect
-            isSearchable={false}
-          />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ minWidth: 150 }}>
+            <Select
+              value={dateSortOrder}
+              options={SORT_OPTIONS}
+              onChange={setDateSortOrder}
+              styles={selectSortTheme}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              blurInputOnSelect
+              isSearchable={false}
+            />
+          </Box>
+          {authenticated && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {editMode && (
+                <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content' }}>
+                  <Button color="primary" onClick={handleSelectAllToggle}>
+                    {allSelected ? 'Select None' : 'Select All'}
+                  </Button>
+                  <Button color="primary" startIcon={<LinkIcon />} onClick={handleLinkGameClick} disabled={selectedVideos.size === 0}>
+                    Link to Game {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                  </Button>
+                  <Button color="error" startIcon={<DeleteIcon />} onClick={handleDeleteClick} disabled={selectedVideos.size === 0}>
+                    Delete {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                  </Button>
+                </ButtonGroup>
+              )}
+              <IconButton
+                onClick={handleEditModeToggle}
+                sx={{
+                  bgcolor: editMode ? 'primary.main' : '#001E3C',
+                  borderRadius: '8px',
+                  height: '38px',
+                  border: !editMode ? '1px solid #2684FF' : 'none',
+                  '&:hover': {
+                    bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                  },
+                }}
+              >
+                {editMode ? <CheckIcon /> : <EditIcon />}
+              </IconButton>
+            </Box>
+          )}
         </Box>,
         toolbarTarget,
       )}
@@ -340,63 +374,6 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
                 />
               </Grid>
             </Grid>
-            {/* Edit mode buttons */}
-            {authenticated && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 2, px: 3 }}>
-                {editMode && (
-                  <Box sx={{ display: 'flex' }}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleSelectAllToggle}
-                      sx={{
-                        borderRadius: '8px 0 0 8px',
-                      }}
-                    >
-                      {allSelected ? 'Select None' : 'Select All'}
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      startIcon={<LinkIcon />}
-                      onClick={handleLinkGameClick}
-                      disabled={selectedVideos.size === 0}
-                      sx={{
-                        borderRadius: 0,
-                      }}
-                    >
-                      Link to Game {selectedVideos.size > 0 && `(${selectedVideos.size})`}
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={handleDeleteClick}
-                      disabled={selectedVideos.size === 0}
-                      sx={{
-                        borderRadius: '0 8px 8px 0',
-                      }}
-                    >
-                      Delete {selectedVideos.size > 0 && `(${selectedVideos.size})`}
-                    </Button>
-                  </Box>
-                )}
-                <IconButton
-                  onClick={handleEditModeToggle}
-                  sx={{
-                    bgcolor: editMode ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    width: '40px',
-                    height: '40px',
-                    '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
-                    },
-                  }}
-                >
-                  {editMode ? <CheckIcon /> : <EditIcon />}
-                </IconButton>
-              </Box>
-            )}
             <Box>
               {listStyle === 'list' && (
                 <VideoList
