@@ -31,7 +31,7 @@ const CompactBetaVideoCard = ({
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
   const [game, setGame] = React.useState(null)
   const [privateView, setPrivateView] = React.useState(video.info?.private)
-  const [title, setTitle] = React.useState(video.info?.title || 'Untitled')
+  const [title, setTitle] = React.useState(video.info?.title || (video.path ? video.path.split('/').pop().replace(/\.[^/.]+$/, '') : 'Untitled'))
   const [description, setDescription] = React.useState(video.info?.description || '')
   const [menuAnchorEl, setMenuAnchorEl] = React.useState(null)
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
@@ -40,6 +40,8 @@ const CompactBetaVideoCard = ({
   const [showSuggestion, setShowSuggestion] = React.useState(true)
   const [suggestionLoading, setSuggestionLoading] = React.useState(false)
   const [suggestionIcon, setSuggestionIcon] = React.useState(null)
+  const [editingTitle, setEditingTitle] = React.useState(false)
+  const [titleDraft, setTitleDraft] = React.useState(title)
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
@@ -48,7 +50,7 @@ const CompactBetaVideoCard = ({
   const previousVideo = previousVideoRef.current
   if (!_.isEqual(video, previousVideo) && !_.isEqual(video, intVideo)) {
     setIntVideo(video)
-    setTitle(video.info?.title || 'Untitled')
+    setTitle(video.info?.title || (video.path ? video.path.split('/').pop().replace(/\.[^/.]+$/, '') : 'Untitled'))
     setDescription(video.info?.description || '')
   }
   React.useEffect(() => {
@@ -176,10 +178,27 @@ const CompactBetaVideoCard = ({
   const gameName = game?.name || ''
   const viewCount = video.view_count || 0
 
+  const filenameFallback = video.path
+    ? video.path.split('/').pop().replace(/\.[^/.]+$/, '')
+    : 'Untitled'
+
+  const handleTitleSave = async () => {
+    setEditingTitle(false)
+    const trimmed = titleDraft.trim() || filenameFallback
+    if (trimmed === title) return
+    setTitle(trimmed)
+    try {
+      await VideoService.updateTitle(video.video_id, trimmed)
+    } catch (err) {
+      console.error('Failed to save title:', err)
+      setTitle(title)
+    }
+  }
+
   const handleDetailsModalClose = (update) => {
     setDetailsModalOpen(false)
     if (update && update !== 'delete') {
-      if (update.title !== undefined) setTitle(update.title || 'Untitled')
+      if (update.title !== undefined) setTitle(update.title || filenameFallback)
       if (update.description !== undefined) setDescription(update.description || '')
     }
   }
@@ -262,7 +281,7 @@ const CompactBetaVideoCard = ({
             position: 'absolute',
             bottom: 8,
             right: 8,
-            bgcolor: 'rgba(0, 0, 0, 0.75)',
+            bgcolor: '#000000BF',
             borderRadius: '4px',
             px: 0.75,
             py: 0.25,
@@ -285,7 +304,7 @@ const CompactBetaVideoCard = ({
             position: 'absolute',
             bottom: 8,
             left: 8,
-            bgcolor: 'rgba(0, 0, 0, 0.75)',
+            bgcolor: '#000000BF',
             borderRadius: '4px',
             px: 0.75,
             py: 0.25,
@@ -311,7 +330,7 @@ const CompactBetaVideoCard = ({
           <CopyToClipboard text={`${PURL}${video.video_id}`}>
             <IconButton
               sx={{
-                background: 'rgba(0, 0, 0, 0.6)',
+                background: '#00000099',
                 '&:hover': {
                   background: '#2684FF88',
                 },
@@ -345,7 +364,7 @@ const CompactBetaVideoCard = ({
           >
             <IconButton
               sx={{
-                background: 'rgba(0, 0, 0, 0.6)',
+                background: '#00000099',
                 '&:hover': {
                   background: privateView ? '#FF232360' : '#2684FF88',
                 },
@@ -394,19 +413,49 @@ const CompactBetaVideoCard = ({
         {/* Text info */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           {/* Title */}
-          <Typography
-            sx={{
-              fontWeight: 700,
-              fontSize: 16,
-              lineHeight: 1.3,
-              color: 'white',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {title}
-          </Typography>
+          {editingTitle ? (
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.target.blur()
+                if (e.key === 'Escape') { setTitleDraft(title); setEditingTitle(false) }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                background: '#FFFFFF1F',
+                border: 'none',
+                borderRadius: '4px',
+                outline: 'none',
+                color: 'white',
+                fontWeight: 700,
+                fontSize: 16,
+                lineHeight: 1.3,
+                padding: '2px 4px',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+              }}
+            />
+          ) : (
+            <Typography
+              onDoubleClick={(e) => { e.stopPropagation(); setTitleDraft(title); setEditingTitle(true) }}
+              sx={{
+                fontWeight: 700,
+                fontSize: 16,
+                lineHeight: 1.3,
+                color: 'white',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                cursor: 'text',
+              }}
+            >
+              {title}
+            </Typography>
+          )}
 
           {/* Game name */}
           {gameName && (
@@ -416,7 +465,7 @@ const CompactBetaVideoCard = ({
               onClick={game?.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
               sx={{
                 fontSize: 14,
-                color: 'rgba(255, 255, 255, 0.7)',
+                color: '#FFFFFFB3',
                 mt: 0.25,
                 display: 'block',
                 textDecoration: 'none',
@@ -434,7 +483,7 @@ const CompactBetaVideoCard = ({
             <Typography
               sx={{
                 fontSize: 14,
-                color: 'rgba(255, 255, 255, 0.5)',
+                color: '#FFFFFF80',
                 mt: 0.25,
               }}
             >
@@ -449,7 +498,7 @@ const CompactBetaVideoCard = ({
           onClick={(e) => { e.stopPropagation(); setMenuAnchorEl(e.currentTarget) }}
           sx={{
             alignSelf: 'flex-start',
-            color: menuOpen ? 'primary.main' : 'rgba(255, 255, 255, 0.35)',
+            color: menuOpen ? 'primary.main' : '#FFFFFF59',
             transition: 'color 0.2s',
             p: 0.5,
             mt: 0.25,
@@ -471,10 +520,10 @@ const CompactBetaVideoCard = ({
           paper: {
             sx: {
               bgcolor: '#0b132b',
-              border: '1px solid rgba(255,255,255,0.08)',
+              border: '1px solid #FFFFFF14',
               borderRadius: '10px',
               minWidth: 160,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+              boxShadow: '0 8px 32px #00000099',
               mt: 0.5,
             },
           },
@@ -482,7 +531,7 @@ const CompactBetaVideoCard = ({
       >
         <MenuItem
           onClick={() => { setDetailsModalOpen(true); setMenuAnchorEl(null) }}
-          sx={{ gap: 1.5, py: 1.25, fontSize: 14, color: 'rgba(255,255,255,0.9)', '&:hover': { bgcolor: 'rgba(255,255,255,0.07)' } }}
+          sx={{ gap: 1.5, py: 1.25, fontSize: 14, color: '#FFFFFFE6', '&:hover': { bgcolor: '#FFFFFF12' } }}
         >
           <ListItemIcon sx={{ minWidth: 0, color: '#3399FF' }}>
             <EditIcon fontSize="small" />
@@ -491,9 +540,9 @@ const CompactBetaVideoCard = ({
         </MenuItem>
         <MenuItem
           onClick={() => setMenuAnchorEl(null)}
-          sx={{ gap: 1.5, py: 1.25, fontSize: 14, color: 'rgba(255,255,255,0.5)', '&:hover': { bgcolor: 'rgba(255,255,255,0.07)' } }}
+          sx={{ gap: 1.5, py: 1.25, fontSize: 14, color: '#FFFFFF80', '&:hover': { bgcolor: '#FFFFFF12' } }}
         >
-          <ListItemIcon sx={{ minWidth: 0, color: 'rgba(255,255,255,0.4)' }}>
+          <ListItemIcon sx={{ minWidth: 0, color: '#FFFFFF66' }}>
             <SlowMotionVideoIcon fontSize="small" />
           </ListItemIcon>
           Transcode
@@ -535,7 +584,7 @@ const CompactBetaVideoCard = ({
                 <Typography
                   sx={{
                     fontSize: 13,
-                    color: 'rgba(255,255,255,0.85)',
+                    color: '#FFFFFFD9',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -549,7 +598,7 @@ const CompactBetaVideoCard = ({
                   size="small"
                   onClick={handleSuggestionAccept}
                   disabled={suggestionLoading}
-                  sx={{ color: '#4caf50', bgcolor: 'rgba(76,175,80,0.1)', '&:hover': { bgcolor: 'rgba(76,175,80,0.2)' }, width: 26, height: 26 }}
+                  sx={{ color: '#4caf50', bgcolor: '#4CAF501A', '&:hover': { bgcolor: '#4CAF5033' }, width: 26, height: 26 }}
                 >
                   <CheckIcon sx={{ fontSize: 16 }} />
                 </IconButton>
@@ -557,7 +606,7 @@ const CompactBetaVideoCard = ({
                   size="small"
                   onClick={handleSuggestionReject}
                   disabled={suggestionLoading}
-                  sx={{ color: '#f44336', bgcolor: 'rgba(244,67,54,0.1)', '&:hover': { bgcolor: 'rgba(244,67,54,0.2)' }, width: 26, height: 26 }}
+                  sx={{ color: '#f44336', bgcolor: '#F443361A', '&:hover': { bgcolor: '#F4433633' }, width: 26, height: 26 }}
                 >
                   <CloseIcon sx={{ fontSize: 16 }} />
                 </IconButton>
