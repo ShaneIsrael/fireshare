@@ -389,6 +389,9 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
                       videos={sortedVideos}
                       authenticated={authenticated}
                       size={cardSize}
+                      editMode={editMode}
+                      selectedVideos={selectedVideos}
+                      onVideoSelect={handleVideoSelect}
                     />
                   )}
                 </Box>

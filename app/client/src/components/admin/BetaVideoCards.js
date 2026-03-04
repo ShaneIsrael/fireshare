@@ -14,12 +14,17 @@ const BetaVideoCards = ({
   feedView = false,
   authenticated,
   size,
+  editMode = false,
+  selectedVideos = new Set(),
+  onVideoSelect,
 }) => {
   const [vids, setVideos] = React.useState(videos)
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
   })
+  const [isSingleColumn, setIsSingleColumn] = React.useState(false)
+  const containerRef = React.useRef()
   const previousVideosRef = React.useRef()
   const previousVideos = previousVideosRef.current
   if (videos !== previousVideos && videos !== vids) {
@@ -67,6 +72,16 @@ const BetaVideoCards = ({
   const handleDelete = (id) => {
     setVideos((vs) => vs.filter((v) => v.video_id !== id))
   }
+
+  React.useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      setIsSingleColumn(entry.contentRect.width < size * 2 + 24)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [size])
 
   const EMPTY_STATE = () => (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
@@ -143,7 +158,16 @@ const BetaVideoCards = ({
 
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
-        <Box sx={{ display: 'grid', width: '100%', gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size}px), 1fr))`, gap: '24px' }}>
+        <Box
+          ref={containerRef}
+          sx={{
+            display: 'grid',
+            width: isSingleColumn ? 'calc(100% + 48px)' : '100%',
+            mx: isSingleColumn ? '-24px' : 0,
+            gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size}px), 1fr))`,
+            gap: '24px',
+          }}
+        >
           {vids.map((v, index) => (
             <motion.div
               key={v.path + v.video_id}
@@ -156,6 +180,10 @@ const BetaVideoCards = ({
                 openVideoHandler={openVideo}
                 alertHandler={memoizedHandleAlert}
                 authenticated={authenticated}
+                editMode={editMode}
+                selected={selectedVideos.has(v.video_id)}
+                onSelect={onVideoSelect}
+                fullWidth={isSingleColumn}
               />
             </motion.div>
           ))}

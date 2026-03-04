@@ -24,6 +24,10 @@ const CompactBetaVideoCard = ({
   openVideoHandler,
   alertHandler,
   authenticated,
+  editMode = false,
+  selected = false,
+  onSelect,
+  fullWidth = false,
 }) => {
   const [intVideo, setIntVideo] = React.useState(video)
   const [hover, setHover] = React.useState(false)
@@ -215,15 +219,17 @@ const CompactBetaVideoCard = ({
         width: '100%',
         height: '100%',
         bgcolor: '#00000066',
-        borderRadius: '12px',
+        borderRadius: fullWidth ? 0 : '12px',
         overflow: 'hidden',
+        outline: selected ? '2px solid #2684FF' : 'none',
+        outlineOffset: '-2px',
       }}
     >
       {/* Thumbnail */}
       <Box sx={{ aspectRatio: '16 / 9', overflow: 'hidden', position: 'relative' }}>
       <motion.div
         style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
-        onClick={() => openVideoHandler(video.video_id)}
+        onClick={() => editMode ? onSelect?.(video.video_id) : openVideoHandler(video.video_id)}
         onMouseEnter={(e) => {
           setThumbnailHover(true)
           debouncedMouseEnter(e)
@@ -381,6 +387,30 @@ const CompactBetaVideoCard = ({
           </Box>
         )}
       </motion.div>
+
+      {/* Selection overlay */}
+      {editMode && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            width: 32,
+            height: 32,
+            borderRadius: '8px',
+            bgcolor: selected ? '#1565C0CC' : '#00000055',
+            border: '2px solid',
+            borderColor: selected ? '#90CAF9' : 'rgba(255,255,255,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 3,
+            pointerEvents: 'none',
+          }}
+        >
+          {selected && <CheckIcon sx={{ fontSize: 20, color: 'white' }} />}
+        </Box>
+      )}
 
       {/* Game detection suggestion bar — overlaid on thumbnail bottom */}
       <AnimatePresence>
