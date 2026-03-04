@@ -13,34 +13,11 @@ import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, getVideoUrl, getSetting } from '../../common/utils'
 import { GameService, VideoService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
-import { FastAverageColor } from 'fast-average-color'
 import _ from 'lodash'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
-
-const fac = new FastAverageColor()
-const gameColorCache = {} // keyed by steamgriddb_id
-
-function rgbToHsl(r, g, b) {
-  r /= 255; g /= 255; b /= 255
-  const max = Math.max(r, g, b), min = Math.min(r, g, b)
-  let h, s
-  const l = (max + min) / 2
-  if (max === min) {
-    h = s = 0
-  } else {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    switch (max) {
-      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
-      case g: h = ((b - r) / d + 2) / 6; break
-      default: h = ((r - g) / d + 4) / 6
-    }
-  }
-  return [h * 360, s * 100, l * 100]
-}
 
 const CompactBetaVideoCard = ({
   video,
@@ -63,7 +40,6 @@ const CompactBetaVideoCard = ({
   const [showSuggestion, setShowSuggestion] = React.useState(true)
   const [suggestionLoading, setSuggestionLoading] = React.useState(false)
   const [suggestionIcon, setSuggestionIcon] = React.useState(null)
-  const [cardColor, setCardColor] = React.useState(null)
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
@@ -91,24 +67,6 @@ const CompactBetaVideoCard = ({
       })
   }, [video.video_id])
 
-  React.useEffect(() => {
-    if (!game?.icon_url || !game?.steamgriddb_id) return
-    const cacheKey = game.steamgriddb_id
-    if (gameColorCache[cacheKey]) {
-      setCardColor(gameColorCache[cacheKey])
-      return
-    }
-    fac.getColorAsync(game.icon_url, { crossOrigin: 'anonymous', algorithm: 'sqrt' })
-      .then((color) => {
-        if (color.error) return
-        const [r, g, b] = color.value
-        const [h, s] = rgbToHsl(r, g, b)
-        const tint = `hsla(${h}, ${Math.max(s, 55)}%, 12%, 0.85)`
-        gameColorCache[cacheKey] = tint
-        setCardColor(tint)
-      })
-      .catch(() => {})
-  }, [game])
 
   React.useEffect(() => {
     VideoService.getGameSuggestion(video.video_id)
@@ -240,10 +198,9 @@ const CompactBetaVideoCard = ({
     <Box
       sx={{
         width: cardWidth,
-        bgcolor: cardColor || 'transparent',
+        bgcolor: '#00000066',
         borderRadius: '12px',
         overflow: 'hidden',
-        transition: 'background-color 0.4s ease',
       }}
     >
       {/* Thumbnail */}
