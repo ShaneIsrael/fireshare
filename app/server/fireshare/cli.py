@@ -772,9 +772,6 @@ def bulk_import(ctx, root):
             return
         util.create_lock(paths["data"])
 
-        if current_app.config.get('ENABLE_TRANSCODING'):
-            util.write_transcoding_status(paths['data'], 0, 0, None, os.getpid())
-
         thumbnail_skip = current_app.config['THUMBNAIL_VIDEO_LOCATION'] or 0
         if thumbnail_skip > 0 and thumbnail_skip <= 100:
             thumbnail_skip = thumbnail_skip / 100
@@ -803,6 +800,7 @@ def bulk_import(ctx, root):
                     auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
 
             if auto_transcode:
+                util.write_transcoding_status(paths['data'], 0, 0, None, os.getpid())
                 s = time.time()
                 ctx.invoke(transcode_videos)
                 timing['transcode_videos'] = time.time() - s

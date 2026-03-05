@@ -3,14 +3,22 @@ import { Modal, Box, Typography, Button, Stack } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { VideoService } from '../../services'
 
-const DeleteVideoModal = ({ open, onClose, videoId, alertHandler }) => {
+// Accepts either videoId (string) for single, or videoIds (array) for bulk
+const DeleteVideoModal = ({ open, onClose, videoId, videoIds, alertHandler }) => {
   const [loading, setLoading] = React.useState(false)
+  const isBulk = Array.isArray(videoIds)
+  const count = isBulk ? videoIds.length : 1
 
   const handleDelete = async () => {
     setLoading(true)
     try {
-      await VideoService.delete(videoId)
-      alertHandler?.({ open: true, type: 'success', message: 'Video has been deleted.' })
+      if (isBulk) {
+        await Promise.all(videoIds.map((id) => VideoService.delete(id)))
+        alertHandler?.({ open: true, type: 'success', message: `${count} video${count > 1 ? 's' : ''} deleted.` })
+      } else {
+        await VideoService.delete(videoId)
+        alertHandler?.({ open: true, type: 'success', message: 'Video has been deleted.' })
+      }
       onClose('delete')
     } catch (err) {
       alertHandler?.({ open: true, type: 'error', message: err.response?.data || 'An unknown error occurred.' })
@@ -35,7 +43,7 @@ const DeleteVideoModal = ({ open, onClose, videoId, alertHandler }) => {
         }}
       >
         <Typography variant="h6" sx={{ fontWeight: 800, color: 'white', mb: 1.5 }}>
-          Permanently delete this video?
+          {isBulk ? `Permanently delete ${count} video${count > 1 ? 's' : ''}?` : 'Permanently delete this video?'}
         </Typography>
         <Typography sx={{ fontSize: 14, color: '#FFFFFFB3', lineHeight: 1.6, mb: 3.5 }}>
           Deleting this clip will also remove all related data, including thumbnails, transcoded versions, and any edits to its title or date. Are you sure?

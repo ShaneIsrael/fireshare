@@ -19,6 +19,9 @@ const service = {
   startTranscoding() {
     return Api().post('/api/admin/transcoding/start')
   },
+  startTranscodingVideo(id) {
+    return Api().post(`/api/admin/transcoding/start/${id}`)
+  },
   cancelTranscoding() {
     return Api().post('/api/admin/transcoding/cancel')
   },

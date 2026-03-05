@@ -26,6 +26,7 @@ import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, setSetting } from '../common/utils'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
+import DeleteVideoModal from '../components/modal/DeleteVideoModal'
 
 import selectFolderTheme from '../common/reactSelectFolderTheme'
 import selectSortTheme from '../common/reactSelectSortTheme'
@@ -192,37 +193,6 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
     setDeleteDialogOpen(true)
   }
 
-  const handleDeleteConfirm = async () => {
-    try {
-      const deletePromises = Array.from(selectedVideos).map((videoId) => VideoService.delete(videoId))
-      await Promise.all(deletePromises)
-
-      setAlert({
-        open: true,
-        type: 'success',
-        message: `Successfully deleted ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''}`,
-      })
-
-      // Refresh videos list
-      fetchVideos()
-
-      // Reset state
-      setSelectedVideos(new Set())
-      setDeleteDialogOpen(false)
-      setEditMode(false)
-    } catch (err) {
-      console.error('Error deleting videos:', err)
-      setAlert({
-        open: true,
-        type: 'error',
-        message: err.response?.data || 'Error deleting videos',
-      })
-    }
-  }
-
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false)
-  }
 
   const handleLinkGameClick = async () => {
     // Fetch games when opening dialog
@@ -401,24 +371,19 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
         </Grid>
       </Box>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
-        <DialogTitle>
-          Delete {selectedVideos.size} Video{selectedVideos.size > 1 ? 's' : ''}?
-        </DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete the selected video{selectedVideos.size > 1 ? 's' : ''}? This will
-            permanently delete the video file{selectedVideos.size > 1 ? 's' : ''}.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} variant="contained" color="error">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DeleteVideoModal
+        open={deleteDialogOpen}
+        videoIds={Array.from(selectedVideos)}
+        onClose={(result) => {
+          setDeleteDialogOpen(false)
+          if (result === 'delete') {
+            fetchVideos()
+            setSelectedVideos(new Set())
+            setEditMode(false)
+          }
+        }}
+        alertHandler={(a) => setAlert(a)}
+      />
 
       {/* Link to Game Dialog */}
       <Dialog open={linkGameDialogOpen} onClose={handleLinkGameCancel} maxWidth="sm" fullWidth>

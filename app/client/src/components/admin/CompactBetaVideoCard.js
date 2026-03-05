@@ -12,7 +12,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, getVideoUrl, getSetting } from '../../common/utils'
-import { GameService, VideoService } from '../../services'
+import { GameService, VideoService, ConfigService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import DeleteVideoModal from '../modal/DeleteVideoModal'
 import _ from 'lodash'
@@ -628,7 +628,7 @@ const CompactBetaVideoCard = ({
       >
         {[
           { label: 'Edit',       Icon: EditIcon,           color: '#FFFFFFE6', iconColor: '#3399FF',  onClick: () => setDetailsModalOpen(true) },
-          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFF80', iconColor: '#FFFFFF66', onClick: null },
+          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFFE6', iconColor: '#3399FF', onClick: () => ConfigService.startTranscodingVideo(video.video_id).catch((err) => alertHandler?.({ type: 'error', message: err.response?.data?.includes('not enabled') ? 'Transcoding is disabled. Add ENABLE_TRANSCODING=true to your Docker environment variables.' : 'Failed to start transcoding.', open: true })) },
           { label: 'Copy Link',  Icon: LinkIcon,           color: '#FFFFFFE6', iconColor: '#3399FF',  onClick: () => { navigator.clipboard.writeText(`${PURL}${video.video_id}`); alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true }) } },
           { label: 'Delete',     Icon: DeleteOutlineIcon,  color: '#EF5350',  iconColor: '#EF5350',  onClick: () => setDeleteModalOpen(true) },
         ].map(({ label, Icon, color, iconColor, onClick }) => (
