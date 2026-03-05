@@ -161,6 +161,7 @@ const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
         onGameLinked={onLink}
         onError={() => alertHandler?.({ open: true, type: 'error', message: 'Failed to find game.' })}
         placeholder="Search for a game..."
+        sx={{ flex: 1 }}
       />
     </Box>
   )
