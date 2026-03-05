@@ -7,12 +7,14 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EditIcon from '@mui/icons-material/Edit'
 import SlowMotionVideoIcon from '@mui/icons-material/SlowMotionVideo'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, getVideoUrl, getSetting } from '../../common/utils'
 import { GameService, VideoService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
+import DeleteVideoModal from '../modal/DeleteVideoModal'
 import _ from 'lodash'
 
 const URL = getUrl()
@@ -27,6 +29,7 @@ const CompactBetaVideoCard = ({
   editMode = false,
   selected = false,
   onSelect,
+  onDelete,
   fullWidth = false,
 }) => {
   const [intVideo, setIntVideo] = React.useState(video)
@@ -38,6 +41,7 @@ const CompactBetaVideoCard = ({
   const [description, setDescription] = React.useState(video.info?.description || '')
   const [menuAnchorEl, setMenuAnchorEl] = React.useState(null)
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false)
   const menuOpen = Boolean(menuAnchorEl)
   const [gameSuggestion, setGameSuggestion] = React.useState(null)
   const [showSuggestion, setShowSuggestion] = React.useState(true)
@@ -205,6 +209,12 @@ const CompactBetaVideoCard = ({
 
   return (
     <>
+    <DeleteVideoModal
+      open={deleteModalOpen}
+      onClose={(result) => { setDeleteModalOpen(false); if (result === 'delete') onDelete?.(video.video_id) }}
+      videoId={video.video_id}
+      alertHandler={alertHandler}
+    />
     <UpdateDetailsModal
       open={detailsModalOpen}
       close={handleDetailsModalClose}
@@ -616,24 +626,21 @@ const CompactBetaVideoCard = ({
           },
         }}
       >
-        <MenuItem
-          onClick={() => { setDetailsModalOpen(true); setMenuAnchorEl(null) }}
-          sx={{ gap: 1.5, py: 1.25, fontSize: 14, color: '#FFFFFFE6', '&:hover': { bgcolor: '#FFFFFF12' } }}
-        >
-          <ListItemIcon sx={{ minWidth: 0, color: '#3399FF' }}>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          Edit Info
-        </MenuItem>
-        <MenuItem
-          onClick={() => setMenuAnchorEl(null)}
-          sx={{ gap: 1.5, py: 1.25, fontSize: 14, color: '#FFFFFF80', '&:hover': { bgcolor: '#FFFFFF12' } }}
-        >
-          <ListItemIcon sx={{ minWidth: 0, color: '#FFFFFF66' }}>
-            <SlowMotionVideoIcon fontSize="small" />
-          </ListItemIcon>
-          Transcode
-        </MenuItem>
+        {[
+          { label: 'Edit',       Icon: EditIcon,           color: '#FFFFFFE6', iconColor: '#3399FF',  onClick: () => setDetailsModalOpen(true) },
+          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFF80', iconColor: '#FFFFFF66', onClick: null },
+          { label: 'Copy Link',  Icon: LinkIcon,           color: '#FFFFFFE6', iconColor: '#3399FF',  onClick: () => { navigator.clipboard.writeText(`${PURL}${video.video_id}`); alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true }) } },
+          { label: 'Delete',     Icon: DeleteOutlineIcon,  color: '#EF5350',  iconColor: '#EF5350',  onClick: () => setDeleteModalOpen(true) },
+        ].map(({ label, Icon, color, iconColor, onClick }) => (
+          <MenuItem
+            key={label}
+            onClick={() => { onClick?.(); setMenuAnchorEl(null) }}
+            sx={{ gap: 1.5, py: 1.25, fontSize: 14, color, '&:hover': { bgcolor: '#FFFFFF12' } }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, color: iconColor }}><Icon fontSize="small" /></ListItemIcon>
+            {label}
+          </MenuItem>
+        ))}
       </Menu>
 
     </Box>

@@ -183,6 +183,7 @@ const BetaVideoCards = ({
                 editMode={editMode}
                 selected={selectedVideos.has(v.video_id)}
                 onSelect={onVideoSelect}
+                onDelete={handleDelete}
                 fullWidth={isSingleColumn}
               />
             </motion.div>
