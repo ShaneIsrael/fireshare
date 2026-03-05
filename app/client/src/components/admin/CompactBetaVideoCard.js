@@ -550,6 +550,11 @@ const CompactBetaVideoCard = ({
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
                 cursor: 'text',
+                borderRadius: '4px',
+                px: '4px',
+                mx: '-4px',
+                transition: 'background 0.15s',
+                '&:hover': { background: '#FFFFFF1F' },
               }}
             >
               {title}
