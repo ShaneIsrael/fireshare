@@ -1,162 +1,298 @@
 import * as React from 'react'
-import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
-import Modal from '@mui/material/Modal'
-import CancelIcon from '@mui/icons-material/Cancel'
-import DeleteIcon from '@mui/icons-material/Delete'
+import { Modal, Box, Typography, Button, Stack, TextField, IconButton, Divider, Popover } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import { DayPicker } from 'react-day-picker'
+import { VideoService, GameService } from '../../services'
+import GameSearch from '../game/GameSearch'
+import './datepicker-dark.css'
 
-import { ButtonGroup, Stack, TextField } from '@mui/material'
-import { VideoService } from '../../services'
-import LightTooltip from '../misc/LightTooltip'
+// ─── Shared style constants ───────────────────────────────────────────────────
 
-//
-const style = {
+const labelSx = { fontSize: 12, color: '#FFFFFFB3', mb: 1, textTransform: 'uppercase', letterSpacing: '0.08em' }
+
+const inputSx = {
+  '& .MuiOutlinedInput-root': {
+    color: 'white',
+    bgcolor: '#FFFFFF0D',
+    borderRadius: '8px',
+    '& fieldset': { borderColor: '#FFFFFF26' },
+    '&:hover fieldset': { borderColor: '#FFFFFF55' },
+    '&.Mui-focused fieldset': { borderColor: '#3399FF' },
+  },
+}
+
+const rowBoxSx = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 1.5,
+  bgcolor: '#FFFFFF0D',
+  border: '1px solid #FFFFFF26',
+  borderRadius: '8px',
+  px: 1.5,
+  py: 1,
+}
+
+const modalSx = {
   position: 'absolute',
   top: '50%',
-  left: '49.5%',
+  left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: 400,
-  background: '#0B2545',
-  border: '2px solid #086BFF9B',
-  boxShadow: 24,
+  width: 500,
+  bgcolor: '#041223',
+  border: '1px solid #FFFFFF1A',
+  borderRadius: '12px',
+  boxShadow: '0 16px 48px #00000099',
   p: 4,
 }
 
-const formatDateTimeLocal = (isoString) => {
-  if (!isoString) return ''
-  const date = new Date(isoString)
-  const pad = (n) => n.toString().padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+const timeInputStyle = {
+  background: '#FFFFFF0D',
+  border: '1px solid #FFFFFF26',
+  borderRadius: 6,
+  color: 'white',
+  fontSize: 13,
+  padding: '4px 8px',
+  colorScheme: 'dark',
+  flex: 1,
 }
 
-const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescription, currentRecordedAt, alertHandler }) => {
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+const LabeledField = ({ label, children }) => (
+  <Box>
+    <Typography sx={labelSx}>{label}</Typography>
+    {children}
+  </Box>
+)
+
+const DateField = ({ selectedDate, selectedTime, onDateChange, onTimeChange }) => {
+  const [anchor, setAnchor] = React.useState(null)
+
+  const display = selectedDate
+    ? selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + (selectedTime ? ` at ${selectedTime}` : '')
+    : null
+
+  return (
+    <>
+      <Box
+        onClick={(e) => setAnchor(e.currentTarget)}
+        sx={{ ...rowBoxSx, cursor: 'pointer', py: 1.1, '&:hover': { borderColor: '#FFFFFF55' } }}
+      >
+        <CalendarMonthIcon sx={{ color: '#FFFFFF66', fontSize: 20 }} />
+        <Typography sx={{ color: display ? 'white' : '#FFFFFF4D', fontSize: 14, flex: 1 }}>
+          {display || 'Pick a date…'}
+        </Typography>
+        {selectedDate && (
+          <IconButton
+            size="small"
+            onClick={(e) => { e.stopPropagation(); onDateChange(null); onTimeChange('') }}
+            sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.25 }}
+          >
+            <CloseIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        )}
+      </Box>
+
+      <Popover
+        open={Boolean(anchor)}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', mt: 0.5 } } }}
+      >
+        <div className="fireshare-rdp">
+          <DayPicker
+            animate
+            mode="single"
+            selected={selectedDate}
+            onSelect={(d) => onDateChange(d || null)}
+            defaultMonth={selectedDate || new Date()}
+          />
+          <Box sx={{ px: 1, pb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography sx={{ color: '#FFFFFFB3', fontSize: 13 }}>Time</Typography>
+            <input
+              type="time"
+              value={selectedTime}
+              onChange={(e) => onTimeChange(e.target.value)}
+              style={timeInputStyle}
+            />
+            <Button
+              size="small"
+              variant="contained"
+              onClick={() => setAnchor(null)}
+              sx={{ bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' }, minWidth: 60 }}
+            >
+              Done
+            </Button>
+          </Box>
+        </div>
+      </Popover>
+    </>
+  )
+}
+
+const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
+  if (game) {
+    return (
+      <Box sx={rowBoxSx}>
+        {game.icon_url && (
+          <img src={game.icon_url} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'contain' }} />
+        )}
+        <Typography sx={{ color: 'white', fontSize: 14, flex: 1 }}>{game.name}</Typography>
+        <IconButton size="small" onClick={onUnlink} sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.5 }}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    )
+  }
+
+  return (
+    <Box sx={{
+      ...rowBoxSx,
+      py: 0,
+      overflow: 'hidden',
+      '& .MuiInputBase-root': { color: 'white', px: 0 },
+      '& input::placeholder': { color: '#FFFFFF66', opacity: 1 },
+      '& .MuiSvgIcon-root': { color: '#FFFFFF66' },
+    }}>
+      <GameSearch
+        onGameLinked={onLink}
+        onError={() => alertHandler?.({ open: true, type: 'error', message: 'Failed to find game.' })}
+        placeholder="Search for a game..."
+      />
+    </Box>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescription, currentRecordedAt, currentGame, alertHandler }) => {
   const [title, setTitle] = React.useState(currentTitle)
   const [description, setDescription] = React.useState(currentDescription)
-  const [recordedAt, setRecordedAt] = React.useState(formatDateTimeLocal(currentRecordedAt))
-  const [confirmDelete, setConfirmDelete] = React.useState(false)
+  const [selectedDate, setSelectedDate] = React.useState(null)
+  const [selectedTime, setSelectedTime] = React.useState('')
+  const [linkedGame, setLinkedGame] = React.useState(currentGame || null)
+  const [loading, setLoading] = React.useState(false)
 
-  const onTitleChange = (e) => setTitle(e.target.value)
-  const onDescriptionChange = (e) => setDescription(e.target.value)
+  React.useEffect(() => {
+    setTitle(currentTitle)
+    setDescription(currentDescription)
+    setLinkedGame(currentGame || null)
+    if (!currentRecordedAt) {
+      setSelectedDate(null)
+      setSelectedTime('')
+      return
+    }
+    const d = new Date(currentRecordedAt)
+    const pad = (n) => n.toString().padStart(2, '0')
+    setSelectedDate(d)
+    setSelectedTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)
+  }, [currentTitle, currentDescription, currentRecordedAt, currentGame])
 
-  const handleClose = (update) => {
-    setConfirmDelete(false)
-    close(update)
+  const getRecordedAtISO = () => {
+    if (!selectedDate) return null
+    const d = new Date(selectedDate)
+    if (selectedTime) {
+      const [h, m] = selectedTime.split(':')
+      d.setHours(+h, +m, 0, 0)
+    }
+    return d.toISOString()
   }
 
   const handleSave = async () => {
-    const update = {
-      title: title || currentTitle,
-      description: description || currentDescription,
-      recorded_at: recordedAt ? new Date(recordedAt).toISOString() : null,
-    }
+    setLoading(true)
     try {
-      await VideoService.updateDetails(videoId, update)
-      alertHandler({
-        open: true,
-        type: 'success',
-        message: 'Video details updated!',
+      await VideoService.updateDetails(videoId, {
+        title: title || currentTitle,
+        description: description || currentDescription,
+        recorded_at: getRecordedAtISO(),
       })
+      alertHandler?.({ open: true, type: 'success', message: 'Video details updated!' })
+      close({ title: title || currentTitle, description: description || currentDescription, game: linkedGame })
     } catch (err) {
-      alertHandler({
-        open: true,
-        type: 'error',
-        message: `${err.respnose?.data || 'An unknown error occurred attempting to save video details'}`,
-      })
+      alertHandler?.({ open: true, type: 'error', message: err.response?.data || 'An unknown error occurred.' })
     }
-    handleClose(update)
+    setLoading(false)
   }
 
-  const handleDelete = async () => {
+  const handleGameLinked = async (game) => {
     try {
-      await VideoService.delete(videoId)
-      alertHandler({
-        open: true,
-        type: 'success',
-        message: 'Video has been deleted.',
-      })
-      handleClose('delete')
+      await GameService.linkVideoToGame(videoId, game.id)
+      setLinkedGame(game)
+      alertHandler?.({ open: true, type: 'success', message: `Linked to ${game.name}` })
     } catch (err) {
-      alertHandler({
-        open: true,
-        type: 'error',
-        message: `${err.respnose?.data || 'An unknown error occurred attempting to delete the video'}`,
-      })
+      alertHandler?.({ open: true, type: 'error', message: 'Failed to link game.' })
     }
   }
 
-  React.useEffect(() => {
-    function update() {
-      setTitle(currentTitle)
-      setDescription(currentDescription)
-      setRecordedAt(formatDateTimeLocal(currentRecordedAt))
+  const handleGameUnlink = async () => {
+    try {
+      await GameService.unlinkVideoFromGame(videoId)
+      setLinkedGame(null)
+      alertHandler?.({ open: true, type: 'info', message: 'Game unlinked.' })
+    } catch (err) {
+      alertHandler?.({ open: true, type: 'error', message: 'Failed to unlink game.' })
     }
-    update()
-  }, [currentTitle, currentDescription, currentRecordedAt])
+  }
 
   return (
-    <Modal
-      open={open}
-      onClose={() => handleClose(null)}
-      aria-labelledby="modal-update-details-title"
-      aria-describedby="modal-update-details-description"
-    >
-      <Box sx={style}>
-        <Stack spacing={2}>
-          <TextField
-            id="modal-update-details-title"
-            label="Video Title"
-            value={title !== null ? title : currentTitle}
-            onChange={onTitleChange}
-          />
-          <TextField
-            id="modal-update-details-description"
-            label="Video Description"
-            value={description !== null ? description : currentDescription}
-            onChange={onDescriptionChange}
-            multiline
-            rows={4}
-          />
-          <TextField
-            id="modal-update-details-recorded-at"
-            label="Recorded Date"
-            type="datetime-local"
-            value={recordedAt}
-            onChange={(e) => setRecordedAt(e.target.value)}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
-          <Button variant="contained" onClick={handleSave}>
-            Save
-          </Button>
+    <Modal open={open} onClose={() => close(null)}>
+      <Box sx={modalSx}>
+        <Typography variant="h6" sx={{ fontWeight: 800, color: 'white', mb: 3 }}>
+          Edit Video
+        </Typography>
 
-          {confirmDelete ? (
-            <ButtonGroup fullWidth>
-              <Button variant="outlined" startIcon={<CancelIcon />} onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </Button>
-              <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={handleDelete}>
-                Delete
-              </Button>
-            </ButtonGroup>
-          ) : (
-            <LightTooltip
-              title="This will delete the associated file, this action is not reverseable."
-              placement="bottom"
-              enterDelay={1000}
-              leaveDelay={500}
-              enterNextDelay={1000}
-              arrow
-            >
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={() => setConfirmDelete(true)}
-              >
-                Delete File
-              </Button>
-            </LightTooltip>
-          )}
+        <Stack spacing={2.5}>
+          <LabeledField label="Title">
+            <TextField value={title ?? ''} onChange={(e) => setTitle(e.target.value)} fullWidth sx={inputSx} />
+          </LabeledField>
+
+          <LabeledField label="Description">
+            <TextField value={description ?? ''} onChange={(e) => setDescription(e.target.value)} multiline rows={3} fullWidth sx={inputSx} />
+          </LabeledField>
+
+          <LabeledField label="Recorded Date">
+            <DateField
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              onDateChange={setSelectedDate}
+              onTimeChange={setSelectedTime}
+            />
+          </LabeledField>
+
+          <Divider sx={{ borderColor: '#FFFFFF14' }} />
+
+          <LabeledField label="Linked Game">
+            <LinkedGameField
+              game={linkedGame}
+              onLink={handleGameLinked}
+              onUnlink={handleGameUnlink}
+              alertHandler={alertHandler}
+            />
+          </LabeledField>
+        </Stack>
+
+        <Stack direction="row" spacing={1.5} sx={{ mt: 4 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={() => close(null)}
+            disabled={loading}
+            sx={{ color: 'white', borderColor: 'white', '&:hover': { borderColor: 'white', bgcolor: '#FFFFFF12' } }}
+          >
+            Cancel
+          </Button>
+          <Button
+            fullWidth
+            variant="contained"
+            onClick={handleSave}
+            disabled={loading}
+            sx={{ bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}
+          >
+            {loading ? 'Saving…' : 'Save'}
+          </Button>
         </Stack>
       </Box>
     </Modal>

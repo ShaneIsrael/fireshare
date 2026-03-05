@@ -204,6 +204,7 @@ const CompactBetaVideoCard = ({
     if (update && update !== 'delete') {
       if (update.title !== undefined) setTitle(update.title || filenameFallback)
       if (update.description !== undefined) setDescription(update.description || '')
+      if ('game' in update) setGame(update.game)
     }
   }
 
@@ -222,6 +223,7 @@ const CompactBetaVideoCard = ({
       currentTitle={title}
       currentDescription={description}
       currentRecordedAt={video.recorded_at}
+      currentGame={game}
       alertHandler={alertHandler}
     />
     <Box
@@ -627,17 +629,24 @@ const CompactBetaVideoCard = ({
         }}
       >
         {[
-          { label: 'Edit',       Icon: EditIcon,           color: '#FFFFFFE6', iconColor: '#3399FF',  onClick: () => setDetailsModalOpen(true) },
-          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFFE6', iconColor: '#3399FF', onClick: () => ConfigService.startTranscodingVideo(video.video_id).catch((err) => alertHandler?.({ type: 'error', message: err.response?.data?.includes('not enabled') ? 'Transcoding is disabled. Add ENABLE_TRANSCODING=true to your Docker environment variables.' : 'Failed to start transcoding.', open: true })) },
-          { label: 'Copy Link',  Icon: LinkIcon,           color: '#FFFFFFE6', iconColor: '#3399FF',  onClick: () => { navigator.clipboard.writeText(`${PURL}${video.video_id}`); alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true }) } },
-          { label: 'Delete',     Icon: DeleteOutlineIcon,  color: '#EF5350',  iconColor: '#EF5350',  onClick: () => setDeleteModalOpen(true) },
-        ].map(({ label, Icon, color, iconColor, onClick }) => (
+          { label: 'Edit',       Icon: EditIcon,           color: '#FFFFFFE6', onClick: () => setDetailsModalOpen(true) },
+          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFFE6', onClick: () => ConfigService.startTranscodingVideo(video.video_id).catch((err) => alertHandler?.({ type: 'error', message: err.response?.data?.includes('not enabled') ? 'Transcoding is disabled. Add ENABLE_TRANSCODING=true to your Docker environment variables.' : 'Failed to start transcoding.', open: true })) },
+          { label: 'Copy Link',  Icon: LinkIcon,           color: '#FFFFFFE6', onClick: () => { navigator.clipboard.writeText(`${PURL}${video.video_id}`); alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true }) } },
+          { label: 'Delete',     Icon: DeleteOutlineIcon,  color: '#EF5350',  danger: true, onClick: () => setDeleteModalOpen(true) },
+        ].map(({ label, Icon, color, danger, onClick }) => (
           <MenuItem
             key={label}
             onClick={() => { onClick?.(); setMenuAnchorEl(null) }}
-            sx={{ gap: 1.5, py: 1.25, fontSize: 14, color, '&:hover': { bgcolor: '#FFFFFF12' } }}
+            sx={{
+              gap: 1.5,
+              py: 1.25,
+              fontSize: 14,
+              color,
+              bgcolor: danger ? '#EF535012' : 'transparent',
+              '&:hover': { bgcolor: danger ? '#EF535028' : '#FFFFFF12' },
+            }}
           >
-            <ListItemIcon sx={{ minWidth: 0, color: iconColor }}><Icon fontSize="small" /></ListItemIcon>
+            <ListItemIcon sx={{ minWidth: 0, color: danger ? '#EF5350' : 'white' }}><Icon fontSize="small" /></ListItemIcon>
             {label}
           </MenuItem>
         ))}
