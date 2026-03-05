@@ -289,8 +289,69 @@ def get_warnings():
         else:
             return jsonify(warnings)
 
-# Global variable to track transcoding process
+# Global transcoding state
 _transcoding_process = None
+_transcoding_queue = []   # items are (video_id, task_count) tuples; video_id=None means bulk
+_queue_lock = threading.Lock()
+_queue_thread = None
+_completed_tasks = 0      # tasks finished so far in this queue session
+
+
+def _count_expected_tasks(video_id, data_path):
+    """Estimate transcode task count for a video at enqueue time (requires app context).
+    Mirrors CLI logic: only counts resolutions strictly below the video's own height."""
+    if video_id is None:
+        return 0  # bulk: unknown until CLI starts; status.total takes over once running
+    config_path = data_path / 'config.json'
+    resolutions = []
+    if config_path.exists():
+        with open(config_path) as f:
+            tc = json.load(f).get('transcoding', {})
+        if tc.get('enable_1080p', True): resolutions.append(1080)
+        if tc.get('enable_720p', True): resolutions.append(720)
+        if tc.get('enable_480p', True): resolutions.append(480)
+    else:
+        resolutions = [1080, 720, 480]
+    vi = VideoInfo.query.filter_by(video_id=video_id).first()
+    original_height = vi.height or 0 if vi else 0
+    count = sum(1 for h in resolutions if original_height > h)
+    return count if count > 0 else len(resolutions)  # fallback if height unknown
+
+
+def _drain_queue(data_path):
+    """Background thread: process queued transcode jobs sequentially."""
+    global _transcoding_process, _queue_thread, _completed_tasks
+    while True:
+        with _queue_lock:
+            if not _transcoding_queue:
+                _queue_thread = None
+                _transcoding_process = None
+                _completed_tasks = 0
+                break
+            video_id, task_count = _transcoding_queue.pop(0)
+        try:
+            cmd = ['fireshare', 'transcode-videos']
+            if video_id is not None:
+                cmd += ['--video', video_id]
+            _transcoding_process = subprocess.Popen(cmd, env=os.environ.copy(), start_new_session=True)
+            util.write_transcoding_status(data_path, 0, 0, None, _transcoding_process.pid)
+            _transcoding_process.wait()
+            _completed_tasks += task_count
+        except Exception as e:
+            logging.error(f'Transcoding queue failed for video_id={video_id}: {e}')
+
+
+def _enqueue_transcode(video_id, data_path):
+    """Add a job to the queue. Starts the drain thread if not already running."""
+    global _queue_thread
+    task_count = _count_expected_tasks(video_id, data_path)
+    with _queue_lock:
+        _transcoding_queue.append((video_id, task_count))
+        if _queue_thread is None or not _queue_thread.is_alive():
+            _queue_thread = threading.Thread(target=_drain_queue, args=(data_path,), daemon=True)
+            _queue_thread.start()
+            return 'started'
+    return 'queued'
 
 
 def _is_pid_running(pid):
@@ -345,7 +406,9 @@ def get_transcoding_status():
         "current_video": progress.get('current_video'),
         "percent": progress.get('percent'),
         "eta_seconds": progress.get('eta_seconds'),
-        "resolution": progress.get('resolution')
+        "resolution": progress.get('resolution'),
+        "queue_tasks": sum(c for _, c in _transcoding_queue),
+        "completed_tasks": _completed_tasks,
     })
 
 
@@ -388,7 +451,9 @@ def admin_event_stream():
                     "current_video": progress.get('current_video'),
                     "percent": progress.get('percent'),
                     "eta_seconds": progress.get('eta_seconds'),
-                    "resolution": progress.get('resolution')
+                    "resolution": progress.get('resolution'),
+                    "queue_tasks": sum(c for _, c in _transcoding_queue),
+                    "completed_tasks": _completed_tasks,
                 }
 
                 if transcoding_state != last_transcoding_state:
@@ -430,30 +495,23 @@ def admin_event_stream():
 @api.route('/api/admin/transcoding/start', methods=["POST"])
 @login_required
 def start_transcoding():
-    """Start bulk transcoding of all videos."""
-    global _transcoding_process
-
+    """Start bulk transcoding of all videos, or queue it if already running."""
     if not current_app.config.get('ENABLE_TRANSCODING', False):
         return Response(status=400, response='Transcoding is not enabled')
+    paths = current_app.config['PATHS']
+    status = _enqueue_transcode(None, paths['data'])
+    return jsonify({"status": status})
 
-    # Check if already running
-    if _transcoding_process is not None and _transcoding_process.poll() is None:
-        return Response(status=400, response='Transcoding is already in progress')
 
-    # Start transcoding in background - output goes to server terminal
-    # Use start_new_session so we can kill the entire process group (including ffmpeg)
-    try:
-        _transcoding_process = subprocess.Popen(
-            ['fireshare', 'transcode-videos'],
-            env=os.environ.copy(),
-            start_new_session=True
-        )
-        # Write the PID to the status file so we can recover it after server restart
-        paths = current_app.config['PATHS']
-        util.write_transcoding_status(paths['data'], 0, 0, None, _transcoding_process.pid)
-        return jsonify({"status": "started", "pid": _transcoding_process.pid})
-    except Exception as e:
-        return Response(status=500, response=f'Failed to start transcoding: {str(e)}')
+@api.route('/api/admin/transcoding/start/<video_id>', methods=["POST"])
+@login_required
+def start_transcoding_video(video_id):
+    """Start transcoding for a single video, or queue it if already running."""
+    if not current_app.config.get('ENABLE_TRANSCODING', False):
+        return Response(status=400, response='Transcoding is not enabled')
+    paths = current_app.config['PATHS']
+    status = _enqueue_transcode(video_id, paths['data'])
+    return jsonify({"status": status})
 
 
 @api.route('/api/admin/transcoding/cancel', methods=["POST"])
@@ -507,9 +565,13 @@ def cancel_transcoding():
         except OSError:
             pass  # Process group doesn't exist
 
-    # Always clear the status file when cancel is requested
+    # Clear the queue and status file
+    with _queue_lock:
+        _transcoding_queue.clear()
     util.clear_transcoding_status(paths['data'])
 
+    global _completed_tasks
+    _completed_tasks = 0
     _transcoding_process = None
     return jsonify({"status": "cancelled"})
 

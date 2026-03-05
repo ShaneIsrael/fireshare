@@ -90,7 +90,7 @@ const TranscodingStatus = ({ open }) => {
                   <>
                     Transcoding:{' '}
                     <Box component="span" sx={styles.textAccent}>
-                      {status.current}/{status.total}
+                      {status.current + status.completed_tasks}/{status.total + status.completed_tasks + status.queue_tasks}
                     </Box>
                   </>
                 )}
@@ -135,7 +135,7 @@ const TranscodingStatus = ({ open }) => {
 
   const tooltipText = status.total === 0
     ? 'Preparing transcode...'
-    : `Transcoding: ${status.current}/${status.total}${status.current_video ? `\n${status.current_video}` : ''}`
+    : `Transcoding: ${status.current + status.completed_tasks}/${status.total + status.completed_tasks + status.queue_tasks}${status.current_video ? `\n${status.current_video}` : ''}`
 
   return (
     <Tooltip title={tooltipText} arrow placement="right">

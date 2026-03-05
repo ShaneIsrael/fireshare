@@ -78,6 +78,7 @@ const GameSearch = ({ onGameLinked, onError, disabled = false, placeholder = 'Se
 
   return (
     <Autocomplete
+      fullWidth
       value={selectedGame}
       onChange={handleGameChange}
       onInputChange={(_, val) => searchGames(val)}
@@ -85,6 +86,19 @@ const GameSearch = ({ onGameLinked, onError, disabled = false, placeholder = 'Se
       getOptionLabel={(option) => option.name || ''}
       loading={gameSearchLoading}
       disabled={disabled || gameLinkLoading}
+      slotProps={{
+        paper: {
+          sx: {
+            bgcolor: '#0b132b',
+            border: '1px solid #FFFFFF1A',
+            borderRadius: '8px',
+            color: 'white',
+            boxShadow: '0 8px 32px #00000099',
+            '& .MuiAutocomplete-noOptions': { color: '#FFFFFF66' },
+            '& .MuiAutocomplete-loading': { color: '#FFFFFF66' },
+          },
+        },
+      }}
       renderInput={(params) => (
         <TextField
           {...params}
