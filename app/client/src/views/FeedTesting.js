@@ -457,8 +457,8 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
 
       {/* Release Notes Dialog */}
       <Dialog open={featureAlertOpen} onClose={handleFeatureAlertClose} maxWidth="sm" scroll="paper">
-        <DialogTitle>
-          {releaseNotes?.name || `Update ${releaseNotes?.version}`}
+        <DialogTitle sx={{ fontSize: 18, fontWeight: 'bold', color: 'primary.main', textTransform: 'uppercase' }}>
+{`New Update Available - v${releaseNotes?.version}`}
         </DialogTitle>
         <DialogContent sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <Box
@@ -475,8 +475,6 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
                     // Escape HTML first
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
-                    // Remove @username mentions
-                    .replace(/@[\w-]+/g, '')
                     // Headers
                     .replace(/^## (.+)$/gm, '<strong style="font-size: 1.1em;">$1</strong>')
                     .replace(/^### (.+)$/gm, '<strong>$1</strong>')
@@ -485,6 +483,11 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
                     // Links
                     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
                     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+                    // Unordered lists
+                    .replace(/(?:^|\n)([*\-] .+(?:\n[*\-] .+)*)/g, (match) => {
+                      const items = match.trim().split('\n').map(li => `<li>${li.replace(/^[*\-] /, '')}</li>`).join('')
+                      return `<ul>${items}</ul>`
+                    })
                     // Line breaks
                     .replace(/\n\n/g, '</p><p>')
                     .replace(/\n/g, '<br/>')

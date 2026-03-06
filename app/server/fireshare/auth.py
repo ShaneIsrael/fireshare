@@ -123,14 +123,20 @@ def loggedin():
     if not current_user.is_authenticated:
         return jsonify({'authenticated': False})
 
-    # Check if user should see release notes (runs once per app load)
+    # Check if a newer release exists and user hasn't dismissed it yet
     show_release_notes = False
     release_notes = None
     release_data = _fetch_release_notes()
     local_version = _get_local_version()
 
     if release_data and local_version:
-        if current_user.last_seen_version != local_version:
+        latest_version = release_data['version']
+        update_available = tuple(int(x) for x in latest_version.split('.')) > tuple(int(x) for x in local_version.split('.'))
+        if update_available:
+            current_app.logger.info(f"A new version of Fireshare is available! You have v{local_version}, latest is v{latest_version}.")
+        else:
+            current_app.logger.info(f"Fireshare is up to date (v{local_version}).")
+        if update_available and current_user.last_seen_version != latest_version:
             show_release_notes = True
             release_notes = release_data
 

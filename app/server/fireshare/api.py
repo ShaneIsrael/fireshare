@@ -134,7 +134,7 @@ def config():
 
 # Cache for local app version and release notes (persists until server restart)
 _local_version_cache = {'version': None}
-_release_cache = {'data': None}
+_release_cache = {'data': None, 'fetched_at': 0}
 
 def _get_local_version():
     """Get the locally installed app version from package.json. Cached until server restart."""
@@ -158,13 +158,11 @@ def _get_local_version():
         return None
 
 def _fetch_release_notes():
-    """Fetch and cache release notes for the LOCAL version from GitHub. Cached until server restart."""
-    if _release_cache['data']:
+    """Fetch and cache the latest GitHub release. Cache expires after 12 hours."""
+    import time
+    cache_ttl = 12 * 60 * 60  # 12 hours
+    if _release_cache['data'] and (time.time() - _release_cache['fetched_at']) < cache_ttl:
         return _release_cache['data']
-
-    local_version = _get_local_version()
-    if not local_version:
-        return None
 
     try:
         response = requests.get(
@@ -178,18 +176,7 @@ def _fetch_release_notes():
         if not releases:
             return None
 
-        # Find the release matching the local version
-        target_release = None
-        for release in releases:
-            release_version = release.get('tag_name', '').lstrip('v')
-            if release_version == local_version:
-                target_release = release
-                break
-
-        # Fall back to latest if local version not found on GitHub
-        if not target_release:
-            logger.warning(f"Local version {local_version} not found on GitHub, using latest release")
-            target_release = releases[0]
+        target_release = releases[0]
 
         _release_cache['data'] = {
             'version': target_release.get('tag_name', '').lstrip('v'),
@@ -198,6 +185,7 @@ def _fetch_release_notes():
             'published_at': target_release.get('published_at', ''),
             'html_url': target_release.get('html_url', '')
         }
+        _release_cache['fetched_at'] = time.time()
         return _release_cache['data']
 
     except requests.RequestException as e:
