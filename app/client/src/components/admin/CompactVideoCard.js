@@ -573,6 +573,9 @@ const CompactBetaVideoCard = ({
                 mt: 0.25,
                 display: 'block',
                 textDecoration: 'none',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
                 ...(game?.steamgriddb_id && {
                   '&:hover': { color: '#3399FF', textDecoration: 'underline' },
                 }),
