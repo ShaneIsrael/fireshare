@@ -158,7 +158,7 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
         </Box>,
         toolbarTarget,
       )}
-      <Box sx={{ height: '100%' }}>
+      <Box>
         <Grid container item justifyContent="center">
           <Grid item xs={12}>
             <Grid container justifyContent="center">
