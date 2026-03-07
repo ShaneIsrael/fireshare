@@ -2,32 +2,49 @@ import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { AuthService } from '../../services'
 
+const RECHECK_INTERVAL = 12 * 60 * 60 * 1000 // 12 hours
+let lastCheckTime = 0
+
 const AuthWrapper = ({ children, redirect }) => {
   const [authed, setAuthed] = React.useState(true)
   const [checkingAuth, setCheckingAuth] = React.useState(true)
   const [showReleaseNotes, setShowReleaseNotes] = React.useState(false)
   const [releaseNotes, setReleaseNotes] = React.useState(null)
 
-  React.useEffect(() => {
-    async function isLoggedIn() {
-      try {
-        const response = (await AuthService.isLoggedIn()).data
-        // Handle both old (boolean) and new (object) response formats
-        if (typeof response === 'object') {
-          setAuthed(response.authenticated)
-          setShowReleaseNotes(response.show_release_notes || false)
-          setReleaseNotes(response.release_notes || null)
-        } else {
-          setAuthed(response)
-        }
-      } catch (err) {
-        setAuthed(false)
-        console.error(err)
+  const checkLogin = React.useCallback(async () => {
+    try {
+      const response = (await AuthService.isLoggedIn()).data
+      if (typeof response === 'object') {
+        setAuthed(response.authenticated)
+        setShowReleaseNotes(response.show_release_notes || false)
+        setReleaseNotes(response.release_notes || null)
+      } else {
+        setAuthed(response)
       }
-      setCheckingAuth(false)
+    } catch (err) {
+      setAuthed(false)
+      console.error(err)
     }
-    isLoggedIn()
+    lastCheckTime = Date.now()
   }, [])
+
+  React.useEffect(() => {
+    checkLogin().then(() => setCheckingAuth(false))
+
+    const interval = setInterval(checkLogin, RECHECK_INTERVAL)
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastCheckTime >= RECHECK_INTERVAL) {
+        checkLogin()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [checkLogin])
 
   if (checkingAuth) return <div></div>
 
