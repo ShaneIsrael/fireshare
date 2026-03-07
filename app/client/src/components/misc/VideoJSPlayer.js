@@ -169,7 +169,7 @@ const VideoJSPlayer = ({
         // Single long stall fallback
         clearStallTimer()
         bufferStallTimer = setTimeout(() => {
-          if (player.paused() || player.readyState() < 3) {
+          if (!player.isDisposed() && (player.paused() || player.readyState() < 3)) {
             bufferTimestamps = []
             switchToNextSource()
           }

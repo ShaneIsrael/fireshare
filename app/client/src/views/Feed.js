@@ -120,10 +120,6 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
     )
   }, [filteredVideos, selectedFolder])
 
-  // Check if date grouping should be shown
-  const showDateGroups = getSetting('ui_config')?.show_date_groups !== false
-  const isSortingByViews = sortOrder.value === 'most_views' || sortOrder.value === 'least_views'
-  const skipDateGrouping = isSortingByViews || !showDateGroups
 
   // Sort videos by recorded date or views
   const sortedVideos = React.useMemo(() => {
@@ -162,7 +158,7 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
         </Box>,
         toolbarTarget,
       )}
-      <Box sx={{ height: '100%' }}>
+      <Box>
         <Grid container item justifyContent="center">
           <Grid item xs={12}>
             <Grid container justifyContent="center">
@@ -195,8 +191,6 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
                       authenticated={authenticated}
                       feedView={true}
                       size={cardSize}
-                      showUploadCard={selectedFolder.value === 'All Videos'}
-                      showDateHeaders={!skipDateGrouping}
                     />
                   )}
                 </Box>

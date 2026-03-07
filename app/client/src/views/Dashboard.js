@@ -144,10 +144,6 @@ const Dashboard = ({
     setSelectedFolder(folder)
   }
 
-  // Check if date grouping should be shown
-  const showDateGroups = getSetting('ui_config')?.show_date_groups !== false
-  const isSortingByViews = dateSortOrder.value === 'most_views' || dateSortOrder.value === 'least_views'
-  const skipDateGrouping = isSortingByViews || !showDateGroups
 
   // Get the filtered videos based on folder selection
   const displayVideos = React.useMemo(() => {
@@ -395,7 +391,7 @@ const Dashboard = ({
           </Box>,
           toolbarTarget,
         )}
-      <Box sx={{ height: '100%' }}>
+      <Box>
         <Grid container item justifyContent="center">
           <Grid item xs={12}>
             <Grid container justifyContent="center">
@@ -425,11 +421,9 @@ const Dashboard = ({
                       videos={sortedVideos}
                       authenticated={authenticated}
                       size={cardSize}
-                      showUploadCard={selectedFolder.value === 'All Videos'}
                       editMode={editMode}
                       selectedVideos={selectedVideos}
                       onVideoSelect={handleVideoSelect}
-                      showDateHeaders={!skipDateGrouping}
                     />
                   )}
                 </Box>

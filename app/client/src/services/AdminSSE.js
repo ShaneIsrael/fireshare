@@ -13,7 +13,13 @@ class AdminSSEManager {
     this.eventSource = null
     this.transcodingSubscribers = new Set()
     this.lastTranscodingStatus = null
+    this.gameScanSubscribers = new Set()
+    this.lastGameScanStatus = null
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRANSCODING
+  // ═══════════════════════════════════════════════════════════════════════════
 
   subscribeTranscoding(callback) {
     this.transcodingSubscribers.add(callback)
@@ -21,9 +27,27 @@ class AdminSSEManager {
     if (this.lastTranscodingStatus) callback(this.lastTranscodingStatus)
     return () => {
       this.transcodingSubscribers.delete(callback)
-      if (this.transcodingSubscribers.size === 0) this.disconnect()
+      if (this.transcodingSubscribers.size === 0 && this.gameScanSubscribers.size === 0) this.disconnect()
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GAME SCAN
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  subscribeGameScan(callback) {
+    this.gameScanSubscribers.add(callback)
+    if (!this.eventSource) this.connect()
+    if (this.lastGameScanStatus) callback(this.lastGameScanStatus)
+    return () => {
+      this.gameScanSubscribers.delete(callback)
+      if (this.transcodingSubscribers.size === 0 && this.gameScanSubscribers.size === 0) this.disconnect()
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONNECTION
+  // ═══════════════════════════════════════════════════════════════════════════
 
   connect() {
     this.eventSource = new EventSource(
@@ -40,14 +64,18 @@ class AdminSSEManager {
       this.transcodingSubscribers.forEach(cb => cb(data))
     })
 
-    // Future admin events can be added here:
-    // this.eventSource.addEventListener('other_event', (e) => { ... })
+    this.eventSource.addEventListener('gameScan', (e) => {
+      const data = JSON.parse(e.data)
+      this.lastGameScanStatus = data
+      this.gameScanSubscribers.forEach(cb => cb(data))
+    })
   }
 
   disconnect() {
     this.eventSource?.close()
     this.eventSource = null
     this.lastTranscodingStatus = null
+    this.lastGameScanStatus = null
   }
 }
 
