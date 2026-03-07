@@ -36,5 +36,9 @@ function LoadingProgress({ size, ...rest }) {
 }
 
 export default function LoadingSpinner({ size }) {
-  return <LoadingProgress size={size} />
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%', py: 8 }}>
+      <LoadingProgress size={size} />
+    </Box>
+  )
 }
