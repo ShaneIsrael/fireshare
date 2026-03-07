@@ -18,7 +18,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import CheckIcon from '@mui/icons-material/Check'
 import LinkIcon from '@mui/icons-material/Link'
-import BetaVideoCards from '../components/admin/BetaVideoCards'
+import BetaVideoCards from '../components/admin/VideoCards'
 import VideoList from '../components/admin/VideoList'
 import GameSearch from '../components/game/GameSearch'
 import { VideoService, GameService, ReleaseService } from '../services'
@@ -126,10 +126,6 @@ const FeedTesting = ({ authenticated, searchText, cardSize, listStyle, showRelea
     setSelectedFolder(folder)
   }
 
-  // Check if date grouping should be shown
-  const showDateGroups = getSetting('ui_config')?.show_date_groups !== false
-  const isSortingByViews = dateSortOrder.value === 'most_views' || dateSortOrder.value === 'least_views'
-  const skipDateGrouping = isSortingByViews || !showDateGroups
 
   // Get the filtered videos based on folder selection
   const displayVideos = React.useMemo(() => {

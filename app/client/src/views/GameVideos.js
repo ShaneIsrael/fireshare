@@ -8,7 +8,6 @@ import VideoCards from '../components/admin/VideoCards'
 import GameVideosHeader from '../components/game/GameVideosHeader'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { SORT_OPTIONS } from '../common/constants'
-import { getSetting } from '../common/utils'
 import selectSortTheme from '../common/reactSelectSortTheme'
 
 const GameVideos = ({ cardSize, authenticated, searchText }) => {
@@ -47,10 +46,6 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
 
-  // Check if date grouping should be shown
-  const showDateGroups = getSetting('ui_config')?.show_date_groups !== false
-  const isSortingByViews = sortOrder.value === 'most_views' || sortOrder.value === 'least_views'
-  const skipDateGrouping = isSortingByViews || !showDateGroups
 
   const sortedVideos = React.useMemo(() => {
     if (!filteredVideos || !Array.isArray(filteredVideos)) return []
@@ -94,7 +89,6 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
           authenticated={authenticated}
           size={cardSize}
           feedView={false}
-          showDateHeaders={!skipDateGrouping}
         />
       </Box>
     </Box>

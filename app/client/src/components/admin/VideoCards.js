@@ -1,19 +1,13 @@
 import React, { useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { Box, Button, Grid, Paper, Typography } from '@mui/material'
 import SnackbarAlert from '../alert/SnackbarAlert'
-import VisibilityCard from './VisibilityCard'
 import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
-import { formatDate } from '../../common/utils'
+import CompactBetaVideoCard from './CompactVideoCard'
 
-const getDateKey = (video) => {
-  return video.recorded_at
-    ? new Date(video.recorded_at).toISOString().split('T')[0]
-    : 'unknown'
-}
-
-const VideoCards = ({
+const BetaVideoCards = ({
   videos,
   loadingIcon = null,
   feedView = false,
@@ -21,15 +15,15 @@ const VideoCards = ({
   size,
   editMode = false,
   selectedVideos = new Set(),
-  onVideoSelect = () => {},
-  showDateHeaders = false,
+  onVideoSelect,
 }) => {
   const [vids, setVideos] = React.useState(videos)
   const [alert, setAlert] = React.useState({ open: false })
   const [videoModal, setVideoModal] = React.useState({
     open: false,
   })
-
+  const [isSingleColumn, setIsSingleColumn] = React.useState(false)
+  const containerRef = React.useRef()
   const previousVideosRef = React.useRef()
   const previousVideos = previousVideosRef.current
   if (videos !== previousVideos && videos !== vids) {
@@ -77,6 +71,16 @@ const VideoCards = ({
   const handleDelete = (id) => {
     setVideos((vs) => vs.filter((v) => v.video_id !== id))
   }
+
+  React.useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      setIsSingleColumn(entry.contentRect.width < size * 2 + 24)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [size])
 
   const EMPTY_STATE = () => (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
@@ -142,69 +146,40 @@ const VideoCards = ({
 
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
-        <Grid container justifyContent="center">
-          {(() => {
-            // Pre-compute counts per date
-            const dateCounts = {}
-            vids.forEach((video) => {
-              const key = getDateKey(video)
-              dateCounts[key] = (dateCounts[key] || 0) + 1
-            })
-
-            return vids.map((v, index) => {
-              const currentDateKey = getDateKey(v)
-              const prevDateKey = index > 0 ? getDateKey(vids[index - 1]) : null
-              const nextDateKey = index < vids.length - 1 ? getDateKey(vids[index + 1]) : null
-              const isNewDate = showDateHeaders && currentDateKey !== prevDateKey
-              const isLastOfDate = currentDateKey !== nextDateKey
-              const formattedDate = currentDateKey !== 'unknown' ? formatDate(currentDateKey) : 'Unknown Date'
-              const hasManyclips = dateCounts[currentDateKey] >= 6
-              // Insert flex break after a large date group ends to keep it isolated
-              // (applies even to first date group - it flows with upload card but still needs isolation from next date)
-              const needsBreakAfter = showDateHeaders && isLastOfDate && hasManyclips && nextDateKey !== null
-
-              return (
-                <React.Fragment key={v.path + v.video_id}>
-                  {isNewDate && hasManyclips && (
-                    <Box
-                      sx={{
-                        width: '100%',
-                        mt: index > 0 ? 3 : 0,
-                        mb: 1,
-                        color: '#ffffff',
-                        fontSize: 16,
-                        fontWeight: 700,
-                        letterSpacing: -1,
-                        opacity: 0.8,
-                      }}
-                    >
-                      {formattedDate}
-                    </Box>
-                  )}
-                  <VisibilityCard
-                    video={v}
-                    handleAlert={memoizedHandleAlert}
-                    openVideo={openVideo}
-                    cardWidth={size}
-                    authenticated={authenticated}
-                    deleted={handleDelete}
-                    editMode={editMode}
-                    isSelected={selectedVideos.has(v.video_id)}
-                    onSelect={onVideoSelect}
-                    dateLabel={isNewDate && !hasManyclips ? formattedDate : null}
-                    reserveDateSpace={showDateHeaders && !hasManyclips}
-                  />
-                  {needsBreakAfter && (
-                    <Box sx={{ flexBasis: '100%', height: 0 }} />
-                  )}
-                </React.Fragment>
-              )
-            })
-          })()}
-        </Grid>
+        <Box
+          ref={containerRef}
+          sx={{
+            display: 'grid',
+            width: isSingleColumn ? 'calc(100% + 48px)' : '100%',
+            mx: isSingleColumn ? '-24px' : 0,
+            gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size}px), 1fr))`,
+            gap: '24px',
+          }}
+        >
+          {vids.map((v, index) => (
+            <motion.div
+              key={v.path + v.video_id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+            >
+              <CompactBetaVideoCard
+                video={v}
+                openVideoHandler={openVideo}
+                alertHandler={memoizedHandleAlert}
+                authenticated={authenticated}
+                editMode={editMode}
+                selected={selectedVideos.has(v.video_id)}
+                onSelect={onVideoSelect}
+                onDelete={handleDelete}
+                fullWidth={isSingleColumn}
+              />
+            </motion.div>
+          ))}
+        </Box>
       )}
     </Box>
   )
 }
 
-export default VideoCards
+export default BetaVideoCards
