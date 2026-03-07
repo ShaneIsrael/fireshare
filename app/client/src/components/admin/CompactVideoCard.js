@@ -637,11 +637,11 @@ const CompactBetaVideoCard = ({
         }}
       >
         {[
-          { label: 'Edit',       Icon: EditIcon,           color: '#FFFFFFE6', onClick: () => setDetailsModalOpen(true) },
-          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFFE6', onClick: () => ConfigService.startTranscodingVideo(video.video_id).catch((err) => alertHandler?.({ type: 'error', message: err.response?.data?.includes('not enabled') ? 'Transcoding is disabled. Add ENABLE_TRANSCODING=true to your Docker environment variables.' : 'Failed to start transcoding.', open: true })) },
+          { label: 'Edit',       Icon: EditIcon,           color: '#FFFFFFE6', requiresAuth: true,  onClick: () => setDetailsModalOpen(true) },
+          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFFE6', requiresAuth: true, onClick: () => ConfigService.startTranscodingVideo(video.video_id).catch((err) => alertHandler?.({ type: 'error', message: err.response?.data?.includes('not enabled') ? 'Transcoding is disabled. Add ENABLE_TRANSCODING=true to your Docker environment variables.' : 'Failed to start transcoding.', open: true })) },
           { label: 'Copy Link',  Icon: LinkIcon,           color: '#FFFFFFE6', onClick: () => { navigator.clipboard.writeText(`${PURL}${video.video_id}`); alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true }) } },
-          { label: 'Delete',     Icon: DeleteOutlineIcon,  color: '#EF5350',  danger: true, onClick: () => setDeleteModalOpen(true) },
-        ].map(({ label, Icon, color, danger, onClick }) => (
+          { label: 'Delete',     Icon: DeleteOutlineIcon,  color: '#EF5350',  danger: true, requiresAuth: true, onClick: () => setDeleteModalOpen(true) },
+        ].filter(item => !item.requiresAuth || authenticated).map(({ label, Icon, color, danger, onClick }) => (
           <MenuItem
             key={label}
             onClick={() => { onClick?.(); setMenuAnchorEl(null) }}
