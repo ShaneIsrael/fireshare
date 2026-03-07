@@ -707,7 +707,7 @@ def transcode_videos(regenerate, video, include_corrupt):
             derived_path = Path(processed_root, "derived", vi.video_id)
             original_height = vi.height or 0
             for height in resolutions:
-                if original_height <= height:
+                if original_height > 0 and original_height <= height:
                     continue
                 transcode_path = derived_path / f"{vi.video_id}-{height}p.mp4"
                 if not transcode_path.exists() or regenerate:
