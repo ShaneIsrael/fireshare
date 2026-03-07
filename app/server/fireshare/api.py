@@ -431,6 +431,7 @@ def admin_event_stream():
 
     def poll_status():
         last_transcoding_state = None
+        last_game_scan_state = None
         while not stop_event.is_set():
             try:
                 progress = util.read_transcoding_status(paths['data'])
@@ -459,6 +460,18 @@ def admin_event_stream():
                 if transcoding_state != last_transcoding_state:
                     event_queue.put(f"event: transcoding\ndata: {json.dumps(transcoding_state)}\n\n")
                     last_transcoding_state = transcoding_state.copy()
+
+                with _game_scan_state['lock']:
+                    game_scan_state = {
+                        "is_running": _game_scan_state['is_running'],
+                        "current": _game_scan_state['current'],
+                        "total": _game_scan_state['total'],
+                        "suggestions_created": _game_scan_state['suggestions_created'],
+                    }
+
+                if game_scan_state != last_game_scan_state:
+                    event_queue.put(f"event: gameScan\ndata: {json.dumps(game_scan_state)}\n\n")
+                    last_game_scan_state = game_scan_state.copy()
 
                 time.sleep(1.5)
             except Exception as e:

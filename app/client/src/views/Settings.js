@@ -156,10 +156,7 @@ const Settings = ({ authenticated }) => {
     try {
       const response = await VideoService.scanGames()
       if (response.status === 202) {
-        // Scan started successfully
-        localStorage.setItem('gameScanInProgress', 'true')
-        // Dispatch storage event for same-tab updates
-        window.dispatchEvent(new StorageEvent('storage', { key: 'gameScanInProgress' }))
+        // Scan started - GameScanStatus will update via AdminSSE
       }
     } catch (err) {
       if (err.response?.status === 409) {

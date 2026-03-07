@@ -3,7 +3,7 @@ import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import Tooltip from '@mui/material/Tooltip'
 import SyncIcon from '@mui/icons-material/Sync'
-import { StatsService } from '../../services'
+import adminSSE from '../../services/AdminSSE'
 
 const spinAnimation = {
   animation: 'spin 1s linear infinite',
@@ -15,55 +15,26 @@ const spinAnimation = {
 
 const GameScanStatus = ({ open, onComplete }) => {
   const [scanStatus, setScanStatus] = React.useState(null)
-  const [pollKey, setPollKey] = React.useState(0)
-  const completionHandledRef = React.useRef(false)
+  const wasRunningRef = React.useRef(false)
+  const onCompleteRef = React.useRef(onComplete)
 
   React.useEffect(() => {
-    const shouldPoll = localStorage.getItem('gameScanInProgress') === 'true'
-    console.log('[GameScanStatus] shouldPoll:', shouldPoll)
-    if (!shouldPoll) {
-      setScanStatus(null)
-      return
-    }
+    onCompleteRef.current = onComplete
+  }, [onComplete])
 
-    const checkStatus = async () => {
-      try {
-        console.log('[GameScanStatus] Checking status...')
-        const res = await StatsService.getGameScanStatus()
-        console.log('[GameScanStatus] Status response:', res.data)
-        if (res.data.is_running) {
-          completionHandledRef.current = false
-          setScanStatus(res.data)
-        } else if (!completionHandledRef.current) {
-          // Scan finished
-          completionHandledRef.current = true
-          console.log('[GameScanStatus] Scan finished, calling onComplete')
-          onComplete?.(res.data)
-          setScanStatus(null)
-          localStorage.removeItem('gameScanInProgress')
-          setPollKey(prev => prev + 1)
-        }
-      } catch (e) {
-        console.error('[GameScanStatus] Error checking status:', e)
-      }
-    }
-
-    checkStatus()
-    const interval = setInterval(checkStatus, 5000)
-    return () => clearInterval(interval)
-  }, [pollKey, onComplete])
-
-  // Listen for localStorage changes from Settings page
   React.useEffect(() => {
-    const handleStorageChange = (e) => {
-      console.log('[GameScanStatus] Storage event:', e.key)
-      if (e.key === 'gameScanInProgress') {
-        console.log('[GameScanStatus] gameScanInProgress changed, triggering poll')
-        setPollKey(prev => prev + 1)
+    const unsubscribe = adminSSE.subscribeGameScan((data) => {
+      if (data.is_running) {
+        wasRunningRef.current = true
+        setScanStatus(data)
+      } else if (wasRunningRef.current) {
+        // Scan just finished
+        wasRunningRef.current = false
+        onCompleteRef.current?.(data)
+        setScanStatus(null)
       }
-    }
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    })
+    return unsubscribe
   }, [])
 
   if (!scanStatus) return null
