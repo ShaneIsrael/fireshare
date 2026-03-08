@@ -577,13 +577,22 @@ def cancel_transcoding():
 
 
 def get_folder_size(folder_path):
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(folder_path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            if os.path.isfile(fp):  # Avoid broken symlinks
-                total_size += os.path.getsize(fp)
-    return total_size
+    def _folder_size(directory):
+        total = 0
+        for entry in os.scandir(directory):
+            if entry.is_dir():
+                _folder_size(entry.path)
+                total += parent_size[entry.path]
+            else:
+                size = entry.stat().st_size
+                total += size
+                file_size[entry.path] = size
+        parent_size[directory] = total
+
+    file_size = {}
+    parent_size = {}
+    _folder_size(folder_path)
+    return parent_size.get(folder_path, 0)
 
 @api.route('/api/folder-size', methods=['GET'])
 @login_required
