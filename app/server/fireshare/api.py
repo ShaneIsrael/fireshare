@@ -1,24 +1,30 @@
 import json
-import os, re, string
+import os, re, signal, string
 import shutil
 import random
 import logging
 import threading
 import subprocess
+import time
+from collections import Counter
+from datetime import datetime
+from functools import wraps
+from queue import Queue, Empty
 from subprocess import Popen
 from textwrap import indent
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import current_user, login_required
 from flask_cors import CORS
+from sqlalchemy import func
 from sqlalchemy.sql import text
 from pathlib import Path
 import requests
 
 
 from . import db, logger, util
+from .constants import DEFAULT_CONFIG, SUPPORTED_FILE_TYPES
 from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule
-from .constants import SUPPORTED_FILE_TYPES
-from datetime import datetime
+from .steamgrid import SteamGridDBClient
 
 def secure_filename(filename):
     clean = re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F]", "-", filename)
@@ -68,10 +74,8 @@ def login_required_unless_public_game_tag(func):
     """
     Decorator that requires login unless public game tagging is enabled in config.
     """
-    from functools import wraps
     @wraps(func)
     def decorated_view(*args, **kwargs):
-        from flask_login import current_user
         paths = current_app.config['PATHS']
         config_path = paths['data'] / 'config.json'
         allow_public = False
@@ -159,7 +163,6 @@ def _get_local_version():
 
 def _fetch_release_notes():
     """Fetch and cache the latest GitHub release. Cache expires after 12 hours."""
-    import time
     cache_ttl = 12 * 60 * 60  # 12 hours
     if _release_cache['data'] and (time.time() - _release_cache['fetched_at']) < cache_ttl:
         return _release_cache['data']
@@ -404,9 +407,6 @@ def get_transcoding_status():
 @login_required
 def admin_event_stream():
     """SSE endpoint for real-time admin events (transcoding, etc.)."""
-    import time
-    from queue import Queue, Empty
-    import threading
 
     # Capture config before entering generator (Flask context unavailable inside)
     paths = current_app.config['PATHS']
@@ -520,7 +520,6 @@ def start_transcoding_video(video_id):
 def cancel_transcoding():
     """Cancel ongoing transcoding."""
     global _transcoding_process
-    import signal
 
     paths = current_app.config['PATHS']
     pid_to_kill = None
@@ -736,8 +735,6 @@ def manual_scan():
 @login_required
 def manual_scan_dates():
     """Extract recording dates from filenames for videos missing recorded_at"""
-    from fireshare import util
-
     try:
         videos = Video.query.filter(Video.recorded_at.is_(None)).all()
         dates_extracted = 0
@@ -812,8 +809,6 @@ def dismiss_folder_suggestion(folder_name):
 @login_required
 def get_folder_rules():
     """Get all folders with their rules and suggested games based on linked videos"""
-    from collections import Counter
-    from fireshare.constants import DEFAULT_CONFIG
 
     # Skip upload folders
     upload_folders = {
@@ -971,7 +966,6 @@ def delete_folder_rule(rule_id):
 @login_required
 def manual_scan_games():
     """Start game scan in background thread"""
-    from fireshare import util
     from fireshare.cli import save_game_suggestions_batch, _load_suggestions
 
     # Check if already running
@@ -1043,7 +1037,6 @@ def manual_scan_games():
                 processed_video_ids = set()
 
                 # Skip upload folders
-                from fireshare.constants import DEFAULT_CONFIG
                 upload_folders = {
                     DEFAULT_CONFIG['app_config']['admin_upload_folder_name'].lower(),
                     DEFAULT_CONFIG['app_config']['public_upload_folder_name'].lower(),
@@ -1116,7 +1109,6 @@ def manual_scan_games():
                 logger.error(f"Error scanning videos for games: {e}")
             finally:
                 # Brief delay so frontend can display the completed status before hiding
-                import time
                 time.sleep(2)
                 _game_scan_state['is_running'] = False
 
@@ -1217,9 +1209,7 @@ def get_public_videos():
 
 @api.route('/api/videos/dates')
 def get_video_dates():
-    """Get all unique dates that have videos recorded on them"""
-    from sqlalchemy import func
-    from flask_login import current_user
+    """Get all unique dates that have videos recorded on them""
 
     query = db.session.query(func.date(Video.recorded_at)).join(VideoInfo).filter(
         Video.recorded_at.isnot(None),
@@ -1234,9 +1224,7 @@ def get_video_dates():
 
 @api.route('/api/videos/by-date/<date>')
 def get_videos_by_date(date):
-    """Get all videos recorded on a specific date (YYYY-MM-DD)"""
-    from sqlalchemy import func
-    from flask_login import current_user
+    """Get all videos recorded on a specific date (YYYY-MM-DD)""
 
     try:
         target_date = datetime.strptime(date, '%Y-%m-%d').date()
@@ -1659,7 +1647,6 @@ def search_steamgrid():
     if not api_key:
         return Response(status=503, response='SteamGridDB API key not configured.')
 
-    from .steamgrid import SteamGridDBClient
     client = SteamGridDBClient(api_key)
 
     results = client.search_games(query)
@@ -1671,7 +1658,6 @@ def get_steamgrid_assets(game_id):
     if not api_key:
         return Response(status=503, response='SteamGridDB API key not configured.')
 
-    from .steamgrid import SteamGridDBClient
     client = SteamGridDBClient(api_key)
 
     assets = client.get_game_assets(game_id)
@@ -1679,7 +1665,6 @@ def get_steamgrid_assets(game_id):
 
 @api.route('/api/games', methods=["GET"])
 def get_games():
-    from flask_login import current_user
 
     # If user is authenticated, show games that have at least one linked video
     if current_user.is_authenticated:
@@ -1739,7 +1724,6 @@ def create_game():
     if not api_key:
         return Response(status=503, response='SteamGridDB API key not configured.')
 
-    from .steamgrid import SteamGridDBClient
     client = SteamGridDBClient(api_key)
 
     # Download and save assets
@@ -1875,7 +1859,6 @@ def get_game_asset(steamgriddb_id, filename):
         logger.warning(f"{filename} missing for game {steamgriddb_id}")
         api_key = get_steamgriddb_api_key()
         if api_key:
-            from .steamgrid import SteamGridDBClient
             client = SteamGridDBClient(api_key)
             game_assets_dir = paths['data'] / 'game_assets'
 
@@ -1918,7 +1901,6 @@ def get_game_asset(steamgriddb_id, filename):
 
 @api.route('/api/games/<int:steamgriddb_id>/videos', methods=["GET"])
 def get_game_videos(steamgriddb_id):
-    from flask_login import current_user
 
     game = GameMetadata.query.filter_by(steamgriddb_id=steamgriddb_id).first()
     if not game:
