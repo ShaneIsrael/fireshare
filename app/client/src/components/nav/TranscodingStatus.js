@@ -39,7 +39,7 @@ const styles = {
   },
 }
 
-const TranscodingStatus = ({ open }) => {
+const TranscodingStatus = ({ open, authenticated }) => {
   const [status, setStatus] = React.useState(null)
   const [stoppedMessage, setStoppedMessage] = React.useState(null)
 
@@ -56,10 +56,11 @@ const TranscodingStatus = ({ open }) => {
   }, [])
 
   React.useEffect(() => {
+    if (!authenticated) return
     return adminSSE.subscribeTranscoding((data) => {
       setStatus(data?.is_running ? data : null)
     })
-  }, [])
+  }, [authenticated])
 
   if (!status && !stoppedMessage) return null
 

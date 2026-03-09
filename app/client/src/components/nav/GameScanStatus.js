@@ -13,7 +13,7 @@ const spinAnimation = {
   }
 }
 
-const GameScanStatus = ({ open, onComplete }) => {
+const GameScanStatus = ({ open, onComplete, authenticated }) => {
   const [scanStatus, setScanStatus] = React.useState(null)
   const wasRunningRef = React.useRef(false)
   const onCompleteRef = React.useRef(onComplete)
@@ -23,6 +23,7 @@ const GameScanStatus = ({ open, onComplete }) => {
   }, [onComplete])
 
   React.useEffect(() => {
+    if (!authenticated) return
     const unsubscribe = adminSSE.subscribeGameScan((data) => {
       if (data.is_running) {
         wasRunningRef.current = true
@@ -35,7 +36,7 @@ const GameScanStatus = ({ open, onComplete }) => {
       }
     })
     return unsubscribe
-  }, [])
+  }, [authenticated])
 
   if (!scanStatus) return null
 
