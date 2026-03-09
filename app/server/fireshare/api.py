@@ -1218,7 +1218,7 @@ def get_public_videos():
 
 @api.route('/api/videos/dates')
 def get_video_dates():
-    """Get all unique dates that have videos recorded on them""
+    """Get all unique dates that have videos recorded on them"""
 
     query = db.session.query(func.date(Video.recorded_at)).join(VideoInfo).filter(
         Video.recorded_at.isnot(None),
@@ -1233,7 +1233,7 @@ def get_video_dates():
 
 @api.route('/api/videos/by-date/<date>')
 def get_videos_by_date(date):
-    """Get all videos recorded on a specific date (YYYY-MM-DD)""
+    """Get all videos recorded on a specific date (YYYY-MM-DD)"""
 
     try:
         target_date = datetime.strptime(date, '%Y-%m-%d').date()
