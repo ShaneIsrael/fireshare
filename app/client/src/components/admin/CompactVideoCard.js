@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Box, Typography, IconButton, Menu, MenuItem, ListItemIcon } from '@mui/material'
+import { Box, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
@@ -50,6 +50,7 @@ const CompactBetaVideoCard = ({
   const [suggestionIcon, setSuggestionIcon] = React.useState(null)
   const [editingTitle, setEditingTitle] = React.useState(false)
   const [titleDraft, setTitleDraft] = React.useState(title)
+  const [imgLoaded, setImgLoaded] = React.useState(false)
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
@@ -103,6 +104,7 @@ const CompactBetaVideoCard = ({
     setIntVideo(video)
     setTitle(video.info?.title || (video.path ? video.path.split('/').pop().replace(/\.[^/.]+$/, '') : 'Untitled'))
     setDescription(video.info?.description || '')
+    setImgLoaded(false)
   }
   React.useEffect(() => {
     previousVideoRef.current = video
@@ -269,6 +271,20 @@ const gameName = game?.name || ''
     >
       {/* Thumbnail */}
       <Box ref={cardRef} sx={{ aspectRatio: '16 / 9', overflow: 'hidden', position: 'relative' }}>
+        <Skeleton
+          variant="rectangular"
+          animation="wave"
+          width="100%"
+          height="100%"
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            opacity: imgLoaded ? 0 : 1,
+            transition: 'opacity 0.8s ease',
+            bgcolor: 'rgba(30, 60, 130, 0.4)',
+          }}
+        />
       <motion.div
         style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
         onClick={() => editMode ? onSelect?.(video.video_id) : openVideoHandler(video.video_id)}
@@ -289,12 +305,14 @@ const gameName = game?.name || ''
               : `${URL}/api/video/poster?id=${video.video_id}`
           }`}
           alt=""
+          onLoad={() => setImgLoaded(true)}
           style={{
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            background: 'repeating-linear-gradient(45deg,#606dbc,#606dbc 10px,#465298 10px,#465298 20px)',
             display: 'block',
+            opacity: imgLoaded ? 1 : 0,
+            transition: 'opacity 0.8s ease',
           }}
         />
 
