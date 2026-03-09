@@ -540,7 +540,7 @@ const CompactBetaVideoCard = ({
             />
           ) : (
             <Typography
-              onDoubleClick={(e) => { e.stopPropagation(); setTitleDraft(title); setEditingTitle(true) }}
+              onDoubleClick={authenticated ? (e) => { e.stopPropagation(); setTitleDraft(title); setEditingTitle(true) } : undefined}
               sx={{
                 fontWeight: 700,
                 fontSize: 16,
@@ -549,12 +549,14 @@ const CompactBetaVideoCard = ({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-                cursor: 'text',
-                borderRadius: '4px',
-                px: '4px',
-                mx: '-4px',
-                transition: 'background 0.15s',
-                '&:hover': { background: '#FFFFFF1F' },
+                ...(authenticated && {
+                  cursor: 'text',
+                  borderRadius: '4px',
+                  px: '4px',
+                  mx: '-4px',
+                  transition: 'background 0.15s',
+                  '&:hover': { background: '#FFFFFF1F' },
+                }),
               }}
             >
               {title}
