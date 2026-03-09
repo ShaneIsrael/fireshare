@@ -4,7 +4,10 @@ let isLocalhost =
   (window.location.hostname.indexOf('localhost') >= 0 || window.location.hostname.indexOf('127.0.0.1') >= 0) &&
   window.location.port !== ''
 export const getServedBy = () => {
-  return isLocalhost ? 'flask' : 'nginx'
+  // When running `react-scripts start` over LAN IP, hostname is not localhost
+  // but static content is still served by the dev server proxy, not nginx.
+  const isDevClient = process.env.NODE_ENV === 'development' && window.location.port !== ''
+  return isLocalhost || isDevClient ? 'flask' : 'nginx'
 }
 
 export const getUrl = () => {
