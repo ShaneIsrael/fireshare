@@ -1,19 +1,17 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Divider, IconButton, Modal, Paper, Slide, TextField, Tooltip, Typography } from '@mui/material'
-import LinkIcon from '@mui/icons-material/Link'
+import { Box, Button, Divider, IconButton, Modal, Paper, Slide, TextField, Tooltip, Typography } from '@mui/material'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
-import SaveIcon from '@mui/icons-material/Save'
 import CloseIcon from '@mui/icons-material/Close'
-import EditIcon from '@mui/icons-material/Edit'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoSources, getSetting } from '../../common/utils'
 import { ConfigService, VideoService, GameService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../misc/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
+import { FastAverageColor } from 'fast-average-color'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -78,8 +76,20 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [autoplay, setAutoplay] = useState(false)
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [editMode, setEditMode] = React.useState(false)
+  const [gamePillColor, setGamePillColor] = React.useState(null)
 
   const playerRef = React.useRef()
+
+  React.useEffect(() => {
+    if (!selectedGame?.icon_url) {
+      setGamePillColor(null)
+      return
+    }
+    const fac = new FastAverageColor()
+    fac.getColorAsync(selectedGame.icon_url, { crossOrigin: 'anonymous', algorithm: 'dominant' })
+      .then((color) => setGamePillColor(color.value.slice(0, 3)))
+      .catch(() => setGamePillColor(null))
+  }, [selectedGame?.icon_url])
 
   const getRandomVideo = async () => {
     try {
@@ -364,11 +374,11 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   flex: 1,
                   overflowY: 'auto',
                   px: 2.5,
-                  pt: 2.5,
+                  pt: 2,
                   pb: 2,
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: 2.5,
+                  gap: 2,
                   '&::-webkit-scrollbar': { width: 4 },
                   '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
                   '&::-webkit-scrollbar-thumb': { bgcolor: '#FFFFFF26', borderRadius: 2 },
@@ -389,69 +399,71 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       sx={inputSx}
                     />
                   ) : (
-                    <Typography sx={{ fontWeight: 700, fontSize: 17, color: 'white', lineHeight: 1.4 }}>
+                    <Typography sx={{ fontWeight: 900, fontSize: 21, color: 'white', lineHeight: 1.3, letterSpacing: '-0.03em' }}>
                       {title || 'Untitled'}
                     </Typography>
                   )}
+                {/* Views + Game inline row */}
+                {!editMode && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mt: 0.5, gap: 2 }}>
+                    <Typography sx={{ fontSize: 14, color: '#FFFFFF55', flexShrink: 0 }}>
+                      {(vid.view_count ?? 0).toLocaleString()} {vid.view_count === 1 ? 'view' : 'views'}
+                    </Typography>
+                    {selectedGame && (
+                      <Box
+                        component={selectedGame.steamgriddb_id ? 'a' : 'div'}
+                        href={selectedGame.steamgriddb_id ? `#/games/${selectedGame.steamgriddb_id}` : undefined}
+                        onClick={selectedGame.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.75,
+                          minWidth: 0,
+                          bgcolor: gamePillColor ? `rgba(${gamePillColor.join(',')}, 0.15)` : '#FFFFFF14',
+                          border: `1px solid ${gamePillColor ? `rgba(${gamePillColor.join(',')}, 0.5)` : '#FFFFFF26'}`,
+                          borderRadius: '20px',
+                          px: 1,
+                          py: 0.35,
+                          textDecoration: 'none',
+                          flexShrink: 0,
+                          ...(selectedGame.steamgriddb_id && {
+                            cursor: 'pointer',
+                            '&:hover': { bgcolor: gamePillColor ? `rgba(${gamePillColor.join(',')}, 0.4)` : '#FFFFFF22' },
+                          }),
+                        }}
+                      >
+                        {selectedGame.icon_url && (
+                          <img src={selectedGame.icon_url} alt="" style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
+                        )}
+                        <Typography sx={{ fontSize: 11, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.08em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {selectedGame.name}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                )}
                 </Box>
 
-                {/* Game */}
-                {(selectedGame || (editMode && (authenticated || getSetting('ui_config')?.allow_public_game_tag))) && (
+                {/* Game search (edit mode only) */}
+                {editMode && (authenticated || getSetting('ui_config')?.allow_public_game_tag) && (
                   <Box>
                     {selectedGame ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: '#FFFFFF0D', border: '1px solid #FFFFFF26', borderRadius: '8px', px: 1.5, py: 1 }}>
                         {selectedGame.icon_url && (
-                          <img
-                            src={selectedGame.icon_url}
-                            alt=""
-                            style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
-                          />
+                          <img src={selectedGame.icon_url} alt="" style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
                         )}
-                        <Typography
-                          component={selectedGame.steamgriddb_id ? 'a' : 'span'}
-                          href={selectedGame.steamgriddb_id ? `#/games/${selectedGame.steamgriddb_id}` : undefined}
-                          onClick={selectedGame.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
-                          sx={{
-                            fontSize: 13,
-                            color: '#FFFFFFB3',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.08em',
-                            flex: 1,
-                            textDecoration: 'none',
-                            ...(selectedGame.steamgriddb_id && {
-                              cursor: 'pointer',
-                              '&:hover': { color: '#3399FF', textDecoration: 'underline' },
-                            }),
-                          }}
-                        >
+                        <Typography sx={{ fontSize: 13, color: '#FFFFFFB3', textTransform: 'uppercase', letterSpacing: '0.08em', flex: 1 }}>
                           {selectedGame.name}
                         </Typography>
-                        {editMode && (
-                          <IconButton
-                            size="small"
-                            onClick={handleUnlinkGame}
-                            sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.25 }}
-                          >
-                            <CloseIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        )}
+                        <IconButton size="small" onClick={handleUnlinkGame} sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.25 }}>
+                          <CloseIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
                       </Box>
                     ) : (
-                      <Box
-                        sx={{
-                          ...rowBoxSx,
-                          py: 0,
-                          overflow: 'hidden',
-                          '& .MuiInputBase-root': { color: 'white', px: 0 },
-                          '& input::placeholder': { color: '#FFFFFF66', opacity: 1 },
-                          '& .MuiSvgIcon-root': { color: '#FFFFFF66' },
-                        }}
-                      >
+                      <Box sx={{ ...rowBoxSx, py: 0, overflow: 'hidden', '& .MuiInputBase-root': { color: 'white', px: 0 }, '& input::placeholder': { color: '#FFFFFF66', opacity: 1 }, '& .MuiSvgIcon-root': { color: '#FFFFFF66' } }}>
                         <GameSearch
                           onGameLinked={handleGameLinked}
-                          onError={(err) =>
-                            setAlert({ open: true, type: 'error', message: err.response?.data || 'Error linking game' })
-                          }
+                          onError={(err) => setAlert({ open: true, type: 'error', message: err.response?.data || 'Error linking game' })}
                           placeholder="Search for a game..."
                         />
                       </Box>
@@ -482,6 +494,29 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                     )}
                   </Box>
                 )}
+
+                {/* Share link */}
+                <Box>
+                  <Typography sx={labelSx}>Share</Typography>
+                  <Box sx={{ ...rowBoxSx, gap: 0.5 }}>
+                    <Typography sx={{ flex: 1, fontSize: 12, color: '#FFFFFF66', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                      {`${PURL}${vid.video_id}`}
+                    </Typography>
+                    <Tooltip title="Copy link">
+                      <IconButton
+                        size="small"
+                        onMouseDown={handleMouseDown}
+                        onClick={() => {
+                          copyToClipboard(`${PURL}${vid.video_id}`)
+                          setAlert({ type: 'info', message: 'Link copied to clipboard', open: true })
+                        }}
+                        sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.5, flexShrink: 0 }}
+                      >
+                        <ContentCopyIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
 
                 {/* Spacer — future "Related Videos" will live here */}
                 <Box sx={{ flex: 1 }} />
@@ -522,20 +557,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   </Tooltip>
                 )}
 
-                <CopyToClipboard text={`${PURL}${vid.video_id}`}>
-                  <Tooltip title="Copy link">
-                    <IconButton
-                      size="small"
-                      onMouseDown={handleMouseDown}
-                      onClick={() => setAlert({ type: 'info', message: 'Link copied to clipboard', open: true })}
-                      sx={actionBtnSx}
-                    >
-                      <LinkIcon sx={{ fontSize: 20 }} />
-                    </IconButton>
-                  </Tooltip>
-                </CopyToClipboard>
-
-                <Tooltip title="Copy timestamp">
+<Tooltip title="Copy timestamp">
                   <IconButton size="small" onClick={copyTimestamp} sx={actionBtnSx}>
                     <AccessTimeIcon sx={{ fontSize: 20 }} />
                   </IconButton>
@@ -543,28 +565,37 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
                 {authenticated && (
                   editMode ? (
-                    <Tooltip title={updateable ? 'Save changes' : 'Done editing'}>
-                      <IconButton
-                        size="small"
-                        onClick={updateable ? update : () => setEditMode(false)}
-                        sx={{
-                          ...actionBtnSx,
-                          color: updateable ? '#3399FF' : '#FFFFFFB3',
-                          borderColor: updateable ? '#3399FF55' : '#FFFFFF1A',
-                          ...(updateable && { animation: 'blink-blue 0.5s ease-in-out infinite alternate' }),
-                        }}
-                      >
-                        <SaveIcon sx={{ fontSize: 20 }} />
-                      </IconButton>
-                    </Tooltip>
+                    <Button
+                      size="small"
+                      onClick={updateable ? update : () => setEditMode(false)}
+                      sx={{
+                        ml: 'auto',
+                        fontSize: 12,
+                        fontWeight: 400,
+                        px: 0,
+                        minWidth: 'unset',
+                        bgcolor: 'transparent',
+                        border: 'none',
+                        color: updateable ? '#3399FF' : '#FFFFFF',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        '&:hover': { bgcolor: 'transparent', color: 'white' },
+                        ...(updateable && { animation: 'blink-blue 0.5s ease-in-out infinite alternate' }),
+                      }}
+                    >
+                      Save
+                    </Button>
                   ) : (
-                    <Tooltip title="Edit details">
-                      <IconButton size="small" onClick={() => setEditMode(true)} sx={actionBtnSx}>
-                        <EditIcon sx={{ fontSize: 20 }} />
-                      </IconButton>
-                    </Tooltip>
+                    <Button
+                      size="small"
+                      onClick={() => setEditMode(true)}
+                      sx={{ ml: 'auto', fontSize: 12, fontWeight: 400, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.08em', px: 0, minWidth: 'unset', bgcolor: 'transparent', border: 'none', '&:hover': { bgcolor: 'transparent', color: 'white' } }}
+                    >
+                      Edit
+                    </Button>
                   )
                 )}
+
               </Box>
             </Box>
             </Paper>
