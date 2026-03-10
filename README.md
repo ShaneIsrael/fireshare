@@ -100,8 +100,6 @@ docker run --name fireshare \
 Open `http://localhost:8080`.
 
 ## Configuration
-
-- Config variables: https://github.com/ShaneIsrael/fireshare/wiki/Fireshare-Configurables
 - LDAP setup: [LDAP.md](./LDAP.md)
 
 ### Transcoding (Optional)
