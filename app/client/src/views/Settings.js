@@ -46,7 +46,7 @@ const isValidDiscordWebhook = (url) => {
   return regex.test(url);
 };
 
-const Settings = ({ authenticated }) => {
+const Settings = () => {
   const [alert, setAlert] = React.useState({ open: false })
   const [config, setConfig] = React.useState()
   const [updatedConfig, setUpdatedConfig] = React.useState({})
@@ -304,7 +304,6 @@ const Settings = ({ authenticated }) => {
           }}
         >
           <Tab label="Privacy & Upload" />
-          <Tab label="Video" />
           <Tab label="Sidebar" />
           <Tab label="Integrations" />
           <Tab label="Transcoding" />
@@ -404,6 +403,23 @@ const Settings = ({ authenticated }) => {
                   }
                   label="Allow Public Game Tagging"
                 />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.autoplay || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: {
+                            ...prev.ui_config,
+                            autoplay: e.target.checked
+                          }
+                        }))
+                      }
+                    />
+                  }
+                  label="Auto Play Videos"
+                />
                 <TextField
                   size="small"
                   label="Shareable Link Domain"
@@ -441,48 +457,8 @@ const Settings = ({ authenticated }) => {
               </Stack>
             )}
 
-            {/* Video */}
-            {activeTab === 1 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.autoplay || false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: {
-                            ...prev.ui_config,
-                            autoplay: e.target.checked
-                          }
-                        }))
-                      }
-                    />
-                  }
-                  label="Auto Play Videos"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_date_groups !== false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: {
-                            ...prev.ui_config,
-                            show_date_groups: e.target.checked
-                          }
-                        }))
-                      }
-                    />
-                  }
-                  label="Group Videos by Date"
-                />
-              </Stack>
-            )}
-
             {/* Sidebar */}
-            {activeTab === 2 && (
+            {activeTab === 1 && (
               <Stack spacing={2} sx={{ maxWidth: 500 }}>
                 <FormControlLabel
                   control={
@@ -530,7 +506,7 @@ const Settings = ({ authenticated }) => {
             )}
 
             {/* Integrations */}
-            {activeTab === 3 && (
+            {activeTab === 2 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <TextField
                   size="small"
@@ -597,7 +573,7 @@ const Settings = ({ authenticated }) => {
             )}
 
             {/* Transcoding */}
-            {activeTab === 4 && (
+            {activeTab === 3 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Typography variant="body2" color="text.secondary">
                   Transcoding will convert your videos to multiple quality levels to allow for additional quality selection options when streaming from Fireshare.
@@ -751,7 +727,7 @@ const Settings = ({ authenticated }) => {
             )}
 
             {/* Feeds */}
-            {activeTab === 5 && (
+            {activeTab === 4 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <TextField
                   size="small"
@@ -790,7 +766,7 @@ const Settings = ({ authenticated }) => {
             )}
 
             {/* Folders */}
-            {activeTab === 6 && (
+            {activeTab === 5 && (
               <Stack spacing={2} sx={{ maxWidth: 500 }}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
@@ -920,7 +896,7 @@ const Settings = ({ authenticated }) => {
             )}
 
             {/* Actions */}
-            {activeTab === 7 && (
+            {activeTab === 6 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Button variant="contained" startIcon={<SensorsIcon />} onClick={handleScan} size='large' sx={{ width: 400}}>
                   Scan for New Videos

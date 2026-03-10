@@ -21,6 +21,7 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
+
 const CompactBetaVideoCard = ({
   video,
   openVideoHandler,
@@ -53,6 +54,49 @@ const CompactBetaVideoCard = ({
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
+
+  const videoRef = React.useRef(null)
+
+  React.useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    if (hover) {
+      const { has_480p, has_720p, has_1080p } = video.info || {}
+      v.src = has_480p ? getVideoUrl(video.video_id, '480p', video.extension)
+        : has_720p ? getVideoUrl(video.video_id, '720p', video.extension)
+        : has_1080p ? getVideoUrl(video.video_id, '1080p', video.extension)
+        : getVideoUrl(video.video_id, 'original', video.extension)
+      v.muted = true
+      v.play().catch(() => {})
+    } else {
+      v.pause()
+      v.removeAttribute('src')
+      v.load()
+    }
+  }, [hover, video.video_id, video.extension, video.info])
+
+  const cardRef = React.useRef(null)
+  const isTouchDevice = React.useRef(typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0))
+
+  React.useEffect(() => {
+    if (!isTouchDevice.current) return
+    const el = cardRef.current
+    if (!el) return
+    const debouncedPlay = _.debounce(() => setHover(true), 300)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          debouncedPlay()
+        } else {
+          debouncedPlay.cancel()
+          setHover(false)
+        }
+      },
+      { rootMargin: '-30% 0px -50% 0px', threshold: 0 },
+    )
+    observer.observe(el)
+    return () => { observer.disconnect(); debouncedPlay.cancel() }
+  }, [])
 
   const previousVideoRef = React.useRef()
   const previousVideo = previousVideoRef.current
@@ -166,22 +210,7 @@ const CompactBetaVideoCard = ({
     }
   }
 
-  const getPreviewVideoUrl = () => {
-    const has720p = video.info?.has_720p
-    const has1080p = video.info?.has_1080p
-
-    if (has720p) {
-      return getVideoUrl(video.video_id, '720p', video.extension)
-    }
-
-    if (has1080p) {
-      return getVideoUrl(video.video_id, '1080p', video.extension)
-    }
-
-    return getVideoUrl(video.video_id, 'original', video.extension)
-  }
-
-  const gameName = game?.name || ''
+const gameName = game?.name || ''
   const viewCount = video.view_count || 0
 
   const filenameFallback = video.path
@@ -228,6 +257,7 @@ const CompactBetaVideoCard = ({
       currentGame={game}
       alertHandler={alertHandler}
     />
+
     <Box
       sx={{
         width: '100%',
@@ -240,7 +270,7 @@ const CompactBetaVideoCard = ({
       }}
     >
       {/* Thumbnail */}
-      <Box sx={{ aspectRatio: '16 / 9', overflow: 'hidden', position: 'relative' }}>
+      <Box ref={cardRef} sx={{ aspectRatio: '16 / 9', overflow: 'hidden', position: 'relative' }}>
         <Skeleton
           variant="rectangular"
           animation="wave"
@@ -286,29 +316,23 @@ const CompactBetaVideoCard = ({
           }}
         />
 
-        {hover && (
-          <video
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              opacity: 0,
-              animationName: 'fadeIn',
-              animationDuration: '1.5s',
-              animationFillMode: 'both',
-              WebkitAnimationName: 'fadeIn',
-              WebkitAnimationDuration: '1.5s',
-              WebkitAnimationFillMode: 'both',
-            }}
-            src={getPreviewVideoUrl()}
-            muted
-            autoPlay
-            disablePictureInPicture
-          />
-        )}
+        <video
+          ref={videoRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: hover ? 1 : 0,
+            transition: hover ? 'opacity 1.5s ease-in' : 'none',
+            pointerEvents: 'none',
+          }}
+          playsInline
+          disablePictureInPicture
+        />
+
 
         {/* Duration badge */}
         <Box
@@ -558,7 +582,7 @@ const CompactBetaVideoCard = ({
             />
           ) : (
             <Typography
-              onDoubleClick={(e) => { e.stopPropagation(); setTitleDraft(title); setEditingTitle(true) }}
+              onDoubleClick={authenticated ? (e) => { e.stopPropagation(); setTitleDraft(title); setEditingTitle(true) } : undefined}
               sx={{
                 fontWeight: 700,
                 fontSize: 16,
@@ -567,12 +591,14 @@ const CompactBetaVideoCard = ({
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-                cursor: 'text',
-                borderRadius: '4px',
-                px: '4px',
-                mx: '-4px',
-                transition: 'background 0.15s',
-                '&:hover': { background: '#FFFFFF1F' },
+                ...(authenticated && {
+                  cursor: 'text',
+                  borderRadius: '4px',
+                  px: '4px',
+                  mx: '-4px',
+                  transition: 'background 0.15s',
+                  '&:hover': { background: '#FFFFFF1F' },
+                }),
               }}
             >
               {title}

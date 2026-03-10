@@ -76,7 +76,8 @@ const BetaVideoCards = ({
     const el = containerRef.current
     if (!el) return
     const observer = new ResizeObserver(([entry]) => {
-      setIsSingleColumn(entry.contentRect.width < size * 2 + 24)
+      const single = entry.contentRect.width < size * 2 + 24
+      setIsSingleColumn(single)
     })
     observer.observe(el)
     return () => observer.disconnect()

@@ -368,8 +368,8 @@ function Navbar20({
       <UploadCard authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} />
 
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
-        <GameScanStatus open={open} onComplete={handleGameScanComplete} />
-        <TranscodingStatus open={open} />
+        <GameScanStatus open={open} onComplete={handleGameScanComplete} authenticated={authenticated} />
+        <TranscodingStatus open={open} authenticated={authenticated} />
         <FolderSuggestionInline
           open={open}
           suggestion={currentSuggestionFolder ? folderSuggestions[currentSuggestionFolder] : null}
