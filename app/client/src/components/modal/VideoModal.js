@@ -65,7 +65,7 @@ const SIDEBAR_WIDTH = 'clamp(280px, 24vw, 420px)'
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCallback }) => {
+const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCallback, onNext, onPrev }) => {
   const [title, setTitle] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [updateable, setUpdatable] = React.useState(false)
@@ -79,6 +79,17 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [gamePillColor, setGamePillColor] = React.useState(null)
 
   const playerRef = React.useRef()
+
+  useEffect(() => {
+    if (!open || editMode) return
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      if (e.key === 'ArrowRight') onNext?.()
+      if (e.key === 'ArrowLeft') onPrev?.()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [open, editMode, onNext, onPrev])
 
   React.useEffect(() => {
     if (!selectedGame?.icon_url) {
@@ -141,7 +152,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       }
     }
     if (videoId) {
-      setVideo(null)
       setTitle('')
       setDescription('')
       setSelectedGame(null)
