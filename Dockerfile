@@ -91,6 +91,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     libldap2-dev libsasl2-dev libssl-dev \
     libffi-dev libc-dev \
     build-essential \
+    gosu \
     wget curl ca-certificates \
     tzdata \
     libx264-163 libx265-199 libvpx7 libaom3 \
