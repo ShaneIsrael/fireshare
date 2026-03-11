@@ -183,7 +183,7 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
                 />
               )}
               {listStyle === 'card' && (
-                <Box sx={{ px: 1 }}>
+                <Box>
                   {loading && <LoadingSpinner />}
                   {!loading && (
                     <VideoCards

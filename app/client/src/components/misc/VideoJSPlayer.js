@@ -28,6 +28,8 @@ const VideoJSPlayer = ({
   controls = true,
   fluid = true,
   fill = false,
+  aspectRatio,
+  playsinline = false,
   onTimeUpdate,
   onReady,
   startTime,
@@ -58,6 +60,8 @@ const VideoJSPlayer = ({
         responsive: true,
         fluid,
         fill,
+        playsinline,
+        ...(aspectRatio && { aspectRatio }),
         poster,
         preload: 'auto',
         html5: {

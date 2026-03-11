@@ -699,24 +699,75 @@ def transcode_videos(regenerate, video, include_corrupt):
                 logger.info(f"Skipping {skipped_count} video(s) previously marked as corrupt. Use --include-corrupt to retry them.")
 
         # Build work queue: list of (video_info, height) tuples that actually need transcoding
+        # Also reconcile has_* flags if outputs already exist on disk.
         work_items = []
+        skipped_missing_source = 0
+        skipped_source_too_small = 0
+        skipped_existing_output = 0
+        reconciled_flag_updates = 0
+        reconciled_videos = set()
         for vi in vinfos:
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
             if not video_path.exists():
+                skipped_missing_source += 1
+                if video:
+                    logger.warning(f"Skipping video {vi.video_id}: source file not found at {video_path}")
                 continue
             derived_path = Path(processed_root, "derived", vi.video_id)
             original_height = vi.height or 0
             for height in resolutions:
                 if original_height > 0 and original_height <= height:
+                    skipped_source_too_small += 1
+                    if video:
+                        logger.info(
+                            f"Skipping {vi.video_id} {height}p: source height ({original_height}p) "
+                            f"is not greater than target"
+                        )
                     continue
                 transcode_path = derived_path / f"{vi.video_id}-{height}p.mp4"
-                if not transcode_path.exists() or regenerate:
-                    work_items.append((vi, height, video_path, derived_path, transcode_path))
+                has_attr = f'has_{height}p'
+                output_exists = transcode_path.exists()
+
+                if output_exists and getattr(vi, has_attr, False) is not True:
+                    setattr(vi, has_attr, True)
+                    reconciled_flag_updates += 1
+                    reconciled_videos.add(vi.video_id)
+                    if video:
+                        logger.info(f"Detected existing {height}p output on disk; updating {has_attr}=True for {vi.video_id}")
+
+                if output_exists and not regenerate:
+                    skipped_existing_output += 1
+                    if video:
+                        logger.info(f"Skipping {vi.video_id} {height}p: output already exists at {transcode_path}")
+                    continue
+
+                work_items.append((vi, height, video_path, derived_path, transcode_path))
+
+        if reconciled_flag_updates > 0:
+            db.session.commit()
+            logger.info(
+                f"Reconciled transcode flags from disk for {len(reconciled_videos)} video(s), "
+                f"updated {reconciled_flag_updates} flag value(s)."
+            )
 
         total_jobs = len(work_items)
         logger.info(f'Processing {total_jobs:,} transcode job(s) (GPU: {use_gpu}, Encoder: {encoder_preference})')
 
         if total_jobs == 0:
+            if video:
+                vi = vinfos[0] if vinfos else None
+                logger.info(
+                    f"Single-video planner summary for {video}: "
+                    f"found_video_info={bool(vi)}, source_height={vi.height if vi else None}, "
+                    f"enabled_targets={','.join(f'{h}p' for h in resolutions) if resolutions else 'none'}, "
+                    f"regenerate={regenerate}, include_corrupt={include_corrupt}"
+                )
+                logger.info(
+                    "Single-video planner breakdown: "
+                    f"missing_source={skipped_missing_source}, "
+                    f"source_too_small={skipped_source_too_small}, "
+                    f"already_exists={skipped_existing_output}"
+                )
             logger.info("No videos need transcoding")
             util.clear_transcoding_status(paths['data'])
             return

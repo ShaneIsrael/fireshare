@@ -31,36 +31,7 @@ const Watch = ({ authenticated }) => {
   const [viewAdded, setViewAdded] = React.useState(false)
 
   const videoPlayerRef = useRef(null)
-  const videoContainerRef = React.useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
-  
-  React.useEffect(() => {
-    const container = videoContainerRef.current
-    if (!container) return
-
-    const aspectRatio = (details?.info?.width && details?.info?.height)
-      ? details.info.width / details.info.height
-      : 16 / 9
-
-    const computeSize = () => {
-      const availW = container.clientWidth
-      const availH = container.clientHeight
-      if (availW <= 0 || availH <= 0) return
-
-      let w = availW
-      let h = w / aspectRatio
-
-      if (h > availH) {
-        h = availH
-        w = h * aspectRatio
-      }
-    }
-
-    const observer = new ResizeObserver(computeSize)
-    observer.observe(container)
-
-    return () => observer.disconnect()
-  }, [details?.info?.width, details?.info?.height])
 
   React.useEffect(() => {
     async function fetch() {
@@ -218,19 +189,17 @@ const Watch = ({ authenticated }) => {
         <meta property="og:video:height" value={details?.info?.height} />
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
-      <div style={{ display: 'flex', height: '100%', flexDirection: 'column', alignItems: 'start' }}>
-        <div ref={videoContainerRef} style={{ flex: '1 1 auto', minHeight: 0, width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingLeft: 8, paddingRight: 8 }}>
+      <div style={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: 'column' }}>
+        <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}>
           <VideoJSPlayer
             sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
             poster={getPosterUrl()}
             autoplay={true}
             controls={true}
             onTimeUpdate={handleTimeUpdate}
-            onReady={(player) => {
-              videoPlayerRef.current = player
-            }}
+            onReady={(player) => { videoPlayerRef.current = player }}
             startTime={time ? parseFloat(time) : 0}
-            style={{ backgroundColor: '#000' }}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
             fluid={false}
             fill={true}
           />
