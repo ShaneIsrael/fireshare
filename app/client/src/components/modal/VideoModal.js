@@ -180,9 +180,11 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }, [])
 
   React.useEffect(() => {
+    let cancelled = false
     async function fetch() {
       try {
         const details = (await VideoService.getDetails(videoId)).data
+        if (cancelled) return
         setViewAdded(false)
         setVideo(details)
         setTitle(details.info?.title)
@@ -200,12 +202,13 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         }
         try {
           const gameData = (await GameService.getVideoGame(videoId)).data
+          if (cancelled) return
           setSelectedGame(gameData || null)
         } catch (err) {
-          setSelectedGame(null)
+          if (!cancelled) setSelectedGame(null)
         }
       } catch (err) {
-        setAlert({ type: 'error', message: 'Unable to load video details', open: true })
+        if (!cancelled) setAlert({ type: 'error', message: 'Unable to load video details', open: true })
       }
     }
     if (videoId) {
@@ -217,6 +220,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setEditMode(false)
       fetch()
     }
+    return () => { cancelled = true }
   }, [videoId])
 
   const handleGameLinked = async (game) => {
