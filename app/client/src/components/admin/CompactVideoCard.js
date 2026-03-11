@@ -61,7 +61,7 @@ const CompactBetaVideoCard = ({
     const v = videoRef.current
     if (!v) return
     if (hover) {
-      const { has_480p, has_720p, has_1080p } = video.info || {}
+      const { has_480p, has_720p, has_1080p } = intVideo?.info || video.info || {}
       v.src = has_480p ? getVideoUrl(video.video_id, '480p', video.extension)
         : has_720p ? getVideoUrl(video.video_id, '720p', video.extension)
         : has_1080p ? getVideoUrl(video.video_id, '1080p', video.extension)
@@ -73,7 +73,7 @@ const CompactBetaVideoCard = ({
       v.removeAttribute('src')
       v.load()
     }
-  }, [hover, video.video_id, video.extension, video.info])
+  }, [hover, video.video_id, video.extension, video.info, intVideo?.info])
 
   const cardRef = React.useRef(null)
   const isTouchDevice = React.useRef(typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0))
@@ -216,6 +216,38 @@ const gameName = game?.name || ''
   const filenameFallback = video.path
     ? video.path.split('/').pop().replace(/\.[^/.]+$/, '')
     : 'Untitled'
+
+  const refreshVideoDetails = async () => {
+    try {
+      const refreshed = (await VideoService.getDetails(video.video_id)).data
+      setIntVideo(refreshed)
+      setPrivateView(refreshed.info?.private)
+      setTitle(refreshed.info?.title || filenameFallback)
+      setDescription(refreshed.info?.description || '')
+    } catch (_) {}
+  }
+
+  const handleTranscode = async () => {
+    try {
+      const response = await ConfigService.startTranscodingVideo(video.video_id)
+      const status = response?.data?.status
+      alertHandler?.({
+        type: 'info',
+        message: status === 'queued' ? 'Transcode queued.' : 'Transcode started.',
+        open: true,
+      })
+      refreshVideoDetails()
+      setTimeout(refreshVideoDetails, 1000)
+    } catch (err) {
+      alertHandler?.({
+        type: 'error',
+        message: err.response?.data?.includes('not enabled')
+          ? 'Transcoding is disabled. Add ENABLE_TRANSCODING=true to your Docker environment variables.'
+          : 'Failed to start transcoding.',
+        open: true,
+      })
+    }
+  }
 
   const handleTitleSave = async () => {
     setEditingTitle(false)
@@ -682,7 +714,7 @@ const gameName = game?.name || ''
       >
         {[
           { label: 'Edit',       Icon: EditIcon,           color: '#FFFFFFE6', requiresAuth: true,  onClick: () => setDetailsModalOpen(true) },
-          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFFE6', requiresAuth: true, onClick: () => ConfigService.startTranscodingVideo(video.video_id).catch((err) => alertHandler?.({ type: 'error', message: err.response?.data?.includes('not enabled') ? 'Transcoding is disabled. Add ENABLE_TRANSCODING=true to your Docker environment variables.' : 'Failed to start transcoding.', open: true })) },
+          { label: 'Transcode',  Icon: SlowMotionVideoIcon, color: '#FFFFFFE6', requiresAuth: true, onClick: handleTranscode },
           { label: 'Copy Link',  Icon: LinkIcon,           color: '#FFFFFFE6', onClick: () => { navigator.clipboard.writeText(`${PURL}${video.video_id}`); alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true }) } },
           { label: 'Delete',     Icon: DeleteOutlineIcon,  color: '#EF5350',  danger: true, requiresAuth: true, onClick: () => setDeleteModalOpen(true) },
         ].filter(item => !item.requiresAuth || authenticated).map(({ label, Icon, color, danger, onClick }) => (
