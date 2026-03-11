@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Button, Divider, IconButton, Modal, Paper, Slide, TextField, Tooltip, Typography } from '@mui/material'
+import { Box, Button, Divider, IconButton, Modal, Paper, TextField, Tooltip, Typography } from '@mui/material'
+import { motion } from 'framer-motion'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CloseIcon from '@mui/icons-material/Close'
@@ -267,9 +268,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         {alert.message}
       </SnackbarAlert>
 
-      <Modal open={open} onClose={onClose} closeAfterTransition disableAutoFocus={true}>
-        <Slide in={open}>
-          {/* Centering wrapper — Slide animates this, click-outside closes modal */}
+      <Modal open={open} onClose={onClose} disableAutoFocus={true} slotProps={{ backdrop: { sx: { backgroundColor: 'rgba(0, 0, 0, 0.7)' } } }}>
+          {/* Centering wrapper — click-outside closes modal */}
           <Box
             tabIndex={-1}
             sx={{
@@ -283,10 +283,17 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             }}
             onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
           >
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              style={{ display: 'flex', width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }}
+            >
             <Paper
               sx={{
                 borderRadius: { xs: 0, md: '12px' },
                 overflow: 'hidden',
+                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
                 bgcolor: '#020D1A',
                 display: 'flex',
                 flexDirection: { xs: 'column', md: 'row' },
@@ -415,9 +422,19 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 {/* Views + Game inline row */}
                 {!editMode && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mt: 0.5, gap: 2 }}>
-                    <Typography sx={{ fontSize: 14, color: '#FFFFFF55', flexShrink: 0 }}>
-                      {(vid.view_count ?? 0).toLocaleString()} {vid.view_count === 1 ? 'view' : 'views'}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Typography sx={{ fontSize: 14, color: '#FFFFFF55', flexShrink: 0 }}>
+                        {(vid.view_count ?? 0).toLocaleString()} {vid.view_count === 1 ? 'view' : 'views'}
+                      </Typography>
+                      {vid.recorded_at && (
+                        <>
+                          <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>|</Typography>
+                          <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>
+                            {new Date(vid.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Typography>
+                        </>
+                      )}
+                    </Box>
                     {selectedGame && (
                       <Box
                         component={selectedGame.steamgriddb_id ? 'a' : 'div'}
@@ -483,7 +500,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 {/* Description */}
                 {(editMode || description) && (
                   <Box>
-                    <Typography sx={labelSx}>Description</Typography>
                     {editMode ? (
                       <TextField
                         fullWidth
@@ -497,9 +513,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                         sx={inputSx}
                       />
                     ) : (
-                      <Box sx={{ bgcolor: '#FFFFFF0D', border: '1px solid #FFFFFF26', borderRadius: '8px', px: 1.5, py: 1 }}>
-                        <Typography sx={{ fontSize: 14, color: '#FFFFFFB3', lineHeight: 1.6 }}>{description}</Typography>
-                      </Box>
+                      <Typography sx={{ fontSize: 14, color: '#FFFFFF', lineHeight: 1.6 }}>{description}</Typography>
                     )}
                   </Box>
                 )}
@@ -570,19 +584,17 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   editMode ? (
                     <Button
                       size="small"
+                      variant="outlined"
                       onClick={updateable ? update : () => setEditMode(false)}
                       sx={{
                         ml: 'auto',
                         fontSize: 12,
                         fontWeight: 400,
-                        px: 0,
-                        minWidth: 'unset',
-                        bgcolor: 'transparent',
-                        border: 'none',
                         color: updateable ? '#3399FF' : '#FFFFFF',
                         textTransform: 'uppercase',
                         letterSpacing: '0.08em',
-                        '&:hover': { bgcolor: 'transparent', color: 'white' },
+                        borderColor: updateable ? '#3399FF88' : '#FFFFFF44',
+                        '&:hover': { borderColor: updateable ? '#3399FF' : '#FFFFFF99', bgcolor: updateable ? '#3399FF11' : '#FFFFFF11' },
                         ...(updateable && { animation: 'blink-blue 0.5s ease-in-out infinite alternate' }),
                       }}
                     >
@@ -592,7 +604,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                     <Button
                       size="small"
                       onClick={() => setEditMode(true)}
-                      sx={{ ml: 'auto', fontSize: 12, fontWeight: 400, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.08em', px: 0, minWidth: 'unset', bgcolor: 'transparent', border: 'none', '&:hover': { bgcolor: 'transparent', color: 'white' } }}
+                      variant="outlined"
+                      sx={{ ml: 'auto', fontSize: 12, fontWeight: 400, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.08em', borderColor: '#FFFFFF44', borderRadius: '8px', '&:hover': { borderColor: '#FFFFFF99', bgcolor: '#FFFFFF11' } }}
                     >
                       Edit
                     </Button>
@@ -602,8 +615,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
               </Box>
             </Box>
             </Paper>
+            </motion.div>
           </Box>
-        </Slide>
       </Modal>
     </>
   )
