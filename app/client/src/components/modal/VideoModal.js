@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { Box, Button, Divider, IconButton, Modal, Paper, Slide, TextField, Tooltip, Typography } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
-import ShuffleIcon from '@mui/icons-material/Shuffle'
 import CloseIcon from '@mui/icons-material/Close'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -431,7 +430,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                           minWidth: 0,
                           bgcolor: gamePillColor ? `rgba(${gamePillColor.join(',')}, 0.15)` : '#FFFFFF14',
                           border: `1px solid ${gamePillColor ? `rgba(${gamePillColor.join(',')}, 0.5)` : '#FFFFFF26'}`,
-                          borderRadius: '20px',
+                          borderRadius: '8px',
                           px: 1,
                           py: 0.35,
                           textDecoration: 'none',
@@ -445,7 +444,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                         {selectedGame.icon_url && (
                           <img src={selectedGame.icon_url} alt="" style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }} />
                         )}
-                        <Typography sx={{ fontSize: 11, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: '0.08em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <Typography sx={{ fontSize: 14, color: '#FFFFFF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {selectedGame.name}
                         </Typography>
                       </Box>
@@ -545,12 +544,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   flexWrap: 'wrap',
                 }}
               >
-                <Tooltip title="Random video">
-                  <IconButton size="small" onClick={getRandomVideo} sx={actionBtnSx}>
-                    <ShuffleIcon sx={{ fontSize: 20 }} />
-                  </IconButton>
-                </Tooltip>
-
                 {authenticated && (
                   <Tooltip title={privateView ? 'Make public' : 'Make private'}>
                     <IconButton
