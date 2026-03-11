@@ -57,6 +57,12 @@
 
 ![folders][folders]
 
+<h3 align="center">Video Details</h3>
+
+---
+
+![edit][edit]
+
 <h3 align="center">Open Graph Support</h3>
 
 ---
@@ -208,3 +214,4 @@ If you use a different proxy, apply equivalent upload size and timeout settings 
 
 [card-view]: .github/images/card-view.png
 [folders]: .github/images/folders.png
+[edit]: .github/images/edit-details.png
