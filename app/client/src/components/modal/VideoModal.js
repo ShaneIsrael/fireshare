@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Button, Divider, IconButton, Modal, Paper, TextField, Tooltip, Typography } from '@mui/material'
+import { Box, Button, Divider, IconButton, Modal, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material'
 import { motion } from 'framer-motion'
+import { DayPicker } from 'react-day-picker'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import CloseIcon from '@mui/icons-material/Close'
+import './datepicker-dark.css'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { copyToClipboard, getPublicWatchUrl, getServedBy, getUrl, getVideoSources, getSetting } from '../../common/utils'
@@ -63,6 +66,49 @@ const actionBtnSx = {
 
 const SIDEBAR_WIDTH = 'clamp(280px, 24vw, 420px)'
 
+const timeInputStyle = {
+  background: '#FFFFFF0D',
+  border: '1px solid #FFFFFF26',
+  borderRadius: 6,
+  color: 'white',
+  fontSize: 13,
+  padding: '4px 8px',
+  colorScheme: 'dark',
+  flex: 1,
+}
+
+const DateField = ({ selectedDate, selectedTime, onDateChange, onTimeChange }) => {
+  const [anchor, setAnchor] = React.useState(null)
+  const display = selectedDate
+    ? selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + (selectedTime ? ` at ${selectedTime}` : '')
+    : null
+  return (
+    <>
+      <Box onClick={(e) => setAnchor(e.currentTarget)} sx={{ ...rowBoxSx, cursor: 'pointer', py: 1.1, '&:hover': { borderColor: '#FFFFFF55' } }}>
+        <CalendarMonthIcon sx={{ color: '#FFFFFF66', fontSize: 20 }} />
+        <Typography sx={{ color: display ? 'white' : '#FFFFFF4D', fontSize: 14, flex: 1 }}>
+          {display || 'Pick a date…'}
+        </Typography>
+        {selectedDate && (
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); onDateChange(null); onTimeChange('') }} sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.25 }}>
+            <CloseIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        )}
+      </Box>
+      <Popover open={Boolean(anchor)} anchorEl={anchor} onClose={() => setAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }} transformOrigin={{ vertical: 'top', horizontal: 'left' }} slotProps={{ paper: { sx: { bgcolor: 'transparent', boxShadow: 'none', mt: 0.5 } } }}>
+        <div className="fireshare-rdp">
+          <DayPicker animate mode="single" selected={selectedDate} onSelect={(d) => onDateChange(d || null)} defaultMonth={selectedDate || new Date()} />
+          <Box sx={{ px: 1, pb: 1, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography sx={{ color: '#FFFFFFB3', fontSize: 13 }}>Time</Typography>
+            <input type="time" value={selectedTime} onChange={(e) => onTimeChange(e.target.value)} style={timeInputStyle} />
+            <Button size="small" variant="contained" onClick={() => setAnchor(null)} sx={{ bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' }, minWidth: 60 }}>Done</Button>
+          </Box>
+        </div>
+      </Popover>
+    </>
+  )
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCallback, onNext, onPrev }) => {
@@ -70,6 +116,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [description, setDescription] = React.useState('')
   const [updateable, setUpdatable] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(false)
+  const [selectedDate, setSelectedDate] = React.useState(null)
+  const [selectedTime, setSelectedTime] = React.useState('')
   const [vid, setVideo] = React.useState(null)
   const [viewAdded, setViewAdded] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false, type: 'info', message: '' })
@@ -141,6 +189,15 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         setDescription(details.info?.description)
         setPrivateView(details.info?.private)
         setUpdatable(false)
+        if (details.recorded_at) {
+          const d = new Date(details.recorded_at)
+          const pad = (n) => n.toString().padStart(2, '0')
+          setSelectedDate(d)
+          setSelectedTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)
+        } else {
+          setSelectedDate(null)
+          setSelectedTime('')
+        }
         try {
           const gameData = (await GameService.getVideoGame(videoId)).data
           setSelectedGame(gameData || null)
@@ -155,6 +212,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setTitle('')
       setDescription('')
       setSelectedGame(null)
+      setSelectedDate(null)
+      setSelectedTime('')
       setEditMode(false)
       fetch()
     }
@@ -184,10 +243,17 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     if (e.button === 1) window.open(`${PURL}${vid.video_id}`, '_blank')
   }
 
+  const getRecordedAtISO = () => {
+    if (!selectedDate) return null
+    const d = new Date(selectedDate)
+    if (selectedTime) { const [h, m] = selectedTime.split(':'); d.setHours(+h, +m, 0, 0) }
+    return d.toISOString()
+  }
+
   const update = async () => {
     if (updateable && authenticated) {
       try {
-        await VideoService.updateDetails(vid.video_id, { title, description })
+        await VideoService.updateDetails(vid.video_id, { title, description, recorded_at: getRecordedAtISO() })
         setUpdatable(false)
         setEditMode(false)
         updateCallback({ id: vid.video_id, title, description })
@@ -494,6 +560,19 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                         />
                       </Box>
                     )}
+                  </Box>
+                )}
+
+                {/* Date picker (edit mode only) */}
+                {editMode && (
+                  <Box>
+                    <Typography sx={labelSx}>Recorded Date</Typography>
+                    <DateField
+                      selectedDate={selectedDate}
+                      selectedTime={selectedTime}
+                      onDateChange={(d) => { setSelectedDate(d); setUpdatable(true) }}
+                      onTimeChange={(t) => { setSelectedTime(t); setUpdatable(true) }}
+                    />
                   </Box>
                 )}
 
