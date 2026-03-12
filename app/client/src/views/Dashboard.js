@@ -21,44 +21,32 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import CheckIcon from '@mui/icons-material/Check'
 import LinkIcon from '@mui/icons-material/Link'
 import VideoCards from '../components/admin/VideoCards'
-import VideoList from '../components/admin/VideoList'
 import GameSearch from '../components/game/GameSearch'
 import { VideoService, GameService, ReleaseService } from '../services'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
-import { getSetting, setSetting } from '../common/utils'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
-import selectFolderTheme from '../common/reactSelectFolderTheme'
 import selectSortTheme from '../common/reactSelectSortTheme'
 import { SORT_OPTIONS } from '../common/constants'
-
-const createSelectFolders = (folders) => {
-  return folders.map((f) => ({ value: f, label: f }))
-}
 
 const Dashboard = ({
   authenticated,
   searchText,
   cardSize,
-  listStyle,
   showReleaseNotes,
   releaseNotes: releaseNotesProp,
+  selectedFolder,
+  onFoldersLoaded,
 }) => {
   const [videos, setVideos] = React.useState([])
   const [search, setSearch] = React.useState(searchText)
   const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
-  const [folders, setFolders] = React.useState(['All Videos'])
-  const [selectedFolder, setSelectedFolder] = React.useState(
-    getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
-  )
   const [dateSortOrder, setDateSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
 
   const [alert, setAlert] = React.useState({ open: false })
 
   const [prevCardSize, setPrevCardSize] = React.useState(cardSize)
-  const [prevListStyle, setPrevListStyle] = React.useState(listStyle)
 
   // Edit mode state
   const [editMode, setEditMode] = React.useState(false)
@@ -81,9 +69,6 @@ const Dashboard = ({
   if (cardSize !== prevCardSize) {
     setPrevCardSize(cardSize)
   }
-  if (listStyle !== prevListStyle) {
-    setPrevListStyle(listStyle)
-  }
 
   function fetchVideos() {
     VideoService.getVideos()
@@ -101,7 +86,7 @@ const Dashboard = ({
           }
         })
         tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
-        setFolders(tfolders)
+        if (onFoldersLoaded) onFoldersLoaded(tfolders)
         setLoading(false)
       })
       .catch((err) => {
@@ -139,15 +124,12 @@ const Dashboard = ({
     setFeatureAlertOpen(false)
   }
 
-  const handleFolderSelection = (folder) => {
-    setSetting('folder', folder)
-    setSelectedFolder(folder)
-  }
-
+  // Use folder from Navbar props (falls back to All Videos)
+  const folder = selectedFolder || { value: 'All Videos', label: 'All Videos' }
 
   // Get the filtered videos based on folder selection
   const displayVideos = React.useMemo(() => {
-    if (selectedFolder.value === 'All Videos') {
+    if (folder.value === 'All Videos') {
       return filteredVideos
     }
     return filteredVideos?.filter(
@@ -155,9 +137,9 @@ const Dashboard = ({
         v.path
           .split('/')
           .slice(0, -1)
-          .filter((f) => f !== '')[0] === selectedFolder.value,
+          .filter((f) => f !== '')[0] === folder.value,
     )
-  }, [filteredVideos, selectedFolder])
+  }, [filteredVideos, folder])
 
   // Sort videos by recorded date or views
   const sortedVideos = React.useMemo(() => {
@@ -394,40 +376,19 @@ const Dashboard = ({
       <Box>
         <Grid container item justifyContent="center">
           <Grid item xs={12}>
-            <Grid container justifyContent="center">
-              <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 2 }}>
-                <Select
-                  value={selectedFolder}
-                  options={createSelectFolders(folders)}
-                  onChange={handleFolderSelection}
-                  styles={selectFolderTheme}
-                  blurInputOnSelect
-                  isSearchable={false}
-                />
-              </Grid>
-            </Grid>
             <Box>
-              {listStyle === 'list' && (
-                <VideoList
-                  authenticated={authenticated}
-                  loadingIcon={loading ? <LoadingSpinner /> : null}
-                  videos={displayVideos}
-                />
-              )}
-              {listStyle === 'card' && (
-                <Box>
-                  {!loading && (
-                    <VideoCards
-                      videos={sortedVideos}
-                      authenticated={authenticated}
-                      size={cardSize}
-                      editMode={editMode}
-                      selectedVideos={selectedVideos}
-                      onVideoSelect={handleVideoSelect}
-                    />
-                  )}
-                </Box>
-              )}
+              <Box>
+                {!loading && (
+                  <VideoCards
+                    videos={sortedVideos}
+                    authenticated={authenticated}
+                    size={cardSize}
+                    editMode={editMode}
+                    selectedVideos={selectedVideos}
+                    onVideoSelect={handleVideoSelect}
+                  />
+                )}
+              </Box>
             </Box>
           </Grid>
         </Grid>
@@ -530,7 +491,9 @@ const Dashboard = ({
 
       {/* Release Notes Dialog */}
       <Dialog open={featureAlertOpen} onClose={handleFeatureAlertClose} maxWidth="sm" scroll="paper">
-        <DialogTitle sx={{ fontSize: 18, fontWeight: 'bold', color: 'primary.main', textTransform: 'uppercase' }}>{`New Update Available - v${releaseNotes?.version}`}</DialogTitle>
+        <DialogTitle
+          sx={{ fontSize: 18, fontWeight: 'bold', color: 'primary.main', textTransform: 'uppercase' }}
+        >{`New Update Available - v${releaseNotes?.version}`}</DialogTitle>
         <DialogContent sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <Box
             sx={{
@@ -559,7 +522,11 @@ const Dashboard = ({
                     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
                     // Unordered lists
                     .replace(/(?:^|\n)([*\-] .+(?:\n[*\-] .+)*)/g, (match) => {
-                      const items = match.trim().split('\n').map(li => `<li>${li.replace(/^[*\-] /, '')}</li>`).join('')
+                      const items = match
+                        .trim()
+                        .split('\n')
+                        .map((li) => `<li>${li.replace(/^[*\-] /, '')}</li>`)
+                        .join('')
                       return `<ul>${items}</ul>`
                     })
                     // Line breaks

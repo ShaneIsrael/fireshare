@@ -145,8 +145,16 @@ const Watch = ({ authenticated }) => {
         <meta property="og:video:height" value={details?.info?.height} />
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
-      <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: 'column', bgcolor: '#020D1A' }}>
-        <Box sx={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', bgcolor: '#020D1A' }}>
+      <div style={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: 'column' }}>
+        <Box
+          style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}
+          sx={{
+            // Override VideoJS default 2rem border-radius responsively
+            '& > div': {
+              borderRadius: 0,
+            },
+          }}
+        >
           <VideoJSPlayer
             sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
             poster={getPosterUrl()}
@@ -241,7 +249,7 @@ const Watch = ({ authenticated }) => {
             </Tooltip>
           </Box>
         </Box>
-      </Box>
+      </div>
     </>
   )
 }

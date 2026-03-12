@@ -1,13 +1,8 @@
-import React, { useEffect, useRef } from 'react'
-import videojs from 'video.js'
-import 'video.js/dist/video-js.css'
-
-// Import and register the quality selector plugin
-import qualitySelectorPlugin from '@silvermine/videojs-quality-selector'
-import '@silvermine/videojs-quality-selector/dist/css/quality-selector.css'
-
-// Register the quality selector plugin with videojs
-qualitySelectorPlugin(videojs)
+import React, { useEffect, useRef, useState, useMemo } from 'react'
+import '@videojs/react/video/skin.css'
+import { createPlayer, useMedia, Poster } from '@videojs/react'
+import { Video, videoFeatures } from '@videojs/react/video'
+import CustomVideoSkin from './CustomVideoSkin'
 
 // Tolerance threshold for checking if player is already at the desired start time (in seconds)
 const SEEK_TOLERANCE_SECONDS = 0.5
@@ -21,14 +16,208 @@ const BUFFER_COUNT_THRESHOLD = 4
 // Sliding window duration for counting buffering events (in ms)
 const BUFFER_COUNT_WINDOW_MS = 30000
 
+// Create the Video.js 10 player instance (module-level singleton)
+const Player = createPlayer({ features: videoFeatures })
+
+function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTime }) {
+  const store = Player.usePlayer()
+  const media = Player.useMedia()
+  const currentTime = Player.usePlayer((s) => s.currentTime)
+  const onTimeUpdateRef = useRef(onTimeUpdate)
+  const onReadyRef = useRef(onReady)
+  const startTimeApplied = useRef(false)
+  const readyFired = useRef(false)
+
+  useEffect(() => {
+    onTimeUpdateRef.current = onTimeUpdate
+    onReadyRef.current = onReady
+  }, [onTimeUpdate, onReady])
+
+  useEffect(() => {
+    if (onTimeUpdateRef.current) {
+      onTimeUpdateRef.current({ playedSeconds: currentTime || 0 })
+    }
+  }, [currentTime])
+
+  // --- onReady: provide a wrapper that mimics the v8 player API --------------
+  const mediaRef = useRef(null)
+  useEffect(() => {
+    mediaRef.current = media
+  }, [media])
+
+  const playerWrapper = useMemo(
+    () => ({
+      currentTime: () => mediaRef.current?.currentTime ?? 0,
+      duration: () => mediaRef.current?.duration ?? 0,
+      paused: () => mediaRef.current?.paused ?? true,
+      play: () => store.play?.(),
+      pause: () => store.pause?.(),
+    }),
+    [store],
+  )
+
+  useEffect(() => {
+    if (media && !readyFired.current) {
+      readyFired.current = true
+      if (onReadyRef.current) {
+        onReadyRef.current(playerWrapper)
+      }
+    }
+  }, [media, playerWrapper])
+
+  // --- startTime: seek to the requested position once metadata is loaded -----
+  useEffect(() => {
+    if (!media || !startTime || startTimeApplied.current) return
+
+    const handleLoaded = () => {
+      if (media.readyState >= 1) {
+        media.currentTime = startTime
+        startTimeApplied.current = true
+      }
+    }
+
+    // If metadata already loaded, seek immediately
+    if (media.readyState >= 1) {
+      media.currentTime = startTime
+      startTimeApplied.current = true
+    } else {
+      media.addEventListener('loadedmetadata', handleLoaded, { once: true })
+    }
+
+    // Also handle the case where autoplay is blocked and user manually presses play
+    const handlePlay = () => {
+      if (!startTimeApplied.current || Math.abs(media.currentTime - startTime) > SEEK_TOLERANCE_SECONDS) {
+        media.currentTime = startTime
+        startTimeApplied.current = true
+      }
+    }
+    media.addEventListener('play', handlePlay, { once: true })
+
+    return () => {
+      media.removeEventListener('loadedmetadata', handleLoaded)
+      media.removeEventListener('play', handlePlay)
+    }
+  }, [media, startTime])
+
+  // --- Auto-downgrade: switch to lower quality on buffering / error ----------
+  useEffect(() => {
+    if (!media || !sources || sources.length <= 1) return
+
+    let bufferStallTimer = null
+    let bufferTimestamps = []
+    let isSourceTransitioning = false
+    let sourceTransitionTimer = null
+
+    const clearStallTimer = () => {
+      if (bufferStallTimer) {
+        clearTimeout(bufferStallTimer)
+        bufferStallTimer = null
+      }
+    }
+
+    const clearTransitionTimer = () => {
+      if (sourceTransitionTimer) {
+        clearTimeout(sourceTransitionTimer)
+        sourceTransitionTimer = null
+      }
+    }
+
+    const switchToNextSource = () => {
+      onSourceChange((prev) => {
+        if (prev + 1 < sources.length) return prev + 1
+        return prev
+      })
+    }
+
+    const handleError = () => {
+      if (isSourceTransitioning) {
+        setTimeout(() => {
+          if (media.error) {
+            isSourceTransitioning = false
+            clearTransitionTimer()
+            switchToNextSource()
+          }
+        }, 1000)
+      } else {
+        switchToNextSource()
+      }
+    }
+
+    const handleLoadStart = () => {
+      isSourceTransitioning = true
+      bufferTimestamps = []
+      clearStallTimer()
+      clearTransitionTimer()
+      sourceTransitionTimer = setTimeout(() => {
+        isSourceTransitioning = false
+      }, BUFFER_STALL_TIMEOUT_MS)
+    }
+
+    const handleCanPlay = () => {
+      isSourceTransitioning = false
+      clearTransitionTimer()
+    }
+
+    const handleWaiting = () => {
+      if (isSourceTransitioning) return
+
+      const now = Date.now()
+      bufferTimestamps.push(now)
+      bufferTimestamps = bufferTimestamps.filter((t) => now - t < BUFFER_COUNT_WINDOW_MS)
+
+      if (bufferTimestamps.length >= BUFFER_COUNT_THRESHOLD) {
+        bufferTimestamps = []
+        clearStallTimer()
+        switchToNextSource()
+        return
+      }
+
+      clearStallTimer()
+      bufferStallTimer = setTimeout(() => {
+        if (media.paused || media.readyState < 3) {
+          bufferTimestamps = []
+          switchToNextSource()
+        }
+      }, BUFFER_STALL_TIMEOUT_MS)
+    }
+
+    const handlePlayingOrPause = () => clearStallTimer()
+
+    media.addEventListener('error', handleError)
+    media.addEventListener('loadstart', handleLoadStart)
+    media.addEventListener('canplay', handleCanPlay)
+    media.addEventListener('waiting', handleWaiting)
+    media.addEventListener('playing', handlePlayingOrPause)
+    media.addEventListener('pause', handlePlayingOrPause)
+    media.addEventListener('seeked', handlePlayingOrPause)
+
+    return () => {
+      clearStallTimer()
+      clearTransitionTimer()
+      media.removeEventListener('error', handleError)
+      media.removeEventListener('loadstart', handleLoadStart)
+      media.removeEventListener('canplay', handleCanPlay)
+      media.removeEventListener('waiting', handleWaiting)
+      media.removeEventListener('playing', handlePlayingOrPause)
+      media.removeEventListener('pause', handlePlayingOrPause)
+      media.removeEventListener('seeked', handlePlayingOrPause)
+    }
+  }, [media, sources, onSourceChange])
+
+  return null
+}
+
+/**
+ * VideoJSPlayer — a drop-in replacement powered by Video.js 10.
+ *
+ * Accepts the same props as the previous v8 component so that consumers
+ * (Watch.js, VideoModal.js) do not need to change their usage.
+ */
 const VideoJSPlayer = ({
   sources,
   poster,
   autoplay = false,
-  controls = true,
-  fluid = true,
   fill = false,
-  aspectRatio,
   playsinline = false,
   onTimeUpdate,
   onReady,
@@ -36,279 +225,51 @@ const VideoJSPlayer = ({
   className,
   style,
 }) => {
-  const videoRef = useRef(null)
-  const playerRef = useRef(null)
-  const onTimeUpdateRef = useRef(onTimeUpdate)
-  const onReadyRef = useRef(onReady)
+  const [currentSourceIndex, setCurrentSourceIndex] = useState(() => {
+    // Start with the "selected" source, or default to index 0
+    const idx = sources?.findIndex((s) => s.selected)
+    return idx >= 0 ? idx : 0
+  })
 
-  // Keep refs updated with latest callback values
+  // Reset source index when the sources array identity changes (e.g. new video)
+  const prevSourcesRef = useRef(sources)
   useEffect(() => {
-    onTimeUpdateRef.current = onTimeUpdate
-    onReadyRef.current = onReady
-  }, [onTimeUpdate, onReady])
-
-  useEffect(() => {
-    // Make sure Video.js player is only initialized once
-    if (!playerRef.current) {
-      const videoElement = videoRef.current
-
-      if (!videoElement) return
-
-      const player = (playerRef.current = videojs(videoElement, {
-        autoplay,
-        controls,
-        responsive: true,
-        fluid,
-        fill,
-        playsinline,
-        ...(aspectRatio && { aspectRatio }),
-        poster,
-        preload: 'auto',
-        html5: {
-          vhs: {
-            overrideNative: true,
-          },
-          nativeVideoTracks: false,
-          nativeAudioTracks: false,
-          nativeTextTracks: false,
-        },
-        controlBar: {
-          children: [
-            'playToggle',
-            'volumePanel',
-            'currentTimeDisplay',
-            'timeDivider',
-            'durationDisplay',
-            'progressControl',
-            'liveDisplay',
-            'seekToLive',
-            'remainingTimeDisplay',
-            'customControlSpacer',
-            'playbackRateMenuButton',
-            'chaptersButton',
-            'descriptionsButton',
-            'subsCapsButton',
-            'audioTrackButton',
-            'qualitySelector',
-            'fullscreenToggle',
-          ],
-        },
-      }))
-
-      // Set up sources
-      if (sources && sources.length > 0) {
-        player.src(sources)
-      }
-
-      // Switch to a lower quality source if stuck buffering
-      let bufferStallTimer = null
-      let currentSourceIndex = 0
-      let bufferTimestamps = []
-
-      // Guard: true while a source transition is in progress (manual or automatic).
-      // Prevents waiting/error events that naturally occur during a source switch
-      // from being misinterpreted as playback problems.
-      let isSourceTransitioning = false
-      let sourceTransitionTimer = null
-
-      const switchToNextSource = () => {
-        if (sources && currentSourceIndex + 1 < sources.length) {
-          const currentTime = player.currentTime() || 0
-          currentSourceIndex += 1
-
-          // Clear any existing error state so the player can load the new source
-          player.error(null)
-          player.removeClass('vjs-error')
-
-          // Hide the big play button and poster to avoid the "play overlay" flash
-          player.bigPlayButton.hide()
-          player.hasStarted(true)
-
-          const updatedSources = sources.map((s, i) => ({
-            ...s,
-            selected: i === currentSourceIndex,
-          }))
-          player.src(updatedSources)
-          player.one('canplay', () => {
-            if (currentTime > 0) {
-              player.currentTime(currentTime)
-            }
-            const playPromise = player.play()
-            if (playPromise !== undefined) {
-              playPromise.catch(() => {})
-            }
-          })
-        }
-      }
-
-      const clearStallTimer = () => {
-        if (bufferStallTimer) {
-          clearTimeout(bufferStallTimer)
-          bufferStallTimer = null
-        }
-      }
-
-      const clearTransitionTimer = () => {
-        if (sourceTransitionTimer) {
-          clearTimeout(sourceTransitionTimer)
-          sourceTransitionTimer = null
-        }
-      }
-
-      // On error, try the next source in the list — but only if we are not
-      // in the middle of a source transition (source switches can emit
-      // transient errors that should not trigger a quality downgrade).
-      player.on('error', () => {
-        if (isSourceTransitioning) {
-          // Wait briefly; if the error persists it is a real load failure
-          setTimeout(() => {
-            if (!player.isDisposed() && player.error()) {
-              isSourceTransitioning = false
-              clearTransitionTimer()
-              switchToNextSource()
-            }
-          }, 1000)
-        } else {
-          switchToNextSource()
-        }
-      })
-
-      // Sync currentSourceIndex when the source changes (e.g. user picks a
-      // quality) and suppress the auto-downgrade logic until the new source
-      // has had a chance to start playing.
-      player.on('loadstart', () => {
-        const current = player.currentSource()
-        if (current && current.label) {
-          const index = sources.findIndex((s) => s.label === current.label)
-          if (index !== -1) {
-            currentSourceIndex = index
-          }
-        }
-
-        // Enter transition state: reset buffering counters so stale
-        // waiting events from the previous source don't cause a false
-        // downgrade on the new one.
-        isSourceTransitioning = true
-        bufferTimestamps = []
-        clearStallTimer()
-        clearTransitionTimer()
-      })
-
-      // The new source can play — leave transition state and resume normal
-      // buffering monitoring.
-      player.on('canplay', () => {
-        isSourceTransitioning = false
-        clearTransitionTimer()
-      })
-
-      // Safety net: if canplay never fires (e.g. slow network), leave
-      // transition state after a generous timeout so the auto-downgrade
-      // logic can kick in if the source is genuinely stuck.
-      player.on('loadstart', () => {
-        clearTransitionTimer()
-        sourceTransitionTimer = setTimeout(() => {
-          isSourceTransitioning = false
-        }, BUFFER_STALL_TIMEOUT_MS)
-      })
-
-      // Auto-downgrade quality when buffering stalls or buffers too frequently.
-      // Skipped while a source transition is in progress — the waiting events
-      // emitted during a normal source switch are not real playback problems.
-      player.on('waiting', () => {
-        if (isSourceTransitioning) return
-
-        // Track buffering frequency in a sliding window
-        const now = Date.now()
-        bufferTimestamps.push(now)
-        bufferTimestamps = bufferTimestamps.filter((t) => now - t < BUFFER_COUNT_WINDOW_MS)
-
-        if (bufferTimestamps.length >= BUFFER_COUNT_THRESHOLD) {
-          bufferTimestamps = []
-          clearStallTimer()
-          switchToNextSource()
-          return
-        }
-
-        // Single long stall fallback
-        clearStallTimer()
-        bufferStallTimer = setTimeout(() => {
-          if (!player.isDisposed() && (player.paused() || player.readyState() < 3)) {
-            bufferTimestamps = []
-            switchToNextSource()
-          }
-        }, BUFFER_STALL_TIMEOUT_MS)
-      })
-
-      player.on('playing', clearStallTimer)
-      player.on('pause', clearStallTimer)
-      player.on('seeked', clearStallTimer)
-
-      // Handle time updates using ref to avoid recreating player
-      player.on('timeupdate', () => {
-        const currentTime = player.currentTime()
-        if (onTimeUpdateRef.current) {
-          onTimeUpdateRef.current({ playedSeconds: currentTime || 0 })
-        }
-      })
-
-      // Seek to start time if provided
-      if (startTime) {
-        // Try to seek immediately when metadata is loaded
-        player.one('loadedmetadata', () => {
-          player.currentTime(startTime)
-        })
-
-        // Also seek when user manually plays if not already at the correct time
-        // This handles cases where autoplay is blocked
-        player.one('play', () => {
-          if (Math.abs(player.currentTime() - startTime) > SEEK_TOLERANCE_SECONDS) {
-            player.currentTime(startTime)
-          }
-        })
-      }
-
-      // Call onReady when player is ready using ref
-      player.ready(() => {
-        if (onReadyRef.current) {
-          onReadyRef.current(player)
-        }
-      })
-    } else {
-      const player = playerRef.current
-
-      // Update sources if they change
-      if (sources && sources.length > 0) {
-        const currentSrc = player.currentSrc()
-        // Check if the current source is in the new sources array
-        const sourceExists = sources.some((source) => source.src === currentSrc)
-        if (!sourceExists) {
-          const currentTime = player.currentTime()
-          player.src(sources)
-          player.one('loadedmetadata', () => {
-            player.currentTime(currentTime)
-          })
-        }
-      }
+    if (sources !== prevSourcesRef.current) {
+      prevSourcesRef.current = sources
+      const idx = sources?.findIndex((s) => s.selected)
+      setCurrentSourceIndex(idx >= 0 ? idx : 0)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sources, poster, autoplay, controls, startTime])
+  }, [sources])
 
-  // Dispose the Video.js player when the functional component unmounts
-  useEffect(() => {
-    const player = playerRef.current
+  const activeSrc = sources?.[currentSourceIndex]?.src || sources?.[0]?.src
 
-    return () => {
-      if (player && !player.isDisposed()) {
-        player.dispose()
-        playerRef.current = null
-      }
-    }
-  }, [])
+  // Container styles: emulate fluid / fill behaviour
+  const containerStyle = {
+    maxWidth: '100%',
+    ...(fill && { width: '100%', height: '100%' }),
+    ...style,
+  }
 
   return (
-    <div data-vjs-player className={className} style={{ maxWidth: '100%', ...style }}>
-      <video ref={videoRef} className="video-js vjs-big-play-centered" />
-    </div>
+    <Player.Provider>
+      <CustomVideoSkin
+        className={className}
+        style={containerStyle}
+        sources={sources}
+        currentSourceIndex={currentSourceIndex}
+        onQualitySelect={setCurrentSourceIndex}
+      >
+        <Video src={activeSrc} autoPlay={autoplay} playsInline={playsinline} preload="auto" />
+        {poster && <Poster src={poster} alt="" />}
+      </CustomVideoSkin>
+      <PlayerEffects
+        sources={sources}
+        onSourceChange={setCurrentSourceIndex}
+        onTimeUpdate={onTimeUpdate}
+        onReady={onReady}
+        startTime={startTime}
+      />
+    </Player.Provider>
   )
 }
 

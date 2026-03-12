@@ -8,7 +8,6 @@ import Dashboard from './views/Dashboard'
 import NotFound from './views/NotFound'
 import Settings from './views/Settings'
 import Feed from './views/Feed'
-import FeedTesting from './views/FeedTesting'
 import Games from './views/Games'
 import GameVideos from './views/GameVideos'
 import darkTheme from './common/darkTheme'
@@ -92,16 +91,6 @@ export default function App() {
               <AuthWrapper>
                 <Navbar20 page="/games" collapsed={!drawerOpen} styleToggle cardSlider searchable mainPadding={0}>
                   <GameVideos />
-                </Navbar20>
-              </AuthWrapper>
-            }
-          />
-          <Route
-            path="/testing"
-            element={
-              <AuthWrapper redirect={'/feed'}>
-                <Navbar20 page="/testing" collapsed={!drawerOpen} searchable styleToggle cardSlider>
-                  <FeedTesting />
                 </Navbar20>
               </AuthWrapper>
             }
