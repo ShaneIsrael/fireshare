@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import '@videojs/react/video/skin.css'
-import { createPlayer, useMedia, Popover, Poster } from '@videojs/react'
-import { Video, VideoSkin, videoFeatures } from '@videojs/react/video'
+import { createPlayer, useMedia, Poster } from '@videojs/react'
+import { Video, videoFeatures } from '@videojs/react/video'
+import CustomVideoSkin from './CustomVideoSkin'
 
 // Tolerance threshold for checking if player is already at the desired start time (in seconds)
 const SEEK_TOLERANCE_SECONDS = 0.5
@@ -18,10 +19,6 @@ const BUFFER_COUNT_WINDOW_MS = 30000
 // Create the Video.js 10 player instance (module-level singleton)
 const Player = createPlayer({ features: videoFeatures })
 
-/**
- * Inner component that handles player effects (time updates, seeking, onReady,
- * and automatic quality downgrade). Must be rendered inside <Player.Provider>.
- */
 function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTime }) {
   const store = Player.usePlayer()
   const media = Player.useMedia()
@@ -31,13 +28,11 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
   const startTimeApplied = useRef(false)
   const readyFired = useRef(false)
 
-  // Keep refs updated with latest callback values
   useEffect(() => {
     onTimeUpdateRef.current = onTimeUpdate
     onReadyRef.current = onReady
   }, [onTimeUpdate, onReady])
 
-  // --- onTimeUpdate: report current time to parent ---------------------------
   useEffect(() => {
     if (onTimeUpdateRef.current) {
       onTimeUpdateRef.current({ playedSeconds: currentTime || 0 })
@@ -213,79 +208,6 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
 }
 
 /**
- * Quality selector button rendered inside the VideoSkin controls.
- * Uses a Popover to show available quality options.
- */
-function QualitySelector({ sources, currentSourceIndex, onSourceChange }) {
-  const media = Player.useMedia()
-
-  if (!sources || sources.length <= 1) return null
-
-  const currentLabel = sources[currentSourceIndex]?.label || 'Quality'
-
-  const handleSelect = (index) => {
-    const savedTime = media?.currentTime ?? 0
-    const wasPlaying = media && !media.paused
-
-    onSourceChange(index)
-
-    // After source changes, restore playback position
-    if (media) {
-      const restoreTime = () => {
-        if (savedTime > 0) {
-          media.currentTime = savedTime
-        }
-        if (wasPlaying) {
-          const p = media.play()
-          if (p) p.catch(() => {})
-        }
-      }
-      media.addEventListener('canplay', restoreTime, { once: true })
-    }
-  }
-
-  return (
-    <Popover.Root openOnHover delay={200} closeDelay={300} side="top">
-      <Popover.Trigger
-        render={(props) => (
-          <button
-            {...props}
-            type="button"
-            className="media-button media-button--icon"
-            style={{ fontSize: '0.75rem', fontWeight: 600, minWidth: 40 }}
-          >
-            {currentLabel}
-          </button>
-        )}
-      />
-      <Popover.Popup className="media-surface media-popover" style={{ padding: '4px 0' }}>
-        {sources.map((source, index) => (
-          <button
-            key={source.label || index}
-            type="button"
-            onClick={() => handleSelect(index)}
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '6px 16px',
-              border: 'none',
-              background: index === currentSourceIndex ? 'rgba(255,255,255,0.15)' : 'transparent',
-              color: 'inherit',
-              cursor: 'pointer',
-              textAlign: 'left',
-              fontSize: '0.8rem',
-              fontWeight: index === currentSourceIndex ? 700 : 400,
-            }}
-          >
-            {source.label || `Source ${index + 1}`}
-          </button>
-        ))}
-      </Popover.Popup>
-    </Popover.Root>
-  )
-}
-
-/**
  * VideoJSPlayer — a drop-in replacement powered by Video.js 10.
  *
  * Accepts the same props as the previous v8 component so that consumers
@@ -330,15 +252,16 @@ const VideoJSPlayer = ({
 
   return (
     <Player.Provider>
-      <VideoSkin className={className} style={containerStyle}>
+      <CustomVideoSkin
+        className={className}
+        style={containerStyle}
+        sources={sources}
+        currentSourceIndex={currentSourceIndex}
+        onQualitySelect={setCurrentSourceIndex}
+      >
         <Video src={activeSrc} autoPlay={autoplay} playsInline={playsinline} preload="auto" />
         {poster && <Poster src={poster} alt="" />}
-        <QualitySelector
-          sources={sources}
-          currentSourceIndex={currentSourceIndex}
-          onSourceChange={setCurrentSourceIndex}
-        />
-      </VideoSkin>
+      </CustomVideoSkin>
       <PlayerEffects
         sources={sources}
         onSourceChange={setCurrentSourceIndex}
