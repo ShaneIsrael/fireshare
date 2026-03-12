@@ -46,6 +46,8 @@ import {
 
 const SEEK_TIME = 10
 
+const DISABLE_PIP_BUTTON = true
+
 /* ── tiny helper matching the skin's internal <Button> wrapper ──────── */
 const Button = React.forwardRef(function Button({ className, ...props }, ref) {
   return <button ref={ref} type="button" className={`media-button ${className ?? ''}`} {...props} />
@@ -323,22 +325,24 @@ function CustomVideoSkin({ children, className, sources, currentSourceIndex, onQ
           </Tooltip.Root>
 
           {/* Picture-in-Picture */}
-          <Tooltip.Root side="top">
-            <Tooltip.Trigger
-              render={
-                <PiPButton
-                  render={(props) => (
-                    <Button {...props} className="media-button--icon">
-                      <PipIcon className="media-icon" />
-                    </Button>
-                  )}
-                />
-              }
-            />
-            <Tooltip.Popup className="media-surface media-tooltip">
-              <PiPLabel />
-            </Tooltip.Popup>
-          </Tooltip.Root>
+          {!DISABLE_PIP_BUTTON && (
+            <Tooltip.Root side="top">
+              <Tooltip.Trigger
+                render={
+                  <PiPButton
+                    render={(props) => (
+                      <Button {...props} className="media-button--icon">
+                        <PipIcon className="media-icon" />
+                      </Button>
+                    )}
+                  />
+                }
+              />
+              <Tooltip.Popup className="media-surface media-tooltip">
+                <PiPLabel />
+              </Tooltip.Popup>
+            </Tooltip.Root>
+          )}
 
           {/* Fullscreen */}
           <Tooltip.Root side="top">

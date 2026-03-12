@@ -418,7 +418,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
           >
             <Paper
               sx={{
-                borderRadius: { xs: 0, md: '2rem' },
+                borderRadius: { xs: 0, md: '8px' },
                 overflow: 'hidden',
                 boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
                 bgcolor: '#020D1A',
@@ -441,9 +441,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   width: { xs: '100%', md: videoW_css },
                   height: { xs: 'auto', md: '100%' },
                   aspectRatio: { xs: `${vid?.info?.width || 16} / ${vid?.info?.height || 9}`, md: 'initial' },
-                  // Override VideoJS default 2rem border-radius responsively
+                  // Override VideoJS default 8px border-radius responsively
                   '& > div': {
-                    borderRadius: { xs: '0 !important', md: '2rem 0 0 2rem !important' },
+                    borderRadius: { xs: '0 !important', md: '8px 0 0 8px !important' },
                   },
                 }}
               >

@@ -36,6 +36,9 @@ const selectTheme = {
       padding: '8px 12px',
       userSelect: 'none',
       width: '100%',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
       '&:hover': {
         backgroundColor: '#3399FF',
       },

@@ -208,6 +208,37 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
 }
 
 /**
+ * SpacebarToggle — listens for the spacebar key and toggles play/pause.
+ * Must be rendered inside <Player.Provider>.
+ */
+function SpacebarToggle() {
+  const media = Player.useMedia()
+
+  useEffect(() => {
+    if (!media) return
+
+    const handleKeyDown = (e) => {
+      // Only handle spacebar; ignore if user is typing in an input/textarea
+      if (e.code !== 'Space' && e.key !== ' ') return
+      const tag = document.activeElement?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return
+
+      e.preventDefault()
+      if (media.paused) {
+        media.play()?.catch(() => {})
+      } else {
+        media.pause()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [media])
+
+  return null
+}
+
+/**
  * VideoJSPlayer — a drop-in replacement powered by Video.js 10.
  *
  * Accepts the same props as the previous v8 component so that consumers
@@ -269,6 +300,7 @@ const VideoJSPlayer = ({
         onReady={onReady}
         startTime={startTime}
       />
+      <SpacebarToggle />
     </Player.Provider>
   )
 }
