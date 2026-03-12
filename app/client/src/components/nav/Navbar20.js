@@ -28,8 +28,8 @@ import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 
-import { Grid } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
+import { Grid, useMediaQuery, useTheme } from '@mui/material'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthService } from '../../services'
 
 import logo from '../../assets/logo.png'
@@ -44,6 +44,8 @@ import FolderSuggestionInline from './FolderSuggestionInline'
 import DiskSpaceIndicator from './DiskSpaceIndicator'
 import { GameService } from '../../services'
 import UploadCard from '../admin/UploadCard'
+import Select from 'react-select'
+import selectFolderTheme from '../../common/reactSelectFolderTheme'
 
 const drawerWidth = 240
 const minimizedDrawerWidth = 57
@@ -152,6 +154,48 @@ function Navbar20({
   const [folderSuggestions, setFolderSuggestions] = React.useState({})
   const [currentSuggestionFolder, setCurrentSuggestionFolder] = React.useState(null)
   const navigate = useNavigate()
+  const location = useLocation()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
+  // --- Folder selection state (shared with Feed / Dashboard) ---
+  const [folders, setFolders] = React.useState(['All Videos'])
+
+  // Initialise selectedFolder from URL ?category= (feed) or localStorage
+  const initFolder = React.useMemo(() => {
+    if (page === '/feed') {
+      const params = new URLSearchParams(location.search)
+      const cat = params.get('category')
+      if (cat) return { value: cat, label: cat }
+    }
+    return getSetting('folder') || { value: 'All Videos', label: 'All Videos' }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // run once on mount
+
+  const [selectedFolder, setSelectedFolder] = React.useState(initFolder)
+
+  // On mobile, force "All Videos"
+  const effectiveFolder = isMobile ? { value: 'All Videos', label: 'All Videos' } : selectedFolder
+
+  const handleFolderChange = React.useCallback(
+    (folder) => {
+      setSetting('folder', folder)
+      setSelectedFolder(folder)
+      // Keep URL in sync when on the feed page
+      if (page === '/feed' && 'URLSearchParams' in window) {
+        const searchParams = new URLSearchParams('')
+        searchParams.set('category', folder.value)
+        window.history.replaceState({ category: folder.value }, '', `/#/feed?${searchParams.toString()}`)
+      }
+    },
+    [page],
+  )
+
+  const handleFoldersLoaded = React.useCallback((folderList) => {
+    setFolders(folderList)
+  }, [])
+
+  const createSelectFolders = (f) => f.map((v) => ({ value: v, label: v }))
 
   const uiConfig = getSetting('ui_config') || {}
   const pages = allPages.filter((p) => {
@@ -318,12 +362,62 @@ function Navbar20({
           return null
         })}
       </List>
-      {cardSlider && (
+      {/* Folder selector — hidden on mobile (xs) */}
+      {(page === '/' || page === '/feed') && open && !isMobile && folders.length > 1 && (
+        <>
+          <Divider />
+          <Box sx={{ p: open ? 1.5 : 0.75 }}>
+            {open ? (
+              <Select
+                value={selectedFolder}
+                options={createSelectFolders(folders)}
+                onChange={handleFolderChange}
+                styles={selectFolderTheme}
+                blurInputOnSelect
+                isSearchable={false}
+                menuPlacement="auto"
+              />
+            ) : (
+              <LightTooltip title={selectedFolder.label} placement="right" arrow>
+                <Box
+                  sx={{
+                    width: 42,
+                    height: 38,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #2684FF',
+                    borderRadius: '4px',
+                    backgroundColor: '#001E3C',
+                    cursor: 'pointer',
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onClick={() => {
+                    // Cycle through folders
+                    const idx = folders.indexOf(selectedFolder.value)
+                    const next = folders[(idx + 1) % folders.length]
+                    handleFolderChange({ value: next, label: next })
+                  }}
+                >
+                  {selectedFolder.label.substring(0, 3)}
+                </Box>
+              </LightTooltip>
+            )}
+          </Box>
+        </>
+      )}
+      {cardSlider && open && (
         <>
           <Divider />
           <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
             <SliderWrapper
               width={open ? 150 : 10}
+              h
               cardSize={cardSize}
               defaultCardSize={CARD_SIZE_DEFAULT}
               cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
@@ -562,6 +656,9 @@ function Navbar20({
           cardSize,
           showReleaseNotes,
           releaseNotes,
+          selectedFolder: effectiveFolder,
+          onFolderChange: handleFolderChange,
+          onFoldersLoaded: handleFoldersLoaded,
         })}
       </Box>
     </Box>
