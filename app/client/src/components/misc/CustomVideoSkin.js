@@ -68,16 +68,21 @@ function FullscreenLabel() {
   return usePlayer((s) => Boolean(s.fullscreen)) ? <>Exit fullscreen</> : <>Enter fullscreen</>
 }
 
-/* ── simple error dialog (mirrors the preset's internal ErrorDialog) ── */
+/* ── error dialog (positioned over the player via .media-error) ────── */
 function ErrorDialog() {
   const error = usePlayer((s) => s.error)
   if (!error) return null
   return (
     <AlertDialog.Root open={!!error}>
-      <AlertDialog.Popup className="media-error__dialog media-surface">
-        <div className="media-error__content">
-          <div className="media-error__title">Playback Error</div>
-          <div className="media-error__description">{error?.message || 'An error occurred.'}</div>
+      <AlertDialog.Popup className="media-error">
+        <div className="media-error__dialog media-surface">
+          <div className="media-error__content">
+            <div className="media-error__title">Playback Error</div>
+            <div className="media-error__description">{error?.message || 'An error occurred.'}</div>
+          </div>
+          <div className="media-error__actions">
+            <AlertDialog.Close className="media-button">OK</AlertDialog.Close>
+          </div>
         </div>
       </AlertDialog.Popup>
     </AlertDialog.Root>
@@ -121,7 +126,7 @@ function QualitySelector({ sources, currentSourceIndex, onSelect }) {
           <button
             type="button"
             className="media-button media-button--icon"
-            style={{ fontSize: '0.75rem', fontWeight: 600, minWidth: 40 }}
+            style={{ fontSize: '0.7rem', fontWeight: 600, minWidth: 32, padding: '0 6px' }}
           >
             {currentLabel}
           </button>

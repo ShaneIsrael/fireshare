@@ -152,7 +152,7 @@ export const getVideoSources = (videoId, videoInfo, extension) => {
   sources.push({
     src: getVideoUrl(videoId, 'original', extension),
     type: 'video/mp4',
-    label: 'Original',
+    label: 'Source',
     selected: true,
   })
 
