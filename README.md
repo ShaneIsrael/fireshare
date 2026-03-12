@@ -38,6 +38,7 @@
 - Share videos through unique links
 - Public / Private feeds (private is link only)
 - Game-based organization with cover art
+- Mobile Device Support
 - Uploads (optional, can be restricted)
 - Video view counting
 - Open Graph metadata for rich link previews
@@ -106,6 +107,7 @@ docker run --name fireshare \
 Open `http://localhost:8080`.
 
 ## Configuration
+
 - LDAP setup: [LDAP.md](./LDAP.md)
 
 ### Transcoding (Optional)
