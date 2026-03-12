@@ -64,7 +64,7 @@ const Watch = ({ authenticated }) => {
   const getCurrentTime = () => {
     if (videoPlayerRef.current && typeof videoPlayerRef.current.currentTime === 'function') {
       const time = videoPlayerRef.current.currentTime()
-      return (time && !isNaN(time)) ? time : 0
+      return time && !isNaN(time) ? time : 0
     }
     return 0
   }
@@ -190,20 +190,30 @@ const Watch = ({ authenticated }) => {
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
       <div style={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: 'column' }}>
-        <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}>
+        <Box
+          style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}
+          sx={{
+            // Override VideoJS default 2rem border-radius responsively
+            '& > div': {
+              borderRadius: 0,
+            },
+          }}
+        >
           <VideoJSPlayer
             sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
             poster={getPosterUrl()}
             autoplay={true}
             controls={true}
             onTimeUpdate={handleTimeUpdate}
-            onReady={(player) => { videoPlayerRef.current = player }}
+            onReady={(player) => {
+              videoPlayerRef.current = player
+            }}
             startTime={time ? parseFloat(time) : 0}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
             fluid={false}
             fill={true}
           />
-        </div>
+        </Box>
         <Paper square sx={{ p: 1, background: 'rgba(0, 0, 0, 0.1)', width: '100%' }}>
           <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
             <Grid container spacing={1}>
