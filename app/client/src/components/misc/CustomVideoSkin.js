@@ -92,11 +92,13 @@ function ErrorDialog() {
 /* ── Quality selector (popover inside the control bar) ──────────────── */
 function QualitySelector({ sources, currentSourceIndex, onSelect }) {
   const media = useMedia()
+  const [open, setOpen] = React.useState(false)
 
   if (!sources || sources.length <= 1) return null
   const currentLabel = sources[currentSourceIndex]?.label || 'Quality'
 
   const handleSelect = (index) => {
+    setOpen(false)
     if (index === currentSourceIndex) return
 
     // Save current playback state so we can restore after source switch
@@ -120,7 +122,7 @@ function QualitySelector({ sources, currentSourceIndex, onSelect }) {
   }
 
   return (
-    <Popover.Root openOnHover delay={200} closeDelay={300} side="top">
+    <Popover.Root open={open} onOpenChange={setOpen} openOnHover delay={200} closeDelay={300} side="top">
       <Popover.Trigger
         render={
           <button
@@ -139,7 +141,10 @@ function QualitySelector({ sources, currentSourceIndex, onSelect }) {
           </button>
         }
       />
-      <Popover.Popup className="media-surface media-popover" style={{ padding: '4px 0' }}>
+      <Popover.Popup
+        className="media-surface media-popover"
+        style={{ padding: '4px 0', borderRadius: '6px', overflow: 'hidden' }}
+      >
         {sources.map((source, index) => (
           <button
             key={source.label || index}
