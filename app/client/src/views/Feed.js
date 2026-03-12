@@ -111,7 +111,7 @@ const Feed = ({ authenticated, searchText, cardSize, selectedFolder, onFoldersLo
       </SnackbarAlert>
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ minWidth: 200 }}>
+          <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
             <Select
               value={sortOrder}
               options={SORT_OPTIONS}

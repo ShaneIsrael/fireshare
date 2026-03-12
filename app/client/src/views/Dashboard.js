@@ -310,7 +310,7 @@ const Dashboard = ({
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ minWidth: 150 }}>
+              <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
                 <Select
                   value={dateSortOrder}
                   options={SORT_OPTIONS}

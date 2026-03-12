@@ -46,7 +46,6 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
 
-
   const sortedVideos = React.useMemo(() => {
     if (!filteredVideos || !Array.isArray(filteredVideos)) return []
     return [...filteredVideos].sort((a, b) => {
@@ -68,7 +67,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     <Box>
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ minWidth: 200 }}>
+          <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
             <Select
               value={sortOrder}
               options={SORT_OPTIONS}
@@ -84,12 +83,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
         )}
       <GameVideosHeader game={game} />
       <Box sx={{ p: 3 }}>
-        <VideoCards
-          videos={sortedVideos}
-          authenticated={authenticated}
-          size={cardSize}
-          feedView={false}
-        />
+        <VideoCards videos={sortedVideos} authenticated={authenticated} size={cardSize} feedView={false} />
       </Box>
     </Box>
   )
