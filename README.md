@@ -58,6 +58,8 @@
 
 ![folders][folders]
 
+![folders-game][folders-game]
+
 <h3 align="center">Video Details</h3>
 
 ---
@@ -216,4 +218,5 @@ If you use a different proxy, apply equivalent upload size and timeout settings 
 
 [card-view]: .github/images/card-view.png
 [folders]: .github/images/folders.png
+[folders-game]: .github/images/folders-game.png
 [edit]: .github/images/edit-details.png
