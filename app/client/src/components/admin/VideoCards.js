@@ -135,6 +135,8 @@ const BetaVideoCards = ({
         feedView={feedView}
         authenticated={authenticated}
         updateCallback={handleUpdate}
+        onNext={() => { const i = vids.findIndex(v => v.video_id === videoModal.id); if (i < vids.length - 1) setVideoModal({ open: true, id: vids[i + 1].video_id }) }}
+        onPrev={() => { const i = vids.findIndex(v => v.video_id === videoModal.id); if (i > 0) setVideoModal({ open: true, id: vids[i - 1].video_id }) }}
       />
       <SnackbarAlert
         severity={alert.type}
