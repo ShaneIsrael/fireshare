@@ -126,7 +126,14 @@ function QualitySelector({ sources, currentSourceIndex, onSelect }) {
           <button
             type="button"
             className="media-button media-button--icon"
-            style={{ fontSize: '0.7rem', fontWeight: 600, minWidth: 32, padding: '0 6px' }}
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 600,
+              minWidth: 32,
+              padding: '0 6px',
+              marginRight: 6,
+              marginLeft: 6,
+            }}
           >
             {currentLabel}
           </button>
