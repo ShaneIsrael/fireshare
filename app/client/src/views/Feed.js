@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom'
 import { Box, Grid } from '@mui/material'
 import { useLocation } from 'react-router-dom'
 import VideoCards from '../components/admin/VideoCards'
-import VideoList from '../components/admin/VideoList'
 import { VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, setSetting } from '../common/utils'
@@ -25,7 +24,7 @@ function useQuery() {
   return React.useMemo(() => new URLSearchParams(search), [search])
 }
 
-const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
+const Feed = ({ authenticated, searchText, cardSize }) => {
   const query = useQuery()
   const category = query.get('category')
   const [videos, setVideos] = React.useState([])
@@ -43,7 +42,6 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
   const [alert, setAlert] = React.useState({ open: false })
 
   const [prevCardSize, setPrevCardSize] = React.useState(cardSize)
-  const [prevListStyle, setPrevListStyle] = React.useState(listStyle)
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
 
   React.useEffect(() => {
@@ -56,9 +54,6 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
   }
   if (cardSize !== prevCardSize) {
     setPrevCardSize(cardSize)
-  }
-  if (listStyle !== prevListStyle) {
-    setPrevListStyle(listStyle)
   }
 
   function fetchVideos() {
@@ -120,7 +115,6 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
     )
   }, [filteredVideos, selectedFolder])
 
-
   // Sort videos by recorded date or views
   const sortedVideos = React.useMemo(() => {
     if (!displayVideos) return []
@@ -143,21 +137,22 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      {toolbarTarget && ReactDOM.createPortal(
-        <Box sx={{ minWidth: 200 }}>
-          <Select
-            value={sortOrder}
-            options={SORT_OPTIONS}
-            onChange={setSortOrder}
-            styles={selectSortTheme}
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
-            blurInputOnSelect
-            isSearchable={false}
-          />
-        </Box>,
-        toolbarTarget,
-      )}
+      {toolbarTarget &&
+        ReactDOM.createPortal(
+          <Box sx={{ minWidth: 200 }}>
+            <Select
+              value={sortOrder}
+              options={SORT_OPTIONS}
+              onChange={setSortOrder}
+              styles={selectSortTheme}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              blurInputOnSelect
+              isSearchable={false}
+            />
+          </Box>,
+          toolbarTarget,
+        )}
       <Box>
         <Grid container item justifyContent="center">
           <Grid item xs={12}>
@@ -174,27 +169,12 @@ const Feed = ({ authenticated, searchText, cardSize, listStyle }) => {
               </Grid>
             </Grid>
             <Box>
-              {listStyle === 'list' && (
-                <VideoList
-                  authenticated={authenticated}
-                  loadingIcon={loading ? <LoadingSpinner /> : null}
-                  feedView
-                  videos={displayVideos}
-                />
-              )}
-              {listStyle === 'card' && (
-                <Box>
-                  {loading && <LoadingSpinner />}
-                  {!loading && (
-                    <VideoCards
-                      videos={sortedVideos}
-                      authenticated={authenticated}
-                      feedView={true}
-                      size={cardSize}
-                    />
-                  )}
-                </Box>
-              )}
+              <Box>
+                {loading && <LoadingSpinner />}
+                {!loading && (
+                  <VideoCards videos={sortedVideos} authenticated={authenticated} feedView={true} size={cardSize} />
+                )}
+              </Box>
             </Box>
           </Grid>
         </Grid>

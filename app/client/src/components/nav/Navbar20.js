@@ -25,12 +25,10 @@ import GitHubIcon from '@mui/icons-material/GitHub'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
-import AppsIcon from '@mui/icons-material/Apps'
-import TableRowsIcon from '@mui/icons-material/TableRows'
 import BugReportIcon from '@mui/icons-material/BugReport'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 
-import { Grid, ToggleButton, ToggleButtonGroup } from '@mui/material'
+import { Grid } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 import { AuthService } from '../../services'
 
@@ -140,7 +138,6 @@ function Navbar20({
   collapsed = false,
   searchable = false,
   searchPlaceholder = 'Search videos...',
-  styleToggle = false,
   cardSlider = false,
   toolbar = true,
   mainPadding = 3,
@@ -149,7 +146,6 @@ function Navbar20({
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
   const [open, setOpen] = React.useState(!collapsed)
-  const [listStyle, setListStyle] = React.useState(getSetting('listStyle') || 'card')
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
 
   const [alert, setAlert] = React.useState({ open: false })
@@ -183,12 +179,6 @@ function Navbar20({
     }
   }
 
-  const handleListStyleChange = (e, style) => {
-    if (style !== null) {
-      setListStyle(style)
-      setSetting('listStyle', style)
-    }
-  }
   const handleCardSizeChange = (e, newValue) => {
     const newSize = Math.round((newValue / 100) * CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER)
     setCardSize(newSize)
@@ -328,28 +318,7 @@ function Navbar20({
           return null
         })}
       </List>
-      {styleToggle && (
-        <>
-          <Divider />
-          <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
-            <ToggleButtonGroup
-              size="small"
-              orientation={open ? 'horizontal' : 'vertical'}
-              value={listStyle}
-              exclusive
-              onChange={handleListStyleChange}
-            >
-              <ToggleButton sx={{ width: open ? 100 : 'auto' }} value="card">
-                <AppsIcon />
-              </ToggleButton>
-              <ToggleButton sx={{ width: open ? 100 : 'auto' }} value="list">
-                <TableRowsIcon />
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-        </>
-      )}
-      {cardSlider && listStyle === 'card' && (
+      {cardSlider && (
         <>
           <Divider />
           <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
@@ -590,7 +559,6 @@ function Navbar20({
         {React.cloneElement(children, {
           authenticated,
           searchText,
-          listStyle,
           cardSize,
           showReleaseNotes,
           releaseNotes,

@@ -21,10 +21,8 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import CheckIcon from '@mui/icons-material/Check'
 import LinkIcon from '@mui/icons-material/Link'
 import VideoCards from '../components/admin/VideoCards'
-import VideoList from '../components/admin/VideoList'
 import GameSearch from '../components/game/GameSearch'
 import { VideoService, GameService, ReleaseService } from '../services'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { getSetting, setSetting } from '../common/utils'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
@@ -37,14 +35,7 @@ const createSelectFolders = (folders) => {
   return folders.map((f) => ({ value: f, label: f }))
 }
 
-const Dashboard = ({
-  authenticated,
-  searchText,
-  cardSize,
-  listStyle,
-  showReleaseNotes,
-  releaseNotes: releaseNotesProp,
-}) => {
+const Dashboard = ({ authenticated, searchText, cardSize, showReleaseNotes, releaseNotes: releaseNotesProp }) => {
   const [videos, setVideos] = React.useState([])
   const [search, setSearch] = React.useState(searchText)
   const [filteredVideos, setFilteredVideos] = React.useState([])
@@ -58,7 +49,6 @@ const Dashboard = ({
   const [alert, setAlert] = React.useState({ open: false })
 
   const [prevCardSize, setPrevCardSize] = React.useState(cardSize)
-  const [prevListStyle, setPrevListStyle] = React.useState(listStyle)
 
   // Edit mode state
   const [editMode, setEditMode] = React.useState(false)
@@ -80,9 +70,6 @@ const Dashboard = ({
   }
   if (cardSize !== prevCardSize) {
     setPrevCardSize(cardSize)
-  }
-  if (listStyle !== prevListStyle) {
-    setPrevListStyle(listStyle)
   }
 
   function fetchVideos() {
@@ -143,7 +130,6 @@ const Dashboard = ({
     setSetting('folder', folder)
     setSelectedFolder(folder)
   }
-
 
   // Get the filtered videos based on folder selection
   const displayVideos = React.useMemo(() => {
@@ -407,27 +393,18 @@ const Dashboard = ({
               </Grid>
             </Grid>
             <Box>
-              {listStyle === 'list' && (
-                <VideoList
-                  authenticated={authenticated}
-                  loadingIcon={loading ? <LoadingSpinner /> : null}
-                  videos={displayVideos}
-                />
-              )}
-              {listStyle === 'card' && (
-                <Box>
-                  {!loading && (
-                    <VideoCards
-                      videos={sortedVideos}
-                      authenticated={authenticated}
-                      size={cardSize}
-                      editMode={editMode}
-                      selectedVideos={selectedVideos}
-                      onVideoSelect={handleVideoSelect}
-                    />
-                  )}
-                </Box>
-              )}
+              <Box>
+                {!loading && (
+                  <VideoCards
+                    videos={sortedVideos}
+                    authenticated={authenticated}
+                    size={cardSize}
+                    editMode={editMode}
+                    selectedVideos={selectedVideos}
+                    onVideoSelect={handleVideoSelect}
+                  />
+                )}
+              </Box>
             </Box>
           </Grid>
         </Grid>
@@ -530,7 +507,9 @@ const Dashboard = ({
 
       {/* Release Notes Dialog */}
       <Dialog open={featureAlertOpen} onClose={handleFeatureAlertClose} maxWidth="sm" scroll="paper">
-        <DialogTitle sx={{ fontSize: 18, fontWeight: 'bold', color: 'primary.main', textTransform: 'uppercase' }}>{`New Update Available - v${releaseNotes?.version}`}</DialogTitle>
+        <DialogTitle
+          sx={{ fontSize: 18, fontWeight: 'bold', color: 'primary.main', textTransform: 'uppercase' }}
+        >{`New Update Available - v${releaseNotes?.version}`}</DialogTitle>
         <DialogContent sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <Box
             sx={{
@@ -559,7 +538,11 @@ const Dashboard = ({
                     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
                     // Unordered lists
                     .replace(/(?:^|\n)([*\-] .+(?:\n[*\-] .+)*)/g, (match) => {
-                      const items = match.trim().split('\n').map(li => `<li>${li.replace(/^[*\-] /, '')}</li>`).join('')
+                      const items = match
+                        .trim()
+                        .split('\n')
+                        .map((li) => `<li>${li.replace(/^[*\-] /, '')}</li>`)
+                        .join('')
                       return `<ul>${items}</ul>`
                     })
                     // Line breaks
