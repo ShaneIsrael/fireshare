@@ -1,9 +1,8 @@
 import React, { useRef } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
-import { Button, ButtonGroup, Grid, Paper, Typography, Box } from '@mui/material'
+import { IconButton, Tooltip, Typography, Box, Divider } from '@mui/material'
 import { Helmet } from 'react-helmet'
-import CopyToClipboard from 'react-copy-to-clipboard'
-import LinkIcon from '@mui/icons-material/Link'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
@@ -14,6 +13,26 @@ import VideoJSPlayer from '../components/misc/VideoJSPlayer'
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
+
+const actionBtnSx = {
+  color: '#FFFFFFB3',
+  bgcolor: '#FFFFFF0D',
+  border: '1px solid #FFFFFF1A',
+  borderRadius: '8px',
+  p: 1,
+  '&:hover': { bgcolor: '#FFFFFF1A', color: 'white' },
+}
+
+const rowBoxSx = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 0.5,
+  bgcolor: '#FFFFFF0D',
+  border: '1px solid #FFFFFF26',
+  borderRadius: '8px',
+  px: 1.5,
+  py: 1,
+}
 
 function useQuery() {
   const { search } = useLocation()
@@ -64,7 +83,7 @@ const Watch = ({ authenticated }) => {
   const getCurrentTime = () => {
     if (videoPlayerRef.current && typeof videoPlayerRef.current.currentTime === 'function') {
       const time = videoPlayerRef.current.currentTime()
-      return (time && !isNaN(time)) ? time : 0
+      return time && !isNaN(time) ? time : 0
     }
     return 0
   }
@@ -96,69 +115,6 @@ const Watch = ({ authenticated }) => {
   if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
   if (!details) return null
 
-  const controls = () => (
-    <>
-      <ButtonGroup variant="contained" sx={{ maxWidth: '100%' }}>
-        <CopyToClipboard text={`${PURL}${details?.video_id}`}>
-          <Button
-            onClick={() =>
-              setAlert({
-                type: 'info',
-                message: 'Link copied to clipboard',
-                open: true,
-              })
-            }
-          >
-            <LinkIcon />
-          </Button>
-        </CopyToClipboard>
-        <Button onClick={copyTimestamp}>
-          <AccessTimeIcon />
-        </Button>
-        <Button
-          disabled
-          sx={{
-            '&.Mui-disabled': {
-              borderRight: 'none',
-              borderTop: 'none',
-            },
-          }}
-        >
-          <div
-            style={{
-              overflow: 'hidden',
-              color: '#2AA9F2',
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {`${views} ${views === 1 ? 'view' : 'views'}`}
-          </div>
-        </Button>
-        <Button
-          disabled
-          sx={{
-            '&.Mui-disabled': {
-              borderRight: 'none',
-              borderTop: 'none',
-            },
-          }}
-        >
-          <div
-            style={{
-              overflow: 'hidden',
-              color: 'white',
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {details?.info?.title}
-          </div>
-        </Button>
-      </ButtonGroup>
-    </>
-  )
-
   return (
     <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
@@ -189,52 +145,103 @@ const Watch = ({ authenticated }) => {
         <meta property="og:video:height" value={details?.info?.height} />
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
-      <div style={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: 'column' }}>
-        <div style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}>
+      <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: 'column', bgcolor: '#020D1A' }}>
+        <Box sx={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', bgcolor: '#020D1A' }}>
           <VideoJSPlayer
             sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
             poster={getPosterUrl()}
             autoplay={true}
             controls={true}
             onTimeUpdate={handleTimeUpdate}
-            onReady={(player) => { videoPlayerRef.current = player }}
+            onReady={(player) => {
+              videoPlayerRef.current = player
+            }}
             startTime={time ? parseFloat(time) : 0}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
             fluid={false}
             fill={true}
           />
-        </div>
-        <Paper square sx={{ p: 1, background: 'rgba(0, 0, 0, 0.1)', width: '100%' }}>
-          <Box sx={{ display: { xs: 'none', sm: 'flex' }, mr: 1 }}>
-            <Grid container spacing={1}>
-              <Grid item xs={12}>
-                {controls()}
-              </Grid>
-              {details?.info?.description && (
-                <Grid item xs={12}>
-                  <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
-                    <Typography variant="subtitle2">{details?.info?.description}</Typography>
-                  </Paper>
-                </Grid>
-              )}
-            </Grid>
+        </Box>
+        <Box
+          sx={{
+            flexShrink: 0,
+            bgcolor: '#041223',
+            borderTop: '1px solid #FFFFFF14',
+            px: { xs: 2, sm: 3 },
+            py: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            <Typography
+              sx={{
+                fontWeight: 900,
+                fontSize: { xs: 16, sm: 21 },
+                color: 'white',
+                lineHeight: 1.3,
+                letterSpacing: '-0.03em',
+                flex: 1,
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {details?.info?.title || 'Untitled'}
+            </Typography>
+            <Typography sx={{ fontSize: 14, color: '#FFFFFF55', flexShrink: 0 }}>
+              {views != null ? `${views.toLocaleString()} ${views === 1 ? 'view' : 'views'}` : ''}
+            </Typography>
           </Box>
-          <Box sx={{ display: { xs: 'flex', sm: 'none' } }}>
-            <Grid container spacing={1}>
-              <Grid item xs={12}>
-                {controls()}
-              </Grid>
-              {details?.info?.description && (
-                <Grid item xs={12}>
-                  <Paper sx={{ width: '100%', p: 2, background: 'rgba(255, 255, 255, 0.12)' }}>
-                    <Typography variant="subtitle2">{details?.info?.description}</Typography>
-                  </Paper>
-                </Grid>
-              )}
-            </Grid>
+
+          {details?.info?.description && (
+            <Typography sx={{ fontSize: 14, color: '#FFFFFFB3', lineHeight: 1.6 }}>
+              {details.info.description}
+            </Typography>
+          )}
+
+          <Divider sx={{ borderColor: '#FFFFFF14' }} />
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            <Box sx={{ ...rowBoxSx, flex: 1, minWidth: 0 }}>
+              <Typography
+                sx={{
+                  flex: 1,
+                  fontSize: 12,
+                  color: '#FFFFFF66',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'monospace',
+                }}
+              >
+                {`${PURL}${details?.video_id}`}
+              </Typography>
+              <Tooltip title="Copy link">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    copyToClipboard(`${PURL}${details?.video_id}`)
+                    setAlert({ type: 'info', message: 'Link copied to clipboard', open: true })
+                  }}
+                  sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.5, flexShrink: 0 }}
+                >
+                  <ContentCopyIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+
+            {/* Timestamp button */}
+            <Tooltip title="Copy timestamp">
+              <IconButton size="small" onClick={copyTimestamp} sx={actionBtnSx}>
+                <AccessTimeIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
           </Box>
-        </Paper>
-      </div>
+        </Box>
+      </Box>
     </>
   )
 }
