@@ -105,6 +105,12 @@ const VideoJSPlayer = ({
       let currentSourceIndex = 0
       let bufferTimestamps = []
 
+      // Guard: true while a source transition is in progress (manual or automatic).
+      // Prevents waiting/error events that naturally occur during a source switch
+      // from being misinterpreted as playback problems.
+      let isSourceTransitioning = false
+      let sourceTransitionTimer = null
+
       const switchToNextSource = () => {
         if (sources && currentSourceIndex + 1 < sources.length) {
           const currentTime = player.currentTime() || 0
@@ -142,10 +148,34 @@ const VideoJSPlayer = ({
         }
       }
 
-      // On error, try the next source in the list
-      player.on('error', switchToNextSource)
+      const clearTransitionTimer = () => {
+        if (sourceTransitionTimer) {
+          clearTimeout(sourceTransitionTimer)
+          sourceTransitionTimer = null
+        }
+      }
 
-      // Sync currentSourceIndex when the source changes (e.g. user picks a quality)
+      // On error, try the next source in the list — but only if we are not
+      // in the middle of a source transition (source switches can emit
+      // transient errors that should not trigger a quality downgrade).
+      player.on('error', () => {
+        if (isSourceTransitioning) {
+          // Wait briefly; if the error persists it is a real load failure
+          setTimeout(() => {
+            if (!player.isDisposed() && player.error()) {
+              isSourceTransitioning = false
+              clearTransitionTimer()
+              switchToNextSource()
+            }
+          }, 1000)
+        } else {
+          switchToNextSource()
+        }
+      })
+
+      // Sync currentSourceIndex when the source changes (e.g. user picks a
+      // quality) and suppress the auto-downgrade logic until the new source
+      // has had a chance to start playing.
       player.on('loadstart', () => {
         const current = player.currentSource()
         if (current && current.label) {
@@ -154,10 +184,39 @@ const VideoJSPlayer = ({
             currentSourceIndex = index
           }
         }
+
+        // Enter transition state: reset buffering counters so stale
+        // waiting events from the previous source don't cause a false
+        // downgrade on the new one.
+        isSourceTransitioning = true
+        bufferTimestamps = []
+        clearStallTimer()
+        clearTransitionTimer()
       })
 
-      // Auto-downgrade quality when buffering stalls or buffers too frequently
+      // The new source can play — leave transition state and resume normal
+      // buffering monitoring.
+      player.on('canplay', () => {
+        isSourceTransitioning = false
+        clearTransitionTimer()
+      })
+
+      // Safety net: if canplay never fires (e.g. slow network), leave
+      // transition state after a generous timeout so the auto-downgrade
+      // logic can kick in if the source is genuinely stuck.
+      player.on('loadstart', () => {
+        clearTransitionTimer()
+        sourceTransitionTimer = setTimeout(() => {
+          isSourceTransitioning = false
+        }, BUFFER_STALL_TIMEOUT_MS)
+      })
+
+      // Auto-downgrade quality when buffering stalls or buffers too frequently.
+      // Skipped while a source transition is in progress — the waiting events
+      // emitted during a normal source switch are not real playback problems.
       player.on('waiting', () => {
+        if (isSourceTransitioning) return
+
         // Track buffering frequency in a sliding window
         const now = Date.now()
         bufferTimestamps.push(now)
