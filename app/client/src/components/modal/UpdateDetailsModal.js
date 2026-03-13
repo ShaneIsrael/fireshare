@@ -138,7 +138,7 @@ const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
     return (
       <Box sx={rowBoxSx}>
         {game.icon_url && (
-          <img src={game.icon_url} alt="" style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'contain' }} />
+          <img src={game.icon_url} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'contain' }} />
         )}
         <Typography sx={{ color: 'white', fontSize: 14, flex: 1 }}>{game.name}</Typography>
         <IconButton size="small" onClick={onUnlink} sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.5 }}>
@@ -160,6 +160,7 @@ const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
       <GameSearch
         onGameLinked={onLink}
         onError={() => alertHandler?.({ open: true, type: 'error', message: 'Failed to find game.' })}
+        onWarning={(msg) => alertHandler?.({ open: true, type: 'warning', message: msg })}
         placeholder="Search for a game..."
         sx={{ flex: 1 }}
       />

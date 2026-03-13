@@ -1769,7 +1769,12 @@ def create_game():
 
     current_app.logger.info(f"Created game {data['name']} with assets: {result['assets']}")
 
-    return jsonify(game.json()), 201
+    response_data = game.json()
+    missing = [k for k, v in result['assets'].items() if v == 0]
+    if missing:
+        response_data['missing_assets'] = missing
+
+    return jsonify(response_data), 201
 
 @api.route('/api/videos/<video_id>/game', methods=["POST"])
 @login_required_unless_public_game_tag

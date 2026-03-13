@@ -270,11 +270,15 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     }
   }, [videoId])
 
-  const handleGameLinked = async (game) => {
+  const handleGameLinked = async (game, warning) => {
     try {
       await GameService.linkVideoToGame(vid.video_id, game.id)
       setSelectedGame(game)
-      setAlert({ type: 'success', message: `Linked to ${game.name}`, open: true })
+      if (warning) {
+        setAlert({ type: 'warning', message: `Linked to ${game.name}. ${warning}`, open: true })
+      } else {
+        setAlert({ type: 'success', message: `Linked to ${game.name}`, open: true })
+      }
     } catch (err) {
       setAlert({ type: 'error', message: 'Failed to link game', open: true })
     }
@@ -612,6 +616,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                               <img
                                 src={selectedGame.icon_url}
                                 alt=""
+                                onError={(e) => { e.currentTarget.style.display = 'none' }}
                                 style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                               />
                             )}
@@ -652,6 +657,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             <img
                               src={selectedGame.icon_url}
                               alt=""
+                              onError={(e) => { e.currentTarget.style.display = 'none' }}
                               style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                             />
                           )}

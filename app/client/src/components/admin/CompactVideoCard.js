@@ -576,6 +576,7 @@ const CompactBetaVideoCard = ({
               <img
                 src={game.icon_url}
                 alt={game.name}
+                onError={(e) => { e.currentTarget.parentElement.style.display = 'none' }}
                 style={{ width: 40, height: 40, objectFit: 'contain', display: 'block' }}
               />
             </a>

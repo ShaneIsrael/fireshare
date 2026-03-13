@@ -469,6 +469,7 @@ const Dashboard = ({
                     message: err.response?.data || 'Error adding game',
                   })
                 }
+                onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
                 placeholder="Search SteamGridDB..."
               />
             </>
