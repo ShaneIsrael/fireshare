@@ -92,6 +92,14 @@ const Settings = () => {
   }, [])
 
   React.useEffect(() => {
+    if (activeTab === 4) {
+      GameService.getFolderRules()
+        .then((res) => setFolderRules(res.data))
+        .catch((err) => console.error(err))
+    }
+  }, [activeTab])
+
+  React.useEffect(() => {
     if (config && updatedConfig) {
       setUpdateable(!_.isEqual(config, updatedConfig))
     }
@@ -307,7 +315,6 @@ const Settings = () => {
           <Tab label="Sidebar" />
           <Tab label="Integrations" />
           <Tab label="Transcoding" />
-          <Tab label="Feeds" />
           <Tab label="Folders" />
           <Tab label="Actions" />
         </Tabs>
@@ -583,6 +590,40 @@ const Settings = () => {
                     ),
                   }}
                 />
+                <Divider />
+                <TextField
+                  size="small"
+                  label="RSS Feed Title"
+                  value={updatedConfig.rss_config?.title || ''}
+                  onChange={(e) =>
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      rss_config: { ...(prev.rss_config || {}), title: e.target.value },
+                    }))
+                  }
+                />
+                <TextField
+                  size="small"
+                  label="RSS Feed Description"
+                  multiline
+                  rows={2}
+                  value={updatedConfig.rss_config?.description || ''}
+                  onChange={(e) =>
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      rss_config: { ...(prev.rss_config || {}), description: e.target.value },
+                    }))
+                  }
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<RssFeedIcon />}
+                  fullWidth
+                  onClick={handleCopyRssFeedUrl}
+                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
+                >
+                  Copy RSS Feed URL
+                </Button>
               </Stack>
             )}
 
@@ -728,47 +769,9 @@ const Settings = () => {
               </Stack>
             )}
 
-            {/* Feeds */}
-            {activeTab === 4 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
-                <TextField
-                  size="small"
-                  label="RSS Feed Title"
-                  value={updatedConfig.rss_config?.title || ''}
-                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      rss_config: { ...(prev.rss_config || {}), title: e.target.value },
-                    }))
-                  }
-                />
-                <TextField
-                  size="small"
-                  label="RSS Feed Description"
-                  multiline
-                  rows={2}
-                  value={updatedConfig.rss_config?.description || ''}
-                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      rss_config: { ...(prev.rss_config || {}), description: e.target.value },
-                    }))
-                  }
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<RssFeedIcon />}
-                  fullWidth
-                  onClick={handleCopyRssFeedUrl}
-                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
-                >
-                  Copy RSS Feed URL
-                </Button>
-              </Stack>
-            )}
 
             {/* Folders */}
-            {activeTab === 5 && (
+            {activeTab === 4 && (
               <Stack spacing={2} sx={{ maxWidth: 500 }}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
@@ -897,7 +900,7 @@ const Settings = () => {
             )}
 
             {/* Actions */}
-            {activeTab === 6 && (
+            {activeTab === 5 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Button
                   variant="contained"
@@ -931,7 +934,7 @@ const Settings = () => {
           </Box>
 
           {/* Save button pinned to bottom */}
-          {activeTab !== 5 && activeTab !== 6 && activeTab !== 7 && (
+          {activeTab !== 4 && activeTab !== 5 && activeTab !== 6 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
               <Button
