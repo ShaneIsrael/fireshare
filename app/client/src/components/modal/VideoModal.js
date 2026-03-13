@@ -21,7 +21,6 @@ import { ConfigService, VideoService, GameService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../misc/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
-import { FastAverageColor } from 'fast-average-color'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -188,11 +187,51 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setGamePillColor(null)
       return
     }
-    const fac = new FastAverageColor()
-    fac
-      .getColorAsync(selectedGame.icon_url, { crossOrigin: 'anonymous', algorithm: 'dominant' })
-      .then((color) => setGamePillColor(color.value.slice(0, 3)))
-      .catch(() => setGamePillColor(null))
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+
+    img.onload = () => {
+      const SIZE = 64
+      const canvas = document.createElement('canvas')
+      canvas.width = SIZE
+      canvas.height = SIZE
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, SIZE, SIZE)
+
+      const { data } = ctx.getImageData(0, 0, SIZE, SIZE)
+      let bestColor = null
+      let bestSaturation = -1
+
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3]
+        if (alpha < 128) continue
+
+        const r = data[i] / 255
+        const g = data[i + 1] / 255
+        const b = data[i + 2] / 255
+
+        const max = Math.max(r, g, b)
+        const min = Math.min(r, g, b)
+        const lightness = (max + min) / 2
+
+        // Skip near-black and near-white pixels
+        if (lightness < 0.15 || lightness > 0.92) continue
+
+        const chroma = max - min
+        const saturation = chroma === 0 ? 0 : chroma / (1 - Math.abs(2 * lightness - 1))
+
+        if (saturation > bestSaturation) {
+          bestSaturation = saturation
+          bestColor = [data[i], data[i + 1], data[i + 2]]
+        }
+      }
+
+      setGamePillColor(bestSaturation > 0.2 ? bestColor : null)
+    }
+
+    img.onerror = () => setGamePillColor(null)
+    img.src = selectedGame.icon_url
   }, [selectedGame?.icon_url])
 
   const getRandomVideo = async () => {

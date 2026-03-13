@@ -34,6 +34,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import { ConfigService, VideoService, GameService } from '../services'
+import { setSetting } from '../common/utils'
 import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 
@@ -91,6 +92,14 @@ const Settings = () => {
   }, [])
 
   React.useEffect(() => {
+    if (activeTab === 4) {
+      GameService.getFolderRules()
+        .then((res) => setFolderRules(res.data))
+        .catch((err) => console.error(err))
+    }
+  }, [activeTab])
+
+  React.useEffect(() => {
     if (config && updatedConfig) {
       setUpdateable(!_.isEqual(config, updatedConfig))
     }
@@ -115,6 +124,7 @@ const Settings = () => {
       await ConfigService.updateConfig(updatedConfig)
       setUpdateable(false)
       setConfig(_.cloneDeep(updatedConfig))
+      setSetting('ui_config', updatedConfig.ui_config)
       setAlert({ open: true, message: 'Settings Updated! Changes may take a minute to take effect.', type: 'success' })
     } catch (err) {
       console.error(err)
@@ -305,7 +315,6 @@ const Settings = () => {
           <Tab label="Sidebar" />
           <Tab label="Integrations" />
           <Tab label="Transcoding" />
-          <Tab label="Feeds" />
           <Tab label="Folders" />
           <Tab label="Actions" />
         </Tabs>
@@ -500,6 +509,20 @@ const Settings = () => {
                   }
                   label="Games"
                 />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.show_folder_dropdown === true}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, show_folder_dropdown: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Folder Dropdown"
+                />
               </Stack>
             )}
 
@@ -567,6 +590,40 @@ const Settings = () => {
                     ),
                   }}
                 />
+                <Divider />
+                <TextField
+                  size="small"
+                  label="RSS Feed Title"
+                  value={updatedConfig.rss_config?.title || ''}
+                  onChange={(e) =>
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      rss_config: { ...(prev.rss_config || {}), title: e.target.value },
+                    }))
+                  }
+                />
+                <TextField
+                  size="small"
+                  label="RSS Feed Description"
+                  multiline
+                  rows={2}
+                  value={updatedConfig.rss_config?.description || ''}
+                  onChange={(e) =>
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      rss_config: { ...(prev.rss_config || {}), description: e.target.value },
+                    }))
+                  }
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<RssFeedIcon />}
+                  fullWidth
+                  onClick={handleCopyRssFeedUrl}
+                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
+                >
+                  Copy RSS Feed URL
+                </Button>
               </Stack>
             )}
 
@@ -712,47 +769,9 @@ const Settings = () => {
               </Stack>
             )}
 
-            {/* Feeds */}
-            {activeTab === 4 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
-                <TextField
-                  size="small"
-                  label="RSS Feed Title"
-                  value={updatedConfig.rss_config?.title || ''}
-                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      rss_config: { ...(prev.rss_config || {}), title: e.target.value },
-                    }))
-                  }
-                />
-                <TextField
-                  size="small"
-                  label="RSS Feed Description"
-                  multiline
-                  rows={2}
-                  value={updatedConfig.rss_config?.description || ''}
-                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      rss_config: { ...(prev.rss_config || {}), description: e.target.value },
-                    }))
-                  }
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<RssFeedIcon />}
-                  fullWidth
-                  onClick={handleCopyRssFeedUrl}
-                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
-                >
-                  Copy RSS Feed URL
-                </Button>
-              </Stack>
-            )}
 
             {/* Folders */}
-            {activeTab === 5 && (
+            {activeTab === 4 && (
               <Stack spacing={2} sx={{ maxWidth: 500 }}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
@@ -768,7 +787,7 @@ const Settings = () => {
                     No folders found.
                   </Typography>
                 ) : (
-                  <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
+                  <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
                     <Stack spacing={1}>
                       {folderRules.map((item) => (
                         <Box
@@ -778,16 +797,16 @@ const Settings = () => {
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             p: 1.5,
-                            borderRadius: 2,
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            borderRadius: '8px',
+                            bgcolor: '#FFFFFF0D',
                           }}
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-                            <FolderIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+                            <FolderIcon sx={{ color: '#FFFFFF66' }} />
                             <Box sx={{ flex: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
                                 {item.folder_path}
-                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                                <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
                                   ({item.video_count} videos)
                                 </Typography>
                               </Typography>
@@ -806,16 +825,16 @@ const Settings = () => {
                                   <IconButton
                                     size="small"
                                     onClick={() => setEditingFolder(null)}
-                                    sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                                    sx={{ color: '#FFFFFF66' }}
                                   >
                                     <CloseIcon fontSize="small" />
                                   </IconButton>
                                 </Box>
                               ) : item.rule ? (
                                 <Typography
-                                  variant="caption"
                                   sx={{
-                                    color: 'primary.main',
+                                    fontSize: 12,
+                                    color: '#3399FF',
                                     cursor: 'pointer',
                                     '&:hover': { textDecoration: 'underline' },
                                   }}
@@ -825,9 +844,9 @@ const Settings = () => {
                                 </Typography>
                               ) : item.suggested_game ? (
                                 <Typography
-                                  variant="caption"
                                   sx={{
-                                    color: 'warning.main',
+                                    fontSize: 12,
+                                    color: '#FFB74D',
                                     cursor: 'pointer',
                                     '&:hover': { textDecoration: 'underline' },
                                   }}
@@ -837,9 +856,9 @@ const Settings = () => {
                                 </Typography>
                               ) : (
                                 <Typography
-                                  variant="caption"
                                   sx={{
-                                    color: 'text.secondary',
+                                    fontSize: 12,
+                                    color: '#FFFFFF55',
                                     cursor: 'pointer',
                                     '&:hover': { textDecoration: 'underline' },
                                   }}
@@ -857,7 +876,7 @@ const Settings = () => {
                                 setDeleteMenuAnchor(e.currentTarget)
                                 setDeleteMenuRuleId(item.rule.id)
                               }}
-                              sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                              sx={{ color: '#FFFFFF66' }}
                             >
                               <MoreVertIcon fontSize="small" />
                             </IconButton>
@@ -882,7 +901,7 @@ const Settings = () => {
             )}
 
             {/* Actions */}
-            {activeTab === 6 && (
+            {activeTab === 5 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Button
                   variant="contained"
@@ -916,7 +935,7 @@ const Settings = () => {
           </Box>
 
           {/* Save button pinned to bottom */}
-          {activeTab !== 6 && activeTab !== 7 && (
+          {activeTab !== 4 && activeTab !== 5 && activeTab !== 6 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
               <Button

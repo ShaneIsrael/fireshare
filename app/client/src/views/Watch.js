@@ -1,12 +1,12 @@
 import React, { useRef } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
-import { IconButton, Tooltip, Typography, Box, Divider } from '@mui/material'
+import { Divider, IconButton, Tooltip, Typography, Box } from '@mui/material'
 import { Helmet } from 'react-helmet'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
-import { VideoService } from '../services'
+import { VideoService, GameService } from '../services'
 import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoSources } from '../common/utils'
 import VideoJSPlayer from '../components/misc/VideoJSPlayer'
 
@@ -48,6 +48,8 @@ const Watch = ({ authenticated }) => {
   const [notFound, setNotFound] = React.useState(false)
   const [views, setViews] = React.useState()
   const [viewAdded, setViewAdded] = React.useState(false)
+  const [selectedGame, setSelectedGame] = React.useState(null)
+  const [gamePillColor, setGamePillColor] = React.useState(null)
 
   const videoPlayerRef = useRef(null)
   const [alert, setAlert] = React.useState({ open: false })
@@ -62,6 +64,12 @@ const Watch = ({ authenticated }) => {
         if (!resp.info?.duration || resp.info?.duration < 10) {
           setViewAdded(true)
           VideoService.addView(id).catch((err) => console.error(err))
+        }
+        try {
+          const gameData = (await GameService.getVideoGame(id)).data
+          setSelectedGame(gameData || null)
+        } catch {
+          setSelectedGame(null)
         }
       } catch (err) {
         if (err.response && err.response.status === 404) {
@@ -79,6 +87,57 @@ const Watch = ({ authenticated }) => {
     }
     if (details == null) fetch()
   }, [details, id])
+
+  React.useEffect(() => {
+    if (!selectedGame?.icon_url) {
+      setGamePillColor(null)
+      return
+    }
+
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+
+    img.onload = () => {
+      const SIZE = 64
+      const canvas = document.createElement('canvas')
+      canvas.width = SIZE
+      canvas.height = SIZE
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, SIZE, SIZE)
+
+      const { data } = ctx.getImageData(0, 0, SIZE, SIZE)
+      let bestColor = null
+      let bestSaturation = -1
+
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3]
+        if (alpha < 128) continue
+
+        const r = data[i] / 255
+        const g = data[i + 1] / 255
+        const b = data[i + 2] / 255
+
+        const max = Math.max(r, g, b)
+        const min = Math.min(r, g, b)
+        const lightness = (max + min) / 2
+
+        if (lightness < 0.15 || lightness > 0.92) continue
+
+        const chroma = max - min
+        const saturation = chroma === 0 ? 0 : chroma / (1 - Math.abs(2 * lightness - 1))
+
+        if (saturation > bestSaturation) {
+          bestSaturation = saturation
+          bestColor = [data[i], data[i + 1], data[i + 2]]
+        }
+      }
+
+      setGamePillColor(bestSaturation > 0.2 ? bestColor : null)
+    }
+
+    img.onerror = () => setGamePillColor(null)
+    img.src = selectedGame.icon_url
+  }, [selectedGame?.icon_url])
 
   const getCurrentTime = () => {
     if (videoPlayerRef.current && typeof videoPlayerRef.current.currentTime === 'function') {
@@ -182,26 +241,81 @@ const Watch = ({ authenticated }) => {
             gap: 1.5,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            <Typography
-              sx={{
-                fontWeight: 900,
-                fontSize: { xs: 16, sm: 21 },
-                color: 'white',
-                lineHeight: 1.3,
-                letterSpacing: '-0.03em',
-                flex: 1,
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {details?.info?.title || 'Untitled'}
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: '#FFFFFF55', flexShrink: 0 }}>
-              {views != null ? `${views.toLocaleString()} ${views === 1 ? 'view' : 'views'}` : ''}
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+            {/* Left: title + views/date */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1, minWidth: 200 }}>
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  fontSize: { xs: 16, sm: 21 },
+                  color: 'white',
+                  lineHeight: 1.3,
+                  letterSpacing: '-0.03em',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {details?.info?.title || 'Untitled'}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                {views != null && (
+                  <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>
+                    {views.toLocaleString()} {views === 1 ? 'view' : 'views'}
+                  </Typography>
+                )}
+                {details?.recorded_at && (
+                  <>
+                    <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>|</Typography>
+                    <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>
+                      {new Date(details.recorded_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </Typography>
+                  </>
+                )}
+              </Box>
+            </Box>
+
+            {/* Right: game pill */}
+            {selectedGame && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
+                <Box
+                  component={selectedGame.steamgriddb_id ? 'a' : 'div'}
+                  href={selectedGame.steamgriddb_id ? `#/games/${selectedGame.steamgriddb_id}` : undefined}
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    bgcolor: gamePillColor ? `rgba(${gamePillColor.join(',')}, 0.15)` : '#FFFFFF14',
+                    border: `1px solid ${gamePillColor ? `rgba(${gamePillColor.join(',')}, 0.5)` : '#FFFFFF26'}`,
+                    borderRadius: '8px',
+                    px: 1,
+                    py: 0.35,
+                    textDecoration: 'none',
+                    ...(selectedGame.steamgriddb_id && {
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: gamePillColor ? `rgba(${gamePillColor.join(',')}, 0.4)` : '#FFFFFF22',
+                      },
+                    }),
+                  }}
+                >
+                  {selectedGame.icon_url && (
+                    <img
+                      src={selectedGame.icon_url}
+                      alt=""
+                      style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                    />
+                  )}
+                  <Typography sx={{ fontSize: 12, color: 'white', whiteSpace: 'nowrap' }}>
+                    {selectedGame.name}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
           </Box>
 
           {details?.info?.description && (
@@ -212,8 +326,8 @@ const Watch = ({ authenticated }) => {
 
           <Divider sx={{ borderColor: '#FFFFFF14' }} />
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-            <Box sx={{ ...rowBoxSx, flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ ...rowBoxSx, flex: 1 }}>
               <Typography
                 sx={{
                   flex: 1,
@@ -240,8 +354,6 @@ const Watch = ({ authenticated }) => {
                 </IconButton>
               </Tooltip>
             </Box>
-
-            {/* Timestamp button */}
             <Tooltip title="Copy timestamp">
               <IconButton size="small" onClick={copyTimestamp} sx={actionBtnSx}>
                 <AccessTimeIcon sx={{ fontSize: 20 }} />
