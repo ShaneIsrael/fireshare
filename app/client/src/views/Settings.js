@@ -34,6 +34,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import { ConfigService, VideoService, GameService } from '../services'
+import { setSetting } from '../common/utils'
 import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 
@@ -115,6 +116,7 @@ const Settings = () => {
       await ConfigService.updateConfig(updatedConfig)
       setUpdateable(false)
       setConfig(_.cloneDeep(updatedConfig))
+      setSetting('ui_config', updatedConfig.ui_config)
       setAlert({ open: true, message: 'Settings Updated! Changes may take a minute to take effect.', type: 'success' })
     } catch (err) {
       console.error(err)
@@ -499,6 +501,20 @@ const Settings = () => {
                     />
                   }
                   label="Games"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.show_folder_dropdown === true}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, show_folder_dropdown: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Folder Dropdown"
                 />
               </Stack>
             )}

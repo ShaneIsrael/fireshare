@@ -363,7 +363,7 @@ function Navbar20({
         })}
       </List>
       {/* Folder selector — hidden on mobile (xs) */}
-      {(page === '/' || page === '/feed') && open && !isMobile && folders.length > 1 && (
+      {(page === '/' || page === '/feed') && open && !isMobile && folders.length > 1 && uiConfig.show_folder_dropdown === true && (
         <>
           <Divider />
           <Box sx={{ p: open ? 1.5 : 0.75 }}>
@@ -386,9 +386,9 @@ function Navbar20({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    border: '1px solid #2684FF',
-                    borderRadius: '4px',
-                    backgroundColor: '#001E3C',
+                    border: '1px solid #FFFFFF26',
+                    borderRadius: '8px',
+                    backgroundColor: '#FFFFFF0D',
                     cursor: 'pointer',
                     color: '#fff',
                     fontSize: 11,
