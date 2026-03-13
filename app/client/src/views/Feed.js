@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { Box, Grid } from '@mui/material'
-import VideoCards from '../components/admin/VideoCards'
+import VideoCards from '../components/cards/VideoCards'
 import { VideoService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 

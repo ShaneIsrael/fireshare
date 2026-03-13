@@ -21,8 +21,7 @@ const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
 
-
-const CompactBetaVideoCard = ({
+const CompactVideoCard = ({
   video,
   openVideoHandler,
   alertHandler,
@@ -37,7 +36,15 @@ const CompactBetaVideoCard = ({
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
   const [game, setGame] = React.useState(null)
   const [privateView, setPrivateView] = React.useState(video.info?.private)
-  const [title, setTitle] = React.useState(video.info?.title || (video.path ? video.path.split('/').pop().replace(/\.[^/.]+$/, '') : 'Untitled'))
+  const [title, setTitle] = React.useState(
+    video.info?.title ||
+      (video.path
+        ? video.path
+            .split('/')
+            .pop()
+            .replace(/\.[^/.]+$/, '')
+        : 'Untitled'),
+  )
   const [description, setDescription] = React.useState(video.info?.description || '')
   const [menuAnchorEl, setMenuAnchorEl] = React.useState(null)
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
@@ -61,12 +68,15 @@ const CompactBetaVideoCard = ({
     if (!v) return
     if (hover) {
       const { has_480p, has_720p, has_1080p } = intVideo?.info || video.info || {}
-      v.src = has_480p ? getVideoUrl(video.video_id, '480p', video.extension)
-        : has_720p ? getVideoUrl(video.video_id, '720p', video.extension)
-          : has_1080p ? getVideoUrl(video.video_id, '1080p', video.extension)
+      v.src = has_480p
+        ? getVideoUrl(video.video_id, '480p', video.extension)
+        : has_720p
+          ? getVideoUrl(video.video_id, '720p', video.extension)
+          : has_1080p
+            ? getVideoUrl(video.video_id, '1080p', video.extension)
             : getVideoUrl(video.video_id, 'original', video.extension)
       v.muted = true
-      v.play().catch(() => { })
+      v.play().catch(() => {})
     } else {
       v.pause()
       v.removeAttribute('src')
@@ -75,7 +85,9 @@ const CompactBetaVideoCard = ({
   }, [hover, video.video_id, video.extension, video.info, intVideo?.info])
 
   const cardRef = React.useRef(null)
-  const isTouchDevice = React.useRef(typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0))
+  const isTouchDevice = React.useRef(
+    typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0),
+  )
 
   React.useEffect(() => {
     if (!isTouchDevice.current) return
@@ -94,14 +106,25 @@ const CompactBetaVideoCard = ({
       { rootMargin: '-30% 0px -50% 0px', threshold: 0 },
     )
     observer.observe(el)
-    return () => { observer.disconnect(); debouncedPlay.cancel() }
+    return () => {
+      observer.disconnect()
+      debouncedPlay.cancel()
+    }
   }, [])
 
   const previousVideoRef = React.useRef()
   const previousVideo = previousVideoRef.current
   if (!_.isEqual(video, previousVideo) && !_.isEqual(video, intVideo)) {
     setIntVideo(video)
-    setTitle(video.info?.title || (video.path ? video.path.split('/').pop().replace(/\.[^/.]+$/, '') : 'Untitled'))
+    setTitle(
+      video.info?.title ||
+        (video.path
+          ? video.path
+              .split('/')
+              .pop()
+              .replace(/\.[^/.]+$/, '')
+          : 'Untitled'),
+    )
     setDescription(video.info?.description || '')
     setImgLoaded(false)
   }
@@ -121,7 +144,6 @@ const CompactBetaVideoCard = ({
       })
   }, [video.video_id])
 
-
   React.useEffect(() => {
     VideoService.getGameSuggestion(video.video_id)
       .then((response) => {
@@ -130,12 +152,14 @@ const CompactBetaVideoCard = ({
           setShowSuggestion(true)
           if (response.data.steamgriddb_id) {
             GameService.getGameAssets(response.data.steamgriddb_id)
-              .then((assets) => { if (assets.data?.icon_url) setSuggestionIcon(assets.data.icon_url) })
-              .catch(() => { })
+              .then((assets) => {
+                if (assets.data?.icon_url) setSuggestionIcon(assets.data.icon_url)
+              })
+              .catch(() => {})
           }
         }
       })
-      .catch(() => { })
+      .catch(() => {})
   }, [video.video_id])
 
   const handleSuggestionAccept = async () => {
@@ -144,13 +168,15 @@ const CompactBetaVideoCard = ({
       let gameId = gameSuggestion.game_id
       if (!gameId && gameSuggestion.steamgriddb_id) {
         const assets = (await GameService.getGameAssets(gameSuggestion.steamgriddb_id)).data
-        const createdGame = (await GameService.createGame({
-          steamgriddb_id: gameSuggestion.steamgriddb_id,
-          name: gameSuggestion.game_name,
-          hero_url: assets.hero_url,
-          logo_url: assets.logo_url,
-          icon_url: assets.icon_url,
-        })).data
+        const createdGame = (
+          await GameService.createGame({
+            steamgriddb_id: gameSuggestion.steamgriddb_id,
+            name: gameSuggestion.game_name,
+            hero_url: assets.hero_url,
+            logo_url: assets.logo_url,
+            icon_url: assets.icon_url,
+          })
+        ).data
         gameId = createdGame.id
       }
       await GameService.linkVideoToGame(video.video_id, gameId)
@@ -213,7 +239,10 @@ const CompactBetaVideoCard = ({
   const viewCount = video.view_count || 0
 
   const filenameFallback = video.path
-    ? video.path.split('/').pop().replace(/\.[^/.]+$/, '')
+    ? video.path
+        .split('/')
+        .pop()
+        .replace(/\.[^/.]+$/, '')
     : 'Untitled'
 
   const refreshVideoDetails = async () => {
@@ -223,7 +252,7 @@ const CompactBetaVideoCard = ({
       setPrivateView(refreshed.info?.private)
       setTitle(refreshed.info?.title || filenameFallback)
       setDescription(refreshed.info?.description || '')
-    } catch (_) { }
+    } catch (_) {}
   }
 
   const handleTranscode = async () => {
@@ -274,7 +303,10 @@ const CompactBetaVideoCard = ({
     <>
       <DeleteVideoModal
         open={deleteModalOpen}
-        onClose={(result) => { setDeleteModalOpen(false); if (result === 'delete') onDelete?.(video.video_id) }}
+        onClose={(result) => {
+          setDeleteModalOpen(false)
+          if (result === 'delete') onDelete?.(video.video_id)
+        }}
         videoId={video.video_id}
         alertHandler={alertHandler}
       />
@@ -294,7 +326,7 @@ const CompactBetaVideoCard = ({
           width: '100%',
           height: '100%',
           bgcolor: '#00000066',
-          borderRadius: '12px',
+          borderRadius: { xs: 0, sm: '12px' },
           overflow: 'hidden',
           outline: selected ? '2px solid #2684FF' : 'none',
           outlineOffset: '-2px',
@@ -318,7 +350,7 @@ const CompactBetaVideoCard = ({
           />
           <motion.div
             style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
-            onClick={() => editMode ? onSelect?.(video.video_id) : openVideoHandler(video.video_id)}
+            onClick={() => (editMode ? onSelect?.(video.video_id) : openVideoHandler(video.video_id))}
             onMouseEnter={(e) => {
               setThumbnailHover(true)
               debouncedMouseEnter(e)
@@ -330,10 +362,11 @@ const CompactBetaVideoCard = ({
             onMouseDown={handleMouseDown}
           >
             <img
-              src={`${SERVED_BY === 'nginx'
+              src={`${
+                SERVED_BY === 'nginx'
                   ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
                   : `${URL}/api/video/poster?id=${video.video_id}`
-                }`}
+              }`}
               alt=""
               onLoad={() => setImgLoaded(true)}
               style={{
@@ -362,7 +395,6 @@ const CompactBetaVideoCard = ({
               playsInline
               disablePictureInPicture
             />
-
 
             {/* Duration badge */}
             <Box
@@ -526,7 +558,13 @@ const CompactBetaVideoCard = ({
                       />
                     )}
                     <Typography
-                      sx={{ fontSize: 15, color: '#FFFFFFD9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      sx={{
+                        fontSize: 15,
+                        color: '#FFFFFFD9',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
                     >
                       Game Detected: <strong>{gameSuggestion.game_name}</strong>
                     </Typography>
@@ -534,17 +572,35 @@ const CompactBetaVideoCard = ({
                   <Box sx={{ display: 'flex', gap: 0.75, flexShrink: 0 }}>
                     <IconButton
                       size="small"
-                      onClick={(e) => { e.stopPropagation(); handleSuggestionAccept() }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSuggestionAccept()
+                      }}
                       disabled={suggestionLoading}
-                      sx={{ color: '#4caf50', bgcolor: '#4CAF501A', '&:hover': { bgcolor: '#4CAF5033' }, width: 34, height: 34 }}
+                      sx={{
+                        color: '#4caf50',
+                        bgcolor: '#4CAF501A',
+                        '&:hover': { bgcolor: '#4CAF5033' },
+                        width: 34,
+                        height: 34,
+                      }}
                     >
                       <CheckIcon sx={{ fontSize: 20 }} />
                     </IconButton>
                     <IconButton
                       size="small"
-                      onClick={(e) => { e.stopPropagation(); handleSuggestionReject() }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSuggestionReject()
+                      }}
                       disabled={suggestionLoading}
-                      sx={{ color: '#f44336', bgcolor: '#F443361A', '&:hover': { bgcolor: '#F4433633' }, width: 34, height: 34 }}
+                      sx={{
+                        color: '#f44336',
+                        bgcolor: '#F443361A',
+                        '&:hover': { bgcolor: '#F4433633' },
+                        width: 34,
+                        height: 34,
+                      }}
                     >
                       <CloseIcon sx={{ fontSize: 20 }} />
                     </IconButton>
@@ -576,7 +632,9 @@ const CompactBetaVideoCard = ({
               <img
                 src={game.icon_url}
                 alt={game.name}
-                onError={(e) => { e.currentTarget.parentElement.style.display = 'none' }}
+                onError={(e) => {
+                  e.currentTarget.parentElement.style.display = 'none'
+                }}
                 style={{ width: 40, height: 40, objectFit: 'contain', display: 'block' }}
               />
             </a>
@@ -593,7 +651,10 @@ const CompactBetaVideoCard = ({
                 onBlur={handleTitleSave}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') e.target.blur()
-                  if (e.key === 'Escape') { setTitleDraft(title); setEditingTitle(false) }
+                  if (e.key === 'Escape') {
+                    setTitleDraft(title)
+                    setEditingTitle(false)
+                  }
                 }}
                 onClick={(e) => e.stopPropagation()}
                 style={{
@@ -613,7 +674,15 @@ const CompactBetaVideoCard = ({
               />
             ) : (
               <Typography
-                onDoubleClick={authenticated ? (e) => { e.stopPropagation(); setTitleDraft(title); setEditingTitle(true) } : undefined}
+                onDoubleClick={
+                  authenticated
+                    ? (e) => {
+                        e.stopPropagation()
+                        setTitleDraft(title)
+                        setEditingTitle(true)
+                      }
+                    : undefined
+                }
                 sx={{
                   fontWeight: 700,
                   fontSize: 16,
@@ -669,7 +738,11 @@ const CompactBetaVideoCard = ({
                   mt: 0.25,
                 }}
               >
-                {new Date(video.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {new Date(video.recorded_at).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
               </Typography>
             )}
           </Box>
@@ -677,7 +750,10 @@ const CompactBetaVideoCard = ({
           {/* 3-dot menu toggle */}
           <IconButton
             size="small"
-            onClick={(e) => { e.stopPropagation(); setMenuAnchorEl(e.currentTarget) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuAnchorEl(e.currentTarget)
+            }}
             sx={{
               alignSelf: 'flex-start',
               color: menuOpen ? 'primary.main' : '#FFFFFF59',
@@ -712,32 +788,65 @@ const CompactBetaVideoCard = ({
           }}
         >
           {[
-            { label: 'Edit', Icon: EditIcon, color: '#FFFFFFE6', requiresAuth: true, onClick: () => setDetailsModalOpen(true) },
-            { label: 'Transcode', Icon: SlowMotionVideoIcon, color: '#FFFFFFE6', requiresAuth: true, onClick: handleTranscode },
-            { label: 'Copy Link', Icon: LinkIcon, color: '#FFFFFFE6', onClick: () => { navigator.clipboard.writeText(`${PURL}${video.video_id}`); alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true }) } },
-            { label: 'Delete', Icon: DeleteOutlineIcon, color: '#EF5350', danger: true, requiresAuth: true, onClick: () => setDeleteModalOpen(true) },
-          ].filter(item => !item.requiresAuth || authenticated).map(({ label, Icon, color, danger, onClick }) => (
-            <MenuItem
-              key={label}
-              onClick={() => { onClick?.(); setMenuAnchorEl(null) }}
-              sx={{
-                gap: 1.5,
-                py: 1.25,
-                fontSize: 14,
-                color,
-                bgcolor: danger ? '#EF535012' : 'transparent',
-                '&:hover': { bgcolor: danger ? '#EF535028' : '#FFFFFF12' },
-              }}
-            >
-              <ListItemIcon sx={{ minWidth: 0, color: danger ? '#EF5350' : 'white' }}><Icon fontSize="small" /></ListItemIcon>
-              {label}
-            </MenuItem>
-          ))}
+            {
+              label: 'Edit',
+              Icon: EditIcon,
+              color: '#FFFFFFE6',
+              requiresAuth: true,
+              onClick: () => setDetailsModalOpen(true),
+            },
+            {
+              label: 'Transcode',
+              Icon: SlowMotionVideoIcon,
+              color: '#FFFFFFE6',
+              requiresAuth: true,
+              onClick: handleTranscode,
+            },
+            {
+              label: 'Copy Link',
+              Icon: LinkIcon,
+              color: '#FFFFFFE6',
+              onClick: () => {
+                navigator.clipboard.writeText(`${PURL}${video.video_id}`)
+                alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true })
+              },
+            },
+            {
+              label: 'Delete',
+              Icon: DeleteOutlineIcon,
+              color: '#EF5350',
+              danger: true,
+              requiresAuth: true,
+              onClick: () => setDeleteModalOpen(true),
+            },
+          ]
+            .filter((item) => !item.requiresAuth || authenticated)
+            .map(({ label, Icon, color, danger, onClick }) => (
+              <MenuItem
+                key={label}
+                onClick={() => {
+                  onClick?.()
+                  setMenuAnchorEl(null)
+                }}
+                sx={{
+                  gap: 1.5,
+                  py: 1.25,
+                  fontSize: 14,
+                  color,
+                  bgcolor: danger ? '#EF535012' : 'transparent',
+                  '&:hover': { bgcolor: danger ? '#EF535028' : '#FFFFFF12' },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 0, color: danger ? '#EF5350' : 'white' }}>
+                  <Icon fontSize="small" />
+                </ListItemIcon>
+                {label}
+              </MenuItem>
+            ))}
         </Menu>
-
       </Box>
     </>
   )
 }
 
-export default CompactBetaVideoCard
+export default CompactVideoCard

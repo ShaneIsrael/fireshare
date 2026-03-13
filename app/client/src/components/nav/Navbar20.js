@@ -43,7 +43,7 @@ import TranscodingStatus from './TranscodingStatus'
 import FolderSuggestionInline from './FolderSuggestionInline'
 import DiskSpaceIndicator from './DiskSpaceIndicator'
 import { GameService } from '../../services'
-import UploadCard from '../admin/UploadCard'
+import UploadCard from '../cards/UploadCard'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
 
@@ -363,54 +363,58 @@ function Navbar20({
         })}
       </List>
       {/* Folder selector — hidden on mobile (xs) */}
-      {(page === '/' || page === '/feed') && open && !isMobile && folders.length > 1 && uiConfig.show_folder_dropdown === true && (
-        <>
-          <Divider />
-          <Box sx={{ p: open ? 1.5 : 0.75 }}>
-            {open ? (
-              <Select
-                value={selectedFolder}
-                options={createSelectFolders(folders)}
-                onChange={handleFolderChange}
-                styles={selectFolderTheme}
-                blurInputOnSelect
-                isSearchable={false}
-                menuPlacement="auto"
-              />
-            ) : (
-              <LightTooltip title={selectedFolder.label} placement="right" arrow>
-                <Box
-                  sx={{
-                    width: 42,
-                    height: 38,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #FFFFFF26',
-                    borderRadius: '8px',
-                    backgroundColor: '#FFFFFF0D',
-                    cursor: 'pointer',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                  onClick={() => {
-                    // Cycle through folders
-                    const idx = folders.indexOf(selectedFolder.value)
-                    const next = folders[(idx + 1) % folders.length]
-                    handleFolderChange({ value: next, label: next })
-                  }}
-                >
-                  {selectedFolder.label.substring(0, 3)}
-                </Box>
-              </LightTooltip>
-            )}
-          </Box>
-        </>
-      )}
+      {(page === '/' || page === '/feed') &&
+        open &&
+        !isMobile &&
+        folders.length > 1 &&
+        uiConfig.show_folder_dropdown === true && (
+          <>
+            <Divider />
+            <Box sx={{ p: open ? 1.5 : 0.75 }}>
+              {open ? (
+                <Select
+                  value={selectedFolder}
+                  options={createSelectFolders(folders)}
+                  onChange={handleFolderChange}
+                  styles={selectFolderTheme}
+                  blurInputOnSelect
+                  isSearchable={false}
+                  menuPlacement="auto"
+                />
+              ) : (
+                <LightTooltip title={selectedFolder.label} placement="right" arrow>
+                  <Box
+                    sx={{
+                      width: 42,
+                      height: 38,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid #FFFFFF26',
+                      borderRadius: '8px',
+                      backgroundColor: '#FFFFFF0D',
+                      cursor: 'pointer',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => {
+                      // Cycle through folders
+                      const idx = folders.indexOf(selectedFolder.value)
+                      const next = folders[(idx + 1) % folders.length]
+                      handleFolderChange({ value: next, label: next })
+                    }}
+                  >
+                    {selectedFolder.label.substring(0, 3)}
+                  </Box>
+                </LightTooltip>
+              )}
+            </Box>
+          </>
+        )}
       {cardSlider && open && (
         <>
           <Divider />

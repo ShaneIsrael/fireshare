@@ -5,9 +5,9 @@ import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import { VideoService } from '../../services'
-import CompactBetaVideoCard from './CompactVideoCard'
+import CompactVideoCard from './CompactVideoCard'
 
-const BetaVideoCards = ({
+const VideoCards = ({
   videos,
   loadingIcon = null,
   feedView = false,
@@ -140,8 +140,14 @@ const BetaVideoCards = ({
         feedView={feedView}
         authenticated={authenticated}
         updateCallback={handleUpdate}
-        onNext={() => { const i = vids.findIndex(v => v.video_id === videoModal.id); if (i < vids.length - 1) setVideoModal({ open: true, id: vids[i + 1].video_id }) }}
-        onPrev={() => { const i = vids.findIndex(v => v.video_id === videoModal.id); if (i > 0) setVideoModal({ open: true, id: vids[i - 1].video_id }) }}
+        onNext={() => {
+          const i = vids.findIndex((v) => v.video_id === videoModal.id)
+          if (i < vids.length - 1) setVideoModal({ open: true, id: vids[i + 1].video_id })
+        }}
+        onPrev={() => {
+          const i = vids.findIndex((v) => v.video_id === videoModal.id)
+          if (i > 0) setVideoModal({ open: true, id: vids[i - 1].video_id })
+        }}
       />
       <SnackbarAlert
         severity={alert.type}
@@ -171,7 +177,7 @@ const BetaVideoCards = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <CompactBetaVideoCard
+              <CompactVideoCard
                 video={v}
                 openVideoHandler={openVideo}
                 alertHandler={memoizedHandleAlert}
@@ -189,4 +195,4 @@ const BetaVideoCards = ({
   )
 }
 
-export default BetaVideoCards
+export default VideoCards
