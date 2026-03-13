@@ -1,25 +1,34 @@
 import json
-import os, re, string
+import os, re, signal, string
 import shutil
 import random
 import logging
 import threading
 import subprocess
+import time
+from collections import Counter
+from datetime import datetime
+from functools import wraps
+from queue import Queue, Empty
 from subprocess import Popen
 from textwrap import indent
 from flask import Blueprint, render_template, request, Response, jsonify, current_app, send_file, redirect
 from flask_login import current_user, login_required
 from flask_cors import CORS
+from sqlalchemy import func
 from sqlalchemy.sql import text
 from pathlib import Path
 import requests
-from werkzeug.utils import secure_filename
 
 
 from . import db, logger, util
-from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink
-from .constants import SUPPORTED_FILE_TYPES
-from datetime import datetime
+from .constants import DEFAULT_CONFIG, SUPPORTED_FILE_TYPES
+from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule
+from .steamgrid import SteamGridDBClient
+
+def secure_filename(filename):
+    clean = re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F]", "-", filename)
+    return clean
 
 def add_cache_headers(response, cache_key, max_age=604800):
     """Add cache headers for static assets (default: 7 days)."""
@@ -65,10 +74,8 @@ def login_required_unless_public_game_tag(func):
     """
     Decorator that requires login unless public game tagging is enabled in config.
     """
-    from functools import wraps
     @wraps(func)
     def decorated_view(*args, **kwargs):
-        from flask_login import current_user
         paths = current_app.config['PATHS']
         config_path = paths['data'] / 'config.json'
         allow_public = False
@@ -131,7 +138,7 @@ def config():
 
 # Cache for local app version and release notes (persists until server restart)
 _local_version_cache = {'version': None}
-_release_cache = {'data': None}
+_release_cache = {'data': None, 'fetched_at': 0}
 
 def _get_local_version():
     """Get the locally installed app version from package.json. Cached until server restart."""
@@ -139,10 +146,13 @@ def _get_local_version():
         return _local_version_cache['version']
 
     try:
-        # Find package.json relative to this file: app/server/fireshare/api.py -> app/client/package.json
-        api_dir = Path(__file__).parent
-        package_json_path = api_dir.parent.parent / 'client' / 'package.json'
-
+        environment = current_app.config['ENVIRONMENT']
+        package_json_path = '/app/package.json'
+        if environment == "dev":
+            # Find package.json relative to this file: app/server/fireshare/api.py -> app/client/package.json
+            api_dir = Path(__file__).parent
+            package_json_path = api_dir.parent.parent / 'client' / 'package.json'
+            
         with open(package_json_path, 'r') as f:
             package_data = json.load(f)
             _local_version_cache['version'] = package_data.get('version', '')
@@ -152,13 +162,10 @@ def _get_local_version():
         return None
 
 def _fetch_release_notes():
-    """Fetch and cache release notes for the LOCAL version from GitHub. Cached until server restart."""
-    if _release_cache['data']:
+    """Fetch and cache the latest GitHub release. Cache expires after 12 hours."""
+    cache_ttl = 12 * 60 * 60  # 12 hours
+    if _release_cache['data'] and (time.time() - _release_cache['fetched_at']) < cache_ttl:
         return _release_cache['data']
-
-    local_version = _get_local_version()
-    if not local_version:
-        return None
 
     try:
         response = requests.get(
@@ -172,18 +179,7 @@ def _fetch_release_notes():
         if not releases:
             return None
 
-        # Find the release matching the local version
-        target_release = None
-        for release in releases:
-            release_version = release.get('tag_name', '').lstrip('v')
-            if release_version == local_version:
-                target_release = release
-                break
-
-        # Fall back to latest if local version not found on GitHub
-        if not target_release:
-            logger.warning(f"Local version {local_version} not found on GitHub, using latest release")
-            target_release = releases[0]
+        target_release = releases[0]
 
         _release_cache['data'] = {
             'version': target_release.get('tag_name', '').lstrip('v'),
@@ -192,6 +188,7 @@ def _fetch_release_notes():
             'published_at': target_release.get('published_at', ''),
             'html_url': target_release.get('html_url', '')
         }
+        _release_cache['fetched_at'] = time.time()
         return _release_cache['data']
 
     except requests.RequestException as e:
@@ -283,13 +280,80 @@ def get_warnings():
         else:
             return jsonify(warnings)
 
-# Global variable to track transcoding process
+# Global transcoding state
 _transcoding_process = None
+_transcoding_queue = []   # items are (video_id, task_count) tuples; video_id=None means bulk
+_queue_lock = threading.Lock()
+_queue_thread = None
+_completed_tasks = 0      # tasks finished so far in this queue session
+
+
+def _count_expected_tasks(video_id, data_path):
+    """Estimate transcode task count for a video at enqueue time (requires app context).
+    Mirrors CLI logic: only counts resolutions strictly below the video's own height."""
+    if video_id is None:
+        return 0  # bulk: unknown until CLI starts; status.total takes over once running
+    config_path = data_path / 'config.json'
+    resolutions = []
+    if config_path.exists():
+        with open(config_path) as f:
+            tc = json.load(f).get('transcoding', {})
+        if tc.get('enable_1080p', True): resolutions.append(1080)
+        if tc.get('enable_720p', True): resolutions.append(720)
+        if tc.get('enable_480p', True): resolutions.append(480)
+    else:
+        resolutions = [1080, 720, 480]
+    vi = VideoInfo.query.filter_by(video_id=video_id).first()
+    original_height = vi.height or 0 if vi else 0
+    count = sum(1 for h in resolutions if original_height > h)
+    return count if count > 0 else len(resolutions)  # fallback if height unknown
+
+
+def _drain_queue(data_path):
+    """Background thread: process queued transcode jobs sequentially."""
+    global _transcoding_process, _queue_thread, _completed_tasks
+    while True:
+        with _queue_lock:
+            if not _transcoding_queue:
+                _queue_thread = None
+                _transcoding_process = None
+                _completed_tasks = 0
+                break
+            video_id, task_count = _transcoding_queue.pop(0)
+        try:
+            cmd = ['fireshare', 'transcode-videos']
+            if video_id is not None:
+                cmd += ['--video', video_id]
+            _transcoding_process = subprocess.Popen(cmd, env=os.environ.copy(), start_new_session=True)
+            util.write_transcoding_status(data_path, 0, 0, None, _transcoding_process.pid)
+            _transcoding_process.wait()
+            _completed_tasks += task_count
+        except Exception as e:
+            logging.error(f'Transcoding queue failed for video_id={video_id}: {e}')
+
+
+def _enqueue_transcode(video_id, data_path):
+    """Add a job to the queue. Starts the drain thread if not already running."""
+    global _queue_thread
+    task_count = _count_expected_tasks(video_id, data_path)
+    with _queue_lock:
+        _transcoding_queue.append((video_id, task_count))
+        if _queue_thread is None or not _queue_thread.is_alive():
+            _queue_thread = threading.Thread(target=_drain_queue, args=(data_path,), daemon=True)
+            _queue_thread.start()
+            return 'started'
+    return 'queued'
 
 
 def _is_pid_running(pid):
     """Check if a process with the given PID is still running."""
     if pid is None:
+        return False
+    try:
+        pid = int(pid)
+        if pid <= 0:
+            return False
+    except (TypeError, ValueError):
         return False
     try:
         os.kill(pid, 0)  # Signal 0 doesn't kill, just checks if process exists
@@ -330,37 +394,125 @@ def get_transcoding_status():
         "is_running": is_running,
         "current": progress.get('current', 0),
         "total": progress.get('total', 0),
-        "current_video": progress.get('current_video')
+        "current_video": progress.get('current_video'),
+        "percent": progress.get('percent'),
+        "eta_seconds": progress.get('eta_seconds'),
+        "resolution": progress.get('resolution'),
+        "queue_tasks": sum(c for _, c in _transcoding_queue),
+        "completed_tasks": _completed_tasks,
     })
+
+
+@api.route('/api/admin/stream')
+@login_required
+def admin_event_stream():
+    """SSE endpoint for real-time admin events (transcoding, etc.)."""
+
+    # Capture config before entering generator (Flask context unavailable inside)
+    paths = current_app.config['PATHS']
+    enabled = current_app.config.get('ENABLE_TRANSCODING', False)
+    gpu_enabled = current_app.config.get('TRANSCODE_GPU', False)
+
+    # Use a queue to communicate between polling thread and generator
+    event_queue = Queue()
+    stop_event = threading.Event()
+
+    def poll_status():
+        last_transcoding_state = None
+        last_game_scan_state = None
+        while not stop_event.is_set():
+            try:
+                progress = util.read_transcoding_status(paths['data'])
+                pid = progress.get('pid')
+                # Trust is_running flag; only verify process if pid present
+                is_running = progress.get('is_running', False) and (pid is None or _is_pid_running(pid))
+
+                if progress.get('is_running') and not is_running:
+                    util.clear_transcoding_status(paths['data'])
+                    progress = {"current": 0, "total": 0, "current_video": None}
+
+                transcoding_state = {
+                    "enabled": enabled,
+                    "gpu_enabled": gpu_enabled,
+                    "is_running": is_running,
+                    "current": progress.get('current', 0),
+                    "total": progress.get('total', 0),
+                    "current_video": progress.get('current_video'),
+                    "percent": progress.get('percent'),
+                    "eta_seconds": progress.get('eta_seconds'),
+                    "resolution": progress.get('resolution'),
+                    "queue_tasks": sum(c for _, c in _transcoding_queue),
+                    "completed_tasks": _completed_tasks,
+                }
+
+                if transcoding_state != last_transcoding_state:
+                    event_queue.put(f"event: transcoding\ndata: {json.dumps(transcoding_state)}\n\n")
+                    last_transcoding_state = transcoding_state.copy()
+
+                with _game_scan_state['lock']:
+                    game_scan_state = {
+                        "is_running": _game_scan_state['is_running'],
+                        "current": _game_scan_state['current'],
+                        "total": _game_scan_state['total'],
+                        "suggestions_created": _game_scan_state['suggestions_created'],
+                    }
+
+                if game_scan_state != last_game_scan_state:
+                    event_queue.put(f"event: gameScan\ndata: {json.dumps(game_scan_state)}\n\n")
+                    last_game_scan_state = game_scan_state.copy()
+
+                time.sleep(1.5)
+            except Exception as e:
+                logger.error(f"SSE poll error: {e}")
+                break
+
+    def generate():
+        # Start polling in background thread
+        poll_thread = threading.Thread(target=poll_status, daemon=True)
+        poll_thread.start()
+
+        last_heartbeat = time.time()
+        try:
+            while True:
+                try:
+                    # Wait for events with timeout for heartbeat
+                    event = event_queue.get(timeout=10)
+                    yield event
+                    last_heartbeat = time.time()
+                except Empty:
+                    # Send heartbeat if no events
+                    if time.time() - last_heartbeat >= 30:
+                        yield ": heartbeat\n\n"
+                        last_heartbeat = time.time()
+        except GeneratorExit:
+            pass
+        finally:
+            stop_event.set()
+
+    return Response(generate(), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 @api.route('/api/admin/transcoding/start', methods=["POST"])
 @login_required
 def start_transcoding():
-    """Start bulk transcoding of all videos."""
-    global _transcoding_process
-
+    """Start bulk transcoding of all videos, or queue it if already running."""
     if not current_app.config.get('ENABLE_TRANSCODING', False):
         return Response(status=400, response='Transcoding is not enabled')
+    paths = current_app.config['PATHS']
+    status = _enqueue_transcode(None, paths['data'])
+    return jsonify({"status": status})
 
-    # Check if already running
-    if _transcoding_process is not None and _transcoding_process.poll() is None:
-        return Response(status=400, response='Transcoding is already in progress')
 
-    # Start transcoding in background - output goes to server terminal
-    # Use start_new_session so we can kill the entire process group (including ffmpeg)
-    try:
-        _transcoding_process = subprocess.Popen(
-            ['fireshare', 'transcode-videos'],
-            env=os.environ.copy(),
-            start_new_session=True
-        )
-        # Write the PID to the status file so we can recover it after server restart
-        paths = current_app.config['PATHS']
-        util.write_transcoding_status(paths['data'], 0, 0, None, _transcoding_process.pid)
-        return jsonify({"status": "started", "pid": _transcoding_process.pid})
-    except Exception as e:
-        return Response(status=500, response=f'Failed to start transcoding: {str(e)}')
+@api.route('/api/admin/transcoding/start/<video_id>', methods=["POST"])
+@login_required
+def start_transcoding_video(video_id):
+    """Start transcoding for a single video, or queue it if already running."""
+    if not current_app.config.get('ENABLE_TRANSCODING', False):
+        return Response(status=400, response='Transcoding is not enabled')
+    paths = current_app.config['PATHS']
+    status = _enqueue_transcode(video_id, paths['data'])
+    return jsonify({"status": status})
 
 
 @api.route('/api/admin/transcoding/cancel', methods=["POST"])
@@ -368,7 +520,6 @@ def start_transcoding():
 def cancel_transcoding():
     """Cancel ongoing transcoding."""
     global _transcoding_process
-    import signal
 
     paths = current_app.config['PATHS']
     pid_to_kill = None
@@ -385,47 +536,76 @@ def cancel_transcoding():
     if pid_to_kill is None:
         status = util.read_transcoding_status(paths['data'])
         pid_to_kill = status.get('pid')
-        if pid_to_kill is None or not status.get('is_running', False):
+        # If status doesn't show running, nothing to cancel
+        if not status.get('is_running', False):
             return Response(status=400, response='No transcoding in progress')
 
-    try:
-        # Kill the entire process group (including ffmpeg child processes)
-        os.killpg(os.getpgid(pid_to_kill), signal.SIGTERM)
-        if _transcoding_process is not None:
-            _transcoding_process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        os.killpg(os.getpgid(pid_to_kill), signal.SIGKILL)
-    except ProcessLookupError:
-        pass  # Process already dead
-    except OSError:
-        pass  # Process group doesn't exist
+    # Try to kill the process if we have a PID
+    if pid_to_kill is not None:
+        try:
+            target_pgid = os.getpgid(pid_to_kill)
+            my_pgid = os.getpgid(os.getpid())
 
-    # Clear the status file
+            if target_pgid != my_pgid:
+                # Safe to kill the process group (won't kill Flask)
+                os.killpg(target_pgid, signal.SIGTERM)
+            else:
+                # Same process group as Flask - only kill the specific process
+                os.kill(pid_to_kill, signal.SIGTERM)
+
+            if _transcoding_process is not None:
+                _transcoding_process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            if target_pgid != my_pgid:
+                os.killpg(target_pgid, signal.SIGKILL)
+            else:
+                os.kill(pid_to_kill, signal.SIGKILL)
+        except ProcessLookupError:
+            pass  # Process already dead
+        except OSError:
+            pass  # Process group doesn't exist
+
+    # Clear the queue and status file
+    with _queue_lock:
+        _transcoding_queue.clear()
     util.clear_transcoding_status(paths['data'])
 
+    global _completed_tasks
+    _completed_tasks = 0
     _transcoding_process = None
     return jsonify({"status": "cancelled"})
 
 
 def get_folder_size(folder_path):
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(folder_path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            if os.path.isfile(fp):  # Avoid broken symlinks
-                total_size += os.path.getsize(fp)
-    return total_size
+    def _folder_size(directory):
+        total = 0
+        for entry in os.scandir(directory):
+            if entry.is_dir():
+                _folder_size(entry.path)
+                total += parent_size[entry.path]
+            else:
+                size = entry.stat().st_size
+                total += size
+                file_size[entry.path] = size
+        parent_size[directory] = total
+
+    file_size = {}
+    parent_size = {}
+    _folder_size(folder_path)
+    return parent_size.get(folder_path, 0)
 
 @api.route('/api/folder-size', methods=['GET'])
 @login_required
 def folder_size():
     print("Folder size endpoint was hit!")  # Debugging line
-    path = request.args.get('path', default='.', type=str)
+    paths = current_app.config['PATHS']
+    video_path = str(paths['video'])
+    path = request.args.get('path', default=video_path, type=str)
     size_bytes = get_folder_size(path)
     size_mb = size_bytes / (1024 * 1024)
 
     if size_mb < 1024:
-        rounded_mb = round(size_mb / 100) * 100
+        rounded_mb = round(size_mb)
         size_pretty = f"{rounded_mb} MB"
     elif size_mb < 1024 * 1024:
         size_gb = size_mb / 1024
@@ -439,6 +619,7 @@ def folder_size():
         "size_bytes": size_bytes,
         "size_pretty": size_pretty
     })
+
 @api.route('/api/admin/reset-database', methods=["POST"])
 @login_required
 def reset_database():
@@ -555,19 +736,14 @@ def reset_database():
 @api.route('/api/manual/scan')
 @login_required
 def manual_scan():
-    if not current_app.config["ENVIRONMENT"] == 'production':
-        return Response(response='You must be running in production for this task to work.', status=400)
-    else:
-        current_app.logger.info(f"Executed manual scan")
-        Popen(["fireshare", "bulk-import"], shell=False)
+    current_app.logger.info(f"Executed manual scan")
+    Popen(["fireshare", "bulk-import"], shell=False, start_new_session=True)
     return Response(status=200)
 
 @api.route('/api/manual/scan-dates')
 @login_required
 def manual_scan_dates():
     """Extract recording dates from filenames for videos missing recorded_at"""
-    from fireshare import util
-
     try:
         videos = Video.query.filter(Video.recorded_at.is_(None)).all()
         dates_extracted = 0
@@ -637,12 +813,169 @@ def dismiss_folder_suggestion(folder_name):
     logger.info(f"Dismissed folder suggestion: {folder_name} ({video_count} videos)")
     return jsonify({'dismissed': True})
 
+
+@api.route('/api/folder-rules')
+@login_required
+def get_folder_rules():
+    """Get all folders with their rules and suggested games based on linked videos"""
+
+    # Skip upload folders
+    upload_folders = {
+        DEFAULT_CONFIG['app_config']['admin_upload_folder_name'].lower(),
+        DEFAULT_CONFIG['app_config']['public_upload_folder_name'].lower(),
+    }
+
+    # Get existing rules keyed by folder
+    rules = {rule.folder_path: rule for rule in FolderRule.query.all()}
+
+    # Build folder -> video_ids and video -> game_id maps
+    folders = {}
+    video_to_game = {link.video_id: link.game_id for link in VideoGameLink.query.all()}
+    games = {g.id: g for g in GameMetadata.query.all()}
+
+    for video in Video.query.all():
+        parts = video.path.replace('\\', '/').split('/')
+        if len(parts) > 1:
+            folder = parts[0]
+            if folder.lower() in upload_folders:
+                continue
+            if folder not in folders:
+                folders[folder] = []
+            folders[folder].append(video.video_id)
+
+    result = []
+    for folder in sorted(folders.keys()):
+        video_ids = folders[folder]
+        rule = rules.get(folder)
+
+        # Find most common game among linked videos in this folder
+        game_counts = Counter(video_to_game[vid] for vid in video_ids if vid in video_to_game)
+        suggested_game = None
+        if game_counts:
+            top_game = games.get(game_counts.most_common(1)[0][0])
+            if top_game:
+                suggested_game = top_game.json()
+
+        result.append({
+            'folder_path': folder,
+            'rule': rule.json() if rule else None,
+            'suggested_game': suggested_game,
+            'video_count': len(video_ids)
+        })
+
+    return jsonify(result)
+
+
+@api.route('/api/folder-rules', methods=['POST'])
+@login_required
+def create_folder_rule():
+    """Create a folder rule and backfill existing untagged videos"""
+    from .cli import _load_suggestions, _save_suggestions
+    data = request.get_json()
+
+    if not data or not data.get('folder_path') or not data.get('game_id'):
+        return jsonify({'error': 'folder_path and game_id are required'}), 400
+
+    folder_path = data['folder_path']
+    game_id = data['game_id']
+
+    # Check if rule already exists for this folder
+    existing = FolderRule.query.filter_by(folder_path=folder_path).first()
+    if existing:
+        existing.game_id = game_id
+        db.session.commit()
+        logger.info(f"Updated folder rule: {folder_path} -> game {game_id}")
+        rule = existing
+        is_new = False
+    else:
+        rule = FolderRule(
+            folder_path=folder_path,
+            game_id=game_id
+        )
+        db.session.add(rule)
+        db.session.commit()
+        logger.info(f"Created folder rule: {folder_path} -> game {game_id}")
+        is_new = True
+
+    # Tag ALL videos in this folder to the new game (update existing + create new)
+    videos_in_folder = Video.query.filter(Video.path.like(f"{folder_path}/%")).all()
+    video_ids = [v.video_id for v in videos_in_folder]
+    existing_links = {link.video_id: link for link in VideoGameLink.query.filter(VideoGameLink.video_id.in_(video_ids)).all()}
+
+    updated = 0
+    created = 0
+
+    for video in videos_in_folder:
+        if video.video_id in existing_links:
+            # Update existing link to new game
+            existing_links[video.video_id].game_id = game_id
+            updated += 1
+        else:
+            # Create new link
+            link = VideoGameLink(
+                video_id=video.video_id,
+                game_id=game_id,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(link)
+            created += 1
+
+    if updated or created:
+        db.session.commit()
+        logger.info(f"Folder '{folder_path}': updated {updated}, created {created} link(s) to game {game_id}")
+
+    # Clear individual suggestions for videos in this folder only
+    suggestions = _load_suggestions()
+    cleared_suggestions = 0
+    video_ids_in_folder = {v.video_id for v in videos_in_folder}
+    for video_id in list(suggestions.keys()):
+        if video_id in video_ids_in_folder and video_id != '_folders':
+            del suggestions[video_id]
+            cleared_suggestions += 1
+            logger.info(f"[Backfill] Cleared suggestion for {video_id}")
+    if cleared_suggestions:
+        _save_suggestions(suggestions)
+        logger.info(f"Cleared {cleared_suggestions} individual suggestion(s) for folder '{folder_path}'")
+
+    response = rule.json()
+    response['backfilled'] = updated + created
+    response['cleared_suggestions'] = cleared_suggestions
+    return jsonify(response), 201 if is_new else 200
+
+
+@api.route('/api/folder-rules/<int:rule_id>', methods=['DELETE'])
+@login_required
+def delete_folder_rule(rule_id):
+    """Delete a folder rule, optionally unlinking videos"""
+    rule = FolderRule.query.get(rule_id)
+    if not rule:
+        return jsonify({'error': 'Folder rule not found'}), 404
+
+    unlink_videos = request.args.get('unlink_videos', 'false').lower() == 'true'
+    unlinked_count = 0
+
+    if unlink_videos:
+        # Batch query: get only video IDs in folder, then delete matching links in one query
+        video_ids = [v[0] for v in db.session.query(Video.video_id).filter(Video.path.like(f"{rule.folder_path}/%")).all()]
+        if video_ids:
+            unlinked_count = VideoGameLink.query.filter(
+                VideoGameLink.video_id.in_(video_ids),
+                VideoGameLink.game_id == rule.game_id
+            ).delete(synchronize_session=False)
+
+    folder_path = rule.folder_path
+    db.session.delete(rule)
+    db.session.commit()
+
+    logger.info(f"Deleted folder rule: {folder_path} (unlinked {unlinked_count} videos)")
+    return jsonify({'deleted': True, 'unlinked_count': unlinked_count})
+
+
 @api.route('/api/manual/scan-games')
 @login_required
 def manual_scan_games():
     """Start game scan in background thread"""
-    from fireshare import util
-    from fireshare.cli import save_game_suggestion, _load_suggestions
+    from fireshare.cli import save_game_suggestions_batch, _load_suggestions
 
     # Check if already running
     with _game_scan_state['lock']:
@@ -713,7 +1046,6 @@ def manual_scan_games():
                 processed_video_ids = set()
 
                 # Skip upload folders
-                from fireshare.constants import DEFAULT_CONFIG
                 upload_folders = {
                     DEFAULT_CONFIG['app_config']['admin_upload_folder_name'].lower(),
                     DEFAULT_CONFIG['app_config']['public_upload_folder_name'].lower(),
@@ -759,6 +1091,7 @@ def manual_scan_games():
                     _save_suggestions(existing_suggestions)
 
                 # Process remaining individual videos (not in folder suggestions and no existing suggestion)
+                pending_suggestions = {}
                 for i, video in enumerate(videos_needing_suggestions):
                     _game_scan_state['current'] = i + 1
 
@@ -769,10 +1102,15 @@ def manual_scan_games():
                     detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=video.path)
 
                     if detected_game and detected_game['confidence'] >= 0.65:
-                        save_game_suggestion(video.video_id, detected_game)
+                        pending_suggestions[video.video_id] = detected_game
                         suggestions_created += 1
                         _game_scan_state['suggestions_created'] = suggestions_created
-                        logger.info(f"Created game suggestion for video {video.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
+                        logger.info(f"Queued game suggestion for video {video.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
+
+                # Batch save all suggestions at once
+                if pending_suggestions:
+                    save_game_suggestions_batch(pending_suggestions)
+                    logger.info(f"Saved {len(pending_suggestions)} suggestion(s) in batch")
 
                 logger.info(f"Game scan complete: {suggestions_created} suggestions created from {len(unlinked_videos)} unlinked videos")
 
@@ -780,7 +1118,6 @@ def manual_scan_games():
                 logger.error(f"Error scanning videos for games: {e}")
             finally:
                 # Brief delay so frontend can display the completed status before hiding
-                import time
                 time.sleep(2)
                 _game_scan_state['is_running'] = False
 
@@ -882,8 +1219,6 @@ def get_public_videos():
 @api.route('/api/videos/dates')
 def get_video_dates():
     """Get all unique dates that have videos recorded on them"""
-    from sqlalchemy import func
-    from flask_login import current_user
 
     query = db.session.query(func.date(Video.recorded_at)).join(VideoInfo).filter(
         Video.recorded_at.isnot(None),
@@ -899,8 +1234,6 @@ def get_video_dates():
 @api.route('/api/videos/by-date/<date>')
 def get_videos_by_date(date):
     """Get all videos recorded on a specific date (YYYY-MM-DD)"""
-    from sqlalchemy import func
-    from flask_login import current_user
 
     try:
         target_date = datetime.strptime(date, '%Y-%m-%d').date()
@@ -1027,6 +1360,38 @@ def get_video_views(video_id):
     views = VideoView.count(video_id)
     return str(views)
 
+
+def _launch_scan_video(save_path, config):
+    """
+    Launch scan-video and publish an initial transcoding-running status when
+    auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
+    """
+    paths = current_app.config['PATHS']
+    data_path = paths['data']
+    scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False, start_new_session=True)
+
+    def reap_and_cleanup():
+        try:
+            scan_proc.wait()
+            status = util.read_transcoding_status(data_path)
+            # Clear stale placeholder/status written for this upload process.
+            if status.get('pid') == scan_proc.pid:
+                util.clear_transcoding_status(data_path)
+        except Exception as e:
+            logger.debug(f"Scan process cleanup skipped: {e}")
+
+    threading.Thread(target=reap_and_cleanup, daemon=True).start()
+
+    transcoding_enabled = current_app.config.get('ENABLE_TRANSCODING', False)
+    auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
+    if transcoding_enabled and auto_transcode:
+        try:
+            util.write_transcoding_status(data_path, 0, 0, None, scan_proc.pid)
+        except Exception as e:
+            logger.warning(f"Failed to write initial upload transcoding status: {e}")
+
+    return scan_proc
+
 @api.route('/api/upload/public', methods=['POST'])
 def public_upload_video():
     paths = current_app.config['PATHS']
@@ -1064,7 +1429,7 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/uploadChunked/public', methods=['POST'])
@@ -1118,7 +1483,7 @@ def public_upload_videoChunked():
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     
     os.rename(tempPath, save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/upload', methods=['POST'])
@@ -1154,7 +1519,7 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/uploadChunked', methods=['POST'])
@@ -1244,7 +1609,7 @@ def upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
-    Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False)
+    _launch_scan_video(save_path, config)
     return Response(status=201)
 
 @api.route('/api/video')
@@ -1291,7 +1656,6 @@ def search_steamgrid():
     if not api_key:
         return Response(status=503, response='SteamGridDB API key not configured.')
 
-    from .steamgrid import SteamGridDBClient
     client = SteamGridDBClient(api_key)
 
     results = client.search_games(query)
@@ -1303,7 +1667,6 @@ def get_steamgrid_assets(game_id):
     if not api_key:
         return Response(status=503, response='SteamGridDB API key not configured.')
 
-    from .steamgrid import SteamGridDBClient
     client = SteamGridDBClient(api_key)
 
     assets = client.get_game_assets(game_id)
@@ -1311,7 +1674,6 @@ def get_steamgrid_assets(game_id):
 
 @api.route('/api/games', methods=["GET"])
 def get_games():
-    from flask_login import current_user
 
     # If user is authenticated, show games that have at least one linked video
     if current_user.is_authenticated:
@@ -1371,7 +1733,6 @@ def create_game():
     if not api_key:
         return Response(status=503, response='SteamGridDB API key not configured.')
 
-    from .steamgrid import SteamGridDBClient
     client = SteamGridDBClient(api_key)
 
     # Download and save assets
@@ -1408,7 +1769,12 @@ def create_game():
 
     current_app.logger.info(f"Created game {data['name']} with assets: {result['assets']}")
 
-    return jsonify(game.json()), 201
+    response_data = game.json()
+    missing = [k for k, v in result['assets'].items() if v == 0]
+    if missing:
+        response_data['missing_assets'] = missing
+
+    return jsonify(response_data), 201
 
 @api.route('/api/videos/<video_id>/game', methods=["POST"])
 @login_required_unless_public_game_tag
@@ -1507,7 +1873,6 @@ def get_game_asset(steamgriddb_id, filename):
         logger.warning(f"{filename} missing for game {steamgriddb_id}")
         api_key = get_steamgriddb_api_key()
         if api_key:
-            from .steamgrid import SteamGridDBClient
             client = SteamGridDBClient(api_key)
             game_assets_dir = paths['data'] / 'game_assets'
 
@@ -1550,7 +1915,6 @@ def get_game_asset(steamgriddb_id, filename):
 
 @api.route('/api/games/<int:steamgriddb_id>/videos', methods=["GET"])
 def get_game_videos(steamgriddb_id):
-    from flask_login import current_user
 
     game = GameMetadata.query.filter_by(steamgriddb_id=steamgriddb_id).first()
     if not game:
@@ -1743,10 +2107,10 @@ def rss_feed():
     # URL for viewing (frontend)
     # If we are on localhost:5000, the user wants both the link and video to point to the public dev port (3000)
     frontend_domain = backend_domain
-    if "localhost:5000" in frontend_domain:
-        frontend_domain = frontend_domain.replace("localhost:5000", "localhost:3000")
-    elif "127.0.0.1:5000" in frontend_domain:
-        frontend_domain = frontend_domain.replace("127.0.0.1:5000", "localhost:3000")
+    if "localhost:3001" in frontend_domain:
+        frontend_domain = frontend_domain.replace("localhost:3001", "localhost:3000")
+    elif "127.0.0.1:3001" in frontend_domain:
+        frontend_domain = frontend_domain.replace("127.0.0.1:3001", "localhost:3000")
 
     # Load custom RSS config if it exists
     paths = current_app.config['PATHS']

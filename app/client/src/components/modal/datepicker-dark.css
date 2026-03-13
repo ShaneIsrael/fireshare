@@ -1,0 +1,90 @@
+@import "react-day-picker/src/style.css";
+
+.fireshare-rdp .rdp-root {
+  --rdp-accent-color: #3399FF;
+  --rdp-accent-background-color: #3399FF26;
+  --rdp-today-color: #3399FF;
+  --rdp-day-height: 38px;
+  --rdp-day-width: 38px;
+  --rdp-day_button-height: 36px;
+  --rdp-day_button-width: 36px;
+  color: white;
+  font-family: inherit;
+}
+
+/* Calendar container */
+.fireshare-rdp {
+  background: #041223;
+  border: 1px solid #FFFFFF1A;
+  border-radius: 12px;
+  padding: 12px 16px 16px;
+  box-shadow: 0 16px 48px #00000099;
+}
+
+/* Month caption */
+.fireshare-rdp .rdp-month_caption {
+  font-weight: 700;
+  font-size: 15px;
+  color: white;
+  padding-bottom: 8px;
+}
+
+/* Weekday headers (Su Mo Tu...) */
+.fireshare-rdp .rdp-weekday {
+  color: #FFFFFF80;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Day buttons */
+.fireshare-rdp .rdp-day_button {
+  color: white;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.fireshare-rdp .rdp-day_button:hover:not([disabled]) {
+  background: #FFFFFF14;
+}
+
+/* Today */
+.fireshare-rdp .rdp-today .rdp-day_button {
+  color: #3399FF;
+  font-weight: 700;
+}
+
+/* Selected day */
+.fireshare-rdp .rdp-selected .rdp-day_button {
+  background: #3399FF;
+  color: white;
+  font-weight: 700;
+}
+
+/* Outside month days */
+.fireshare-rdp .rdp-outside .rdp-day_button {
+  color: #FFFFFF33;
+}
+
+/* Nav buttons */
+.fireshare-rdp .rdp-nav {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  display: flex;
+  gap: 4px;
+}
+
+.fireshare-rdp .rdp-button_previous,
+.fireshare-rdp .rdp-button_next {
+  background: #FFFFFF0D;
+  border-radius: 6px;
+  color: white;
+  border: 1px solid #FFFFFF1A;
+}
+
+.fireshare-rdp .rdp-button_previous:hover,
+.fireshare-rdp .rdp-button_next:hover {
+  background: #FFFFFF1F;
+}

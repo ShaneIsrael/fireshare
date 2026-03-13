@@ -2,61 +2,44 @@ import * as React from 'react'
 import { Grid, Box, IconButton } from '@mui/material'
 import Typography from '@mui/material/Typography'
 import Tooltip from '@mui/material/Tooltip'
-import { ConfigService } from '../../services'
+import { motion } from 'framer-motion'
+import adminSSE from '../../services/AdminSSE'
 import SyncIcon from '@mui/icons-material/Sync'
 
-// Module-level singleton polling to prevent duplicate requests
-// when multiple component instances are mounted (e.g. mobile + desktop drawers)
-let subscribers = new Set()
-let pollingTimer = null
-let isRunning = false
-
-function notifySubscribers(data) {
-  subscribers.forEach((cb) => cb(data))
+const formatEta = (seconds) => {
+  if (!seconds || seconds < 0) return null
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  if (mins > 0) return `${mins}m ${secs}s left`
+  return `${secs}s left`
 }
 
-async function checkStatus() {
-  if (subscribers.size === 0) return
-  try {
-    const res = await ConfigService.getTranscodingStatus()
-    if (subscribers.size === 0) return
-    if (res.data.is_running) {
-      isRunning = true
-      notifySubscribers(res.data)
-      scheduleNext(3000)
-    } else {
-      isRunning = false
-      notifySubscribers(null)
-      scheduleNext(15000)
-    }
-  } catch (e) {
-    if (subscribers.size > 0) {
-      scheduleNext(isRunning ? 3000 : 15000)
-    }
-  }
+const styles = {
+  card: {
+    m: 1,
+    border: '1px solid rgba(194, 224, 255, 0.18)',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    ':hover': { backgroundColor: 'rgba(194, 224, 255, 0.08)' },
+  },
+  cardExpanded: { width: 222, px: 2, py: 1.5 },
+  cardCollapsed: { width: 42, height: 40, justifyContent: 'center' },
+  textPrimary: { fontFamily: 'monospace', fontWeight: 600, fontSize: 12, color: '#EBEBEB' },
+  textSecondary: { fontFamily: 'monospace', fontSize: 10, color: '#999' },
+  textAccent: { color: '#2684FF' },
+  truncate: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  progressTrack: {
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(194, 224, 255, 0.1)',
+    overflow: 'hidden',
+  },
 }
 
-function scheduleNext(delay) {
-  clearTimeout(pollingTimer)
-  pollingTimer = setTimeout(checkStatus, delay)
-}
-
-function subscribe(cb) {
-  const wasEmpty = subscribers.size === 0
-  subscribers.add(cb)
-  if (wasEmpty) {
-    checkStatus()
-  }
-  return () => {
-    subscribers.delete(cb)
-    if (subscribers.size === 0) {
-      clearTimeout(pollingTimer)
-      pollingTimer = null
-    }
-  }
-}
-
-const TranscodingStatus = ({ open }) => {
+const TranscodingStatus = ({ open, authenticated }) => {
   const [status, setStatus] = React.useState(null)
   const [stoppedMessage, setStoppedMessage] = React.useState(null)
 
@@ -73,165 +56,103 @@ const TranscodingStatus = ({ open }) => {
   }, [])
 
   React.useEffect(() => {
-    return subscribe(setStatus)
-  }, [])
+    if (!authenticated) return
+    return adminSSE.subscribeTranscoding((data) => {
+      setStatus(data?.is_running ? data : null)
+    })
+  }, [authenticated])
 
   if (!status && !stoppedMessage) return null
 
   if (stoppedMessage && open) {
     return (
-      <>
-        <Box
-          sx={{
-            width: 222,
-            m: 1,
-            px: 2,
-            py: 1.5,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            color: '#EBEBEB',
-            fontWeight: 600,
-            fontSize: 13,
-            backgroundColor: 'transparent',
-            ':hover': {
-              backgroundColor: 'rgba(194, 224, 255, 0.08)',
-            },
-          }}
-        >
-          <Grid container alignItems="center">
-            <Grid item>
-              <Typography
-                sx={{
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  fontSize: 12,
-                  color: '#EBEBEB',
-                }}
-              >
-                {stoppedMessage}
-              </Typography>
-            </Grid>
+      <Box sx={{ ...styles.card, ...styles.cardExpanded }}>
+        <Grid container alignItems="center">
+          <Grid item>
+            <Typography sx={styles.textPrimary}>
+              {stoppedMessage}
+            </Typography>
           </Grid>
-        </Box>
-      </>
+        </Grid>
+      </Box>
     )
   }
 
   if (open) {
     return (
-      <>
-        <Tooltip title={status.current_video || 'Not transcoding'} arrow placement="right">
-          <Box
-            sx={{
-              width: 222,
-              m: 1,
-              px: 2,
-              py: 1.5,
-              border: '1px solid rgba(194, 224, 255, 0.18)',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              color: '#EBEBEB',
-              fontWeight: 600,
-              fontSize: 13,
-              backgroundColor: 'transparent',
-              ':hover': {
-                backgroundColor: 'rgba(194, 224, 255, 0.08)',
-              },
-            }}
-          >
-            <Grid container alignItems="center">
-              <Grid item sx={{
-                overflow: 'hidden'
-              }}>
-                <Typography
-                  sx={{
-                    fontFamily: 'monospace',
-                    fontWeight: 600,
-                    fontSize: 12,
-                    color: '#EBEBEB',
-                  }}
-                >
-                  {status.total === 0 ? (
-                    'Preparing transcode...'
-                  ) : (
-                    <>
-                      Transcoding:{' '}
-                      <Box component="span" sx={{ color: '#2684FF' }}>
-                        {status.current}/{status.total}
-                      </Box>
-                    </>
-                  )}
-                </Typography>
-                {status.current_video && (
-
-                  <Typography
-                    sx={{
-                      fontFamily: 'monospace',
-                      fontSize: 10,
-                      color: '#999',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {status.current_video}
-                  </Typography>
+      <Tooltip title={status.current_video || 'Not transcoding'} arrow placement="right">
+        <Box sx={{ ...styles.card, ...styles.cardExpanded }}>
+          <Grid container alignItems="center">
+            <Grid item xs={12} sx={{ overflow: 'hidden' }}>
+              <Typography sx={styles.textPrimary}>
+                {status.total === 0 ? (
+                  'Preparing transcode...'
+                ) : (
+                  <>
+                    Transcoding:{' '}
+                    <Box component="span" sx={styles.textAccent}>
+                      {status.current + status.completed_tasks}/{status.total + status.completed_tasks + status.queue_tasks}
+                    </Box>
+                  </>
                 )}
-              </Grid>
+              </Typography>
+              {status.current_video && (
+                <Typography sx={{ ...styles.textSecondary, ...styles.truncate }}>
+                  {status.current_video}
+                </Typography>
+              )}
+              {typeof status.percent === 'number' && (
+                <Box sx={{ mt: 1, width: '100%' }}>
+                  <Box sx={styles.progressTrack}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${status.percent}%` }}
+                      transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                      style={{
+                        height: '100%',
+                        backgroundColor: '#2684FF',
+                        borderRadius: 4,
+                      }}
+                    />
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                    <Typography sx={styles.textSecondary}>
+                      {status.percent.toFixed(0)}%{status.eta_seconds ? ` • ${formatEta(status.eta_seconds)}` : ''}
+                    </Typography>
+                    {status.resolution && (
+                      <Typography sx={{ ...styles.textSecondary, ...styles.textAccent, fontWeight: 600 }}>
+                        {status.resolution}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
             </Grid>
-          </Box>
-        </Tooltip >
-      </>
+          </Grid>
+        </Box>
+      </Tooltip>
     )
   }
 
   const tooltipText = status.total === 0
     ? 'Preparing transcode...'
-    : `Transcoding: ${status.current}/${status.total}${status.current_video ? `\n${status.current_video}` : ''}`
+    : `Transcoding: ${status.current + status.completed_tasks}/${status.total + status.completed_tasks + status.queue_tasks}${status.current_video ? `\n${status.current_video}` : ''}`
 
   return (
-    <>
-      <Tooltip title={tooltipText} arrow placement="right">
-        <Box
-          sx={{
-            width: 42,
-            m: 1,
-            height: 40,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            ':hover': {
-              backgroundColor: 'rgba(194, 224, 255, 0.08)',
+    <Tooltip title={tooltipText} arrow placement="right">
+      <Box sx={{ ...styles.card, ...styles.cardCollapsed }}>
+        <IconButton sx={{ p: 0.5, pointerEvents: 'all' }}>
+          <SyncIcon sx={{
+            color: '#EBEBEB',
+            animation: 'spin 1.5s linear infinite',
+            '@keyframes spin': {
+              '0%': { transform: 'rotate(360deg)' },
+              '100%': { transform: 'rotate(0deg)' },
             },
-          }}
-        >
-          <Typography
-            sx={{
-              fontFamily: 'monospace',
-              fontWeight: 600,
-              fontSize: 15,
-              color: '#EBEBEB',
-            }}
-          >
-            <IconButton sx={{ p: 0.5, pointerEvents: 'all' }}>
-              <SyncIcon sx={{
-                color: '#EBEBEB',
-                animation: 'spin 1.5s linear infinite',
-                '@keyframes spin': {
-                  '0%': { transform: 'rotate(360deg)' },
-                  '100%': { transform: 'rotate(0deg)' },
-                },
-              }} />
-            </IconButton>
-          </Typography>
-        </Box>
-      </Tooltip>
-    </>
+          }} />
+        </IconButton>
+      </Box>
+    </Tooltip>
   )
 }
 

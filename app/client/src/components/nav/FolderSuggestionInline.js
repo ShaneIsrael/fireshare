@@ -2,7 +2,6 @@ import React from 'react'
 import { Box, Typography, IconButton, CircularProgress, Tooltip } from '@mui/material'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
-import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { GameService } from '../../services'
 
@@ -32,6 +31,9 @@ const FolderSuggestionInline = ({ open, suggestion, folderName, onApplied, onDis
         GameService.linkVideoToGame(videoId, game.id)
       )
       await Promise.all(linkPromises)
+
+      // Create folder rule for auto-tagging future videos
+      await GameService.createFolderRule(folderName, game.id)
 
       await GameService.dismissFolderSuggestion(folderName)
       onApplied(folderName, game.name, suggestion.video_ids.length)

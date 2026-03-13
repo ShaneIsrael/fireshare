@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install NVIDIA codec headers for NVENC support
-RUN git clone --depth 1 --branch n12.1.14.0 https://git.videolan.org/git/ffmpeg/nv-codec-headers.git && \
+RUN git clone --depth 1 --branch n12.1.14.0 https://github.com/FFmpeg/nv-codec-headers.git && \
     cd nv-codec-headers && \
     make install && \
     ldconfig
@@ -91,6 +91,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     libldap2-dev libsasl2-dev libssl-dev \
     libffi-dev libc-dev \
     build-essential \
+    gosu \
     wget curl ca-certificates \
     tzdata \
     libx264-163 libx265-199 libvpx7 libaom3 \
@@ -119,6 +120,7 @@ COPY app/nginx/prod.conf /etc/nginx/nginx.conf
 COPY app/server/ /app/server
 COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
+COPY --from=client /app/package.json /app
 RUN pip install --no-cache-dir /app/server
 
 ENV FLASK_APP /app/server/fireshare:create_app()

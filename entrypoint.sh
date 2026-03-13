@@ -14,9 +14,31 @@ groupmod -o -g "$PGID" appuser
 usermod -o -u "$PUID" appuser
 
 # Set ownership of directories
-chown -R appuser:appuser $DATA_DIRECTORY || >&2 echo "WARNING: Could not chown the data directory ($DATA_DIRECTORY) to $PUID:$PGID. Make sure the container has permissions to access this directory."
-chown -R appuser:appuser $VIDEO_DIRECTORY || >&2 echo "WARNING: Could not chown the video directory ($DATA_DIRECTORY) to $PUID:$PGID. Make sure the container has permissions to access this directory."
-chown -R appuser:appuser $PROCESSED_DIRECTORY || >&2 echo "WARNING: Could not chown the processed directory ($DATA_DIRECTORY) to $PUID:$PGID. Make sure the container has permissions to access this directory."
+chown_fail=0
+chown -R appuser:appuser $DATA_DIRECTORY 2>/dev/null
+if [ $? -ne 0 ]; then
+    >&2 echo "ERROR: Could not chown the data directory ($DATA_DIRECTORY) to $PUID:$PGID."
+    >&2 echo "  Files created by Fireshare may not have the expected ownership."
+    >&2 echo "  Make sure the container has permissions to access this directory."
+    chown_fail=1
+fi
+chown -R appuser:appuser $VIDEO_DIRECTORY 2>/dev/null
+if [ $? -ne 0 ]; then
+    >&2 echo "ERROR: Could not chown the video directory ($VIDEO_DIRECTORY) to $PUID:$PGID."
+    >&2 echo "  Files created by Fireshare may not have the expected ownership."
+    >&2 echo "  Make sure the container has permissions to access this directory."
+    chown_fail=1
+fi
+chown -R appuser:appuser $PROCESSED_DIRECTORY 2>/dev/null
+if [ $? -ne 0 ]; then
+    >&2 echo "ERROR: Could not chown the processed directory ($PROCESSED_DIRECTORY) to $PUID:$PGID."
+    >&2 echo "  Files created by Fireshare may not have the expected ownership."
+    >&2 echo "  Make sure the container has permissions to access this directory."
+    chown_fail=1
+fi
+if [ $chown_fail -eq 1 ]; then
+    >&2 echo "WARNING: One or more chown operations failed. Continuing anyway..."
+fi
 
 echo '-------------------------------------'
 echo "User uid:      $(id -u appuser)"
@@ -37,14 +59,14 @@ echo "Nginx started successfully"
 export PATH=/usr/local/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-# Run migrations - try different user-switching commands
+# Run migrations as appuser
 echo "Running database migrations..."
-runuser -u appuser -- env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" flask db upgrade
+gosu appuser env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" flask db upgrade
 
 echo "Database migrations complete"
 
-# Start gunicorn with config file if it exists, otherwise use command-line args
-echo "Starting gunicorn..."
-exec env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
+# Start gunicorn as appuser via gosu (drops from root to PUID:PGID)
+echo "Starting gunicorn as appuser ($PUID:$PGID)..."
+exec gosu appuser env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
     gunicorn --bind=127.0.0.1:5000 "fireshare:create_app(init_schedule=True)" \
-    --user appuser --group appuser --workers 3 --threads 3 --preload
+    --workers 3 --threads 3 --preload

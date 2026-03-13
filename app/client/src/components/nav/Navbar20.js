@@ -10,7 +10,6 @@ import ListItemButton from '@mui/material/ListItemButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
 import ListItemText from '@mui/material/ListItemText'
 import Toolbar from '@mui/material/Toolbar'
-import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import MuiDrawer from '@mui/material/Drawer'
 import MuiAppBar from '@mui/material/AppBar'
@@ -26,16 +25,12 @@ import GitHubIcon from '@mui/icons-material/GitHub'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
-import AppsIcon from '@mui/icons-material/Apps'
-import TableRowsIcon from '@mui/icons-material/TableRows'
 import BugReportIcon from '@mui/icons-material/BugReport'
-import StorageIcon from '@mui/icons-material/Storage'
-import SyncIcon from '@mui/icons-material/Sync'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 
-import { Grid, ToggleButton, ToggleButtonGroup } from '@mui/material'
-import { useNavigate } from 'react-router-dom'
-import { AuthService, StatsService } from '../../services'
+import { Grid, useMediaQuery, useTheme } from '@mui/material'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { AuthService } from '../../services'
 
 import logo from '../../assets/logo.png'
 import Search from '../search/Search'
@@ -48,7 +43,9 @@ import TranscodingStatus from './TranscodingStatus'
 import FolderSuggestionInline from './FolderSuggestionInline'
 import DiskSpaceIndicator from './DiskSpaceIndicator'
 import { GameService } from '../../services'
-import UploadCard from '../admin/UploadCard'
+import UploadCard from '../cards/UploadCard'
+import Select from 'react-select'
+import selectFolderTheme from '../../common/reactSelectFolderTheme'
 
 const drawerWidth = 240
 const minimizedDrawerWidth = 57
@@ -143,23 +140,62 @@ function Navbar20({
   collapsed = false,
   searchable = false,
   searchPlaceholder = 'Search videos...',
-  styleToggle = false,
   cardSlider = false,
   toolbar = true,
   mainPadding = 3,
   children,
 }) {
-
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [searchText, setSearchText] = React.useState()
   const [open, setOpen] = React.useState(!collapsed)
-  const [listStyle, setListStyle] = React.useState(getSetting('listStyle') || 'card')
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
 
   const [alert, setAlert] = React.useState({ open: false })
   const [folderSuggestions, setFolderSuggestions] = React.useState({})
   const [currentSuggestionFolder, setCurrentSuggestionFolder] = React.useState(null)
   const navigate = useNavigate()
+  const location = useLocation()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
+  // --- Folder selection state (shared with Feed / Dashboard) ---
+  const [folders, setFolders] = React.useState(['All Videos'])
+
+  // Initialise selectedFolder from URL ?category= (feed) or localStorage
+  const initFolder = React.useMemo(() => {
+    if (page === '/feed') {
+      const params = new URLSearchParams(location.search)
+      const cat = params.get('category')
+      if (cat) return { value: cat, label: cat }
+    }
+    return getSetting('folder') || { value: 'All Videos', label: 'All Videos' }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // run once on mount
+
+  const [selectedFolder, setSelectedFolder] = React.useState(initFolder)
+
+  // On mobile, force "All Videos"
+  const effectiveFolder = isMobile ? { value: 'All Videos', label: 'All Videos' } : selectedFolder
+
+  const handleFolderChange = React.useCallback(
+    (folder) => {
+      setSetting('folder', folder)
+      setSelectedFolder(folder)
+      // Keep URL in sync when on the feed page
+      if (page === '/feed' && 'URLSearchParams' in window) {
+        const searchParams = new URLSearchParams('')
+        searchParams.set('category', folder.value)
+        window.history.replaceState({ category: folder.value }, '', `/#/feed?${searchParams.toString()}`)
+      }
+    },
+    [page],
+  )
+
+  const handleFoldersLoaded = React.useCallback((folderList) => {
+    setFolders(folderList)
+  }, [])
+
+  const createSelectFolders = (f) => f.map((v) => ({ value: v, label: v }))
 
   const uiConfig = getSetting('ui_config') || {}
   const pages = allPages.filter((p) => {
@@ -187,15 +223,8 @@ function Navbar20({
     }
   }
 
-  const handleListStyleChange = (e, style) => {
-    if (style !== null) {
-      setListStyle(style)
-      setSetting('listStyle', style)
-    }
-  }
-  const handleCardSizeChange = (e, value) => {
-    const modifier = value / 100
-    const newSize = CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER * modifier
+  const handleCardSizeChange = (e, newValue) => {
+    const newSize = Math.round((newValue / 100) * CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER)
     setCardSize(newSize)
     setSetting('cardSize', newSize)
   }
@@ -213,23 +242,23 @@ function Navbar20({
 
   // Load pending folder suggestions on mount
   React.useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated) return
 
     const loadPendingSuggestions = async () => {
       try {
-        const res = await GameService.getFolderSuggestions();
-        const suggestions = res.data;
+        const res = await GameService.getFolderSuggestions()
+        const suggestions = res.data
         if (Object.keys(suggestions).length > 0) {
-          setFolderSuggestions(suggestions);
-          setCurrentSuggestionFolder(Object.keys(suggestions)[0]);
+          setFolderSuggestions(suggestions)
+          setCurrentSuggestionFolder(Object.keys(suggestions)[0])
         }
       } catch (err) {
         // Ignore errors
       }
-    };
+    }
 
-    loadPendingSuggestions();
-  }, [authenticated]);
+    loadPendingSuggestions()
+  }, [authenticated])
 
   // Game scan complete handler
   const handleGameScanComplete = React.useCallback(async (data) => {
@@ -237,12 +266,10 @@ function Navbar20({
     setAlert({
       open: true,
       type: 'success',
-      message: data.total > 0
-        ? `Game scan complete! Check remaining suggestions in My Videos.`
-        : 'Game scan complete!',
-    });
+      message: data.total > 0 ? `Game scan complete! Check remaining suggestions in My Videos.` : 'Game scan complete!',
+    })
 
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
     try {
       console.log('[Navbar20] Fetching folder suggestions...')
@@ -257,7 +284,7 @@ function Navbar20({
     } catch (err) {
       console.error('[Navbar20] Error fetching folder suggestions:', err)
     }
-  }, []);
+  }, [])
 
   const handleFolderSuggestionApplied = (folderName, gameName, videoCount) => {
     setAlert({
@@ -335,33 +362,66 @@ function Navbar20({
           return null
         })}
       </List>
-      {styleToggle && (
+      {/* Folder selector — hidden on mobile (xs) */}
+      {(page === '/' || page === '/feed') &&
+        open &&
+        !isMobile &&
+        folders.length > 1 &&
+        uiConfig.show_folder_dropdown === true && (
+          <>
+            <Divider />
+            <Box sx={{ p: open ? 1.5 : 0.75 }}>
+              {open ? (
+                <Select
+                  value={selectedFolder}
+                  options={createSelectFolders(folders)}
+                  onChange={handleFolderChange}
+                  styles={selectFolderTheme}
+                  blurInputOnSelect
+                  isSearchable={false}
+                  menuPlacement="auto"
+                />
+              ) : (
+                <LightTooltip title={selectedFolder.label} placement="right" arrow>
+                  <Box
+                    sx={{
+                      width: 42,
+                      height: 38,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid #FFFFFF26',
+                      borderRadius: '8px',
+                      backgroundColor: '#FFFFFF0D',
+                      cursor: 'pointer',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => {
+                      // Cycle through folders
+                      const idx = folders.indexOf(selectedFolder.value)
+                      const next = folders[(idx + 1) % folders.length]
+                      handleFolderChange({ value: next, label: next })
+                    }}
+                  >
+                    {selectedFolder.label.substring(0, 3)}
+                  </Box>
+                </LightTooltip>
+              )}
+            </Box>
+          </>
+        )}
+      {cardSlider && open && (
         <>
           <Divider />
           <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
-            <ToggleButtonGroup
-              size="small"
-              orientation={open ? 'horizontal' : 'vertical'}
-              value={listStyle}
-              exclusive
-              onChange={handleListStyleChange}
-            >
-              <ToggleButton sx={{ width: open ? 100 : 'auto' }} value="card">
-                <AppsIcon />
-              </ToggleButton>
-              <ToggleButton sx={{ width: open ? 100 : 'auto' }} value="list">
-                <TableRowsIcon />
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-        </>
-      )}
-      {cardSlider && listStyle === 'card' && (
-        <>
-          <Divider />
-          <Box sx={{ display: 'flex', p: 2, height: open ? 'auto' : 125 }} justifyContent="center">
             <SliderWrapper
-              width={open ? '100%' : 5}
+              width={open ? 150 : 10}
+              h
               cardSize={cardSize}
               defaultCardSize={CARD_SIZE_DEFAULT}
               cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
@@ -372,11 +432,11 @@ function Navbar20({
         </>
       )}
       <Divider />
-      <UploadCard  authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open}  />
+      <UploadCard authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} />
 
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
-        <GameScanStatus open={open} onComplete={handleGameScanComplete} />
-        <TranscodingStatus open={open} />
+        <GameScanStatus open={open} onComplete={handleGameScanComplete} authenticated={authenticated} />
+        <TranscodingStatus open={open} authenticated={authenticated} />
         <FolderSuggestionInline
           open={open}
           suggestion={currentSuggestionFolder ? folderSuggestions[currentSuggestionFolder] : null}
@@ -529,7 +589,7 @@ function Navbar20({
           >
             <IconButton onClick={handleDrawerCollapse}>{open ? <ChevronLeftIcon /> : <ChevronRightIcon />}</IconButton>
           </DrawerControl>
-          <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 2 }}>
+          <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
             <IconButton
               color="inherit"
               aria-label="open drawer"
@@ -539,14 +599,14 @@ function Navbar20({
             >
               <MenuIcon />
             </IconButton>
-            {searchable && (
-              <Search
-                placeholder={searchPlaceholder}
-                searchHandler={(value) => setSearchText(value)}
-                sx={{ flexGrow: 1, minWidth: 0, ml: { xs: 0, sm: 2 } }}
-              />
-            )}
-            <Box id="navbar-toolbar-extra" sx={{ display: 'flex', alignItems: 'center' }} />
+            <Box sx={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+              {searchable && (
+                <Box id="navbar-search-container" sx={{ flexGrow: 1, minWidth: 0, ml: { xs: 0, sm: 2 } }}>
+                  <Search placeholder={searchPlaceholder} searchHandler={(value) => setSearchText(value)} />
+                </Box>
+              )}
+              <Box id="navbar-toolbar-extra" />
+            </Box>
           </Toolbar>
         </AppBar>
       )}
@@ -587,13 +647,23 @@ function Navbar20({
           flexGrow: 1,
           p: page !== '/w' ? mainPadding : 0,
           width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` },
+          overflowX: 'hidden',
         }}
       >
         {toolbar && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
-        {React.cloneElement(children, { authenticated, searchText, listStyle, cardSize, showReleaseNotes, releaseNotes })}
+        {React.cloneElement(children, {
+          authenticated,
+          searchText,
+          cardSize,
+          showReleaseNotes,
+          releaseNotes,
+          selectedFolder: effectiveFolder,
+          onFolderChange: handleFolderChange,
+          onFoldersLoaded: handleFoldersLoaded,
+        })}
       </Box>
     </Box>
   )

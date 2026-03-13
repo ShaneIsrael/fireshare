@@ -49,20 +49,34 @@ AV1_CODEC_NAMES = frozenset([
 
 def lock_exists(path: Path):
     """
-    Checks if a lockfile currently exists
+    Checks if a lockfile exists and the owning process is still alive.
+    Automatically removes stale locks left by crashed processes.
     """
     lockfile = path / "fireshare.lock"
-    return lockfile.exists()
+    if not lockfile.exists():
+        return False
+    try:
+        with open(lockfile, 'r') as f:
+            pid = int(f.read().strip())
+        os.kill(pid, 0)  # signal 0 just checks liveness, sends nothing
+        return True
+    except (ValueError, ProcessLookupError, OSError):
+        logger.debug(f"Removing stale lockfile at {str(lockfile)}")
+        try:
+            os.remove(lockfile)
+        except Exception:
+            pass
+        return False
 
 def create_lock(path: Path):
     """
-    Creates the lock file
+    Creates the lock file, writing the current PID so stale locks can be detected.
     """
     lockfile = path / "fireshare.lock"
     if not lockfile.exists():
         logger.debug(f"A lockfile has been created at {str(lockfile)}")
-        fp = open(lockfile, 'x')
-        fp.close()
+        with open(lockfile, 'w') as f:
+            f.write(str(os.getpid()))
 
 def remove_lock(path: Path):
     """
@@ -77,18 +91,20 @@ def remove_lock(path: Path):
 # Transcoding status file functions
 TRANSCODING_STATUS_FILE = "transcoding_status.json"
 
-def write_transcoding_status(data_path: Path, current: int, total: int, current_video: str = None, pid: int = None):
+def write_transcoding_status(data_path: Path, current: int, total: int, current_video: str = None, pid: int = None, percent: float = None, eta_seconds: float = None, resolution: str = None):
     """
     Writes the current transcoding progress to a status file.
     Called by the CLI during transcoding to report progress.
-    If pid is provided, it will be included. Otherwise, preserves existing PID from the file.
+    If pid is provided, it will be included. Otherwise, uses the current process PID.
+    percent and eta_seconds are optional per-video progress info from ffmpeg.
+    resolution is the target resolution (e.g., "1080p").
     """
     status_file = data_path / TRANSCODING_STATUS_FILE
 
-    # Preserve existing PID if not provided (so CLI updates don't lose the PID)
+    # Always include a concrete PID for liveness checks in SSE/API consumers.
+    # CLI calls omit pid, so stamp the current process PID in that case.
     if pid is None:
-        existing = read_transcoding_status(data_path)
-        pid = existing.get('pid')
+        pid = os.getpid()
 
     status = {
         "is_running": True,
@@ -97,11 +113,26 @@ def write_transcoding_status(data_path: Path, current: int, total: int, current_
         "current_video": current_video,
         "pid": pid
     }
+    # Include progress data if available
+    if percent is not None:
+        status["percent"] = round(percent, 1)
+    if eta_seconds is not None:
+        status["eta_seconds"] = round(eta_seconds)
+    if resolution is not None:
+        status["resolution"] = resolution
+    tmp_file = status_file.with_suffix(f"{status_file.suffix}.tmp")
     try:
-        with open(status_file, 'w') as f:
+        with open(tmp_file, 'w') as f:
             json.dump(status, f)
+        # Atomic replace prevents readers from seeing partial JSON.
+        os.replace(tmp_file, status_file)
     except Exception as e:
         logger.warning(f"Failed to write transcoding status: {e}")
+        try:
+            if tmp_file.exists():
+                os.remove(tmp_file)
+        except Exception:
+            pass
 
 def read_transcoding_status(data_path: Path) -> dict:
     """
@@ -109,7 +140,7 @@ def read_transcoding_status(data_path: Path) -> dict:
     Returns default values if file doesn't exist or is invalid.
     """
     status_file = data_path / TRANSCODING_STATUS_FILE
-    default_status = {"is_running": False, "current": 0, "total": 0, "current_video": None}
+    default_status = {"is_running": False, "current": 0, "total": 0, "current_video": None, "pid": None}
 
     if not status_file.exists():
         return default_status
@@ -523,9 +554,79 @@ def _get_encoder_candidates(use_gpu=False, encoder_preference='auto'):
             return [h264_nvenc, av1_nvenc, h264_cpu, av1_cpu]
         return [h264_cpu, av1_cpu]
 
-def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None):
-    """Run an FFmpeg command with timeout support."""
-    return sp.run(cmd, timeout=timeout_seconds)
+def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_path=None):
+    """
+    Run an FFmpeg command with real-time progress tracking via -progress flag.
+
+    If data_path is provided, reads the existing status file and updates it with
+    percent/speed. Progress is throttled to every 0.5 seconds to avoid I/O overhead.
+    """
+    # Insert -progress pipe:1 before output file (last arg)
+    cmd_with_progress = cmd[:-1] + ['-progress', 'pipe:1'] + [cmd[-1]]
+
+    process = sp.Popen(cmd_with_progress, stdout=sp.PIPE, stderr=sp.PIPE, text=True)
+    last_update = 0
+    speed = None
+    percent = None
+    current_seconds = 0
+
+    # -progress outputs clean key=value lines:
+    # out_time_us=83450000
+    # speed=1.5x
+    # progress=continue
+    try:
+        for line in process.stdout:
+            line = line.strip()
+            if '=' not in line:
+                continue
+
+            key, value = line.split('=', 1)
+
+            if key == 'out_time_us' and total_duration:
+                try:
+                    current_us = int(value)
+                    current_seconds = current_us / 1_000_000
+                    percent = min(100, (current_seconds / total_duration) * 100)
+                except ValueError:
+                    pass
+
+            elif key == 'speed' and value.endswith('x'):
+                try:
+                    speed = float(value.rstrip('x'))
+                except ValueError:
+                    pass
+
+            elif key == 'progress':
+                # 'continue' or 'end' - good time to update status
+                now = time.time()
+                if now - last_update >= 0.5 and data_path and percent is not None:
+                    # Calculate ETA: remaining time / encoding speed
+                    eta_seconds = None
+                    if speed and speed > 0 and total_duration:
+                        remaining_seconds = total_duration - current_seconds
+                        eta_seconds = remaining_seconds / speed
+
+                    # Read existing status and update with progress
+                    existing = read_transcoding_status(data_path)
+                    write_transcoding_status(
+                        data_path,
+                        existing.get('current', 0),
+                        existing.get('total', 0),
+                        existing.get('current_video'),
+                        existing.get('pid'),
+                        percent,
+                        eta_seconds,
+                        existing.get('resolution')
+                    )
+                    last_update = now
+
+        process.wait(timeout=timeout_seconds)
+    except sp.TimeoutExpired:
+        process.kill()
+        process.wait()
+        raise
+
+    return process
 
 
 def _build_transcode_command(video_path, out_path, height, encoder):
@@ -542,7 +643,7 @@ def _build_transcode_command(video_path, out_path, height, encoder):
     
     return cmd
 
-def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout_seconds=None, encoder_preference='auto'):
+def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout_seconds=None, encoder_preference='auto', data_path=None):
     """
     Transcode a video to a specific height (e.g., 720, 1080) while maintaining aspect ratio.
     
@@ -605,7 +706,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
         logger.debug(f"$: {' '.join(cmd)}")
 
         try:
-            result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds)
+            result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds, data_path)
             if result.returncode == 0:
                 e = time.time()
                 logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
@@ -732,7 +833,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
         logger.debug(f"$: {' '.join(cmd)}")
 
         try:
-            result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds)
+            result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds, data_path)
             if result.returncode == 0:
                 # Success! Cache this encoder and return
                 logger.info(f"✓ {encoder['name']} works! Using it for all transcodes this session.")

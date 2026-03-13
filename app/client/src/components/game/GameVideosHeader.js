@@ -30,7 +30,7 @@ const GameVideosHeader = ({ game, height = 200 }) => (
         position: 'relative',
         height: '100%',
         display: 'flex',
-        justifyContent: 'flex-start',
+        justifyContent: { xs: 'center', sm: 'flex-start' },
         alignItems: 'center',
         px: 3,
       }}

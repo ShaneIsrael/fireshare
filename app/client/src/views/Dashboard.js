@@ -5,6 +5,7 @@ import {
   Grid,
   IconButton,
   Button,
+  ButtonGroup,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -12,43 +13,40 @@ import {
   Typography,
   Autocomplete,
   TextField,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import CheckIcon from '@mui/icons-material/Check'
 import LinkIcon from '@mui/icons-material/Link'
-import VideoCards from '../components/admin/VideoCards'
-import VideoList from '../components/admin/VideoList'
+import VideoCards from '../components/cards/VideoCards'
 import GameSearch from '../components/game/GameSearch'
 import { VideoService, GameService, ReleaseService } from '../services'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
-import { getSetting, setSetting } from '../common/utils'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
-import selectFolderTheme from '../common/reactSelectFolderTheme'
 import selectSortTheme from '../common/reactSelectSortTheme'
 import { SORT_OPTIONS } from '../common/constants'
 
-const createSelectFolders = (folders) => {
-  return folders.map((f) => ({ value: f, label: f }))
-}
-
-const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showReleaseNotes, releaseNotes: releaseNotesProp }) => {
+const Dashboard = ({
+  authenticated,
+  searchText,
+  cardSize,
+  showReleaseNotes,
+  releaseNotes: releaseNotesProp,
+  selectedFolder,
+  onFoldersLoaded,
+}) => {
   const [videos, setVideos] = React.useState([])
   const [search, setSearch] = React.useState(searchText)
   const [filteredVideos, setFilteredVideos] = React.useState([])
   const [loading, setLoading] = React.useState(true)
-  const [folders, setFolders] = React.useState(['All Videos'])
-  const [selectedFolder, setSelectedFolder] = React.useState(
-    getSetting('folder') || { value: 'All Videos', label: 'All Videos' },
-  )
   const [dateSortOrder, setDateSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
 
   const [alert, setAlert] = React.useState({ open: false })
 
   const [prevCardSize, setPrevCardSize] = React.useState(cardSize)
-  const [prevListStyle, setPrevListStyle] = React.useState(listStyle)
 
   // Edit mode state
   const [editMode, setEditMode] = React.useState(false)
@@ -61,6 +59,8 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
   const [featureAlertOpen, setFeatureAlertOpen] = React.useState(showReleaseNotes)
   const releaseNotes = releaseNotesProp
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
+  const theme = useTheme()
+  const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
 
   if (searchText !== search) {
     setSearch(searchText)
@@ -68,9 +68,6 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
   }
   if (cardSize !== prevCardSize) {
     setPrevCardSize(cardSize)
-  }
-  if (listStyle !== prevListStyle) {
-    setPrevListStyle(listStyle)
   }
 
   function fetchVideos() {
@@ -89,7 +86,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
           }
         })
         tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
-        setFolders(tfolders)
+        if (onFoldersLoaded) onFoldersLoaded(tfolders)
         setLoading(false)
       })
       .catch((err) => {
@@ -112,6 +109,14 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
 
+  // Hide search bar when in edit mode on md and smaller
+  React.useEffect(() => {
+    const searchContainer = document.getElementById('navbar-search-container')
+    if (searchContainer) {
+      searchContainer.style.display = editMode && isMdDown ? 'none' : ''
+    }
+  }, [editMode, isMdDown])
+
   const handleFeatureAlertClose = () => {
     if (releaseNotes?.version && authenticated) {
       ReleaseService.setLastSeenVersion(releaseNotes.version).catch(() => {})
@@ -119,19 +124,12 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
     setFeatureAlertOpen(false)
   }
 
-  const handleFolderSelection = (folder) => {
-    setSetting('folder', folder)
-    setSelectedFolder(folder)
-  }
-
-  // Check if date grouping should be shown
-  const showDateGroups = getSetting('ui_config')?.show_date_groups !== false
-  const isSortingByViews = dateSortOrder.value === 'most_views' || dateSortOrder.value === 'least_views'
-  const skipDateGrouping = isSortingByViews || !showDateGroups
+  // Use folder from Navbar props (falls back to All Videos)
+  const folder = selectedFolder || { value: 'All Videos', label: 'All Videos' }
 
   // Get the filtered videos based on folder selection
   const displayVideos = React.useMemo(() => {
-    if (selectedFolder.value === 'All Videos') {
+    if (folder.value === 'All Videos') {
       return filteredVideos
     }
     return filteredVideos?.filter(
@@ -139,9 +137,9 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
         v.path
           .split('/')
           .slice(0, -1)
-          .filter((f) => f !== '')[0] === selectedFolder.value,
+          .filter((f) => f !== '')[0] === folder.value,
     )
-  }, [filteredVideos, selectedFolder])
+  }, [filteredVideos, folder])
 
   // Sort videos by recorded date or views
   const sortedVideos = React.useMemo(() => {
@@ -244,9 +242,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
   const handleNewGameCreated = async (game) => {
     // Link all selected videos to the newly created game
     try {
-      const linkPromises = Array.from(selectedVideos).map((videoId) =>
-        GameService.linkVideoToGame(videoId, game.id),
-      )
+      const linkPromises = Array.from(selectedVideos).map((videoId) => GameService.linkVideoToGame(videoId, game.id))
       await Promise.all(linkPromises)
 
       setAlert({
@@ -310,84 +306,61 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      {toolbarTarget && ReactDOM.createPortal(
-        <Box sx={{ minWidth: 200 }}>
-          <Select
-            value={dateSortOrder}
-            options={SORT_OPTIONS}
-            onChange={setDateSortOrder}
-            styles={selectSortTheme}
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
-            blurInputOnSelect
-            isSearchable={false}
-          />
-        </Box>,
-        toolbarTarget,
-      )}
-      <Box sx={{ height: '100%' }}>
-        <Grid container item justifyContent="center">
-          <Grid item xs={12}>
-            <Grid container justifyContent="center">
-              <Grid item xs={11} sm={9} md={7} lg={5} sx={{ mb: 2 }}>
+      {toolbarTarget &&
+        ReactDOM.createPortal(
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {!(editMode && isMdDown) && (
+              <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
                 <Select
-                  value={selectedFolder}
-                  options={createSelectFolders(folders)}
-                  onChange={handleFolderSelection}
-                  styles={selectFolderTheme}
+                  value={dateSortOrder}
+                  options={SORT_OPTIONS}
+                  onChange={setDateSortOrder}
+                  styles={selectSortTheme}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
                   blurInputOnSelect
                   isSearchable={false}
                 />
-              </Grid>
-            </Grid>
-            {/* Edit mode buttons */}
+              </Box>
+            )}
             {authenticated && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2, gap: 2, px: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {editMode && (
-                  <Box sx={{ display: 'flex' }}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={handleSelectAllToggle}
-                      sx={{
-                        borderRadius: '8px 0 0 8px',
-                      }}
-                    >
+                  <ButtonGroup
+                    variant="contained"
+                    sx={{
+                      height: 38,
+                      minWidth: 'fit-content',
+                    }}
+                  >
+                    <Button color="primary" onClick={handleSelectAllToggle}>
                       {allSelected ? 'Select None' : 'Select All'}
                     </Button>
                     <Button
-                      variant="contained"
                       color="primary"
                       startIcon={<LinkIcon />}
                       onClick={handleLinkGameClick}
                       disabled={selectedVideos.size === 0}
-                      sx={{
-                        borderRadius: 0,
-                      }}
                     >
-                      Link to Game {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                      Link to Game {selectedVideos.size > 0 && !isMdDown && `(${selectedVideos.size})`}
                     </Button>
                     <Button
-                      variant="contained"
                       color="error"
                       startIcon={<DeleteIcon />}
                       onClick={handleDeleteClick}
                       disabled={selectedVideos.size === 0}
-                      sx={{
-                        borderRadius: '0 8px 8px 0',
-                      }}
                     >
-                      Delete {selectedVideos.size > 0 && `(${selectedVideos.size})`}
+                      Delete {selectedVideos.size > 0 && !isMdDown && `(${selectedVideos.size})`}
                     </Button>
-                  </Box>
+                  </ButtonGroup>
                 )}
                 <IconButton
                   onClick={handleEditModeToggle}
                   sx={{
-                    bgcolor: editMode ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
+                    bgcolor: editMode ? 'primary.main' : '#001E3C',
                     borderRadius: '8px',
-                    width: '40px',
-                    height: '40px',
+                    height: '38px',
+                    border: !editMode ? '1px solid #2684FF' : 'none',
                     '&:hover': {
                       bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
                     },
@@ -397,30 +370,25 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
                 </IconButton>
               </Box>
             )}
+          </Box>,
+          toolbarTarget,
+        )}
+      <Box>
+        <Grid container item justifyContent="center">
+          <Grid item xs={12}>
             <Box>
-              {listStyle === 'list' && (
-                <VideoList
-                  authenticated={authenticated}
-                  loadingIcon={loading ? <LoadingSpinner /> : null}
-                  videos={displayVideos}
-                />
-              )}
-              {listStyle === 'card' && (
-                <Box>
-                  {!loading && (
-                    <VideoCards
-                      videos={sortedVideos}
-                      authenticated={authenticated}
-                      size={cardSize}
-                      showUploadCard={selectedFolder.value === 'All Videos'}
-                      editMode={editMode}
-                      selectedVideos={selectedVideos}
-                      onVideoSelect={handleVideoSelect}
-                      showDateHeaders={!skipDateGrouping}
-                    />
-                  )}
-                </Box>
-              )}
+              <Box>
+                {!loading && (
+                  <VideoCards
+                    videos={sortedVideos}
+                    authenticated={authenticated}
+                    size={cardSize}
+                    editMode={editMode}
+                    selectedVideos={selectedVideos}
+                    onVideoSelect={handleVideoSelect}
+                  />
+                )}
+              </Box>
             </Box>
           </Grid>
         </Grid>
@@ -447,7 +415,9 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
 
       {/* Link to Game Dialog */}
       <Dialog open={linkGameDialogOpen} onClose={handleLinkGameCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>Link {selectedVideos.size} Clip{selectedVideos.size !== 1 ? 's' : ''} to Game</DialogTitle>
+        <DialogTitle>
+          Link {selectedVideos.size} Clip{selectedVideos.size !== 1 ? 's' : ''} to Game
+        </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           {!showAddNewGame ? (
             <>
@@ -477,7 +447,11 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
                     }}
                   >
                     {option.icon_url && (
-                      <img src={option.icon_url} alt={option.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+                      <img
+                        src={option.icon_url}
+                        alt={option.name}
+                        style={{ width: 32, height: 32, objectFit: 'contain' }}
+                      />
                     )}
                     <Typography>{option.name}</Typography>
                   </Box>
@@ -495,6 +469,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
                     message: err.response?.data || 'Error adding game',
                   })
                 }
+                onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
                 placeholder="Search SteamGridDB..."
               />
             </>
@@ -517,9 +492,9 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
 
       {/* Release Notes Dialog */}
       <Dialog open={featureAlertOpen} onClose={handleFeatureAlertClose} maxWidth="sm" scroll="paper">
-        <DialogTitle>
-          {releaseNotes?.name || `Update ${releaseNotes?.version}`}
-        </DialogTitle>
+        <DialogTitle
+          sx={{ fontSize: 18, fontWeight: 'bold', color: 'primary.main', textTransform: 'uppercase' }}
+        >{`New Update Available - v${releaseNotes?.version}`}</DialogTitle>
         <DialogContent sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <Box
             sx={{
@@ -535,16 +510,26 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
                     // Escape HTML first
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
-                    // Remove @username mentions
-                    .replace(/@[\w-]+/g, '')
                     // Headers
                     .replace(/^## (.+)$/gm, '<strong style="font-size: 1.1em;">$1</strong>')
                     .replace(/^### (.+)$/gm, '<strong>$1</strong>')
                     // Bold
                     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                     // Links
-                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+                    .replace(
+                      /\[([^\]]+)\]\(([^)]+)\)/g,
+                      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+                    )
                     .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+                    // Unordered lists
+                    .replace(/(?:^|\n)([*\-] .+(?:\n[*\-] .+)*)/g, (match) => {
+                      const items = match
+                        .trim()
+                        .split('\n')
+                        .map((li) => `<li>${li.replace(/^[*\-] /, '')}</li>`)
+                        .join('')
+                      return `<ul>${items}</ul>`
+                    })
                     // Line breaks
                     .replace(/\n\n/g, '</p><p>')
                     .replace(/\n/g, '<br/>')
@@ -555,12 +540,7 @@ const Dashboard = ({ authenticated, searchText, cardSize, listStyle, showRelease
           />
           {releaseNotes?.html_url && (
             <Typography variant="caption" sx={{ display: 'block', mt: 2 }}>
-              <a
-                href={releaseNotes.html_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'inherit' }}
-              >
+              <a href={releaseNotes.html_url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
                 View full release on GitHub
               </a>
             </Typography>

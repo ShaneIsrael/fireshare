@@ -4,11 +4,10 @@ import { Box } from '@mui/material'
 import { useParams } from 'react-router-dom'
 import Select from 'react-select'
 import { GameService } from '../services'
-import VideoCards from '../components/admin/VideoCards'
+import VideoCards from '../components/cards/VideoCards'
 import GameVideosHeader from '../components/game/GameVideosHeader'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { SORT_OPTIONS } from '../common/constants'
-import { getSetting } from '../common/utils'
 import selectSortTheme from '../common/reactSelectSortTheme'
 
 const GameVideos = ({ cardSize, authenticated, searchText }) => {
@@ -28,12 +27,9 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
   }
 
   React.useEffect(() => {
-    Promise.all([
-      GameService.getGames(),
-      GameService.getGameVideos(gameId)
-    ])
+    Promise.all([GameService.getGames(), GameService.getGameVideos(gameId)])
       .then(([gamesRes, videosRes]) => {
-        const foundGame = gamesRes.data.find(g => g.steamgriddb_id === parseInt(gameId))
+        const foundGame = gamesRes.data.find((g) => g.steamgriddb_id === parseInt(gameId))
         setGame(foundGame)
         const fetchedVideos = videosRes.data || []
         setVideos(fetchedVideos)
@@ -50,12 +46,6 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
 
-
-  // Check if date grouping should be shown
-  const showDateGroups = getSetting('ui_config')?.show_date_groups !== false
-  const isSortingByViews = sortOrder.value === 'most_views' || sortOrder.value === 'least_views'
-  const skipDateGrouping = isSortingByViews || !showDateGroups
-
   const sortedVideos = React.useMemo(() => {
     if (!filteredVideos || !Array.isArray(filteredVideos)) return []
     return [...filteredVideos].sort((a, b) => {
@@ -71,38 +61,29 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     })
   }, [filteredVideos, sortOrder])
 
-
   if (loading) return <LoadingSpinner />
 
   return (
     <Box>
-      {toolbarTarget && ReactDOM.createPortal(
-        <Box sx={{ minWidth: 200 }}>
-          <Select
-            value={sortOrder}
-            options={SORT_OPTIONS}
-            onChange={setSortOrder}
-            styles={selectSortTheme}
-            menuPortalTarget={document.body}
-            menuPosition="fixed"
-            blurInputOnSelect
-            isSearchable={false}
-          />
-        </Box>,
-        toolbarTarget,
-      )}
-      <GameVideosHeader
-        game={game}
-      />
+      {toolbarTarget &&
+        ReactDOM.createPortal(
+          <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+            <Select
+              value={sortOrder}
+              options={SORT_OPTIONS}
+              onChange={setSortOrder}
+              styles={selectSortTheme}
+              menuPortalTarget={document.body}
+              menuPosition="fixed"
+              blurInputOnSelect
+              isSearchable={false}
+            />
+          </Box>,
+          toolbarTarget,
+        )}
+      <GameVideosHeader game={game} />
       <Box sx={{ p: 3 }}>
-
-        <VideoCards
-          videos={sortedVideos}
-          authenticated={authenticated}
-          size={cardSize}
-          feedView={false}
-          showDateHeaders={!skipDateGrouping}
-        />
+        <VideoCards videos={sortedVideos} authenticated={authenticated} size={cardSize} feedView={false} />
       </Box>
     </Box>
   )

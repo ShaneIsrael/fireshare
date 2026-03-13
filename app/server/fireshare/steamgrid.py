@@ -262,15 +262,7 @@ class SteamGridDBClient:
             logos = self.get_logos(game_id, limit=1)
             icons = self.get_icons(game_id, limit=1)
 
-            # Require at least 1 hero
-            if not heroes:
-                return {
-                    "success": False,
-                    "error": "No hero images available for this game",
-                    "assets": {"heroes": 0, "logos": 0, "icons": 0}
-                }
-
-            # Download heroes
+            # Download heroes (optional)
             hero_count = 0
             for i, hero in enumerate(heroes[:2], 1):
                 url = hero.get("url")
@@ -279,8 +271,7 @@ class SteamGridDBClient:
                     temp_path = temp_dir / f"hero_{i}{ext}"
                     if self._download_asset(url, temp_path):
                         hero_count += 1
-                    else:
-                        raise Exception(f"Failed to download hero_{i}")
+                    # Don't fail if hero download fails, it's optional
 
             # Download logo (optional)
             logo_count = 0

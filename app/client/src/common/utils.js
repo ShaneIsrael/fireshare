@@ -1,10 +1,13 @@
 import React from 'react'
 
-let isLocalhost = (window.location.hostname.indexOf('localhost') >= 0 || window.location.hostname.indexOf('127.0.0.1') >= 0) && window.location.port !== '';
+let isLocalhost =
+  (window.location.hostname.indexOf('localhost') >= 0 || window.location.hostname.indexOf('127.0.0.1') >= 0) &&
+  window.location.port !== ''
 export const getServedBy = () => {
-  return isLocalhost
-    ? 'flask'
-    : 'nginx'
+  // When running `react-scripts start` over LAN IP, hostname is not localhost
+  // but static content is still served by the dev server proxy, not nginx.
+  const isDevClient = process.env.NODE_ENV === 'development' && window.location.port !== ''
+  return isLocalhost || isDevClient ? 'flask' : 'nginx'
 }
 
 export const getUrl = () => {
@@ -115,14 +118,14 @@ export const copyToClipboard = (textToCopy) => {
 export const getVideoUrl = (videoId, quality, extension) => {
   const URL = getUrl()
   const SERVED_BY = getServedBy()
-  
+
   if (quality === '480p' || quality === '720p' || quality === '1080p') {
     if (SERVED_BY === 'nginx') {
       return `${URL}/_content/derived/${videoId}/${videoId}-${quality}.mp4`
     }
     return `${URL}/api/video?id=${videoId}&quality=${quality}`
   }
-  
+
   // Original quality
   if (SERVED_BY === 'nginx') {
     const videoPath = getVideoPath(videoId, extension)
@@ -146,11 +149,18 @@ export const getVideoSources = (videoId, videoInfo, extension) => {
   const has720p = videoInfo?.has_720p
   const has1080p = videoInfo?.has_1080p
 
-  if (has480p) {
+  sources.push({
+    src: getVideoUrl(videoId, 'original', extension),
+    type: 'video/mp4',
+    label: 'Source',
+    selected: true,
+  })
+
+  if (has1080p) {
     sources.push({
-      src: getVideoUrl(videoId, '480p', extension),
+      src: getVideoUrl(videoId, '1080p', extension),
       type: 'video/mp4',
-      label: '480p',
+      label: '1080p',
     })
   }
 
@@ -162,20 +172,13 @@ export const getVideoSources = (videoId, videoInfo, extension) => {
     })
   }
 
-  if (has1080p) {
+  if (has480p) {
     sources.push({
-      src: getVideoUrl(videoId, '1080p', extension),
+      src: getVideoUrl(videoId, '480p', extension),
       type: 'video/mp4',
-      label: '1080p',
+      label: '480p',
     })
   }
-
-  sources.push({
-    src: getVideoUrl(videoId, 'original', extension),
-    type: 'video/mp4',
-    label: 'Original',
-    selected: true,
-  })
 
   return sources
 }
