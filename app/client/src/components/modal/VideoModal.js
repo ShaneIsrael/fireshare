@@ -401,7 +401,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             outline: 'none',
             display: 'flex',
             height: '100%',
-            alignItems: 'center',
+            alignItems: { xs: 'flex-start', md: 'center' },
             justifyContent: 'center',
             // Full-screen on small viewports, padded on desktop
             p: { xs: 0, md: '96px' },
@@ -414,19 +414,19 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            style={{ display: 'flex', width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }}
+            style={{ display: 'flex', width: '100%', maxWidth: '100%', maxHeight: '100%' }}
           >
             <Paper
               sx={{
-                borderRadius: { xs: 0, md: '2rem' },
+                borderRadius: { xs: 0, md: '8px' },
                 overflow: 'hidden',
                 boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
                 bgcolor: '#020D1A',
                 display: 'flex',
                 flexDirection: { xs: 'column', md: 'row' },
-                // Small: fill entire screen. Desktop: sized to video AR.
+                // Small: auto-height so it can be vertically centred. Desktop: sized to video AR.
                 width: { xs: '100%', md: 'auto' },
-                height: { xs: '100%', md: videoH_css },
+                height: { xs: 'auto', md: videoH_css },
                 maxHeight: '100%',
                 maxWidth: '100%',
               }}
@@ -441,9 +441,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   width: { xs: '100%', md: videoW_css },
                   height: { xs: 'auto', md: '100%' },
                   aspectRatio: { xs: `${vid?.info?.width || 16} / ${vid?.info?.height || 9}`, md: 'initial' },
-                  // Override VideoJS default 2rem border-radius responsively
+                  // Override VideoJS default 8px border-radius responsively
                   '& > div': {
-                    borderRadius: { xs: '0 !important', md: '2rem 0 0 2rem !important' },
+                    borderRadius: { xs: '0 !important', md: '8px 0 0 8px !important' },
                   },
                 }}
               >
@@ -555,6 +555,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                           color: 'white',
                           lineHeight: 1.3,
                           letterSpacing: '-0.03em',
+                          overflowX: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {title || 'Untitled'}

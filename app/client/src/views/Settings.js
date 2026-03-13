@@ -38,13 +38,13 @@ import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 
 import _ from 'lodash'
-import WarningService from "../services/WarningService";
+import WarningService from '../services/WarningService'
 import adminSSE from '../services/AdminSSE'
 
 const isValidDiscordWebhook = (url) => {
-  const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/;
-  return regex.test(url);
-};
+  const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/
+  return regex.test(url)
+}
 
 const Settings = () => {
   const [alert, setAlert] = React.useState({ open: false })
@@ -69,10 +69,7 @@ const Settings = () => {
     async function fetch() {
       try {
         // Fetch folder rules in parallel with config
-        const [conf, rulesRes] = await Promise.all([
-          ConfigService.getAdminConfig(),
-          GameService.getFolderRules(),
-        ])
+        const [conf, rulesRes] = await Promise.all([ConfigService.getAdminConfig(), GameService.getFolderRules()])
         setConfig(conf.data)
         setUpdatedConfig(conf.data)
         setFolderRules(rulesRes.data)
@@ -131,7 +128,7 @@ const Settings = () => {
     setAlert({
       open: true,
       type: 'info',
-      message: 'URL copied to clipboard'
+      message: 'URL copied to clipboard',
     })
   }
 
@@ -239,8 +236,7 @@ const Settings = () => {
   const checkForWarnings = async () => {
     let warnings = await WarningService.getAdminWarnings()
 
-    if (Object.keys(warnings.data).length === 0)
-      return;
+    if (Object.keys(warnings.data).length === 0) return
 
     for (const warning of warnings.data) {
       // Check if this is the SteamGridDB warning
@@ -254,12 +250,14 @@ const Settings = () => {
               <a
                 href="#steamgrid-settings"
                 onClick={(e) => {
-                  e.preventDefault();
-                  setActiveTab(3);
+                  e.preventDefault()
+                  setActiveTab(3)
                   setTimeout(() => {
-                    document.getElementById('steamgrid-api-key-field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    document.getElementById('steamgrid-api-key-field')?.focus();
-                  }, 100);
+                    document
+                      .getElementById('steamgrid-api-key-field')
+                      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    document.getElementById('steamgrid-api-key-field')?.focus()
+                  }, 100)
                 }}
                 style={{ color: '#2684FF', textDecoration: 'underline', cursor: 'pointer', marginLeft: '4px' }}
               >
@@ -267,15 +265,15 @@ const Settings = () => {
               </a>
             </span>
           ),
-        });
+        })
       } else {
         setAlert({
           open: true,
           type: 'warning',
           message: warning,
-        });
+        })
       }
-      await new Promise(r => setTimeout(r, 2000)); //Without this a second Warning would instantly overwrite the first...
+      await new Promise((r) => setTimeout(r, 2000)) //Without this a second Warning would instantly overwrite the first...
     }
   }
 
@@ -412,8 +410,8 @@ const Settings = () => {
                           ...prev,
                           ui_config: {
                             ...prev.ui_config,
-                            autoplay: e.target.checked
-                          }
+                            autoplay: e.target.checked,
+                          },
                         }))
                       }
                     />
@@ -576,33 +574,21 @@ const Settings = () => {
             {activeTab === 3 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Transcoding will convert your videos to multiple quality levels to allow for additional quality selection options when streaming from Fireshare.
+                  Transcoding will convert your videos to multiple quality levels to allow for additional quality
+                  selection options when streaming from Fireshare.
                 </Typography>
                 {!transcodingStatus.enabled ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                     <Tooltip title="Set ENABLE_TRANSCODING=true in your docker container to enable.">
-                      <Chip
-                        label="Disabled"
-                        color="error"
-                        size="small"
-                        sx={{ cursor: 'default'}}
-                      />
+                      <Chip label="Disabled" color="error" size="small" sx={{ cursor: 'default' }} />
                     </Tooltip>
                   </Box>
                 ) : (
                   <>
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mb: 1 }}>
-                      <Chip
-                        label="Enabled"
-                        color="success"
-                        size="small"
-                      />
-                      {transcodingStatus.gpu_enabled && (
-                        <Chip label="GPU Enabled" color="info" size="small" />
-                      )}
-                      {transcodingStatus.is_running && (
-                        <Chip label="Running" color="warning" size="small" />
-                      )}
+                      <Chip label="Enabled" color="success" size="small" />
+                      {transcodingStatus.gpu_enabled && <Chip label="GPU Enabled" color="info" size="small" />}
+                      {transcodingStatus.is_running && <Chip label="Running" color="warning" size="small" />}
                     </Box>
                     <FormControl fullWidth size="small">
                       <InputLabel variant="standard" htmlFor="encoder-preference">
@@ -773,7 +759,8 @@ const Settings = () => {
                     Folder Rules
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Clips in these folders will be linked to the selected game. Modify these if your setup is not detected automatically.
+                    Clips in these folders will be linked to the selected game. Modify these if your setup is not
+                    detected automatically.
                   </Typography>
                 </Box>
                 {folderRules.length === 0 ? (
@@ -810,7 +797,9 @@ const Settings = () => {
                                     <GameSearch
                                       placeholder="Search for a game..."
                                       onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
-                                      onError={() => setAlert({ open: true, type: 'error', message: 'Failed to search games' })}
+                                      onError={() =>
+                                        setAlert({ open: true, type: 'error', message: 'Failed to search games' })
+                                      }
                                     />
                                   </Box>
                                   <IconButton
@@ -885,12 +874,8 @@ const Settings = () => {
                     setDeleteMenuRuleId(null)
                   }}
                 >
-                  <MenuItem onClick={() => handleDeleteFolderRule(false)}>
-                    Delete rule only
-                  </MenuItem>
-                  <MenuItem onClick={() => handleDeleteFolderRule(true)}>
-                    Delete rule & unlink videos
-                  </MenuItem>
+                  <MenuItem onClick={() => handleDeleteFolderRule(false)}>Delete rule only</MenuItem>
+                  <MenuItem onClick={() => handleDeleteFolderRule(true)}>Delete rule & unlink videos</MenuItem>
                 </Menu>
               </Stack>
             )}
@@ -898,13 +883,31 @@ const Settings = () => {
             {/* Actions */}
             {activeTab === 6 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
-                <Button variant="contained" startIcon={<SensorsIcon />} onClick={handleScan} size='large' sx={{ width: 400}}>
+                <Button
+                  variant="contained"
+                  startIcon={<SensorsIcon />}
+                  onClick={handleScan}
+                  size="large"
+                  sx={{ width: '100%', maxWidth: 400 }}
+                >
                   Scan for New Videos
                 </Button>
-                <Button variant="contained" startIcon={<SportsEsportsIcon />} onClick={handleScanGames} size='large' sx={{ width: 400}}>
+                <Button
+                  variant="contained"
+                  startIcon={<SportsEsportsIcon />}
+                  onClick={handleScanGames}
+                  size="large"
+                  sx={{ width: '100%', maxWidth: 400 }}
+                >
                   Scan for Missing Games
                 </Button>
-                <Button variant="contained" startIcon={<CalendarMonthIcon />} onClick={handleScanDates} size='large' sx={{ width: 400}}>
+                <Button
+                  variant="contained"
+                  startIcon={<CalendarMonthIcon />}
+                  onClick={handleScanDates}
+                  size="large"
+                  sx={{ width: '100%', maxWidth: 400 }}
+                >
                   Scan for Missing Dates
                 </Button>
               </Stack>

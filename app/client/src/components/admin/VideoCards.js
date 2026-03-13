@@ -24,14 +24,10 @@ const BetaVideoCards = ({
   })
   const [isSingleColumn, setIsSingleColumn] = React.useState(false)
   const containerRef = React.useRef()
-  const previousVideosRef = React.useRef()
-  const previousVideos = previousVideosRef.current
-  if (videos !== previousVideos && videos !== vids) {
-    setVideos(videos)
-  }
+
   React.useEffect(() => {
-    previousVideosRef.current = videos
-  })
+    setVideos(videos || [])
+  }, [videos])
 
   const openVideo = (id) => {
     setVideoModal({
@@ -73,15 +69,24 @@ const BetaVideoCards = ({
   }
 
   React.useEffect(() => {
+    if (!vids || vids.length === 0) {
+      setIsSingleColumn(false)
+      return
+    }
+
     const el = containerRef.current
     if (!el) return
+
     const observer = new ResizeObserver(([entry]) => {
-      const single = entry.contentRect.width < size * 2 + 24
+      const width = entry?.contentRect?.width || 0
+      if (!width) return
+      const single = width < size * 2 + 24
       setIsSingleColumn(single)
     })
+
     observer.observe(el)
     return () => observer.disconnect()
-  }, [size])
+  }, [size, vids])
 
   const EMPTY_STATE = () => (
     <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
@@ -175,7 +180,6 @@ const BetaVideoCards = ({
                 selected={selectedVideos.has(v.video_id)}
                 onSelect={onVideoSelect}
                 onDelete={handleDelete}
-                fullWidth={isSingleColumn}
               />
             </motion.div>
           ))}
