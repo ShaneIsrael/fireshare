@@ -256,6 +256,7 @@ const Games = ({ authenticated, searchText }) => {
                     <Box
                       component="img"
                       src={game.hero_url}
+                      onError={(e) => { e.currentTarget.style.display = 'none' }}
                       sx={{
                         width: '100%',
                         height: '100%',
@@ -271,6 +272,7 @@ const Games = ({ authenticated, searchText }) => {
                     <Box
                       component="img"
                       src={game.logo_url}
+                      onError={(e) => { e.currentTarget.style.display = 'none' }}
                       sx={{
                         position: 'absolute',
                         top: '50%',

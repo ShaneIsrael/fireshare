@@ -6,7 +6,7 @@ import { GameService } from '../../services'
  * Reusable game search autocomplete component
  * Searches SteamGridDB, creates game if needed, and calls onGameLinked callback
  */
-const GameSearch = ({ onGameLinked, onError, disabled = false, placeholder = 'Search for a game...', sx = {} }) => {
+const GameSearch = ({ onGameLinked, onError, onWarning, disabled = false, placeholder = 'Search for a game...', sx = {} }) => {
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [gameOptions, setGameOptions] = React.useState([])
   const [gameSearchLoading, setGameSearchLoading] = React.useState(false)
@@ -40,6 +40,7 @@ const GameSearch = ({ onGameLinked, onError, disabled = false, placeholder = 'Se
       // Check if game already exists
       const allGames = (await GameService.getGames()).data
       let game = allGames.find((g) => g.steamgriddb_id === newValue.id)
+      let pendingWarning = null
 
       if (!game) {
         // Create the game
@@ -54,12 +55,27 @@ const GameSearch = ({ onGameLinked, onError, disabled = false, placeholder = 'Se
           logo_url: assets.logo_url,
           icon_url: assets.icon_url,
         }
-        game = (await GameService.createGame(gameData)).data
+        const created = (await GameService.createGame(gameData)).data
+        if (created.missing_assets?.length) {
+          const labels = { heroes: 'hero art', logos: 'logo', icons: 'icon' }
+          const missing = created.missing_assets.map((k) => labels[k] || k)
+          const missingStr =
+            missing.length > 1
+              ? missing.slice(0, -1).join(', ') + ' and ' + missing[missing.length - 1]
+              : missing[0]
+          const verb = missing.length > 1 ? 'were' : 'was'
+          pendingWarning = `No ${missingStr} ${verb} available on SteamGridDB.`
+        }
+        game = created
       }
 
-      // Call the callback with the game
+      // Call the callback with the game, passing any warning as a second argument
+      // so callers that fire their own success alert can merge the two messages
       if (onGameLinked) {
-        onGameLinked(game)
+        onGameLinked(game, pendingWarning)
+      }
+      if (pendingWarning && onWarning) {
+        onWarning(pendingWarning)
       }
 
       // Reset the autocomplete

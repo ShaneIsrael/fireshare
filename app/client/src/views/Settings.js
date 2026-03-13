@@ -800,6 +800,7 @@ const Settings = () => {
                                       onError={() =>
                                         setAlert({ open: true, type: 'error', message: 'Failed to search games' })
                                       }
+                                      onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
                                     />
                                   </Box>
                                   <IconButton
