@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { motion } from 'framer-motion'
 import {
   Box,
   Grid,
@@ -26,8 +27,6 @@ import LoadingSpinner from '../components/misc/LoadingSpinner'
 const Games = ({ authenticated, searchText }) => {
   const [games, setGames] = React.useState([])
   const [loading, setLoading] = React.useState(true)
-  const [hoveredGame, setHoveredGame] = React.useState(null)
-  const [mousePos, setMousePos] = React.useState({ x: 0, y: 0 })
   const [editMode, setEditMode] = React.useState(false)
   const [selectedGames, setSelectedGames] = React.useState(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
@@ -67,18 +66,6 @@ const Games = ({ authenticated, searchText }) => {
     }
   }, [editMode, isMdDown])
 
-  const handleMouseMove = (e, gameId) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / rect.width - 0.5
-    const y = (e.clientY - rect.top) / rect.height - 0.5
-    setMousePos({ x, y })
-    setHoveredGame(gameId)
-  }
-
-  const handleMouseLeave = () => {
-    setHoveredGame(null)
-    setMousePos({ x: 0, y: 0 })
-  }
 
   const handleEditModeToggle = () => {
     setEditMode(!editMode)
@@ -198,34 +185,30 @@ const Games = ({ authenticated, searchText }) => {
       <Grid container spacing={2}>
         {[...filteredGames]
           .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
-          .map((game) => {
-            const isHovered = hoveredGame === game.steamgriddb_id
-            const heroTransform = isHovered
-              ? `translate(${mousePos.x * -15}px, ${mousePos.y * -15}px) scale(1.1)`
-              : 'translate(0, 0) scale(1)'
-            const logoTransform = isHovered
-              ? `translate(calc(-50% + ${mousePos.x * 8}px), calc(-50% + ${mousePos.y * 8}px)) scale(1.05)`
-              : 'translate(-50%, -50%) scale(1)'
-
+          .map((game, index) => {
             const isSelected = selectedGames.has(game.steamgriddb_id)
 
             return (
               <Grid item xs={12} sm={6} md={4} key={game.id}>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                >
                 <Box
                   onClick={() => handleGameClick(game.steamgriddb_id)}
-                  onMouseMove={(e) => handleMouseMove(e, game.steamgriddb_id)}
-                  onMouseLeave={handleMouseLeave}
                   sx={{
                     position: 'relative',
                     height: 170,
                     borderRadius: 2,
                     overflow: 'hidden',
                     cursor: 'pointer',
-                    transition: 'box-shadow 0.3s ease, border 0.3s ease',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease',
                     border: isSelected ? '3px solid' : '3px solid transparent',
                     borderColor: isSelected ? 'primary.main' : 'transparent',
                     '&:hover': {
-                      boxShadow: '0 0 20px rgba(255, 255, 255, 0.5)',
+                      transform: 'scale(1.04)',
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                     },
                   }}
                 >
@@ -261,8 +244,6 @@ const Games = ({ authenticated, searchText }) => {
                         height: '100%',
                         objectFit: 'cover',
                         position: 'absolute',
-                        transform: heroTransform,
-                        transition: 'transform 0.2s ease-out',
                         filter: 'brightness(0.7)',
                       }}
                     />
@@ -275,16 +256,16 @@ const Games = ({ authenticated, searchText }) => {
                         position: 'absolute',
                         top: '50%',
                         left: '50%',
-                        transform: logoTransform,
+                        transform: 'translate(-50%, -50%)',
                         maxWidth: '65%',
                         maxHeight: '65%',
                         objectFit: 'contain',
                         zIndex: 1,
-                        transition: 'transform 0.2s ease-out',
                       }}
                     />
                   )}
                 </Box>
+                </motion.div>
               </Grid>
             )
           })}
