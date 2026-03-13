@@ -768,7 +768,7 @@ const Settings = () => {
                     No folders found.
                   </Typography>
                 ) : (
-                  <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 1 }}>
+                  <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
                     <Stack spacing={1}>
                       {folderRules.map((item) => (
                         <Box
@@ -778,16 +778,16 @@ const Settings = () => {
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             p: 1.5,
-                            borderRadius: 2,
-                            background: 'rgba(255, 255, 255, 0.05)',
+                            borderRadius: '8px',
+                            bgcolor: '#FFFFFF0D',
                           }}
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-                            <FolderIcon sx={{ color: 'rgba(255, 255, 255, 0.7)' }} />
+                            <FolderIcon sx={{ color: '#FFFFFF66' }} />
                             <Box sx={{ flex: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
                                 {item.folder_path}
-                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                                <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
                                   ({item.video_count} videos)
                                 </Typography>
                               </Typography>
@@ -805,16 +805,16 @@ const Settings = () => {
                                   <IconButton
                                     size="small"
                                     onClick={() => setEditingFolder(null)}
-                                    sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                                    sx={{ color: '#FFFFFF66' }}
                                   >
                                     <CloseIcon fontSize="small" />
                                   </IconButton>
                                 </Box>
                               ) : item.rule ? (
                                 <Typography
-                                  variant="caption"
                                   sx={{
-                                    color: 'primary.main',
+                                    fontSize: 12,
+                                    color: '#3399FF',
                                     cursor: 'pointer',
                                     '&:hover': { textDecoration: 'underline' },
                                   }}
@@ -824,9 +824,9 @@ const Settings = () => {
                                 </Typography>
                               ) : item.suggested_game ? (
                                 <Typography
-                                  variant="caption"
                                   sx={{
-                                    color: 'warning.main',
+                                    fontSize: 12,
+                                    color: '#FFB74D',
                                     cursor: 'pointer',
                                     '&:hover': { textDecoration: 'underline' },
                                   }}
@@ -836,9 +836,9 @@ const Settings = () => {
                                 </Typography>
                               ) : (
                                 <Typography
-                                  variant="caption"
                                   sx={{
-                                    color: 'text.secondary',
+                                    fontSize: 12,
+                                    color: '#FFFFFF55',
                                     cursor: 'pointer',
                                     '&:hover': { textDecoration: 'underline' },
                                   }}
@@ -856,7 +856,7 @@ const Settings = () => {
                                 setDeleteMenuAnchor(e.currentTarget)
                                 setDeleteMenuRuleId(item.rule.id)
                               }}
-                              sx={{ color: 'rgba(255, 255, 255, 0.5)' }}
+                              sx={{ color: '#FFFFFF66' }}
                             >
                               <MoreVertIcon fontSize="small" />
                             </IconButton>
@@ -915,7 +915,7 @@ const Settings = () => {
           </Box>
 
           {/* Save button pinned to bottom */}
-          {activeTab !== 6 && activeTab !== 7 && (
+          {activeTab !== 5 && activeTab !== 6 && activeTab !== 7 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
               <Button
