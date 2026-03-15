@@ -262,10 +262,16 @@ const VideoJSPlayer = ({
     return idx >= 0 ? idx : 0
   })
 
-  // Reset source index when the sources array identity changes (e.g. new video)
+  // Reset source index when the sources actually change (e.g. new video).
+  // Compare by src URLs rather than array reference to avoid resetting the
+  // user's quality selection when the parent re-renders with a new array
+  // that contains the same sources.
   const prevSourcesRef = useRef(sources)
   useEffect(() => {
-    if (sources !== prevSourcesRef.current) {
+    const prevSrcs = prevSourcesRef.current?.map((s) => s.src)
+    const nextSrcs = sources?.map((s) => s.src)
+    const changed = prevSrcs?.length !== nextSrcs?.length || prevSrcs?.some((s, i) => s !== nextSrcs[i])
+    if (changed) {
       prevSourcesRef.current = sources
       const idx = sources?.findIndex((s) => s.selected)
       setCurrentSourceIndex(idx >= 0 ? idx : 0)
