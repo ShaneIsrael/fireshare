@@ -15,29 +15,20 @@ usermod -o -u "$PUID" appuser
 
 # Set ownership of directories
 chown_fail=0
-chown -R appuser:appuser $DATA_DIRECTORY 2>/dev/null
-if [ $? -ne 0 ]; then
-    >&2 echo "ERROR: Could not chown the data directory ($DATA_DIRECTORY) to $PUID:$PGID."
+if ! chown -R appuser:appuser "$DATA_DIRECTORY" 2>/dev/null; then
+    >&2 echo "WARNING: Could not chown the data directory ($DATA_DIRECTORY) to $PUID:$PGID."
     >&2 echo "  Files created by Fireshare may not have the expected ownership."
     >&2 echo "  Make sure the container has permissions to access this directory."
     chown_fail=1
 fi
-chown -R appuser:appuser $VIDEO_DIRECTORY 2>/dev/null
-if [ $? -ne 0 ]; then
-    >&2 echo "ERROR: Could not chown the video directory ($VIDEO_DIRECTORY) to $PUID:$PGID."
-    >&2 echo "  Files created by Fireshare may not have the expected ownership."
-    >&2 echo "  Make sure the container has permissions to access this directory."
-    chown_fail=1
-fi
-chown -R appuser:appuser $PROCESSED_DIRECTORY 2>/dev/null
-if [ $? -ne 0 ]; then
-    >&2 echo "ERROR: Could not chown the processed directory ($PROCESSED_DIRECTORY) to $PUID:$PGID."
+if ! chown -R appuser:appuser "$PROCESSED_DIRECTORY" 2>/dev/null; then
+    >&2 echo "WARNING: Could not chown the processed directory ($PROCESSED_DIRECTORY) to $PUID:$PGID."
     >&2 echo "  Files created by Fireshare may not have the expected ownership."
     >&2 echo "  Make sure the container has permissions to access this directory."
     chown_fail=1
 fi
 if [ $chown_fail -eq 1 ]; then
-    >&2 echo "WARNING: One or more chown operations failed. Continuing anyway..."
+    >&2 echo "NOTE: One or more chown operations failed. Continuing startup..."
 fi
 
 echo '-------------------------------------'

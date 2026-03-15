@@ -12,7 +12,7 @@ const Input = styled('input')({
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-const UploadCard = ({ authenticated, handleAlert, mini}) => {
+const UploadCard = ({ authenticated, handleAlert, mini }) => {
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
@@ -69,10 +69,9 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
   }
 
   React.useEffect(() => {
+    if (!selectedFile) return
 
-    if (!selectedFile) return;
-
-    const chunkSize = 90 * 1024 * 1024; // 90MB chunk size
+    const chunkSize = 90 * 1024 * 1024 // 90MB chunk size
 
     async function upload() {
       const formData = new FormData()
@@ -103,31 +102,46 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
     }
 
     async function uploadChunked() {
-      if (!selectedFile) return;
+      if (!selectedFile) return
 
-      const totalChunks = Math.ceil(selectedFile.size / chunkSize);
-      
-      const fileInfo = `${selectedFile.name}-${selectedFile.size}-${selectedFile.lastModified}`;
-      const checksum = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fileInfo))
-        .then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join(''));
+      const totalChunks = Math.ceil(selectedFile.size / chunkSize)
+
+      const fileInfo = `${selectedFile.name}-${selectedFile.size}-${selectedFile.lastModified}`
+      let checksum
+      if (crypto.subtle) {
+        checksum = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fileInfo)).then((buf) =>
+          Array.from(new Uint8Array(buf))
+            .map((b) => b.toString(16).padStart(2, '0'))
+            .join(''),
+        )
+      } else {
+        // Fallback for non-secure contexts (plain HTTP over network IP).
+        // A simple hash is sufficient here — it only correlates upload chunks.
+        let h = 0
+        for (let i = 0; i < fileInfo.length; i++) {
+          h = (Math.imul(31, h) + fileInfo.charCodeAt(i)) | 0
+        }
+        checksum = (h >>> 0).toString(16).padStart(8, '0')
+      }
 
       try {
         for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-          const start = chunkIndex * chunkSize;
-          const end = Math.min(start + chunkSize, selectedFile.size);
-          const chunk = selectedFile.slice(start, end);
+          const start = chunkIndex * chunkSize
+          const end = Math.min(start + chunkSize, selectedFile.size)
+          const chunk = selectedFile.slice(start, end)
 
-          const formData = new FormData();
-          formData.append('blob', chunk, selectedFile.name);
-          formData.append('chunkPart', chunkIndex + 1);
-          formData.append('totalChunks', totalChunks);
-          formData.append('checkSum', checksum);
-          formData.append('fileName', selectedFile.name);
-          formData.append('fileSize', selectedFile.size.toString());
-          formData.append('lastModified', selectedFile.lastModified.toString());
-          formData.append('fileType', selectedFile.type);
+          const formData = new FormData()
+          formData.append('blob', chunk, selectedFile.name)
+          formData.append('chunkPart', chunkIndex + 1)
+          formData.append('totalChunks', totalChunks)
+          formData.append('checkSum', checksum)
+          formData.append('fileName', selectedFile.name)
+          formData.append('fileSize', selectedFile.size.toString())
+          formData.append('lastModified', selectedFile.lastModified.toString())
+          formData.append('fileType', selectedFile.type)
 
-          authenticated ? await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start) 
+          authenticated
+            ? await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
             : await VideoService.publicUploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
         }
 
@@ -137,24 +151,23 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
           autohideDuration: 3500,
           open: true,
           // onClose: () => fetchVideos(),
-        });
+        })
       } catch (err) {
         handleAlert({
           type: 'error',
           message: `An error occurred while uploading your video.`,
           open: true,
-        });
+        })
       }
 
-      setProgress(0);
-      setUploadRate(null);
-      setIsSelected(false);
+      setProgress(0)
+      setUploadRate(null)
+      setIsSelected(false)
     }
 
     if (selectedFile.size > chunkSize) {
       uploadChunked()
-    }
-    else {
+    } else {
       upload()
     }
     // eslint-disable-next-line
@@ -195,19 +208,32 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
               {progress === 0 && mini && progress === 0 && <CloudUploadIcon sx={{ fontSize: 20 }} />}
               {progress !== 0 && progress !== 1 && (
                 <>
-                  {!mini ?
-                    <> 
-                      <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                  {!mini ? (
+                    <>
+                      <Typography
+                        component="div"
+                        variant="overline"
+                        align="center"
+                        sx={{ fontWeight: 600, fontSize: 12 }}
+                      >
                         Uploading... {(100 * progress).toFixed(0)}%
                       </Typography>
                       <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
                         {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
                         {numberFormat.format(uploadRate.total.toFixed(0))} MB's
                       </Typography>
-                    </> : <Typography component="div" variant="overline" align="center" justifyItems="center" sx={{ fontWeight: 600, fontSize: 12 }}>
-                        {(100 * progress).toFixed(0)}%
+                    </>
+                  ) : (
+                    <Typography
+                      component="div"
+                      variant="overline"
+                      align="center"
+                      justifyItems="center"
+                      sx={{ fontWeight: 600, fontSize: 12 }}
+                    >
+                      {(100 * progress).toFixed(0)}%
                     </Typography>
-                  }
+                  )}
                 </>
               )}
               {progress === 1 && !mini && (
@@ -225,7 +251,13 @@ const UploadCard = ({ authenticated, handleAlert, mini}) => {
                 </Typography>
               )}
               {progress === 1 && mini && (
-                <Typography component="div" variant="overline" align="center" justifyItems="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                <Typography
+                  component="div"
+                  variant="overline"
+                  align="center"
+                  justifyItems="center"
+                  sx={{ fontWeight: 600, fontSize: 12 }}
+                >
                   100%
                 </Typography>
               )}
