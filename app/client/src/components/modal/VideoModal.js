@@ -17,10 +17,11 @@ import {
   getVideoSources,
   getSetting,
 } from '../../common/utils'
-import { ConfigService, VideoService, GameService } from '../../services'
+import { ConfigService, VideoService, GameService, TagService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../misc/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
+import TagInput from '../tags/TagInput'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -168,6 +169,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [editMode, setEditMode] = React.useState(false)
   const [gamePillColor, setGamePillColor] = React.useState(null)
+  const [tags, setTags] = React.useState([])
 
   const playerRef = React.useRef()
 
@@ -274,6 +276,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         setTitle(details.info?.title)
         setDescription(details.info?.description)
         setPrivateView(details.info?.private)
+        setTags(details.tags || [])
         setUpdatable(false)
         if (details.recorded_at) {
           const d = new Date(details.recorded_at)
@@ -301,6 +304,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setSelectedGame(null)
       setSelectedDate(null)
       setSelectedTime('')
+      setTags([])
       setEditMode(false)
       fetch()
     }
@@ -351,6 +355,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     if (updateable && authenticated) {
       try {
         await VideoService.updateDetails(vid.video_id, { title, description, recorded_at: getRecordedAtISO() })
+        // Tags are saved separately; silently no-ops until the backend implements the endpoint.
+        TagService.setVideoTags(vid.video_id, tags).catch(() => {})
         setUpdatable(false)
         setEditMode(false)
         updateCallback({ id: vid.video_id, title, description })
@@ -672,6 +678,33 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             </Typography>
                           </Box>
                         )}
+                        {/* Tag pills (view mode) */}
+                        {tags.length > 0 && (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                            {tags.map((tag) => (
+                              <Box
+                                key={tag}
+                                component="a"
+                                href={`#/tags/${encodeURIComponent(tag)}`}
+                                onClick={(e) => { e.stopPropagation(); onClose() }}
+                                sx={{
+                                  fontSize: 13,
+                                  color: 'white',
+                                  bgcolor: '#FFFFFF0D',
+                                  border: '1px solid #FFFFFF26',
+                                  borderRadius: '20px',
+                                  px: 1.25,
+                                  py: 0.3,
+                                  textDecoration: 'none',
+                                  cursor: 'pointer',
+                                  '&:hover': { bgcolor: '#FFFFFF1A', borderColor: '#FFFFFF55' },
+                                }}
+                              >
+                                {tag}
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
                       </Box>
                     )}
                   </Box>
@@ -762,6 +795,14 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                           setUpdatable(true)
                         }}
                       />
+                    </Box>
+                  )}
+
+                  {/* Tags (edit mode) */}
+                  {editMode && (
+                    <Box>
+                      <Typography sx={labelSx}>Tags</Typography>
+                      <TagInput tags={tags} onChange={setTags} />
                     </Box>
                   )}
 

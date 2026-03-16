@@ -3,8 +3,9 @@ import { Modal, Box, Typography, Button, Stack, TextField, IconButton, Divider, 
 import CloseIcon from '@mui/icons-material/Close'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { DayPicker } from 'react-day-picker'
-import { VideoService, GameService } from '../../services'
+import { VideoService, GameService, TagService } from '../../services'
 import GameSearch from '../game/GameSearch'
+import TagInput from '../tags/TagInput'
 import './datepicker-dark.css'
 
 // ─── Shared style constants ───────────────────────────────────────────────────
@@ -170,18 +171,20 @@ const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescription, currentRecordedAt, currentGame, alertHandler }) => {
+const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescription, currentRecordedAt, currentGame, currentTags, alertHandler }) => {
   const [title, setTitle] = React.useState(currentTitle)
   const [description, setDescription] = React.useState(currentDescription)
   const [selectedDate, setSelectedDate] = React.useState(null)
   const [selectedTime, setSelectedTime] = React.useState('')
   const [linkedGame, setLinkedGame] = React.useState(currentGame || null)
+  const [tags, setTags] = React.useState(currentTags || [])
   const [loading, setLoading] = React.useState(false)
 
   React.useEffect(() => {
     setTitle(currentTitle)
     setDescription(currentDescription)
     setLinkedGame(currentGame || null)
+    setTags(currentTags || [])
     if (!currentRecordedAt) {
       setSelectedDate(null)
       setSelectedTime('')
@@ -191,7 +194,7 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
     const pad = (n) => n.toString().padStart(2, '0')
     setSelectedDate(d)
     setSelectedTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)
-  }, [currentTitle, currentDescription, currentRecordedAt, currentGame])
+  }, [currentTitle, currentDescription, currentRecordedAt, currentGame, currentTags])
 
   const getRecordedAtISO = () => {
     if (!selectedDate) return null
@@ -211,8 +214,10 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
         description: description || currentDescription,
         recorded_at: getRecordedAtISO(),
       })
+      // Tags saved separately; silently no-ops until backend implements the endpoint.
+      TagService.setVideoTags(videoId, tags).catch(() => {})
       alertHandler?.({ open: true, type: 'success', message: 'Video details updated!' })
-      close({ title: title || currentTitle, description: description || currentDescription, game: linkedGame })
+      close({ title: title || currentTitle, description: description || currentDescription, game: linkedGame, tags })
     } catch (err) {
       alertHandler?.({ open: true, type: 'error', message: err.response?.data || 'An unknown error occurred.' })
     }
@@ -273,6 +278,10 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
               onUnlink={handleGameUnlink}
               alertHandler={alertHandler}
             />
+          </LabeledField>
+
+          <LabeledField label="Tags">
+            <TagInput tags={tags} onChange={setTags} />
           </LabeledField>
         </Stack>
 
