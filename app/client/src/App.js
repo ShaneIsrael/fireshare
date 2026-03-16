@@ -10,6 +10,7 @@ import Settings from './views/Settings'
 import Feed from './views/Feed'
 import Games from './views/Games'
 import GameVideos from './views/GameVideos'
+import TaggedVideos from './views/TaggedVideos'
 import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
 import { getSetting, setSetting } from './common/utils'
@@ -91,6 +92,16 @@ export default function App() {
               <AuthWrapper>
                 <Navbar20 page="/games" collapsed={!drawerOpen} styleToggle cardSlider searchable mainPadding={0}>
                   <GameVideos />
+                </Navbar20>
+              </AuthWrapper>
+            }
+          />
+          <Route
+            path="/tags/:tag"
+            element={
+              <AuthWrapper>
+                <Navbar20 page="/tags" collapsed={!drawerOpen} styleToggle cardSlider searchable mainPadding={0}>
+                  <TaggedVideos />
                 </Navbar20>
               </AuthWrapper>
             }

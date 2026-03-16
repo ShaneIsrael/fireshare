@@ -1,21 +1,21 @@
 import Api from './Api'
 
 // ─── Tag Service ──────────────────────────────────────────────────────────────
-// Endpoints are stubs — we need to add these routes in the backend 
+// Endpoints are stubs — backend needs to implement these routes.
 //
-//   GET  /api/video/:videoId/tags          → { tags: string[] }
-//   PUT  /api/video/:videoId/tags          → body: { tags: string[] }
-//   GET  /api/tags/:tag/videos             → video[] (same shape as /api/videos)
+//   GET  /api/videos/tag/:tag         → video[] (same shape as /api/videos)
+//   GET  /api/video/:videoId/tags     → { tags: string[] }
+//   PUT  /api/tag/:videoId            → body: { tags: string[] }
 
 const service = {
+  getTagVideos(tag) {
+    return Api().get(`/api/videos/tag/${encodeURIComponent(tag)}`)
+  },
   getVideoTags(videoId) {
     return Api().get(`/api/video/${videoId}/tags`)
   },
   setVideoTags(videoId, tags) {
-    return Api().put(`/api/video/${videoId}/tags`, { tags })
-  },
-  getTagVideos(tag) {
-    return Api().get(`/api/tags/${encodeURIComponent(tag)}/videos`)
+    return Api().put(`/api/tag/${videoId}`, { tags })
   },
 }
 
