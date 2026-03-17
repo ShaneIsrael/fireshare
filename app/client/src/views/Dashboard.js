@@ -38,6 +38,7 @@ const Dashboard = ({
   releaseNotes: releaseNotesProp,
   selectedFolder,
   onFoldersLoaded,
+  uploadTick,
 }) => {
   const [videos, setVideos] = React.useState([])
   const [search, setSearch] = React.useState(searchText)
@@ -105,10 +106,40 @@ const Dashboard = ({
       })
   }
 
+  const videoCountRef = React.useRef(0)
+
   React.useEffect(() => {
     fetchVideos()
     // eslint-disable-next-line
   }, [])
+
+  React.useEffect(() => {
+    if (uploadTick === 0) return
+    // scan-video runs as a background subprocess so the video isn't in the DB
+    // immediately when the upload HTTP response returns. Poll until the count grows.
+    videoCountRef.current = videos.length
+    let attempts = 0
+    const interval = setInterval(() => {
+      attempts++
+      VideoService.getVideos().then((res) => {
+        const fetched = res.data.videos
+        if (fetched.length > videoCountRef.current || attempts >= 8) {
+          clearInterval(interval)
+          setVideos(fetched)
+          setFilteredVideos(fetched)
+          const tfolders = []
+          fetched.forEach((v) => {
+            const split = v.path.split('/').slice(0, -1).filter((f) => f !== '')
+            if (split.length > 0 && !tfolders.includes(split[0])) tfolders.push(split[0])
+          })
+          tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
+          if (onFoldersLoaded) onFoldersLoaded(tfolders)
+        }
+      })
+    }, 2000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line
+  }, [uploadTick])
 
   React.useEffect(() => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))

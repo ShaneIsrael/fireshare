@@ -26,7 +26,7 @@ const Input = styled('input')({
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-const UploadCard = ({ authenticated, handleAlert, mini }) => {
+const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
@@ -158,6 +158,7 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
           autohideDuration: 3500,
           open: true,
         })
+        if (onUploadComplete) onUploadComplete()
       } catch (err) {
         handleAlert({
           type: 'error',
@@ -222,6 +223,7 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
           autohideDuration: 3500,
           open: true,
         })
+        if (onUploadComplete) onUploadComplete()
       } catch (err) {
         handleAlert({
           type: 'error',

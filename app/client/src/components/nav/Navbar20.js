@@ -153,6 +153,7 @@ function Navbar20({
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
 
   const [alert, setAlert] = React.useState({ open: false })
+  const [uploadTick, setUploadTick] = React.useState(0)
   const [folderSuggestions, setFolderSuggestions] = React.useState({})
   const [currentSuggestionFolder, setCurrentSuggestionFolder] = React.useState(null)
   const navigate = useNavigate()
@@ -435,7 +436,7 @@ function Navbar20({
         </>
       )}
       <Divider />
-      <UploadCard authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} />
+      <UploadCard authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} onUploadComplete={() => setUploadTick((t) => t + 1)} />
 
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
         <GameScanStatus open={open} onComplete={handleGameScanComplete} authenticated={authenticated} />
@@ -666,6 +667,7 @@ function Navbar20({
           selectedFolder: effectiveFolder,
           onFolderChange: handleFolderChange,
           onFoldersLoaded: handleFoldersLoaded,
+          uploadTick,
         })}
       </Box>
     </Box>

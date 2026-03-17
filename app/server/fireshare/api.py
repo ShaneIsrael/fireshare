@@ -1267,6 +1267,9 @@ def delete_video(id):
         derived_path = paths['processed'] / 'derived' / id
         
         VideoInfo.query.filter_by(video_id=id).delete()
+        VideoGameLink.query.filter_by(video_id=id).delete()
+        VideoTagLink.query.filter_by(video_id=id).delete()
+        VideoView.query.filter_by(video_id=id).delete()
         Video.query.filter_by(video_id=id).delete()
         db.session.commit()
         
@@ -1382,31 +1385,19 @@ def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
     data_path = paths['data']
     videos_path = paths['video']
     app = current_app._get_current_object()
-    scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False, start_new_session=True)
+    cmd = ["fireshare", "scan-video", f"--path={save_path}"]
+    if tag_ids:
+        cmd.append(f"--tag-ids={','.join(str(t) for t in tag_ids)}")
+    if game_id:
+        cmd.append(f"--game-id={game_id}")
+    scan_proc = Popen(cmd, shell=False, start_new_session=True)
 
     def reap_and_cleanup():
         try:
             scan_proc.wait()
             status = util.read_transcoding_status(data_path)
-            # Clear stale placeholder/status written for this upload process.
             if status.get('pid') == scan_proc.pid:
                 util.clear_transcoding_status(data_path)
-            if tag_ids or game_id:
-                try:
-                    rel_path = os.path.relpath(save_path, videos_path)
-                    with app.app_context():
-                        video = Video.query.filter_by(path=rel_path).first()
-                        if video:
-                            if tag_ids:
-                                for tid in tag_ids:
-                                    if not VideoTagLink.query.filter_by(video_id=video.video_id, tag_id=tid).first():
-                                        db.session.add(VideoTagLink(video_id=video.video_id, tag_id=tid, created_at=datetime.utcnow()))
-                            if game_id:
-                                if not VideoGameLink.query.filter_by(video_id=video.video_id).first():
-                                    db.session.add(VideoGameLink(video_id=video.video_id, game_id=game_id, created_at=datetime.utcnow()))
-                            db.session.commit()
-                except Exception as e:
-                    logger.warning(f"Failed to apply post-upload metadata: {e}")
         except Exception as e:
             logger.debug(f"Scan process cleanup skipped: {e}")
 
@@ -2215,7 +2206,12 @@ def get_tags():
     result = []
     for tag in tags:
         t = tag.json()
-        t["video_count"] = VideoTagLink.query.filter_by(tag_id=tag.id).count()
+        t["video_count"] = (
+            db.session.query(VideoTagLink)
+            .join(Video, Video.video_id == VideoTagLink.video_id)
+            .filter(VideoTagLink.tag_id == tag.id, Video.available.is_(True))
+            .count()
+        )
         result.append(t)
     return jsonify(result)
 
