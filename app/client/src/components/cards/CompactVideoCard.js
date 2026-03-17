@@ -758,7 +758,7 @@ const CompactVideoCard = ({
                 ))}
                 {localTags.length > 3 && (
                   <Chip
-                    label={`+${video.tags.length - 3}`}
+                    label={`+${localTags.length - 3}`}
                     size="small"
                     sx={{
                       height: 18,

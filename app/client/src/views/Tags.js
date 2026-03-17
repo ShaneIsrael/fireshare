@@ -226,6 +226,7 @@ const Tags = ({ authenticated, searchText }) => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: 1,
+                        py: 2,
                         transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                         '&:hover': {
                           transform: 'scale(1.03)',
@@ -253,7 +254,6 @@ const Tags = ({ authenticated, searchText }) => {
                           }}
                         />
                       )}
-                      <LocalOfferIcon sx={{ color, fontSize: 28 }} />
                       <Typography sx={{ fontWeight: 700, fontSize: 16, color: 'white' }}>{tag.name}</Typography>
                       <Chip
                         label={`${tag.video_count ?? 0} video${tag.video_count !== 1 ? 's' : ''}`}
