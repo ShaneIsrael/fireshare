@@ -62,10 +62,23 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     setDialogOpen(true)
   }
 
+  const parseTagInput = (raw) => raw.split(',').map((s) => s.trim()).filter(Boolean)
+
   const handleDialogConfirm = async () => {
+    // Flush any pending typed input (user didn't press Enter or comma)
+    let tagsToProcess = [...selectedTags]
+    if (tagInput.trim()) {
+      parseTagInput(tagInput).forEach((p) => {
+        const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
+        if (!tagsToProcess.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
+          tagsToProcess.push(existing || { name: p })
+        }
+      })
+      setTagInput('')
+    }
     // Create any new (freeSolo) tags that don't have an id yet
     const resolvedTags = await Promise.all(
-      selectedTags.map(async (t) => {
+      tagsToProcess.map(async (t) => {
         if (t.id) return t
         const res = await TagService.createTag({ name: t.name })
         return res.data
@@ -410,7 +423,33 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
               ))
             }
             renderInput={(params) => (
-              <TextField {...params} label="Tags" size="small" placeholder="Add tags..." />
+              <TextField
+                {...params}
+                label="Tags"
+                size="small"
+                placeholder="Add tags..."
+                onKeyDown={(e) => {
+                  if (e.key === ',') {
+                    e.preventDefault()
+                    const parts = parseTagInput(tagInput)
+                    if (parts.length > 0) {
+                      setSelectedTags((prev) => {
+                        const merged = [...prev]
+                        parts.forEach((p) => {
+                          if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
+                            const existing = allTags.find(
+                              (t) => t.name.toLowerCase() === p.toLowerCase(),
+                            )
+                            merged.push(existing || { name: p })
+                          }
+                        })
+                        return merged
+                      })
+                      setTagInput('')
+                    }
+                  }
+                }}
+              />
             )}
           />
         </DialogContent>

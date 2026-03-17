@@ -865,6 +865,20 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                                 )
                                 handleAddTag(existing || { name: tagInputValue.trim() })
                               }
+                              if (e.key === ',') {
+                                e.preventDefault()
+                                const parts = tagInputValue
+                                  .split(',')
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                                setTagInputValue('')
+                                parts.forEach((p) => {
+                                  const existing = allTags.find(
+                                    (t) => t.name.toLowerCase() === p.toLowerCase(),
+                                  )
+                                  handleAddTag(existing || { name: p })
+                                })
+                              }
                             }}
                           />
                         )}

@@ -601,7 +601,23 @@ const Dashboard = ({
                 setSelectedTagForBulk(value)
               }
             }}
-            renderInput={(params) => <TextField {...params} placeholder="Select or create a tag..." />}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Select or create a tag..."
+                onKeyDown={(e) => {
+                  if (e.key === ',') {
+                    e.preventDefault()
+                    const val = tagInputValueBulk.split(',')[0].trim()
+                    if (val) {
+                      const found = allTags.find((t) => t.name.toLowerCase() === val.toLowerCase())
+                      setSelectedTagForBulk(found || { name: val })
+                      setTagInputValueBulk(val)
+                    }
+                  }
+                }}
+              />
+            )}
           />
         </DialogContent>
         <DialogActions>
