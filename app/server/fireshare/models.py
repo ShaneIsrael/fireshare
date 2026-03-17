@@ -179,6 +179,51 @@ class FolderRule(db.Model):
         return "<FolderRule {} -> game:{}>".format(self.folder_path, self.game_id)
 
 
+class CustomTag(db.Model):
+    __tablename__ = "custom_tag"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(256), unique=True, nullable=False, index=True)
+    color      = db.Column(db.String(7), nullable=True)   # hex, e.g. "#FF5733"
+    created_at = db.Column(db.DateTime())
+    updated_at = db.Column(db.DateTime())
+
+    videos     = db.relationship("VideoTagLink", back_populates="tag")
+
+    def json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "color": self.color,
+        }
+
+    def __repr__(self):
+        return "<CustomTag {} {}>".format(self.id, self.name)
+
+
+class VideoTagLink(db.Model):
+    __tablename__ = "video_tag_link"
+    __table_args__ = (db.UniqueConstraint("video_id", "tag_id"),)
+
+    id         = db.Column(db.Integer, primary_key=True)
+    video_id   = db.Column(db.String(32), db.ForeignKey("video.video_id"), nullable=False)
+    tag_id     = db.Column(db.Integer, db.ForeignKey("custom_tag.id"), nullable=False)
+    created_at = db.Column(db.DateTime())
+
+    video      = db.relationship("Video")
+    tag        = db.relationship("CustomTag", back_populates="videos")
+
+    def json(self):
+        return {
+            "video_id": self.video_id,
+            "tag_id": self.tag_id,
+            "tag": self.tag.json() if self.tag else None,
+        }
+
+    def __repr__(self):
+        return "<VideoTagLink video:{} tag:{}>".format(self.video_id, self.tag_id)
+
+
 class VideoView(db.Model):
     __tablename__ = "video_view"
     __table_args__ = (

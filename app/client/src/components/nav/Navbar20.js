@@ -27,6 +27,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 
 import { Grid, useMediaQuery, useTheme } from '@mui/material'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -56,6 +57,7 @@ const allPages = [
   { title: 'My Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
   { title: 'Public Videos', icon: <PublicIcon />, href: '/feed', private: false },
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
+  { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
   { title: 'Settings', icon: <SettingsIcon />, href: '/settings', private: true },
 ]
 
@@ -202,6 +204,7 @@ function Navbar20({
     if (p.href === '/' && uiConfig.show_my_videos === false) return false
     if (p.href === '/feed' && uiConfig.show_public_videos === false) return false
     if (p.href === '/games' && uiConfig.show_games === false) return false
+    if (p.href === '/tags' && uiConfig.show_tags === false) return false
     return true
   })
 

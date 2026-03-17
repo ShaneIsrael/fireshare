@@ -1,6 +1,9 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Box, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton } from '@mui/material'
+import {
+  Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton,
+  Dialog, DialogTitle, DialogContent, DialogActions, Button, Autocomplete, TextField,
+} from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
@@ -10,9 +13,10 @@ import SlowMotionVideoIcon from '@mui/icons-material/SlowMotionVideo'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, getVideoUrl, getSetting } from '../../common/utils'
-import { GameService, VideoService, ConfigService } from '../../services'
+import { GameService, VideoService, ConfigService, TagService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import DeleteVideoModal from '../modal/DeleteVideoModal'
 import _ from 'lodash'
@@ -57,6 +61,10 @@ const CompactVideoCard = ({
   const [editingTitle, setEditingTitle] = React.useState(false)
   const [titleDraft, setTitleDraft] = React.useState(title)
   const [imgLoaded, setImgLoaded] = React.useState(false)
+  const [tagDialogOpen, setTagDialogOpen] = React.useState(false)
+  const [localTags, setLocalTags] = React.useState(video.tags || [])
+  const [allTags, setAllTags] = React.useState([])
+  const [tagInput, setTagInput] = React.useState('')
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
@@ -126,6 +134,7 @@ const CompactVideoCard = ({
           : 'Untitled'),
     )
     setDescription(video.info?.description || '')
+    setLocalTags(video.tags || [])
     setImgLoaded(false)
   }
   React.useEffect(() => {
@@ -287,6 +296,46 @@ const CompactVideoCard = ({
     } catch (err) {
       console.error('Failed to save title:', err)
       setTitle(title)
+    }
+  }
+
+  const handleOpenTagDialog = async () => {
+    try {
+      const [tagsRes, allRes] = await Promise.all([
+        TagService.getVideoTags(video.video_id),
+        TagService.getTags(),
+      ])
+      setLocalTags(tagsRes.data || [])
+      setAllTags(allRes.data || [])
+    } catch (_) {}
+    setTagInput('')
+    setTagDialogOpen(true)
+  }
+
+  const handleAddTag = async (tag) => {
+    if (!tag) return
+    try {
+      let tagId = tag.id
+      if (!tagId) {
+        const res = await TagService.createTag({ name: tag.name })
+        tagId = res.data.id
+        setAllTags((prev) => [...prev, res.data])
+      }
+      await TagService.addTagToVideo(video.video_id, tagId)
+      const updated = (await TagService.getVideoTags(video.video_id)).data
+      setLocalTags(updated)
+      setTagInput('')
+    } catch (err) {
+      console.error('Failed to add tag:', err)
+    }
+  }
+
+  const handleRemoveTag = async (tagId) => {
+    try {
+      await TagService.removeTagFromVideo(video.video_id, tagId)
+      setLocalTags((prev) => prev.filter((t) => t.id !== tagId))
+    } catch (err) {
+      console.error('Failed to remove tag:', err)
     }
   }
 
@@ -729,6 +778,44 @@ const CompactVideoCard = ({
               </Typography>
             )}
 
+            {/* Tag chips */}
+            {localTags && localTags.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                {localTags.slice(0, 3).map((tag) => (
+                  <Chip
+                    key={tag.id}
+                    label={tag.name}
+                    size="small"
+                    component="a"
+                    href={`#/tags/${tag.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    sx={{
+                      height: 18,
+                      fontSize: 11,
+                      bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
+                      color: '#FFFFFFB3',
+                      cursor: 'pointer',
+                      '& .MuiChip-label': { px: 0.75 },
+                      '&:hover': { bgcolor: tag.color ? `${tag.color}55` : '#FFFFFF22', color: 'white' },
+                    }}
+                  />
+                ))}
+                {localTags.length > 3 && (
+                  <Chip
+                    label={`+${video.tags.length - 3}`}
+                    size="small"
+                    sx={{
+                      height: 18,
+                      fontSize: 11,
+                      bgcolor: '#FFFFFF0D',
+                      color: '#FFFFFF55',
+                      '& .MuiChip-label': { px: 0.75 },
+                    }}
+                  />
+                )}
+              </Box>
+            )}
+
             {/* Recorded date */}
             {video.recorded_at && (
               <Typography
@@ -766,6 +853,47 @@ const CompactVideoCard = ({
           </IconButton>
         </Box>
 
+        {/* Tag edit dialog */}
+        <Dialog open={tagDialogOpen} onClose={() => setTagDialogOpen(false)} maxWidth="sm" fullWidth onClick={(e) => e.stopPropagation()}>
+          <DialogTitle>Edit Tags</DialogTitle>
+          <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
+            {localTags.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                {localTags.map((tag) => (
+                  <Chip
+                    key={tag.id}
+                    label={tag.name}
+                    size="small"
+                    onDelete={() => handleRemoveTag(tag.id)}
+                    sx={{
+                      bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
+                      color: 'white',
+                      '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+                    }}
+                  />
+                ))}
+              </Box>
+            )}
+            <Autocomplete
+              freeSolo
+              options={allTags.filter((t) => !localTags.find((lt) => lt.id === t.id))}
+              getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
+              inputValue={tagInput}
+              onInputChange={(_, v) => setTagInput(v)}
+              onChange={(_, value) => {
+                if (!value) return
+                handleAddTag(typeof value === 'string' ? { name: value } : value)
+              }}
+              renderInput={(params) => (
+                <TextField {...params} size="small" label="Add a tag" placeholder="Type or pick a tag..." />
+              )}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setTagDialogOpen(false)}>Done</Button>
+          </DialogActions>
+        </Dialog>
+
         {/* Floating context menu */}
         <Menu
           anchorEl={menuAnchorEl}
@@ -794,6 +922,13 @@ const CompactVideoCard = ({
               color: '#FFFFFFE6',
               requiresAuth: true,
               onClick: () => setDetailsModalOpen(true),
+            },
+            {
+              label: 'Tags',
+              Icon: LocalOfferIcon,
+              color: '#FFFFFFE6',
+              requiresAuth: true,
+              onClick: handleOpenTagDialog,
             },
             {
               label: 'Transcode',

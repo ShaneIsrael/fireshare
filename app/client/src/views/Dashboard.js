@@ -20,9 +20,10 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import CheckIcon from '@mui/icons-material/Check'
 import LinkIcon from '@mui/icons-material/Link'
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import VideoCards from '../components/cards/VideoCards'
 import GameSearch from '../components/game/GameSearch'
-import { VideoService, GameService, ReleaseService } from '../services'
+import { VideoService, GameService, ReleaseService, TagService } from '../services'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
@@ -56,6 +57,10 @@ const Dashboard = ({
   const [games, setGames] = React.useState([])
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [showAddNewGame, setShowAddNewGame] = React.useState(false)
+  const [tagDialogOpen, setTagDialogOpen] = React.useState(false)
+  const [allTags, setAllTags] = React.useState([])
+  const [selectedTagForBulk, setSelectedTagForBulk] = React.useState(null)
+  const [tagInputValueBulk, setTagInputValueBulk] = React.useState('')
   const [featureAlertOpen, setFeatureAlertOpen] = React.useState(showReleaseNotes)
   const releaseNotes = releaseNotesProp
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
@@ -301,6 +306,46 @@ const Dashboard = ({
     setSelectedGame(null)
   }
 
+  const handleTagClick = async () => {
+    try {
+      const res = await TagService.getTags()
+      setAllTags(res.data)
+      setTagDialogOpen(true)
+      setSelectedTagForBulk(null)
+      setTagInputValueBulk('')
+    } catch (err) {
+      console.error('Error fetching tags:', err)
+    }
+  }
+
+  const handleTagConfirm = async () => {
+    if (!selectedTagForBulk) return
+    try {
+      let tagId = selectedTagForBulk.id
+      if (!tagId) {
+        const res = await TagService.createTag({ name: selectedTagForBulk.name })
+        tagId = res.data.id
+      }
+      await TagService.bulkAssign(tagId, Array.from(selectedVideos))
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Tagged ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''} with "${selectedTagForBulk.name}"`,
+      })
+      setSelectedVideos(new Set())
+      setTagDialogOpen(false)
+      setEditMode(false)
+    } catch (err) {
+      console.error('Error tagging videos:', err)
+      setAlert({ open: true, type: 'error', message: err.response?.data || 'Error tagging videos' })
+    }
+  }
+
+  const handleTagCancel = () => {
+    setTagDialogOpen(false)
+    setSelectedTagForBulk(null)
+  }
+
   return (
     <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
@@ -343,6 +388,14 @@ const Dashboard = ({
                       disabled={selectedVideos.size === 0}
                     >
                       Link to Game {selectedVideos.size > 0 && !isMdDown && `(${selectedVideos.size})`}
+                    </Button>
+                    <Button
+                      color="primary"
+                      startIcon={<LocalOfferIcon />}
+                      onClick={handleTagClick}
+                      disabled={selectedVideos.size === 0}
+                    >
+                      Tag {selectedVideos.size > 0 && !isMdDown && `(${selectedVideos.size})`}
                     </Button>
                     <Button
                       color="error"
@@ -487,6 +540,44 @@ const Dashboard = ({
               Link
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Tag Selected Dialog */}
+      <Dialog open={tagDialogOpen} onClose={handleTagCancel} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Tag {selectedVideos.size} Clip{selectedVideos.size !== 1 ? 's' : ''}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Autocomplete
+            freeSolo
+            options={allTags}
+            getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+            inputValue={tagInputValueBulk}
+            onInputChange={(_, v) => {
+              setTagInputValueBulk(v)
+              if (typeof v === 'string' && v) {
+                const found = allTags.find((t) => t.name.toLowerCase() === v.toLowerCase())
+                setSelectedTagForBulk(found || { name: v })
+              } else {
+                setSelectedTagForBulk(null)
+              }
+            }}
+            onChange={(_, value) => {
+              if (typeof value === 'string') {
+                setSelectedTagForBulk({ name: value })
+              } else {
+                setSelectedTagForBulk(value)
+              }
+            }}
+            renderInput={(params) => <TextField {...params} placeholder="Select or create a tag..." />}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleTagCancel}>Cancel</Button>
+          <Button onClick={handleTagConfirm} variant="contained" disabled={!selectedTagForBulk}>
+            Tag
+          </Button>
         </DialogActions>
       </Dialog>
 

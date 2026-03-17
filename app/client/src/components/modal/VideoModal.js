@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Button, Divider, IconButton, Modal, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material'
+import { Autocomplete, Box, Button, Chip, Divider, IconButton, Modal, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material'
 import { motion } from 'framer-motion'
 import { DayPicker } from 'react-day-picker'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -17,7 +17,7 @@ import {
   getVideoSources,
   getSetting,
 } from '../../common/utils'
-import { ConfigService, VideoService, GameService } from '../../services'
+import { ConfigService, VideoService, GameService, TagService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../misc/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
@@ -168,6 +168,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [editMode, setEditMode] = React.useState(false)
   const [gamePillColor, setGamePillColor] = React.useState(null)
+  const [videoTags, setVideoTags] = React.useState([])
+  const [allTags, setAllTags] = React.useState([])
+  const [tagInputValue, setTagInputValue] = React.useState('')
 
   const playerRef = React.useRef()
 
@@ -291,6 +294,20 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         } catch (err) {
           if (!cancelled) setSelectedGame(null)
         }
+        try {
+          const [tagsRes, allTagsRes] = await Promise.all([
+            TagService.getVideoTags(videoId),
+            TagService.getTags(),
+          ])
+          if (cancelled) return
+          setVideoTags(tagsRes.data || [])
+          setAllTags(allTagsRes.data || [])
+        } catch (err) {
+          if (!cancelled) {
+            setVideoTags([])
+            setAllTags([])
+          }
+        }
       } catch (err) {
         if (!cancelled) setAlert({ type: 'error', message: 'Unable to load video details', open: true })
       }
@@ -302,6 +319,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setSelectedDate(null)
       setSelectedTime('')
       setEditMode(false)
+      setVideoTags([])
       fetch()
     }
     return () => {
@@ -330,6 +348,35 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setAlert({ type: 'info', message: 'Game link removed', open: true })
     } catch (err) {
       setAlert({ type: 'error', message: 'Failed to unlink game', open: true })
+    }
+  }
+
+  const handleAddTag = async (tag) => {
+    if (!tag || !vid) return
+    try {
+      let tagId = tag.id
+      if (!tagId) {
+        // Create the tag if it doesn't exist yet
+        const res = await TagService.createTag({ name: tag.name })
+        tagId = res.data.id
+        setAllTags((prev) => [...prev, res.data])
+      }
+      await TagService.addTagToVideo(vid.video_id, tagId)
+      const updatedTags = (await TagService.getVideoTags(vid.video_id)).data
+      setVideoTags(updatedTags)
+      setTagInputValue('')
+    } catch (err) {
+      console.error('Failed to add tag:', err)
+    }
+  }
+
+  const handleRemoveTag = async (tagId) => {
+    if (!vid) return
+    try {
+      await TagService.removeTagFromVideo(vid.video_id, tagId)
+      setVideoTags((prev) => prev.filter((t) => t.id !== tagId))
+    } catch (err) {
+      console.error('Failed to remove tag:', err)
     }
   }
 
@@ -672,6 +719,28 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             </Typography>
                           </Box>
                         )}
+                        {videoTags.length > 0 && (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
+                            {videoTags.map((tag) => (
+                              <Chip
+                                key={tag.id}
+                                label={tag.name}
+                                size="small"
+                                component="a"
+                                href={`#/tags/${tag.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                sx={{
+                                  bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
+                                  color: 'white',
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                  textDecoration: 'none',
+                                  '&:hover': { bgcolor: tag.color ? `${tag.color}55` : '#FFFFFF22' },
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        )}
                       </Box>
                     )}
                   </Box>
@@ -743,6 +812,63 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                           />
                         </Box>
                       )}
+                    </Box>
+                  )}
+
+                  {/* Tags (edit mode only) */}
+                  {editMode && authenticated && (
+                    <Box>
+                      <Typography sx={labelSx}>Tags</Typography>
+                      {videoTags.length > 0 && (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1 }}>
+                          {videoTags.map((tag) => (
+                            <Chip
+                              key={tag.id}
+                              label={tag.name}
+                              size="small"
+                              onDelete={() => handleRemoveTag(tag.id)}
+                              sx={{
+                                bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
+                                color: 'white',
+                                fontSize: 12,
+                                '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      )}
+                      <Autocomplete
+                        freeSolo
+                        options={allTags.filter((t) => !videoTags.find((vt) => vt.id === t.id))}
+                        getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                        inputValue={tagInputValue}
+                        onInputChange={(_, v) => setTagInputValue(v)}
+                        onChange={(_, value) => {
+                          if (!value) return
+                          if (typeof value === 'string') {
+                            handleAddTag({ name: value })
+                          } else {
+                            handleAddTag(value)
+                          }
+                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            size="small"
+                            placeholder="Add a tag..."
+                            sx={inputSx}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && tagInputValue.trim()) {
+                                e.preventDefault()
+                                const existing = allTags.find(
+                                  (t) => t.name.toLowerCase() === tagInputValue.trim().toLowerCase(),
+                                )
+                                handleAddTag(existing || { name: tagInputValue.trim() })
+                              }
+                            }}
+                          />
+                        )}
+                      />
                     </Box>
                   )}
 

@@ -1,9 +1,23 @@
 import React from 'react'
-import { Box, Grid, Paper, Stack, Typography } from '@mui/material'
+import {
+  Box,
+  Grid,
+  Paper,
+  Stack,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Autocomplete,
+  TextField,
+  Chip,
+} from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
 import { motion } from 'framer-motion'
-import { VideoService } from '../../services'
+import { VideoService, GameService, TagService } from '../../services'
 import { getSetting } from '../../common/utils'
 
 const Input = styled('input')({
@@ -20,11 +34,65 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
   const uiConfig = getSetting('ui_config')
   const lastProgressUpdate = React.useRef(0)
 
+  // Pre-upload metadata dialog
+  const [pendingFile, setPendingFile] = React.useState(null)
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [allGames, setAllGames] = React.useState([])
+  const [allTags, setAllTags] = React.useState([])
+  const [selectedGame, setSelectedGame] = React.useState(null)
+  const [selectedTags, setSelectedTags] = React.useState([])
+  const [tagInput, setTagInput] = React.useState('')
+  // Stored metadata to attach on next upload
+  const pendingMetadata = React.useRef({ tag_ids: null, game_id: null })
+
+  const openMetadataDialog = (file) => {
+    setPendingFile(file)
+    setSelectedGame(null)
+    setSelectedTags([])
+    setTagInput('')
+    Promise.all([GameService.getGames(), TagService.getTags()])
+      .then(([gRes, tRes]) => {
+        setAllGames(gRes.data || [])
+        setAllTags(tRes.data || [])
+      })
+      .catch(() => {
+        setAllGames([])
+        setAllTags([])
+      })
+    setDialogOpen(true)
+  }
+
+  const handleDialogConfirm = async () => {
+    // Create any new (freeSolo) tags that don't have an id yet
+    const resolvedTags = await Promise.all(
+      selectedTags.map(async (t) => {
+        if (t.id) return t
+        const res = await TagService.createTag({ name: t.name })
+        return res.data
+      }),
+    )
+    pendingMetadata.current = {
+      tag_ids: resolvedTags.length ? resolvedTags.map((t) => t.id).join(',') : null,
+      game_id: selectedGame ? selectedGame.id : null,
+    }
+    setDialogOpen(false)
+    setSelectedFile(pendingFile)
+    setIsSelected(true)
+    setPendingFile(null)
+  }
+
+  const handleDialogSkip = () => {
+    pendingMetadata.current = { tag_ids: null, game_id: null }
+    setDialogOpen(false)
+    setSelectedFile(pendingFile)
+    setIsSelected(true)
+    setPendingFile(null)
+  }
+
   const changeHandler = (event) => {
     setProgress(0)
     lastProgressUpdate.current = 0
-    setSelectedFile(event.target.files[0])
-    setIsSelected(true)
+    openMetadataDialog(event.target.files[0])
   }
 
   const uploadProgress = (progress, rate) => {
@@ -59,8 +127,7 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
     event.preventDefault()
     setProgress(0)
     const file = event.dataTransfer.files[0]
-    setSelectedFile(file)
-    setIsSelected(true)
+    openMetadataDialog(file)
   }
 
   // Prevent default behavior for drag events to enable dropping files
@@ -72,10 +139,13 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
     if (!selectedFile) return
 
     const chunkSize = 90 * 1024 * 1024 // 90MB chunk size
+    const { tag_ids, game_id } = pendingMetadata.current
 
     async function upload() {
       const formData = new FormData()
       formData.append('file', selectedFile)
+      if (tag_ids) formData.append('tag_ids', tag_ids)
+      if (game_id) formData.append('game_id', game_id)
       try {
         if (authenticated) {
           await VideoService.upload(formData, uploadProgress)
@@ -87,7 +157,6 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
           message: 'Your upload will be available in a few seconds.',
           autohideDuration: 3500,
           open: true,
-          // onClose: () => fetchVideos(),
         })
       } catch (err) {
         handleAlert({
@@ -139,6 +208,8 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
           formData.append('fileSize', selectedFile.size.toString())
           formData.append('lastModified', selectedFile.lastModified.toString())
           formData.append('fileType', selectedFile.type)
+          if (tag_ids) formData.append('tag_ids', tag_ids)
+          if (game_id) formData.append('game_id', game_id)
 
           authenticated
             ? await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
@@ -150,7 +221,6 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
           message: 'Your upload will be available in a few seconds.',
           autohideDuration: 3500,
           open: true,
-          // onClose: () => fetchVideos(),
         })
       } catch (err) {
         handleAlert({
@@ -177,109 +247,179 @@ const UploadCard = ({ authenticated, handleAlert, mini }) => {
   if (authenticated && !uiConfig?.show_admin_upload) return null
 
   return (
-    <Grid item sx={{ mx: 1, mt: 2 }}>
-      <label htmlFor="icon-button-file">
-        {/* Add onDrop and onDragOver handlers */}
-        <Paper
-          sx={{
-            position: 'relative',
-            width: '100%',
-            height: '64px',
-            cursor: 'pointer',
-            background: 'rgba(0,0,0,0)',
-            overflow: 'hidden',
-          }}
-          variant="outlined"
-          onDrop={dropHandler}
-          onDragOver={dragOverHandler}
-        >
-          <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
-            <Stack sx={{ zIndex: 0 }} alignItems="center" justifyContent="center">
-              {!isSelected && (
-                <Input
-                  id="icon-button-file"
-                  accept="video/mp4,video/webm,video/mov"
-                  type="file"
-                  name="file"
-                  onChange={changeHandler}
-                />
-              )}
-              {progress === 0 && !mini && <CloudUploadIcon sx={{ fontSize: 32 }} />}
-              {progress === 0 && mini && progress === 0 && <CloudUploadIcon sx={{ fontSize: 20 }} />}
-              {progress !== 0 && progress !== 1 && (
-                <>
-                  {!mini ? (
-                    <>
+    <>
+      <Grid item sx={{ mx: 1, mt: 2 }}>
+        <label htmlFor="icon-button-file">
+          {/* Add onDrop and onDragOver handlers */}
+          <Paper
+            sx={{
+              position: 'relative',
+              width: '100%',
+              height: '64px',
+              cursor: 'pointer',
+              background: 'rgba(0,0,0,0)',
+              overflow: 'hidden',
+            }}
+            variant="outlined"
+            onDrop={dropHandler}
+            onDragOver={dragOverHandler}
+          >
+            <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
+              <Stack sx={{ zIndex: 0 }} alignItems="center" justifyContent="center">
+                {!isSelected && (
+                  <Input
+                    id="icon-button-file"
+                    accept="video/mp4,video/webm,video/mov"
+                    type="file"
+                    name="file"
+                    onChange={changeHandler}
+                  />
+                )}
+                {progress === 0 && !mini && <CloudUploadIcon sx={{ fontSize: 32 }} />}
+                {progress === 0 && mini && progress === 0 && <CloudUploadIcon sx={{ fontSize: 20 }} />}
+                {progress !== 0 && progress !== 1 && (
+                  <>
+                    {!mini ? (
+                      <>
+                        <Typography
+                          component="div"
+                          variant="overline"
+                          align="center"
+                          sx={{ fontWeight: 600, fontSize: 12 }}
+                        >
+                          Uploading... {(100 * progress).toFixed(0)}%
+                        </Typography>
+                        <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                          {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
+                          {numberFormat.format(uploadRate.total.toFixed(0))} MB's
+                        </Typography>
+                      </>
+                    ) : (
                       <Typography
                         component="div"
                         variant="overline"
                         align="center"
+                        justifyItems="center"
                         sx={{ fontWeight: 600, fontSize: 12 }}
                       >
-                        Uploading... {(100 * progress).toFixed(0)}%
+                        {(100 * progress).toFixed(0)}%
                       </Typography>
-                      <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
-                        {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
-                        {numberFormat.format(uploadRate.total.toFixed(0))} MB's
-                      </Typography>
-                    </>
-                  ) : (
+                    )}
+                  </>
+                )}
+                {progress === 1 && !mini && (
+                  <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
+                    Processing...
                     <Typography
-                      component="div"
+                      component="span"
                       variant="overline"
                       align="center"
-                      justifyItems="center"
-                      sx={{ fontWeight: 600, fontSize: 12 }}
+                      display="block"
+                      sx={{ fontWeight: 400, fontSize: 12 }}
                     >
-                      {(100 * progress).toFixed(0)}%
+                      This may take a few minutes
                     </Typography>
-                  )}
-                </>
-              )}
-              {progress === 1 && !mini && (
-                <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
-                  Processing...
+                  </Typography>
+                )}
+                {progress === 1 && mini && (
                   <Typography
-                    component="span"
+                    component="div"
                     variant="overline"
                     align="center"
-                    display="block"
-                    sx={{ fontWeight: 400, fontSize: 12 }}
+                    justifyItems="center"
+                    sx={{ fontWeight: 600, fontSize: 12 }}
                   >
-                    This may take a few minutes
+                    100%
                   </Typography>
-                </Typography>
-              )}
-              {progress === 1 && mini && (
-                <Typography
-                  component="div"
-                  variant="overline"
-                  align="center"
-                  justifyItems="center"
-                  sx={{ fontWeight: 600, fontSize: 12 }}
-                >
-                  100%
-                </Typography>
-              )}
-            </Stack>
-          </Box>
-          <motion.div
-            animate={{
-              height: mini ? `${progress * 100}%` : '100%',
-              width: mini ? '100%' : `${progress * 100}%`,
-            }}
-            transition={progress === 0 ? { duration: 0 } : { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              zIndex: -1,
-              backgroundImage: 'linear-gradient(90deg, #BC00E6DF, #FF3729D9)',
-              borderRadius: '10px',
-            }}
+                )}
+              </Stack>
+            </Box>
+            <motion.div
+              animate={{
+                height: mini ? `${progress * 100}%` : '100%',
+                width: mini ? '100%' : `${progress * 100}%`,
+              }}
+              transition={progress === 0 ? { duration: 0 } : { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                zIndex: -1,
+                backgroundImage: 'linear-gradient(90deg, #BC00E6DF, #FF3729D9)',
+                borderRadius: '10px',
+              }}
+            />
+          </Paper>
+        </label>
+      </Grid>
+
+      {/* Pre-upload metadata dialog */}
+      <Dialog open={dialogOpen} onClose={handleDialogSkip} maxWidth="sm" fullWidth>
+        <DialogTitle>Tag this clip before uploading</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
+          {/* Game selector */}
+          <Autocomplete
+            options={allGames}
+            getOptionLabel={(o) => o.name || ''}
+            value={selectedGame}
+            onChange={(_, v) => setSelectedGame(v)}
+            renderInput={(params) => <TextField {...params} label="Game" size="small" placeholder="Select a game..." />}
+            renderOption={(props, option) => (
+              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props}>
+                {option.icon_url && (
+                  <img
+                    src={option.icon_url}
+                    alt=""
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                  />
+                )}
+                {option.name}
+              </Box>
+            )}
           />
-        </Paper>
-      </label>
-    </Grid>
+
+          {/* Tag selector */}
+          <Autocomplete
+            multiple
+            freeSolo
+            options={allTags.filter((t) => !selectedTags.find((s) => s.id === t.id))}
+            getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
+            value={selectedTags}
+            inputValue={tagInput}
+            onInputChange={(_, v) => setTagInput(v)}
+            onChange={(_, values) => {
+              const resolved = values.map((v) => (typeof v === 'string' ? { name: v } : v))
+              setSelectedTags(resolved)
+              setTagInput('')
+            }}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  key={index}
+                  label={option.name}
+                  size="small"
+                  {...getTagProps({ index })}
+                  sx={{
+                    bgcolor: option.color ? `${option.color}33` : '#FFFFFF14',
+                    color: 'white',
+                    '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+                  }}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField {...params} label="Tags" size="small" placeholder="Add tags..." />
+            )}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogSkip}>Skip</Button>
+          <Button onClick={handleDialogConfirm} variant="contained">
+            Upload
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   )
 }
 
