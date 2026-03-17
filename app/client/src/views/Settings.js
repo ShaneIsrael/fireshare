@@ -512,6 +512,20 @@ const Settings = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
+                      checked={updatedConfig.ui_config?.show_tags !== false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, show_tags: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Tags"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
                       checked={updatedConfig.ui_config?.show_folder_dropdown === true}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({

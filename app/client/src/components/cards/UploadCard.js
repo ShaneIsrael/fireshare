@@ -13,6 +13,8 @@ import {
   Autocomplete,
   TextField,
   Chip,
+  CircularProgress,
+  InputAdornment,
 } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
@@ -42,6 +44,10 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [selectedTags, setSelectedTags] = React.useState([])
   const [tagInput, setTagInput] = React.useState('')
+  const [gameOptions, setGameOptions] = React.useState([])
+  const [gameSearchLoading, setGameSearchLoading] = React.useState(false)
+  const [gameCreating, setGameCreating] = React.useState(false)
+  const [gameInput, setGameInput] = React.useState('')
   // Stored metadata to attach on next upload
   const pendingMetadata = React.useRef({ tag_ids: null, game_id: null })
 
@@ -50,13 +56,18 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     setSelectedGame(null)
     setSelectedTags([])
     setTagInput('')
+    setGameInput('')
+    setGameOptions([])
     Promise.all([GameService.getGames(), TagService.getTags()])
       .then(([gRes, tRes]) => {
-        setAllGames(gRes.data || [])
+        const games = gRes.data || []
+        setAllGames(games)
+        setGameOptions(games.map((g) => ({ ...g, _source: 'db' })))
         setAllTags(tRes.data || [])
       })
       .catch(() => {
         setAllGames([])
+        setGameOptions([])
         setAllTags([])
       })
     setDialogOpen(true)
@@ -100,6 +111,71 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     setSelectedFile(pendingFile)
     setIsSelected(true)
     setPendingFile(null)
+  }
+
+  const handleDialogCancel = () => {
+    setDialogOpen(false)
+    setPendingFile(null)
+    setSelectedGame(null)
+    setSelectedTags([])
+    setTagInput('')
+    setGameOptions([])
+    setGameInput('')
+  }
+
+  const handleGameInputChange = async (_, value) => {
+    setGameInput(value)
+    if (!value || value.length < 2) {
+      setGameOptions(allGames.map((g) => ({ ...g, _source: 'db' })))
+      return
+    }
+    setGameSearchLoading(true)
+    try {
+      const sgdbResults = (await GameService.searchSteamGrid(value)).data || []
+      const dbMatches = allGames
+        .filter((g) => g.name.toLowerCase().includes(value.toLowerCase()))
+        .map((g) => ({ ...g, _source: 'db' }))
+      const existingSgdbIds = new Set(allGames.map((g) => g.steamgriddb_id).filter(Boolean))
+      const newFromSgdb = sgdbResults
+        .filter((r) => !existingSgdbIds.has(r.id))
+        .map((r) => ({ ...r, _source: 'sgdb' }))
+      setGameOptions([...dbMatches, ...newFromSgdb])
+    } catch {
+      setGameOptions(allGames.map((g) => ({ ...g, _source: 'db' })))
+    }
+    setGameSearchLoading(false)
+  }
+
+  const handleGameChange = async (_, newValue) => {
+    if (!newValue) {
+      setSelectedGame(null)
+      return
+    }
+    if (newValue._source === 'db') {
+      setSelectedGame(newValue)
+      return
+    }
+    // New game from SteamGridDB — create it in the DB
+    setGameCreating(true)
+    try {
+      const assets = (await GameService.getGameAssets(newValue.id)).data
+      const gameData = {
+        steamgriddb_id: newValue.id,
+        name: newValue.name,
+        release_date: newValue.release_date
+          ? new Date(newValue.release_date * 1000).toISOString().split('T')[0]
+          : null,
+        hero_url: assets.hero_url,
+        logo_url: assets.logo_url,
+        icon_url: assets.icon_url,
+      }
+      const created = (await GameService.createGame(gameData)).data
+      setAllGames((prev) => [...prev, created])
+      setSelectedGame({ ...created, _source: 'db' })
+    } catch {
+      setSelectedGame(null)
+    }
+    setGameCreating(false)
   }
 
   const changeHandler = (event) => {
@@ -368,18 +444,47 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
       </Grid>
 
       {/* Pre-upload metadata dialog */}
-      <Dialog open={dialogOpen} onClose={handleDialogSkip} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="sm" fullWidth>
         <DialogTitle>Tag this clip before uploading</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
           {/* Game selector */}
           <Autocomplete
-            options={allGames}
+            options={gameOptions}
             getOptionLabel={(o) => o.name || ''}
+            groupBy={(o) => (o._source === 'db' ? 'Already in library' : 'From SteamGridDB')}
             value={selectedGame}
-            onChange={(_, v) => setSelectedGame(v)}
-            renderInput={(params) => <TextField {...params} label="Game" size="small" placeholder="Select a game..." />}
+            inputValue={gameInput}
+            onInputChange={handleGameInputChange}
+            onChange={handleGameChange}
+            loading={gameSearchLoading}
+            disabled={gameCreating}
+            filterOptions={(x) => x}
+            isOptionEqualToValue={(option, value) =>
+              option.id === value.id || (option.steamgriddb_id && option.steamgriddb_id === value.steamgriddb_id)
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Game"
+                size="small"
+                placeholder="Search for a game..."
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {(gameSearchLoading || gameCreating) && (
+                        <InputAdornment position="end">
+                          <CircularProgress size={16} sx={{ mr: 1 }} />
+                        </InputAdornment>
+                      )}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
             renderOption={(props, option) => (
-              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props}>
+              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props} key={`${option._source}-${option.id}`}>
                 {option.icon_url && (
                   <img
                     src={option.icon_url}
@@ -389,6 +494,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
                   />
                 )}
                 {option.name}
+                {option._source === 'sgdb' && option.release_date && ` (${new Date(option.release_date * 1000).getFullYear()})`}
               </Box>
             )}
           />
@@ -454,6 +560,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
           />
         </DialogContent>
         <DialogActions>
+          <Button onClick={handleDialogCancel}>Cancel</Button>
           <Button onClick={handleDialogSkip}>Skip</Button>
           <Button onClick={handleDialogConfirm} variant="contained">
             Upload
