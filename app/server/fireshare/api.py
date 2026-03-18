@@ -1709,7 +1709,8 @@ def update_game_asset(steamgriddb_id):
 
     client = SteamGridDBClient(api_key)
     ext = client._get_extension_from_url(url)
-    base_name = f'{asset_type}_1'
+    # Hero uses slot 2 (header displays hero_2 with fallback to hero_1)
+    base_name = 'hero_2' if asset_type == 'hero' else f'{asset_type}_1'
 
     paths = current_app.config['PATHS']
     asset_dir = paths['data'] / 'game_assets' / str(steamgriddb_id)

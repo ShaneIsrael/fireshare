@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, IconButton } from '@mui/material'
+import { Box } from '@mui/material'
 import ImageIcon from '@mui/icons-material/Image'
 
 const GameVideosHeader = ({ game, height = 200, cacheBust, editMode, onEditAssets }) => {
@@ -52,23 +52,27 @@ const GameVideosHeader = ({ game, height = 200, cacheBust, editMode, onEditAsset
           }}
         />
       )}
-      {editMode && game && (
-        <IconButton
-          size="small"
-          onClick={onEditAssets}
-          sx={{
-            position: 'absolute',
-            bottom: 8,
-            right: 8,
-            bgcolor: 'rgba(0, 0, 0, 0.6)',
-            color: 'white',
-            '&:hover': { bgcolor: 'rgba(0,0,0,0.85)' },
-          }}
-        >
-          <ImageIcon />
-        </IconButton>
-      )}
     </Box>
+    {editMode && game && (
+      <Box
+        onClick={onEditAssets}
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          bgcolor: '#00000080',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1,
+          cursor: 'pointer',
+          transition: 'background-color 0.2s',
+          '&:hover': { bgcolor: '#000000A6' },
+        }}
+      >
+        <ImageIcon sx={{ color: 'white', fontSize: 52, pointerEvents: 'none' }} />
+      </Box>
+    )}
   </Box>
   )
 }

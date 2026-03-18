@@ -174,16 +174,16 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
   const handleAssetSaved = () => {
     const bust = Date.now()
     setEditingAssets(false)
-    setGame((prev) =>
-      prev
-        ? {
-            ...prev,
-            hero_url: prev.hero_url ? prev.hero_url.split('?v=')[0] + `?v=${bust}` : prev.hero_url,
-            logo_url: prev.logo_url ? prev.logo_url.split('?v=')[0] + `?v=${bust}` : prev.logo_url,
-            icon_url: prev.icon_url ? prev.icon_url.split('?v=')[0] + `?v=${bust}` : prev.icon_url,
-          }
-        : prev,
-    )
+    setGame((prev) => {
+      if (!prev) return prev
+      const base = `/api/game/assets/${prev.steamgriddb_id}`
+      return {
+        ...prev,
+        hero_url: `${base}/hero_1.png?v=${bust}`,
+        logo_url: `${base}/logo_1.png?v=${bust}`,
+        icon_url: `${base}/icon_1.png?v=${bust}`,
+      }
+    })
     setCacheBust(bust)
   }
 
@@ -259,7 +259,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
                     borderRadius: '8px',
                     height: '38px',
                     border: !editMode ? '1px solid #2684FF' : 'none',
-                    '&:hover': { bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)' },
+                    '&:hover': { bgcolor: editMode ? 'primary.dark' : '#FFFFFF33' },
                   }}
                 >
                   {editMode ? <CheckIcon /> : <EditIcon />}

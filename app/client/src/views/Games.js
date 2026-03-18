@@ -137,23 +137,20 @@ const Games = ({ authenticated, searchText }) => {
 
   const handleAssetSaved = () => {
     const editedId = editingGame?.steamgriddb_id
+    const bust = Date.now()
     setEditingGame(null)
-    GameService.getGames()
-      .then((res) => {
-        const bust = `?v=${Date.now()}`
-        setGames(
-          res.data.map((g) => {
-            if (g.steamgriddb_id !== editedId) return g
-            return {
-              ...g,
-              hero_url: g.hero_url ? g.hero_url + bust : g.hero_url,
-              logo_url: g.logo_url ? g.logo_url + bust : g.logo_url,
-              icon_url: g.icon_url ? g.icon_url + bust : g.icon_url,
-            }
-          }),
-        )
-      })
-      .catch((err) => console.error('Error refreshing games:', err))
+    setGames((prev) =>
+      prev.map((g) => {
+        if (g.steamgriddb_id !== editedId) return g
+        const base = `/api/game/assets/${g.steamgriddb_id}`
+        return {
+          ...g,
+          hero_url: `${base}/hero_1.png?v=${bust}`,
+          logo_url: `${base}/logo_1.png?v=${bust}`,
+          icon_url: `${base}/icon_1.png?v=${bust}`,
+        }
+      }),
+    )
   }
 
   if (loading) return <LoadingSpinner />
@@ -194,7 +191,7 @@ const Games = ({ authenticated, searchText }) => {
                     height: '38px',
                     border: !editMode ? '1px solid #2684FF' : 'none',
                     '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                      bgcolor: editMode ? 'primary.dark' : '#FFFFFF33',
                     },
                   }}
                 >
@@ -232,7 +229,7 @@ const Games = ({ authenticated, searchText }) => {
                     borderColor: isSelected ? 'primary.main' : 'transparent',
                     '&:hover': {
                       transform: 'scale(1.04)',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                      boxShadow: '0 8px 24px #00000080',
                     },
                   }}
                 >
@@ -250,7 +247,7 @@ const Games = ({ authenticated, searchText }) => {
                         left: 8,
                         zIndex: 2,
                         color: 'white',
-                        bgcolor: 'rgba(0, 0, 0, 0.5)',
+                        bgcolor: '#00000080',
                         borderRadius: '4px',
                         '&.Mui-checked': {
                           color: 'primary.main',
@@ -272,9 +269,9 @@ const Games = ({ authenticated, searchText }) => {
                         top: 8,
                         right: 8,
                         zIndex: 2,
-                        bgcolor: 'rgba(0, 0, 0, 0.6)',
+                        bgcolor: '#00000099',
                         color: 'white',
-                        '&:hover': { bgcolor: 'rgba(0,0,0,0.85)' },
+                        '&:hover': { bgcolor: '#000000D9' },
                       }}
                     >
                       <ImageIcon fontSize="small" />
