@@ -48,7 +48,7 @@ const TabItem = ({ tab, isActive, onClick }) => (
       fontWeight: 600,
       letterSpacing: '0.08em',
       textTransform: 'uppercase',
-      color: isActive ? 'white' : '#FFFFFFB3',
+      color: '#bdbdbdb3',
       borderBottom: '2px solid',
       borderColor: isActive ? '#3399FF' : 'transparent',
       transition: 'color 0.15s ease, border-color 0.15s ease',

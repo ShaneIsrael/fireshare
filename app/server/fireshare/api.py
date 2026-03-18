@@ -1699,6 +1699,19 @@ def update_game_asset(steamgriddb_id):
     if not url:
         return Response(status=400, response='url is required.')
 
+    from urllib.parse import urlparse
+    _ALLOWED_STEAMGRIDDB_HOSTS = {
+        'cdn2.steamgriddb.com',
+        'cdn.steamgriddb.com',
+        'steamgriddb.com',
+    }
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ('https',) or parsed.hostname not in _ALLOWED_STEAMGRIDDB_HOSTS:
+            return Response(status=400, response='url must be a SteamGridDB asset URL.')
+    except Exception:
+        return Response(status=400, response='Invalid url.')
+
     game = GameMetadata.query.filter_by(steamgriddb_id=steamgriddb_id).first()
     if not game:
         return Response(status=404, response='Game not found.')
@@ -1716,27 +1729,25 @@ def update_game_asset(steamgriddb_id):
     asset_dir = paths['data'] / 'game_assets' / str(steamgriddb_id)
     asset_dir.mkdir(parents=True, exist_ok=True)
 
-    # Remove existing files for this slot (any extension)
-    for existing in asset_dir.glob(f'{base_name}.*'):
-        try:
-            existing.unlink()
-        except OSError as e:
-            current_app.logger.warning(f'Could not remove old asset {existing}: {e}')
-
     dest_path = asset_dir / f'{base_name}{ext}'
 
-    # Download to temp file first, then move to final location
+    # Download to temp file first — do NOT remove the old asset until success
+    import shutil
     temp_dir = Path(tempfile.mkdtemp())
     try:
         temp_path = temp_dir / f'{base_name}{ext}'
         success = client._download_asset(url, temp_path)
         if not success:
             return Response(status=502, response='Failed to download asset from SteamGridDB.')
-        import shutil
+        # Download succeeded — now atomically replace: remove old, move new into place
+        for existing in asset_dir.glob(f'{base_name}.*'):
+            try:
+                existing.unlink()
+            except OSError as e:
+                current_app.logger.warning(f'Could not remove old asset {existing}: {e}')
         shutil.move(str(temp_path), str(dest_path))
     finally:
         if temp_dir.exists():
-            import shutil
             shutil.rmtree(temp_dir)
 
     return Response(status=200)

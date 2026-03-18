@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogActions,
   FormControlLabel,
+  Skeleton,
   useTheme,
   useMediaQuery,
 } from '@mui/material'
@@ -36,6 +37,7 @@ const Games = ({ authenticated, searchText }) => {
   const [deleteAssociatedVideos, setDeleteAssociatedVideos] = React.useState(false)
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
   const [editingGame, setEditingGame] = React.useState(null)
+  const [loadedHeroes, setLoadedHeroes] = React.useState(new Set())
   const navigate = useNavigate()
   const theme = useTheme()
   const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
@@ -283,18 +285,35 @@ const Games = ({ authenticated, searchText }) => {
                   )}
 
                   {game.hero_url && (
-                    <Box
-                      component="img"
-                      src={game.hero_url}
-                      onError={(e) => { e.currentTarget.style.display = 'none' }}
-                      sx={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        position: 'absolute',
-                        filter: 'brightness(0.7)',
-                      }}
-                    />
+                    <>
+                      <Skeleton
+                        variant="rectangular"
+                        animation="wave"
+                        sx={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          opacity: loadedHeroes.has(game.id) ? 0 : 1,
+                          transition: 'opacity 0.3s ease',
+                        }}
+                      />
+                      <Box
+                        component="img"
+                        src={game.hero_url}
+                        onLoad={() => setLoadedHeroes((prev) => new Set([...prev, game.id]))}
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          position: 'absolute',
+                          filter: 'brightness(0.7)',
+                          opacity: loadedHeroes.has(game.id) ? 1 : 0,
+                          transition: 'opacity 0.3s ease',
+                        }}
+                      />
+                    </>
                   )}
                   {game.logo_url && (
                     <Box
