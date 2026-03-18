@@ -1,7 +1,13 @@
 import React from 'react'
-import { Box } from '@mui/material'
+import { Box, IconButton } from '@mui/material'
+import ImageIcon from '@mui/icons-material/Image'
 
-const GameVideosHeader = ({ game, height = 200 }) => (
+const GameVideosHeader = ({ game, height = 200, cacheBust, editMode, onEditAssets }) => {
+  const bgUrl = game?.steamgriddb_id
+    ? `/api/game/assets/${game.steamgriddb_id}/hero_2.png?fallback=hero_1${cacheBust ? `&v=${cacheBust}` : ''}`
+    : null
+
+  return (
     <Box
       sx={{
         position: 'relative',
@@ -11,12 +17,12 @@ const GameVideosHeader = ({ game, height = 200 }) => (
         mb: 3,
       }}
     >
-    {game?.steamgriddb_id && (
+    {bgUrl && (
       <Box
         sx={{
           position: 'absolute',
           inset: 0,
-          backgroundImage: `url(/api/game/assets/${game.steamgriddb_id}/hero_2.png?fallback=hero_1)`,
+          backgroundImage: `url(${bgUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -46,8 +52,25 @@ const GameVideosHeader = ({ game, height = 200 }) => (
           }}
         />
       )}
+      {editMode && game && (
+        <IconButton
+          size="small"
+          onClick={onEditAssets}
+          sx={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            bgcolor: 'rgba(0, 0, 0, 0.6)',
+            color: 'white',
+            '&:hover': { bgcolor: 'rgba(0,0,0,0.85)' },
+          }}
+        >
+          <ImageIcon />
+        </IconButton>
+      )}
     </Box>
   </Box>
-)
+  )
+}
 
 export default GameVideosHeader

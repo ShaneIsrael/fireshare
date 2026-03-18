@@ -1672,6 +1672,74 @@ def get_steamgrid_assets(game_id):
     assets = client.get_game_assets(game_id)
     return jsonify(assets)
 
+@api.route('/api/steamgrid/game/<int:game_id>/assets/options', methods=["GET"])
+def get_steamgrid_asset_options(game_id):
+    api_key = get_steamgriddb_api_key()
+    if not api_key:
+        return Response(status=503, response='SteamGridDB API key not configured.')
+
+    client = SteamGridDBClient(api_key)
+    options = client.get_all_asset_options(game_id)
+    return jsonify(options)
+
+@api.route('/api/games/<int:steamgriddb_id>/assets', methods=["PUT"])
+@login_required
+def update_game_asset(steamgriddb_id):
+    import tempfile
+
+    data = request.get_json()
+    if not data:
+        return Response(status=400, response='Request body required.')
+
+    asset_type = data.get('asset_type')
+    url = data.get('url')
+
+    if asset_type not in ('hero', 'logo', 'icon'):
+        return Response(status=400, response='asset_type must be hero, logo, or icon.')
+    if not url:
+        return Response(status=400, response='url is required.')
+
+    game = GameMetadata.query.filter_by(steamgriddb_id=steamgriddb_id).first()
+    if not game:
+        return Response(status=404, response='Game not found.')
+
+    api_key = get_steamgriddb_api_key()
+    if not api_key:
+        return Response(status=503, response='SteamGridDB API key not configured.')
+
+    client = SteamGridDBClient(api_key)
+    ext = client._get_extension_from_url(url)
+    base_name = f'{asset_type}_1'
+
+    paths = current_app.config['PATHS']
+    asset_dir = paths['data'] / 'game_assets' / str(steamgriddb_id)
+    asset_dir.mkdir(parents=True, exist_ok=True)
+
+    # Remove existing files for this slot (any extension)
+    for existing in asset_dir.glob(f'{base_name}.*'):
+        try:
+            existing.unlink()
+        except OSError as e:
+            current_app.logger.warning(f'Could not remove old asset {existing}: {e}')
+
+    dest_path = asset_dir / f'{base_name}{ext}'
+
+    # Download to temp file first, then move to final location
+    temp_dir = Path(tempfile.mkdtemp())
+    try:
+        temp_path = temp_dir / f'{base_name}{ext}'
+        success = client._download_asset(url, temp_path)
+        if not success:
+            return Response(status=502, response='Failed to download asset from SteamGridDB.')
+        import shutil
+        shutil.move(str(temp_path), str(dest_path))
+    finally:
+        if temp_dir.exists():
+            import shutil
+            shutil.rmtree(temp_dir)
+
+    return Response(status=200)
+
 @api.route('/api/games', methods=["GET"])
 def get_games():
 

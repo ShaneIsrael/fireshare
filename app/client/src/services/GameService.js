@@ -11,6 +11,12 @@ const service = {
   getGameAssets(gameId) {
     return Api().get(`/api/steamgrid/game/${gameId}/assets`)
   },
+  getGameAssetOptions(gameId) {
+    return Api().get(`/api/steamgrid/game/${gameId}/assets/options`)
+  },
+  updateGameAsset(gameId, assetType, url) {
+    return Api().put(`/api/games/${gameId}/assets`, { asset_type: assetType, url })
+  },
   getGames() {
     return Api().get('/api/games')
   },

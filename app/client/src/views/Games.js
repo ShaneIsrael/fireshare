@@ -20,9 +20,11 @@ import {
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import CheckIcon from '@mui/icons-material/Check'
+import ImageIcon from '@mui/icons-material/Image'
 import { useNavigate } from 'react-router-dom'
 import { GameService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
+import EditGameAssetsModal from '../components/modal/EditGameAssetsModal'
 
 const Games = ({ authenticated, searchText }) => {
   const [games, setGames] = React.useState([])
@@ -32,6 +34,7 @@ const Games = ({ authenticated, searchText }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [deleteAssociatedVideos, setDeleteAssociatedVideos] = React.useState(false)
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
+  const [editingGame, setEditingGame] = React.useState(null)
   const navigate = useNavigate()
   const theme = useTheme()
   const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
@@ -130,6 +133,27 @@ const Games = ({ authenticated, searchText }) => {
     } else {
       navigate(`/games/${gameId}`)
     }
+  }
+
+  const handleAssetSaved = () => {
+    const editedId = editingGame?.steamgriddb_id
+    setEditingGame(null)
+    GameService.getGames()
+      .then((res) => {
+        const bust = `?v=${Date.now()}`
+        setGames(
+          res.data.map((g) => {
+            if (g.steamgriddb_id !== editedId) return g
+            return {
+              ...g,
+              hero_url: g.hero_url ? g.hero_url + bust : g.hero_url,
+              logo_url: g.logo_url ? g.logo_url + bust : g.logo_url,
+              icon_url: g.icon_url ? g.icon_url + bust : g.icon_url,
+            }
+          }),
+        )
+      })
+      .catch((err) => console.error('Error refreshing games:', err))
   }
 
   if (loading) return <LoadingSpinner />
@@ -235,6 +259,28 @@ const Games = ({ authenticated, searchText }) => {
                     />
                   )}
 
+                  {/* Edit assets button (edit mode only) */}
+                  {editMode && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingGame(game)
+                      }}
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        zIndex: 2,
+                        bgcolor: 'rgba(0, 0, 0, 0.6)',
+                        color: 'white',
+                        '&:hover': { bgcolor: 'rgba(0,0,0,0.85)' },
+                      }}
+                    >
+                      <ImageIcon fontSize="small" />
+                    </IconButton>
+                  )}
+
                   {game.hero_url && (
                     <Box
                       component="img"
@@ -272,6 +318,14 @@ const Games = ({ authenticated, searchText }) => {
             )
           })}
       </Grid>
+
+      {/* Edit Game Assets Modal */}
+      <EditGameAssetsModal
+        game={editingGame}
+        open={!!editingGame}
+        onClose={() => setEditingGame(null)}
+        onSaved={handleAssetSaved}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
