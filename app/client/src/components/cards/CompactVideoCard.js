@@ -144,6 +144,19 @@ const CompactVideoCard = ({
       })
   }, [video.video_id])
 
+  const gameRef = React.useRef(game)
+  React.useEffect(() => { gameRef.current = game }, [game])
+  React.useEffect(() => {
+    const handler = (e) => {
+      const { steamgriddbId, bust } = e.detail
+      if (gameRef.current?.steamgriddb_id === steamgriddbId) {
+        setGame((prev) => prev ? { ...prev, icon_url: `/api/game/assets/${steamgriddbId}/icon_1.png?v=${bust}` } : prev)
+      }
+    }
+    window.addEventListener('gameAssetsUpdated', handler)
+    return () => window.removeEventListener('gameAssetsUpdated', handler)
+  }, [video.video_id])
+
   React.useEffect(() => {
     VideoService.getGameSuggestion(video.video_id)
       .then((response) => {

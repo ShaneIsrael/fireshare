@@ -2,10 +2,8 @@ import React from 'react'
 import { Box } from '@mui/material'
 import ImageIcon from '@mui/icons-material/Image'
 
-const GameVideosHeader = ({ game, height = 200, cacheBust, editMode, onEditAssets }) => {
-  const bgUrl = game?.steamgriddb_id
-    ? `/api/game/assets/${game.steamgriddb_id}/hero_2.png?fallback=hero_1${cacheBust ? `&v=${cacheBust}` : ''}`
-    : null
+const GameVideosHeader = ({ game, height = 200, editMode, onEditAssets }) => {
+  const bgUrl = game?.banner_url || game?.hero_url || null
 
   return (
     <Box

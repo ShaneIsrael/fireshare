@@ -23,6 +23,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import ImageIcon from '@mui/icons-material/Image'
 import { useNavigate } from 'react-router-dom'
 import { GameService } from '../services'
+import { recordAssetBust, applyAssetBusts } from '../services/GameService'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import EditGameAssetsModal from '../components/modal/EditGameAssetsModal'
 
@@ -48,7 +49,7 @@ const Games = ({ authenticated, searchText }) => {
   React.useEffect(() => {
     GameService.getGames()
       .then((res) => {
-        setGames(res.data)
+        setGames(applyAssetBusts(res.data))
         setLoading(false)
       })
       .catch((err) => {
@@ -138,6 +139,8 @@ const Games = ({ authenticated, searchText }) => {
   const handleAssetSaved = () => {
     const editedId = editingGame?.steamgriddb_id
     const bust = Date.now()
+    recordAssetBust(editedId)
+    window.dispatchEvent(new CustomEvent('gameAssetsUpdated', { detail: { steamgriddbId: editedId, bust } }))
     setEditingGame(null)
     setGames((prev) =>
       prev.map((g) => {
@@ -146,6 +149,7 @@ const Games = ({ authenticated, searchText }) => {
         return {
           ...g,
           hero_url: `${base}/hero_1.png?v=${bust}`,
+          banner_url: `${base}/hero_2.png?v=${bust}`,
           logo_url: `${base}/logo_1.png?v=${bust}`,
           icon_url: `${base}/icon_1.png?v=${bust}`,
         }

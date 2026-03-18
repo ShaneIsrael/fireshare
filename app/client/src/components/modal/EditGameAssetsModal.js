@@ -25,11 +25,15 @@ const modalSx = {
 }
 
 
-const TABS = [
-  { type: 'hero', label: 'Hero', aspectRatio: '16 / 5', gridCols: 'repeat(auto-fill, minmax(240px, 1fr))', fit: 'cover' },
-  { type: 'logo', label: 'Logo', aspectRatio: '3 / 2',  gridCols: 'repeat(auto-fill, minmax(160px, 1fr))', fit: 'contain' },
-  { type: 'icon', label: 'Icon', aspectRatio: '1 / 1',  gridCols: 'repeat(auto-fill, minmax(110px, 1fr))', fit: 'cover' },
+const ALL_TABS = [
+  { type: 'banner', label: 'Banner',    aspectRatio: '16 / 5', gridCols: 'repeat(auto-fill, minmax(240px, 1fr))', fit: 'cover',   pool: 'heroes' },
+  { type: 'hero',   label: 'Thumbnail', aspectRatio: '16 / 5', gridCols: 'repeat(auto-fill, minmax(240px, 1fr))', fit: 'cover',   pool: 'heroes' },
+  { type: 'logo',   label: 'Logo',      aspectRatio: '3 / 2',  gridCols: 'repeat(auto-fill, minmax(160px, 1fr))', fit: 'contain', pool: 'logos'  },
+  { type: 'icon',   label: 'Icon',      aspectRatio: '1 / 1',  gridCols: 'repeat(auto-fill, minmax(110px, 1fr))', fit: 'cover',   pool: 'icons'  },
 ]
+
+const BANNER_TABS = ALL_TABS.filter((t) => t.type !== 'hero')    // Banner, Logo, Icon
+const CARD_TABS   = ALL_TABS.filter((t) => t.type !== 'banner')  // Thumbnail, Logo, Icon
 
 // ─── Tab bar item ─────────────────────────────────────────────────────────────
 
@@ -58,7 +62,8 @@ const TabItem = ({ tab, isActive, onClick }) => (
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const EditGameAssetsModal = ({ game, open, onClose, onSaved }) => {
+const EditGameAssetsModal = ({ game, open, onClose, onSaved, bannerOnly = false }) => {
+  const TABS = bannerOnly ? BANNER_TABS : CARD_TABS
   const [activeTabIndex, setActiveTabIndex] = React.useState(0)
   const [options, setOptions] = React.useState(null)
   const [loadingOptions, setLoadingOptions] = React.useState(false)
@@ -103,10 +108,7 @@ const EditGameAssetsModal = ({ game, open, onClose, onSaved }) => {
 
   const getOptionsForTab = (tabIndex) => {
     if (!options) return []
-    const type = TABS[tabIndex].type
-    if (type === 'hero') return options.heroes || []
-    if (type === 'logo') return options.logos || []
-    return options.icons || []
+    return options[TABS[tabIndex].pool] || []
   }
 
   const activeTab = TABS[activeTabIndex]
@@ -247,9 +249,8 @@ const EditGameAssetsModal = ({ game, open, onClose, onSaved }) => {
             flexShrink: 0,
           }}
         >
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} justifyContent="flex-end">
             <Button
-              fullWidth
               variant="outlined"
               onClick={onClose}
               disabled={saving}
@@ -258,14 +259,13 @@ const EditGameAssetsModal = ({ game, open, onClose, onSaved }) => {
               Cancel
             </Button>
             <Button
-              fullWidth
               variant="contained"
               onClick={handleSave}
               disabled={saving || !hasPendingChanges}
               sx={{ bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}
             >
               {saving ? <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} /> : null}
-              {saving ? 'Saving…' : 'Save Changes'}
+              {saving ? 'Saving…' : 'Save'}
             </Button>
           </Stack>
         </Box>

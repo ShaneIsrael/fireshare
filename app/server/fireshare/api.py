@@ -1694,8 +1694,8 @@ def update_game_asset(steamgriddb_id):
     asset_type = data.get('asset_type')
     url = data.get('url')
 
-    if asset_type not in ('hero', 'logo', 'icon'):
-        return Response(status=400, response='asset_type must be hero, logo, or icon.')
+    if asset_type not in ('hero', 'banner', 'logo', 'icon'):
+        return Response(status=400, response='asset_type must be hero, banner, logo, or icon.')
     if not url:
         return Response(status=400, response='url is required.')
 
@@ -1709,8 +1709,8 @@ def update_game_asset(steamgriddb_id):
 
     client = SteamGridDBClient(api_key)
     ext = client._get_extension_from_url(url)
-    # Hero uses slot 2 (header displays hero_2 with fallback to hero_1)
-    base_name = 'hero_2' if asset_type == 'hero' else f'{asset_type}_1'
+    slot_map = {'hero': 'hero_1', 'banner': 'hero_2', 'logo': 'logo_1', 'icon': 'icon_1'}
+    base_name = slot_map[asset_type]
 
     paths = current_app.config['PATHS']
     asset_dir = paths['data'] / 'game_assets' / str(steamgriddb_id)
@@ -1770,7 +1770,20 @@ def get_games():
             .all()
         )
 
-    return jsonify([game.json() for game in games])
+    paths = current_app.config['PATHS']
+    result = []
+    for game in games:
+        data = game.json()
+        if game.steamgriddb_id:
+            asset_dir = paths['data'] / 'game_assets' / str(game.steamgriddb_id)
+            for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'), ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
+                found = find_asset_with_extensions(asset_dir, base)
+                if found and data.get(key):
+                    data[key] = data[key] + f'?v={int(found.stat().st_mtime)}'
+        result.append(data)
+    resp = jsonify(result)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @api.route('/api/games', methods=["POST"])
 @login_required_unless_public_game_tag
@@ -1882,7 +1895,17 @@ def get_video_game(video_id):
     link = VideoGameLink.query.filter_by(video_id=video_id).first()
     if not link:
         return jsonify(None)
-    return jsonify(link.game.json())
+    data = link.game.json()
+    if link.game.steamgriddb_id:
+        paths = current_app.config['PATHS']
+        asset_dir = paths['data'] / 'game_assets' / str(link.game.steamgriddb_id)
+        for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'), ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
+            found = find_asset_with_extensions(asset_dir, base)
+            if found and data.get(key):
+                data[key] = data[key] + f'?v={int(found.stat().st_mtime)}'
+    resp = jsonify(data)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @api.route('/api/videos/<video_id>/game', methods=["DELETE"])
 @login_required_unless_public_game_tag
@@ -1980,7 +2003,11 @@ def get_game_asset(steamgriddb_id, filename):
     mime_type = mime_types.get(ext, 'image/png')
 
     response = send_file(asset_path, mimetype=mime_type)
-    return add_cache_headers(response, f"{steamgriddb_id}-{filename}")
+    stat = asset_path.stat()
+    etag = f"{steamgriddb_id}-{filename}-{int(stat.st_mtime)}-{stat.st_size}"
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    response.headers['ETag'] = f'"{etag}"'
+    return response
 
 @api.route('/api/games/<int:steamgriddb_id>/videos', methods=["GET"])
 def get_game_videos(steamgriddb_id):

@@ -22,6 +22,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import DeleteIcon from '@mui/icons-material/Delete'
 import LinkIcon from '@mui/icons-material/Link'
 import { GameService, VideoService } from '../services'
+import { recordAssetBust, applyAssetBusts } from '../services/GameService'
 import VideoCards from '../components/cards/VideoCards'
 import GameVideosHeader from '../components/game/GameVideosHeader'
 import GameSearch from '../components/game/GameSearch'
@@ -56,7 +57,6 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
 
   // Cover art editing
   const [editingAssets, setEditingAssets] = React.useState(false)
-  const [cacheBust, setCacheBust] = React.useState(null)
 
   if (searchText !== search) {
     setSearch(searchText)
@@ -66,7 +66,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
   React.useEffect(() => {
     Promise.all([GameService.getGames(), GameService.getGameVideos(gameId)])
       .then(([gamesRes, videosRes]) => {
-        const foundGame = gamesRes.data.find((g) => g.steamgriddb_id === parseInt(gameId))
+        const foundGame = applyAssetBusts(gamesRes.data).find((g) => g.steamgriddb_id === parseInt(gameId))
         setGame(foundGame)
         const fetchedVideos = videosRes.data || []
         setVideos(fetchedVideos)
@@ -173,6 +173,9 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
 
   const handleAssetSaved = () => {
     const bust = Date.now()
+    const parsedGameId = parseInt(gameId)
+    recordAssetBust(parsedGameId)
+    window.dispatchEvent(new CustomEvent('gameAssetsUpdated', { detail: { steamgriddbId: parsedGameId, bust } }))
     setEditingAssets(false)
     setGame((prev) => {
       if (!prev) return prev
@@ -180,11 +183,11 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
       return {
         ...prev,
         hero_url: `${base}/hero_1.png?v=${bust}`,
+        banner_url: `${base}/hero_2.png?v=${bust}`,
         logo_url: `${base}/logo_1.png?v=${bust}`,
         icon_url: `${base}/icon_1.png?v=${bust}`,
       }
     })
-    setCacheBust(bust)
   }
 
   // ── Sorting ───────────────────────────────────────────────────────────────
@@ -272,7 +275,6 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
 
       <GameVideosHeader
         game={game}
-        cacheBust={cacheBust}
         editMode={editMode}
         onEditAssets={() => setEditingAssets(true)}
       />
@@ -346,6 +348,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
         open={editingAssets}
         onClose={() => setEditingAssets(false)}
         onSaved={handleAssetSaved}
+        bannerOnly
       />
     </>
   )
