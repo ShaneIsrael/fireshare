@@ -1,6 +1,8 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Box, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton } from '@mui/material'
+import {
+  Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip,
+} from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
@@ -57,6 +59,7 @@ const CompactVideoCard = ({
   const [editingTitle, setEditingTitle] = React.useState(false)
   const [titleDraft, setTitleDraft] = React.useState(title)
   const [imgLoaded, setImgLoaded] = React.useState(false)
+  const [localTags, setLocalTags] = React.useState(video.tags || [])
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
@@ -126,6 +129,7 @@ const CompactVideoCard = ({
           : 'Untitled'),
     )
     setDescription(video.info?.description || '')
+    setLocalTags(video.tags || [])
     setImgLoaded(false)
   }
   React.useEffect(() => {
@@ -309,6 +313,7 @@ const CompactVideoCard = ({
       if (update.title !== undefined) setTitle(update.title || filenameFallback)
       if (update.description !== undefined) setDescription(update.description || '')
       if ('game' in update) setGame(update.game)
+      if (update.tags !== undefined) setLocalTags(update.tags)
     }
   }
 
@@ -740,6 +745,51 @@ const CompactVideoCard = ({
               >
                 {gameName}
               </Typography>
+            )}
+
+            {/* Tag chips */}
+            {localTags && localTags.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                {localTags.slice(0, 3).map((tag) => (
+                  <Chip
+                    key={tag.id}
+                    label={tag.name}
+                    size="small"
+                    component="a"
+                    href={`#/tags/${tag.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    sx={{
+                      height: 18,
+                      fontSize: 11,
+                      bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
+                      color: '#FFFFFFB3',
+                      cursor: 'pointer',
+                      '& .MuiChip-label': { px: 0.75 },
+                      '&:hover': { bgcolor: tag.color ? `${tag.color}55` : '#FFFFFF22', color: 'white' },
+                    }}
+                  />
+                ))}
+                {localTags.length > 3 && (
+                  <Tooltip
+                    title={localTags.slice(3).map((tag) => tag.name).join(', ')}
+                    arrow
+                    placement="top"
+                  >
+                    <Chip
+                      label={`+${localTags.length - 3}`}
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: 11,
+                        bgcolor: '#FFFFFF0D',
+                        color: '#FFFFFF55',
+                        cursor: 'default',
+                        '& .MuiChip-label': { px: 0.75 },
+                      }}
+                    />
+                  </Tooltip>
+                )}
+              </Box>
             )}
 
             {/* Recorded date */}
