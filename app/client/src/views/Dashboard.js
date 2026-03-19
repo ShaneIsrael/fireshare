@@ -13,6 +13,8 @@ import {
   Typography,
   Autocomplete,
   TextField,
+  CircularProgress,
+  InputAdornment,
   useTheme,
   useMediaQuery,
 } from '@mui/material'
@@ -22,7 +24,6 @@ import CheckIcon from '@mui/icons-material/Check'
 import LinkIcon from '@mui/icons-material/Link'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import VideoCards from '../components/cards/VideoCards'
-import GameSearch from '../components/game/GameSearch'
 import { VideoService, GameService, ReleaseService, TagService } from '../services'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
@@ -55,9 +56,13 @@ const Dashboard = ({
   const [selectedVideos, setSelectedVideos] = React.useState(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [linkGameDialogOpen, setLinkGameDialogOpen] = React.useState(false)
-  const [games, setGames] = React.useState([])
+  const [allGames, setAllGames] = React.useState([])
   const [selectedGame, setSelectedGame] = React.useState(null)
-  const [showAddNewGame, setShowAddNewGame] = React.useState(false)
+  const [gameOptions, setGameOptions] = React.useState([])
+  const [gameSearchLoading, setGameSearchLoading] = React.useState(false)
+  const [gameCreating, setGameCreating] = React.useState(false)
+  const [gameInput, setGameInput] = React.useState('')
+  const [refreshKey, setRefreshKey] = React.useState(0)
   const [tagDialogOpen, setTagDialogOpen] = React.useState(false)
   const [allTags, setAllTags] = React.useState([])
   const [selectedTagForBulk, setSelectedTagForBulk] = React.useState(null)
@@ -261,10 +266,12 @@ const Dashboard = ({
     // Fetch games when opening dialog
     try {
       const res = await GameService.getGames()
-      setGames(res.data)
+      const games = res.data || []
+      setAllGames(games)
+      setGameOptions(games.map((g) => ({ ...g, _source: 'db' })))
       setLinkGameDialogOpen(true)
-      setShowAddNewGame(false)
       setSelectedGame(null)
+      setGameInput('')
     } catch (err) {
       console.error('Error fetching games:', err)
       setAlert({
@@ -275,31 +282,59 @@ const Dashboard = ({
     }
   }
 
-  const handleNewGameCreated = async (game) => {
-    // Link all selected videos to the newly created game
-    try {
-      const linkPromises = Array.from(selectedVideos).map((videoId) => GameService.linkVideoToGame(videoId, game.id))
-      await Promise.all(linkPromises)
-
-      setAlert({
-        open: true,
-        type: 'success',
-        message: `Successfully linked ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''} to ${game.name}`,
-      })
-
-      // Reset state
-      setSelectedVideos(new Set())
-      setLinkGameDialogOpen(false)
-      setShowAddNewGame(false)
-      setEditMode(false)
-    } catch (err) {
-      console.error('Error linking videos to game:', err)
-      setAlert({
-        open: true,
-        type: 'error',
-        message: err.response?.data || 'Error linking videos to new game',
-      })
+  const handleGameInputChange = async (_, value) => {
+    setGameInput(value)
+    if (!value || value.length < 2) {
+      setGameOptions(allGames.map((g) => ({ ...g, _source: 'db' })))
+      return
     }
+    setGameSearchLoading(true)
+    try {
+      const sgdbResults = (await GameService.searchSteamGrid(value)).data || []
+      const dbMatches = allGames
+        .filter((g) => g.name.toLowerCase().includes(value.toLowerCase()))
+        .map((g) => ({ ...g, _source: 'db' }))
+      const existingSgdbIds = new Set(allGames.map((g) => g.steamgriddb_id).filter(Boolean))
+      const newFromSgdb = sgdbResults
+        .filter((r) => !existingSgdbIds.has(r.id))
+        .map((r) => ({ ...r, _source: 'sgdb' }))
+      setGameOptions([...dbMatches, ...newFromSgdb])
+    } catch {
+      setGameOptions(allGames.map((g) => ({ ...g, _source: 'db' })))
+    }
+    setGameSearchLoading(false)
+  }
+
+  const handleGameChange = async (_, newValue) => {
+    if (!newValue) {
+      setSelectedGame(null)
+      return
+    }
+    if (newValue._source === 'db') {
+      setSelectedGame(newValue)
+      return
+    }
+    // New game from SteamGridDB — create it in the DB
+    setGameCreating(true)
+    try {
+      const assets = (await GameService.getGameAssets(newValue.id)).data
+      const gameData = {
+        steamgriddb_id: newValue.id,
+        name: newValue.name,
+        release_date: newValue.release_date
+          ? new Date(newValue.release_date * 1000).toISOString().split('T')[0]
+          : null,
+        hero_url: assets.hero_url,
+        logo_url: assets.logo_url,
+        icon_url: assets.icon_url,
+      }
+      const created = (await GameService.createGame(gameData)).data
+      setAllGames((prev) => [...prev, created])
+      setSelectedGame({ ...created, _source: 'db' })
+    } catch {
+      setSelectedGame(null)
+    }
+    setGameCreating(false)
   }
 
   const handleLinkGameConfirm = async () => {
@@ -316,6 +351,10 @@ const Dashboard = ({
         type: 'success',
         message: `Successfully linked ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''} to ${selectedGame.name}`,
       })
+
+      // Refresh videos and force cards to re-fetch game data
+      fetchVideos()
+      setRefreshKey((k) => k + 1)
 
       // Reset state
       setSelectedVideos(new Set())
@@ -335,6 +374,8 @@ const Dashboard = ({
   const handleLinkGameCancel = () => {
     setLinkGameDialogOpen(false)
     setSelectedGame(null)
+    setGameOptions([])
+    setGameInput('')
   }
 
   const handleTagClick = async () => {
@@ -363,6 +404,8 @@ const Dashboard = ({
         type: 'success',
         message: `Tagged ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''} with "${selectedTagForBulk.name}"`,
       })
+      fetchVideos()
+      setRefreshKey((k) => k + 1)
       setSelectedVideos(new Set())
       setTagDialogOpen(false)
       setEditMode(false)
@@ -464,6 +507,7 @@ const Dashboard = ({
               <Box>
                 {!loading && (
                   <VideoCards
+                    key={refreshKey}
                     videos={sortedVideos}
                     authenticated={authenticated}
                     size={cardSize}
@@ -502,75 +546,63 @@ const Dashboard = ({
         <DialogTitle>
           Link {selectedVideos.size} Clip{selectedVideos.size !== 1 ? 's' : ''} to Game
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          {!showAddNewGame ? (
-            <>
-              <Autocomplete
-                options={[...games, { id: 'add-new', name: 'Add a new game...', isAddNew: true }]}
-                getOptionLabel={(option) => option.name || ''}
-                value={selectedGame}
-                onChange={(_, newValue) => {
-                  if (newValue?.isAddNew) {
-                    setShowAddNewGame(true)
-                    setSelectedGame(null)
-                  } else {
-                    setSelectedGame(newValue)
-                  }
+        <DialogContent sx={{ pt: '20px !important' }}>
+          <Autocomplete
+            options={gameOptions}
+            getOptionLabel={(o) => o.name || ''}
+            groupBy={(o) => (o._source === 'db' ? 'Already in library' : 'From SteamGridDB')}
+            value={selectedGame}
+            inputValue={gameInput}
+            onInputChange={handleGameInputChange}
+            onChange={handleGameChange}
+            loading={gameSearchLoading}
+            disabled={gameCreating}
+            filterOptions={(x) => x}
+            isOptionEqualToValue={(option, value) =>
+              option.id === value.id || (option.steamgriddb_id && option.steamgriddb_id === value.steamgriddb_id)
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Game"
+                size="small"
+                placeholder="Search for a game..."
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {(gameSearchLoading || gameCreating) && (
+                        <InputAdornment position="end">
+                          <CircularProgress size={16} sx={{ mr: 1 }} />
+                        </InputAdornment>
+                      )}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
                 }}
-                renderInput={(params) => <TextField {...params} placeholder="Select a game..." />}
-                renderOption={(props, option) => (
-                  <Box
-                    component="li"
-                    {...props}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      fontStyle: option.isAddNew ? 'italic' : 'normal',
-                      color: option.isAddNew ? 'primary.main' : 'inherit',
-                    }}
-                  >
-                    {option.icon_url && (
-                      <img
-                        src={option.icon_url}
-                        alt={option.name}
-                        style={{ width: 32, height: 32, objectFit: 'contain' }}
-                      />
-                    )}
-                    <Typography>{option.name}</Typography>
-                  </Box>
+              />
+            )}
+            renderOption={(props, option) => (
+              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props} key={`${option._source}-${option.id}`}>
+                {option.icon_url && (
+                  <img
+                    src={option.icon_url}
+                    alt=""
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                  />
                 )}
-              />
-            </>
-          ) : (
-            <>
-              <GameSearch
-                onGameLinked={handleNewGameCreated}
-                onError={(err) =>
-                  setAlert({
-                    open: true,
-                    type: 'error',
-                    message: err.response?.data || 'Error adding game',
-                  })
-                }
-                onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
-                placeholder="Search SteamGridDB..."
-              />
-            </>
-          )}
+                {option.name}
+                {option._source === 'sgdb' && option.release_date && ` (${new Date(option.release_date * 1000).getFullYear()})`}
+              </Box>
+            )}
+          />
         </DialogContent>
         <DialogActions>
-          {showAddNewGame && (
-            <Button onClick={() => setShowAddNewGame(false)} sx={{ mr: 'auto' }}>
-              Back to List
-            </Button>
-          )}
           <Button onClick={handleLinkGameCancel}>Cancel</Button>
-          {!showAddNewGame && (
-            <Button onClick={handleLinkGameConfirm} variant="contained" disabled={!selectedGame}>
-              Link
-            </Button>
-          )}
+          <Button onClick={handleLinkGameConfirm} variant="contained" disabled={!selectedGame}>
+            Link
+          </Button>
         </DialogActions>
       </Dialog>
 
