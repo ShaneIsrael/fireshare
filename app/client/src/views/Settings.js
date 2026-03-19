@@ -125,6 +125,7 @@ const Settings = () => {
       setUpdateable(false)
       setConfig(_.cloneDeep(updatedConfig))
       setSetting('ui_config', updatedConfig.ui_config)
+      window.dispatchEvent(new Event('ui_config_updated'))
       setAlert({ open: true, message: 'Settings Updated! Changes may take a minute to take effect.', type: 'success' })
     } catch (err) {
       console.error(err)

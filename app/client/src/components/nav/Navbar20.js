@@ -200,7 +200,14 @@ function Navbar20({
 
   const createSelectFolders = (f) => f.map((v) => ({ value: v, label: v }))
 
-  const uiConfig = getSetting('ui_config') || {}
+  const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || {})
+
+  React.useEffect(() => {
+    const handleUiConfigUpdate = () => setUiConfig(getSetting('ui_config') || {})
+    window.addEventListener('ui_config_updated', handleUiConfigUpdate)
+    return () => window.removeEventListener('ui_config_updated', handleUiConfigUpdate)
+  }, [])
+
   const pages = allPages.filter((p) => {
     if (p.href === '/' && uiConfig.show_my_videos === false) return false
     if (p.href === '/feed' && uiConfig.show_public_videos === false) return false
