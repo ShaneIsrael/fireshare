@@ -117,10 +117,13 @@ class GameMetadata(db.Model):
         logo_url = None
         icon_url = None
 
+        banner_url = None
+
         if self.steamgriddb_id:
             domain = f"https://{current_app.config['DOMAIN']}" if current_app.config.get('DOMAIN') else ""
             # Assume standard .png extension - endpoint handles if missing or different
             hero_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/hero_1.png"
+            banner_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/hero_2.png"
             logo_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/logo_1.png"
             icon_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/icon_1.png"
 
@@ -130,6 +133,7 @@ class GameMetadata(db.Model):
             "name": self.name,
             "release_date": self.release_date,
             "hero_url": hero_url,
+            "banner_url": banner_url,
             "logo_url": logo_url,
             "icon_url": icon_url,
         }

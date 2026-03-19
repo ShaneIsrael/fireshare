@@ -1,5 +1,27 @@
 import Api from './Api'
 
+// Module-level map: steamgriddb_id -> bust timestamp, persists across navigation
+const _assetBusts = {}
+
+export const recordAssetBust = (steamgriddbId) => {
+  _assetBusts[steamgriddbId] = Date.now()
+}
+
+export const applyAssetBusts = (games) => {
+  return games.map((g) => {
+    const bust = _assetBusts[g.steamgriddb_id]
+    if (!bust) return g
+    const base = `/api/game/assets/${g.steamgriddb_id}`
+    return {
+      ...g,
+      hero_url: `${base}/hero_1.png?v=${bust}`,
+      banner_url: `${base}/hero_2.png?v=${bust}`,
+      logo_url: `${base}/logo_1.png?v=${bust}`,
+      icon_url: `${base}/icon_1.png?v=${bust}`,
+    }
+  })
+}
+
 const service = {
   searchSteamGrid(query) {
     return Api().get('/api/steamgrid/search', {
@@ -10,6 +32,12 @@ const service = {
   },
   getGameAssets(gameId) {
     return Api().get(`/api/steamgrid/game/${gameId}/assets`)
+  },
+  getGameAssetOptions(gameId) {
+    return Api().get(`/api/steamgrid/game/${gameId}/assets/options`)
+  },
+  updateGameAsset(gameId, assetType, url) {
+    return Api().put(`/api/games/${gameId}/assets`, { asset_type: assetType, url })
   },
   getGames() {
     return Api().get('/api/games')
