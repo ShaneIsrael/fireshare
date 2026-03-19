@@ -1,8 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip,
-} from '@mui/material'
+import { Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip } from '@mui/material'
+import TagChip from '../misc/TagChip'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
@@ -149,12 +148,16 @@ const CompactVideoCard = ({
   }, [video.video_id])
 
   const gameRef = React.useRef(game)
-  React.useEffect(() => { gameRef.current = game }, [game])
+  React.useEffect(() => {
+    gameRef.current = game
+  }, [game])
   React.useEffect(() => {
     const handler = (e) => {
       const { steamgriddbId, bust } = e.detail
       if (gameRef.current?.steamgriddb_id === steamgriddbId) {
-        setGame((prev) => prev ? { ...prev, icon_url: `/api/game/assets/${steamgriddbId}/icon_1.png?v=${bust}` } : prev)
+        setGame((prev) =>
+          prev ? { ...prev, icon_url: `/api/game/assets/${steamgriddbId}/icon_1.png?v=${bust}` } : prev,
+        )
       }
     }
     window.addEventListener('gameAssetsUpdated', handler)
@@ -723,71 +726,61 @@ const CompactVideoCard = ({
               </Typography>
             )}
 
-            {/* Game name */}
-            {gameName && (
-              <Typography
-                component={game?.steamgriddb_id ? 'a' : 'span'}
-                href={game?.steamgriddb_id ? `#/games/${game.steamgriddb_id}` : undefined}
-                onClick={game?.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
-                sx={{
-                  fontSize: 14,
-                  color: '#FFFFFFB3',
-                  mt: 0.25,
-                  display: 'block',
-                  textDecoration: 'none',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  ...(game?.steamgriddb_id && {
-                    '&:hover': { color: '#3399FF', textDecoration: 'underline' },
-                  }),
-                }}
-              >
-                {gameName}
-              </Typography>
-            )}
-
-            {/* Tag chips */}
-            {localTags && localTags.length > 0 && (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                {localTags.slice(0, 3).map((tag) => (
-                  <Chip
-                    key={tag.id}
-                    label={tag.name}
-                    size="small"
-                    component="a"
-                    href={`#/tags/${tag.id}`}
-                    onClick={(e) => e.stopPropagation()}
+            {/* Game name + tag chips on same row */}
+            {(gameName || (localTags && localTags.length > 0)) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
+                {gameName && (
+                  <Typography
+                    component={game?.steamgriddb_id ? 'a' : 'span'}
+                    href={game?.steamgriddb_id ? `#/games/${game.steamgriddb_id}` : undefined}
+                    onClick={game?.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
                     sx={{
-                      height: 18,
-                      fontSize: 11,
-                      bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
+                      fontSize: 14,
                       color: '#FFFFFFB3',
-                      cursor: 'pointer',
-                      '& .MuiChip-label': { px: 0.75 },
-                      '&:hover': { bgcolor: tag.color ? `${tag.color}55` : '#FFFFFF22', color: 'white' },
+                      flex: 1,
+                      minWidth: 0,
+                      display: 'block',
+                      textDecoration: 'none',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      ...(game?.steamgriddb_id && {
+                        '&:hover': { color: '#3399FF', textDecoration: 'underline' },
+                      }),
                     }}
-                  />
-                ))}
-                {localTags.length > 3 && (
-                  <Tooltip
-                    title={localTags.slice(3).map((tag) => tag.name).join(', ')}
-                    arrow
-                    placement="top"
                   >
-                    <Chip
-                      label={`+${localTags.length - 3}`}
-                      size="small"
-                      sx={{
-                        height: 18,
-                        fontSize: 11,
-                        bgcolor: '#FFFFFF0D',
-                        color: '#FFFFFF55',
-                        cursor: 'default',
-                        '& .MuiChip-label': { px: 0.75 },
-                      }}
-                    />
-                  </Tooltip>
+                    {gameName}
+                  </Typography>
+                )}
+                {localTags && localTags.length > 0 && (
+                  <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0, ml: gameName ? 'auto' : 0 }}>
+                    {localTags.slice(0, 2).map((tag) => (
+                      <TagChip key={tag.id} name={tag.name} color={tag.color} href={`#/tags/${tag.id}`} size="small" />
+                    ))}
+                    {localTags.length > 2 && (
+                      <Tooltip
+                        title={localTags
+                          .slice(2)
+                          .map((tag) => tag.name.replace(/_/g, ' '))
+                          .join(', ')}
+                        arrow
+                        placement="top"
+                      >
+                        <Chip
+                          label={`+${localTags.length - 2}`}
+                          size="small"
+                          sx={{
+                            height: 18,
+                            fontSize: 11,
+                            bgcolor: '#FFFFFF0D',
+                            color: '#FFFFFF55',
+                            cursor: 'default',
+                            '& .MuiChip-label': { px: 0.75 },
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                  </Box>
                 )}
               </Box>
             )}

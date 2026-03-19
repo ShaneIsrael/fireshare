@@ -41,7 +41,7 @@ export default function App() {
             path="/"
             element={
               <AuthWrapper redirect={'/feed'}>
-                <Navbar20 page="/" collapsed={!drawerOpen} searchable styleToggle cardSlider>
+                <Navbar20 page="/" collapsed={!drawerOpen} searchable styleToggle cardSlider searchPlaceholder="Search title, game, or #tag...">
                   <Dashboard />
                 </Navbar20>
               </AuthWrapper>
@@ -51,7 +51,7 @@ export default function App() {
             path="/feed"
             element={
               <AuthWrapper>
-                <Navbar20 page="/feed" collapsed={!drawerOpen} searchable styleToggle cardSlider>
+                <Navbar20 page="/feed" collapsed={!drawerOpen} searchable styleToggle cardSlider searchPlaceholder="Search title, game, or #tag...">
                   <Feed />
                 </Navbar20>
               </AuthWrapper>

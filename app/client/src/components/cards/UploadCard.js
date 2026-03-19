@@ -48,8 +48,10 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
   const [gameSearchLoading, setGameSearchLoading] = React.useState(false)
   const [gameCreating, setGameCreating] = React.useState(false)
   const [gameInput, setGameInput] = React.useState('')
+  const [availableFolders, setAvailableFolders] = React.useState([])
+  const [selectedFolder, setSelectedFolder] = React.useState('')
   // Stored metadata to attach on next upload
-  const pendingMetadata = React.useRef({ tag_ids: null, game_id: null })
+  const pendingMetadata = React.useRef({ tag_ids: null, game_id: null, folder: null })
 
   const openMetadataDialog = (file) => {
     setPendingFile(file)
@@ -58,17 +60,23 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     setTagInput('')
     setGameInput('')
     setGameOptions([])
-    Promise.all([GameService.getGames(), TagService.getTags()])
-      .then(([gRes, tRes]) => {
+    Promise.all([GameService.getGames(), TagService.getTags(), VideoService.getUploadFolders()])
+      .then(([gRes, tRes, fRes]) => {
         const games = gRes.data || []
         setAllGames(games)
         setGameOptions(games.map((g) => ({ ...g, _source: 'db' })))
         setAllTags(tRes.data || [])
+        const folders = fRes.data?.folders || []
+        const defaultFolder = fRes.data?.default_folder || ''
+        setAvailableFolders(folders)
+        setSelectedFolder(folders.includes(defaultFolder) ? defaultFolder : folders[0] || '')
       })
       .catch(() => {
         setAllGames([])
         setGameOptions([])
         setAllTags([])
+        setAvailableFolders([])
+        setSelectedFolder('')
       })
     setDialogOpen(true)
   }
@@ -98,6 +106,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     pendingMetadata.current = {
       tag_ids: resolvedTags.length ? resolvedTags.map((t) => t.id).join(',') : null,
       game_id: selectedGame ? selectedGame.id : null,
+      folder: selectedFolder || null,
     }
     setDialogOpen(false)
     setSelectedFile(pendingFile)
@@ -105,13 +114,6 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     setPendingFile(null)
   }
 
-  const handleDialogSkip = () => {
-    pendingMetadata.current = { tag_ids: null, game_id: null }
-    setDialogOpen(false)
-    setSelectedFile(pendingFile)
-    setIsSelected(true)
-    setPendingFile(null)
-  }
 
   const handleDialogCancel = () => {
     setDialogOpen(false)
@@ -228,13 +230,14 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     if (!selectedFile) return
 
     const chunkSize = 90 * 1024 * 1024 // 90MB chunk size
-    const { tag_ids, game_id } = pendingMetadata.current
+    const { tag_ids, game_id, folder } = pendingMetadata.current
 
     async function upload() {
       const formData = new FormData()
       formData.append('file', selectedFile)
       if (tag_ids) formData.append('tag_ids', tag_ids)
       if (game_id) formData.append('game_id', game_id)
+      if (folder) formData.append('folder', folder)
       try {
         if (authenticated) {
           await VideoService.upload(formData, uploadProgress)
@@ -300,6 +303,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
           formData.append('fileType', selectedFile.type)
           if (tag_ids) formData.append('tag_ids', tag_ids)
           if (game_id) formData.append('game_id', game_id)
+          if (folder) formData.append('folder', folder)
 
           authenticated
             ? await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
@@ -445,7 +449,9 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
 
       {/* Pre-upload metadata dialog */}
       <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>Tag this clip before uploading</DialogTitle>
+        <DialogTitle sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          Upload {pendingFile?.name}
+        </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
           {/* Game selector */}
           <Autocomplete
@@ -499,6 +505,19 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
             )}
           />
 
+          {/* Folder selector */}
+          {availableFolders.length > 0 && (
+            <Autocomplete
+              options={availableFolders}
+              value={selectedFolder || null}
+              onChange={(_, value) => setSelectedFolder(value || '')}
+              disableClearable={!!selectedFolder}
+              renderInput={(params) => (
+                <TextField {...params} label="Upload Folder" size="small" />
+              )}
+            />
+          )}
+
           {/* Tag selector */}
           <Autocomplete
             multiple
@@ -534,6 +553,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
                 label="Tags"
                 size="small"
                 placeholder="Add tags..."
+                inputProps={{ ...params.inputProps, maxLength: 12 }}
                 onKeyDown={(e) => {
                   if (e.key === ',') {
                     e.preventDefault()
@@ -561,7 +581,6 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDialogCancel}>Cancel</Button>
-          <Button onClick={handleDialogSkip}>Skip</Button>
           <Button onClick={handleDialogConfirm} variant="contained">
             Upload
           </Button>

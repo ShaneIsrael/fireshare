@@ -75,7 +75,27 @@ const Dashboard = ({
 
   if (searchText !== search) {
     setSearch(searchText)
-    setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(searchText, 'i')) >= 0))
+    const tagMatches = searchText.match(/#(\w+)/g) || []
+    const tagNames = tagMatches.map((t) => t.slice(1).toLowerCase())
+    const textQuery = searchText.replace(/#\w+/g, '').trim()
+    setFilteredVideos(
+      videos.filter((v) => {
+        const titleMatch =
+          !textQuery ||
+          v.info.title.search(new RegExp(textQuery, 'i')) >= 0 ||
+          (v.game?.name && v.game.name.search(new RegExp(textQuery, 'i')) >= 0)
+        const tagMatch = tagNames.every(
+          (tagName) =>
+            v.tags &&
+            v.tags.some(
+              (t) =>
+                t.name.toLowerCase() === tagName ||
+                t.name.replace(/_/g, ' ').toLowerCase() === tagName,
+            ),
+        )
+        return titleMatch && tagMatch
+      }),
+    )
   }
   if (cardSize !== prevCardSize) {
     setPrevCardSize(cardSize)

@@ -597,7 +597,6 @@ def get_folder_size(folder_path):
 @api.route('/api/folder-size', methods=['GET'])
 @login_required
 def folder_size():
-    print("Folder size endpoint was hit!")  # Debugging line
     paths = current_app.config['PATHS']
     video_path = str(paths['video'])
     path = request.args.get('path', default=video_path, type=str)
@@ -1507,6 +1506,29 @@ def public_upload_videoChunked():
     _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
+@api.route('/api/upload-folders', methods=['GET'])
+@login_required
+def get_upload_folders():
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
+    folders = []
+    try:
+        for entry in os.scandir(video_path):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                folders.append(entry.name)
+        folders.sort()
+    except Exception:
+        pass
+    default_folder = None
+    try:
+        with open(paths['data'] / 'config.json', 'r') as configfile:
+            config = json.load(configfile)
+        default_folder = config['app_config']['admin_upload_folder_name']
+    except Exception:
+        pass
+    return jsonify({'folders': folders, 'default_folder': default_folder})
+
+
 @api.route('/api/upload', methods=['POST'])
 @login_required
 def upload_video():
@@ -1519,6 +1541,9 @@ def upload_video():
         configfile.close()
     
     upload_folder = config['app_config']['admin_upload_folder_name']
+    requested_folder = request.form.get('folder', '').strip()
+    if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
+        upload_folder = requested_folder
 
     if 'file' not in request.files:
         return Response(status=400)
@@ -1555,6 +1580,9 @@ def upload_videoChunked():
         configfile.close()
     
     upload_folder = config['app_config']['admin_upload_folder_name']
+    requested_folder = request.form.get('folder', '').strip()
+    if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
+        upload_folder = requested_folder
 
     required_files = ['blob']
     required_form_fields = ['chunkPart', 'totalChunks', 'checkSum', 'fileName', 'fileSize']
@@ -2330,12 +2358,16 @@ def create_tag():
     if not data or not data.get('name'):
         return Response(status=400, response='Tag name is required.')
 
-    existing = CustomTag.query.filter_by(name=data['name']).first()
+    name = data['name'].strip().replace(' ', '_')
+    if len(name) > 12:
+        return Response(status=400, response='Tag name must be 12 characters or fewer.')
+
+    existing = CustomTag.query.filter_by(name=name).first()
     if existing:
         return jsonify(existing.json()), 409
 
     tag = CustomTag(
-        name=data['name'],
+        name=name,
         color=data.get('color'),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
@@ -2354,10 +2386,13 @@ def update_tag(tag_id):
 
     data = request.json or {}
     if 'name' in data:
-        conflict = CustomTag.query.filter(CustomTag.name == data['name'], CustomTag.id != tag_id).first()
+        new_name = data['name'].strip().replace(' ', '_')
+        if len(new_name) > 12:
+            return Response(status=400, response='Tag name must be 12 characters or fewer.')
+        conflict = CustomTag.query.filter(CustomTag.name == new_name, CustomTag.id != tag_id).first()
         if conflict:
             return Response(status=409, response='Tag name already exists.')
-        tag.name = data['name']
+        tag.name = new_name
     if 'color' in data:
         tag.color = data['color']
     tag.updated_at = datetime.utcnow()

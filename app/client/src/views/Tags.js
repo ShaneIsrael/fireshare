@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { motion } from 'framer-motion'
+import TagChip from '../components/misc/TagChip'
 import {
   Box,
   Grid,
@@ -14,6 +15,7 @@ import {
   DialogContent,
   DialogActions,
   FormControlLabel,
+  Popover,
   TextField,
   Chip,
   useTheme,
@@ -39,7 +41,7 @@ const Tags = ({ authenticated, searchText }) => {
   const [newTagDialogOpen, setNewTagDialogOpen] = React.useState(false)
   const [newTagName, setNewTagName] = React.useState('')
   const [newTagColor, setNewTagColor] = React.useState('#2684FF')
-  const [colorPickerOpen, setColorPickerOpen] = React.useState(false)
+  const [colorPickerAnchorEl, setColorPickerAnchorEl] = React.useState(null)
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
   const navigate = useNavigate()
   const theme = useTheme()
@@ -131,7 +133,7 @@ const Tags = ({ authenticated, searchText }) => {
       setNewTagDialogOpen(false)
       setNewTagName('')
       setNewTagColor('#2684FF')
-      setColorPickerOpen(false)
+      setColorPickerAnchorEl(null)
     } catch (err) {
       console.error('Error creating tag:', err)
     }
@@ -221,9 +223,9 @@ const Tags = ({ authenticated, searchText }) => {
                         borderRadius: 2,
                         overflow: 'hidden',
                         cursor: 'pointer',
-                        border: isSelected ? '3px solid' : '3px solid transparent',
-                        borderColor: isSelected ? 'primary.main' : 'transparent',
-                        bgcolor: `${color}22`,
+                        border: isSelected ? '3px solid' : '2px solid transparent',
+                        borderColor: isSelected ? 'primary.secondary' : color,
+                        bgcolor: `${color}90`,
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -257,7 +259,9 @@ const Tags = ({ authenticated, searchText }) => {
                           }}
                         />
                       )}
-                      <Typography sx={{ fontWeight: 700, fontSize: 16, color: 'white' }}>{tag.name}</Typography>
+                      <Typography sx={{ fontWeight: 700, fontSize: 16, color: 'white' }}>
+                        {tag.name.replace(/_/g, ' ')}
+                      </Typography>
                       <Chip
                         label={`${tag.video_count ?? 0} video${tag.video_count !== 1 ? 's' : ''}`}
                         size="small"
@@ -273,7 +277,9 @@ const Tags = ({ authenticated, searchText }) => {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete {selectedTags.size} Tag{selectedTags.size > 1 ? 's' : ''}?</DialogTitle>
+        <DialogTitle>
+          Delete {selectedTags.size} Tag{selectedTags.size > 1 ? 's' : ''}?
+        </DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2 }}>
             Are you sure you want to delete the selected tag{selectedTags.size > 1 ? 's' : ''}?
@@ -290,13 +296,28 @@ const Tags = ({ authenticated, searchText }) => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setDeleteDialogOpen(false); setDeleteAssociatedVideos(false) }}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} variant="contained" color="error">Delete</Button>
+          <Button
+            onClick={() => {
+              setDeleteDialogOpen(false)
+              setDeleteAssociatedVideos(false)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* New Tag Dialog */}
-      <Dialog open={newTagDialogOpen} onClose={() => { setNewTagDialogOpen(false); setColorPickerOpen(false) }}>
+      <Dialog
+        open={newTagDialogOpen}
+        onClose={() => {
+          setNewTagDialogOpen(false)
+          setColorPickerAnchorEl(null)
+        }}
+      >
         <DialogTitle>Create New Tag</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important', minWidth: 300 }}>
           <TextField
@@ -306,48 +327,56 @@ const Tags = ({ authenticated, searchText }) => {
             onChange={(e) => setNewTagName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
             fullWidth
+            inputProps={{ maxLength: 12 }}
           />
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-              <Typography sx={{ color: '#FFFFFFB3', fontSize: 14 }}>Color</Typography>
-              <Box
-                onClick={() => setColorPickerOpen(!colorPickerOpen)}
-                sx={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 1,
-                  bgcolor: newTagColor,
-                  cursor: 'pointer',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                }}
-              />
-              <Chip label={newTagName || 'Preview'} sx={{ bgcolor: `${newTagColor}33`, color: 'white' }} />
-            </Box>
-            {colorPickerOpen && (
-              <Box sx={{ position: 'relative', zIndex: 2 }}>
-                <Box
-                  onClick={() => setColorPickerOpen(false)}
-                  sx={{ position: 'fixed', top: 0, right: 0, bottom: 0, left: 0 }}
-                />
-                <SketchPicker
-                  color={newTagColor}
-                  onChangeComplete={(color) => setNewTagColor(color.hex)}
-                  styles={{
-                    default: {
-                      picker: { background: '#1e1e2e', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' },
-                      label: { color: '#FFFFFFB3' },
-                      hash: { color: '#FFFFFFB3', background: '#2a2a3e' },
-                      input: { color: '#fff', background: '#2a2a3e', border: '1px solid #444', boxShadow: 'none' },
-                    },
-                  }}
-                />
-              </Box>
-            )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography sx={{ color: '#FFFFFFB3', fontSize: 14 }}>Color</Typography>
+            <Box
+              onClick={(e) => setColorPickerAnchorEl(e.currentTarget)}
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 1,
+                bgcolor: newTagColor,
+                cursor: 'pointer',
+                border: '2px solid rgba(255,255,255,0.3)',
+              }}
+            />
+            <TagChip name={newTagName || 'Preview'} color={newTagColor} />
           </Box>
+          <Popover
+            open={Boolean(colorPickerAnchorEl)}
+            anchorEl={colorPickerAnchorEl}
+            onClose={() => setColorPickerAnchorEl(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+          >
+            <SketchPicker
+              color={newTagColor}
+              onChangeComplete={(color) => setNewTagColor(color.hex)}
+              styles={{
+                default: {
+                  picker: { background: '#1e1e2e', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' },
+                  label: { color: '#FFFFFFB3' },
+                  hash: { color: '#FFFFFFB3', background: '#2a2a3e' },
+                  input: { color: '#fff', background: '#2a2a3e', border: '1px solid #444', boxShadow: 'none' },
+                },
+              }}
+            />
+          </Popover>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setNewTagDialogOpen(false); setColorPickerOpen(false) }}>Cancel</Button>
-          <Button onClick={handleCreateTag} variant="contained" disabled={!newTagName.trim()}>Create</Button>
+          <Button
+            onClick={() => {
+              setNewTagDialogOpen(false)
+              setColorPickerAnchorEl(null)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleCreateTag} variant="contained" disabled={!newTagName.trim()}>
+            Create
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

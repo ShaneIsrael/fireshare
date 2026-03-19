@@ -1,5 +1,19 @@
 import React, { useEffect, useState } from 'react'
-import { Autocomplete, Box, Button, Chip, Divider, IconButton, Modal, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material'
+import {
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  IconButton,
+  Modal,
+  Paper,
+  Popover,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material'
+import TagChip from '../misc/TagChip'
 import { motion } from 'framer-motion'
 import { DayPicker } from 'react-day-picker'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -295,10 +309,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
           if (!cancelled) setSelectedGame(null)
         }
         try {
-          const [tagsRes, allTagsRes] = await Promise.all([
-            TagService.getVideoTags(videoId),
-            TagService.getTags(),
-          ])
+          const [tagsRes, allTagsRes] = await Promise.all([TagService.getVideoTags(videoId), TagService.getTags()])
           if (cancelled) return
           setVideoTags(tagsRes.data || [])
           setAllTags(allTagsRes.data || [])
@@ -702,7 +713,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                               <img
                                 src={selectedGame.icon_url}
                                 alt=""
-                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
                                 style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                               />
                             )}
@@ -722,21 +735,12 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                         {videoTags.length > 0 && (
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
                             {videoTags.map((tag) => (
-                              <Chip
+                              <TagChip
                                 key={tag.id}
-                                label={tag.name}
-                                size="small"
-                                component="a"
+                                name={tag.name}
+                                color={tag.color}
                                 href={`#/tags/${tag.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                                sx={{
-                                  bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
-                                  color: 'white',
-                                  fontSize: 12,
-                                  cursor: 'pointer',
-                                  textDecoration: 'none',
-                                  '&:hover': { bgcolor: tag.color ? `${tag.color}55` : '#FFFFFF22' },
-                                }}
+                                size="small"
                               />
                             ))}
                           </Box>
@@ -765,7 +769,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             <img
                               src={selectedGame.icon_url}
                               alt=""
-                              onError={(e) => { e.currentTarget.style.display = 'none' }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
                               style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                             />
                           )}
@@ -822,17 +828,12 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       {videoTags.length > 0 && (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1 }}>
                           {videoTags.map((tag) => (
-                            <Chip
+                            <TagChip
                               key={tag.id}
-                              label={tag.name}
+                              name={tag.name}
+                              color={tag.color}
                               size="small"
                               onDelete={() => handleRemoveTag(tag.id)}
-                              sx={{
-                                bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
-                                color: 'white',
-                                fontSize: 12,
-                                '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
-                              }}
                             />
                           ))}
                         </Box>
@@ -857,6 +858,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             size="small"
                             placeholder="Add a tag..."
                             sx={inputSx}
+                            inputProps={{ ...params.inputProps, maxLength: 12 }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && tagInputValue.trim()) {
                                 e.preventDefault()
@@ -873,9 +875,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                                   .filter(Boolean)
                                 setTagInputValue('')
                                 parts.forEach((p) => {
-                                  const existing = allTags.find(
-                                    (t) => t.name.toLowerCase() === p.toLowerCase(),
-                                  )
+                                  const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
                                   handleAddTag(existing || { name: p })
                                 })
                               }
