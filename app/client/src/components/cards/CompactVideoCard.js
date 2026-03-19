@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton,
+  Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip,
 } from '@mui/material'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -757,17 +757,24 @@ const CompactVideoCard = ({
                   />
                 ))}
                 {localTags.length > 3 && (
-                  <Chip
-                    label={`+${localTags.length - 3}`}
-                    size="small"
-                    sx={{
-                      height: 18,
-                      fontSize: 11,
-                      bgcolor: '#FFFFFF0D',
-                      color: '#FFFFFF55',
-                      '& .MuiChip-label': { px: 0.75 },
-                    }}
-                  />
+                  <Tooltip
+                    title={localTags.slice(3).map((tag) => tag.name).join(', ')}
+                    arrow
+                    placement="top"
+                  >
+                    <Chip
+                      label={`+${localTags.length - 3}`}
+                      size="small"
+                      sx={{
+                        height: 18,
+                        fontSize: 11,
+                        bgcolor: '#FFFFFF0D',
+                        color: '#FFFFFF55',
+                        cursor: 'default',
+                        '& .MuiChip-label': { px: 0.75 },
+                      }}
+                    />
+                  </Tooltip>
                 )}
               </Box>
             )}
