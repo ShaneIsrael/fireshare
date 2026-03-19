@@ -23,7 +23,7 @@ import requests
 
 from . import db, logger, util
 from .constants import DEFAULT_CONFIG, SUPPORTED_FILE_TYPES
-from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule
+from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule, CustomTag, VideoTagLink
 from .steamgrid import SteamGridDBClient
 
 def secure_filename(filename):
@@ -1152,6 +1152,7 @@ def get_videos():
     for v in videos:
         vjson = v.json()
         vjson["view_count"] = VideoView.count(v.video_id)
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all()]
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -1207,6 +1208,7 @@ def get_public_videos():
         if (not vjson["available"]):
             continue
         vjson["view_count"] = VideoView.count(v.video_id)
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all()]
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -1265,6 +1267,9 @@ def delete_video(id):
         derived_path = paths['processed'] / 'derived' / id
         
         VideoInfo.query.filter_by(video_id=id).delete()
+        VideoGameLink.query.filter_by(video_id=id).delete()
+        VideoTagLink.query.filter_by(video_id=id).delete()
+        VideoView.query.filter_by(video_id=id).delete()
         Video.query.filter_by(video_id=id).delete()
         db.session.commit()
         
@@ -1361,20 +1366,36 @@ def get_video_views(video_id):
     return str(views)
 
 
-def _launch_scan_video(save_path, config):
+def _parse_upload_metadata():
+    """Return (tag_ids, game_id) parsed from current request form data."""
+    tag_ids_raw = request.form.get('tag_ids', '')
+    tag_ids = [int(t) for t in tag_ids_raw.split(',') if t.strip().isdigit()] or None
+    game_id_raw = request.form.get('game_id', '')
+    game_id = int(game_id_raw) if game_id_raw.strip().isdigit() else None
+    return tag_ids, game_id
+
+
+def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
     """
     Launch scan-video and publish an initial transcoding-running status when
     auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
+    Optionally apply tag_ids and game_id to the video after the scan completes.
     """
     paths = current_app.config['PATHS']
     data_path = paths['data']
-    scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False, start_new_session=True)
+    videos_path = paths['video']
+    app = current_app._get_current_object()
+    cmd = ["fireshare", "scan-video", f"--path={save_path}"]
+    if tag_ids:
+        cmd.append(f"--tag-ids={','.join(str(t) for t in tag_ids)}")
+    if game_id:
+        cmd.append(f"--game-id={game_id}")
+    scan_proc = Popen(cmd, shell=False, start_new_session=True)
 
     def reap_and_cleanup():
         try:
             scan_proc.wait()
             status = util.read_transcoding_status(data_path)
-            # Clear stale placeholder/status written for this upload process.
             if status.get('pid') == scan_proc.pid:
                 util.clear_transcoding_status(data_path)
         except Exception as e:
@@ -1429,7 +1450,7 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    _launch_scan_video(save_path, config)
+    _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
 @api.route('/api/uploadChunked/public', methods=['POST'])
@@ -1483,7 +1504,7 @@ def public_upload_videoChunked():
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     
     os.rename(tempPath, save_path)
-    _launch_scan_video(save_path, config)
+    _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
 @api.route('/api/upload', methods=['POST'])
@@ -1519,7 +1540,7 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    _launch_scan_video(save_path, config)
+    _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
 @api.route('/api/uploadChunked', methods=['POST'])
@@ -1609,7 +1630,7 @@ def upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
-    _launch_scan_video(save_path, config)
+    _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
 @api.route('/api/video')
@@ -2269,6 +2290,236 @@ def rss_feed():
         render_template('rss.xml', items=rss_items, domain=frontend_domain, now=now_str, feed_title=rss_title, feed_description=rss_description),
         mimetype='application/rss+xml'
     )
+
+@api.route('/api/tags', methods=["GET"])
+def get_tags():
+    if current_user.is_authenticated:
+        tags = CustomTag.query.order_by(CustomTag.name).all()
+    else:
+        tags = (
+            db.session.query(CustomTag)
+            .join(VideoTagLink)
+            .join(Video)
+            .join(VideoInfo)
+            .filter(
+                Video.available.is_(True),
+                VideoInfo.private.is_(False),
+            )
+            .distinct()
+            .order_by(CustomTag.name)
+            .all()
+        )
+
+    result = []
+    for tag in tags:
+        t = tag.json()
+        t["video_count"] = (
+            db.session.query(VideoTagLink)
+            .join(Video, Video.video_id == VideoTagLink.video_id)
+            .filter(VideoTagLink.tag_id == tag.id, Video.available.is_(True))
+            .count()
+        )
+        result.append(t)
+    return jsonify(result)
+
+
+@api.route('/api/tags', methods=["POST"])
+@login_required
+def create_tag():
+    data = request.json
+    if not data or not data.get('name'):
+        return Response(status=400, response='Tag name is required.')
+
+    existing = CustomTag.query.filter_by(name=data['name']).first()
+    if existing:
+        return jsonify(existing.json()), 409
+
+    tag = CustomTag(
+        name=data['name'],
+        color=data.get('color'),
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(tag)
+    db.session.commit()
+    return jsonify(tag.json()), 201
+
+
+@api.route('/api/tags/<int:tag_id>', methods=["PUT"])
+@login_required
+def update_tag(tag_id):
+    tag = CustomTag.query.get(tag_id)
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    data = request.json or {}
+    if 'name' in data:
+        conflict = CustomTag.query.filter(CustomTag.name == data['name'], CustomTag.id != tag_id).first()
+        if conflict:
+            return Response(status=409, response='Tag name already exists.')
+        tag.name = data['name']
+    if 'color' in data:
+        tag.color = data['color']
+    tag.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(tag.json())
+
+
+@api.route('/api/tags/<int:tag_id>', methods=["DELETE"])
+@login_required
+def delete_tag(tag_id):
+    tag = CustomTag.query.get(tag_id)
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    delete_videos = request.args.get('delete_videos', 'false').lower() == 'true'
+
+    video_links = VideoTagLink.query.filter_by(tag_id=tag_id).all()
+
+    if delete_videos:
+        paths = current_app.config['PATHS']
+        for link in video_links:
+            video = link.video
+            if video is None:
+                db.session.delete(link)
+                continue
+            file_path = paths['video'] / video.path
+            link_path = paths['processed'] / 'video_links' / f"{video.video_id}{video.extension}"
+            derived_path = paths['processed'] / 'derived' / video.video_id
+            VideoTagLink.query.filter_by(video_id=video.video_id).delete()
+            VideoGameLink.query.filter_by(video_id=video.video_id).delete()
+            VideoView.query.filter_by(video_id=video.video_id).delete()
+            VideoInfo.query.filter_by(video_id=video.video_id).delete()
+            Video.query.filter_by(video_id=video.video_id).delete()
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                if link_path.exists() or link_path.is_symlink():
+                    link_path.unlink()
+                if derived_path.exists():
+                    shutil.rmtree(derived_path)
+            except OSError as e:
+                logger.error(f"Error deleting files for video {video.video_id}: {e}")
+    else:
+        for link in video_links:
+            db.session.delete(link)
+
+    db.session.delete(tag)
+    db.session.commit()
+    return Response(status=200)
+
+
+@api.route('/api/tags/<int:tag_id>/videos', methods=["GET"])
+def get_tag_videos(tag_id):
+    tag = CustomTag.query.get(tag_id)
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    videos_json = []
+    for link in tag.videos:
+        if not link.video:
+            continue
+        if not current_user.is_authenticated:
+            if not link.video.available:
+                continue
+            if not link.video.info or link.video.info.private:
+                continue
+        vjson = link.video.json()
+        vjson["view_count"] = VideoView.count(link.video_id)
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=link.video_id).all()]
+        videos_json.append(vjson)
+
+    return jsonify(videos_json)
+
+
+@api.route('/api/videos/<video_id>/tags', methods=["GET"])
+def get_video_tags(video_id):
+    links = VideoTagLink.query.filter_by(video_id=video_id).all()
+    return jsonify([l.tag.json() for l in links])
+
+
+@api.route('/api/videos/<video_id>/tags', methods=["POST"])
+@login_required
+def add_tag_to_video(video_id):
+    data = request.json
+    if not data or not data.get('tag_id'):
+        return Response(status=400, response='tag_id is required.')
+
+    video = Video.query.filter_by(video_id=video_id).first()
+    if not video:
+        return Response(status=404, response='Video not found.')
+
+    tag = CustomTag.query.get(data['tag_id'])
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    existing = VideoTagLink.query.filter_by(video_id=video_id, tag_id=data['tag_id']).first()
+    if existing:
+        return jsonify(existing.json()), 200
+
+    link = VideoTagLink(
+        video_id=video_id,
+        tag_id=data['tag_id'],
+        created_at=datetime.utcnow(),
+    )
+    db.session.add(link)
+    db.session.commit()
+    return jsonify(link.json()), 201
+
+
+@api.route('/api/videos/<video_id>/tags/<int:tag_id>', methods=["DELETE"])
+@login_required
+def remove_tag_from_video(video_id, tag_id):
+    link = VideoTagLink.query.filter_by(video_id=video_id, tag_id=tag_id).first()
+    if not link:
+        return Response(status=404, response='Tag link not found.')
+    db.session.delete(link)
+    db.session.commit()
+    return Response(status=204)
+
+
+@api.route('/api/tags/bulk-assign', methods=["POST"])
+@login_required
+def bulk_assign_tag():
+    data = request.json
+    if not data or not data.get('tag_id') or not data.get('video_ids'):
+        return Response(status=400, response='tag_id and video_ids are required.')
+
+    tag = CustomTag.query.get(data['tag_id'])
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    created = 0
+    for video_id in data['video_ids']:
+        existing = VideoTagLink.query.filter_by(video_id=video_id, tag_id=data['tag_id']).first()
+        if not existing:
+            link = VideoTagLink(
+                video_id=video_id,
+                tag_id=data['tag_id'],
+                created_at=datetime.utcnow(),
+            )
+            db.session.add(link)
+            created += 1
+
+    db.session.commit()
+    return jsonify({"created": created, "skipped": len(data['video_ids']) - created}), 200
+
+
+@api.route('/api/tags/bulk-remove', methods=["POST"])
+@login_required
+def bulk_remove_tag():
+    data = request.json
+    if not data or not data.get('tag_id') or not data.get('video_ids'):
+        return Response(status=400, response='tag_id and video_ids are required.')
+
+    removed = VideoTagLink.query.filter(
+        VideoTagLink.tag_id == data['tag_id'],
+        VideoTagLink.video_id.in_(data['video_ids'])
+    ).delete(synchronize_session=False)
+
+    db.session.commit()
+    return jsonify({"removed": removed}), 200
+
 
 @api.after_request
 def after_request(response):

@@ -1,9 +1,9 @@
 import * as React from 'react'
-import { Modal, Box, Typography, Button, Stack, TextField, IconButton, Divider, Popover } from '@mui/material'
+import { Modal, Box, Typography, Button, Stack, TextField, IconButton, Divider, Popover, Chip, Autocomplete } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { DayPicker } from 'react-day-picker'
-import { VideoService, GameService } from '../../services'
+import { VideoService, GameService, TagService } from '../../services'
 import GameSearch from '../game/GameSearch'
 import './datepicker-dark.css'
 
@@ -168,6 +168,71 @@ const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
   )
 }
 
+const TagsField = ({ localTags, allTags, tagInput, setTagInput, setLocalTags, inputSx }) => (
+  <Autocomplete
+    multiple
+    freeSolo
+    options={allTags.filter((t) => !localTags.find((lt) => lt.id === t.id))}
+    getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
+    value={localTags}
+    inputValue={tagInput}
+    onInputChange={(_, v) => setTagInput(v)}
+    onChange={(_, values) => {
+      const seen = new Set()
+      setLocalTags(
+        values
+          .map((v) => (typeof v === 'string' ? { name: v } : v))
+          .filter((t) => {
+            const key = (t.name || '').toLowerCase()
+            if (!key || seen.has(key)) return false
+            seen.add(key)
+            return true
+          }),
+      )
+      setTagInput('')
+    }}
+    renderTags={(value, getTagProps) =>
+      value.map((tag, idx) => (
+        <Chip
+          key={tag.id ?? `new-${idx}`}
+          label={tag.name}
+          size="small"
+          {...getTagProps({ index: idx })}
+          sx={{
+            bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
+            color: 'white',
+            '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+          }}
+        />
+      ))
+    }
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        size="small"
+        placeholder="Add clip tags..."
+        sx={inputSx}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+            e.preventDefault()
+            const parts = tagInput.split(',').map((s) => s.trim()).filter(Boolean)
+            setTagInput('')
+            setLocalTags((prev) => {
+              const merged = [...prev]
+              parts.forEach((p) => {
+                if (!merged.find((t) => (t.name || '').toLowerCase() === p.toLowerCase())) {
+                  merged.push(allTags.find((t) => t.name.toLowerCase() === p.toLowerCase()) || { name: p })
+                }
+              })
+              return merged
+            })
+          }
+        }}
+      />
+    )}
+  />
+)
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescription, currentRecordedAt, currentGame, alertHandler }) => {
@@ -177,11 +242,25 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
   const [selectedTime, setSelectedTime] = React.useState('')
   const [linkedGame, setLinkedGame] = React.useState(currentGame || null)
   const [loading, setLoading] = React.useState(false)
+  const [localTags, setLocalTags] = React.useState([])
+  const [allTags, setAllTags] = React.useState([])
+  const [tagInput, setTagInput] = React.useState('')
+  const initialTagsRef = React.useRef([])
 
   React.useEffect(() => {
+    if (!open) return
     setTitle(currentTitle)
     setDescription(currentDescription)
     setLinkedGame(currentGame || null)
+    setTagInput('')
+    Promise.all([TagService.getVideoTags(videoId), TagService.getTags()])
+      .then(([videoTagsRes, allTagsRes]) => {
+        const tags = videoTagsRes.data || []
+        initialTagsRef.current = tags
+        setLocalTags(tags)
+        setAllTags(allTagsRes.data || [])
+      })
+      .catch(() => {})
     if (!currentRecordedAt) {
       setSelectedDate(null)
       setSelectedTime('')
@@ -191,7 +270,7 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
     const pad = (n) => n.toString().padStart(2, '0')
     setSelectedDate(d)
     setSelectedTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)
-  }, [currentTitle, currentDescription, currentRecordedAt, currentGame])
+  }, [open])
 
   const getRecordedAtISO = () => {
     if (!selectedDate) return null
@@ -211,8 +290,33 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
         description: description || currentDescription,
         recorded_at: getRecordedAtISO(),
       })
+
+      // Apply tag changes: diff localTags vs what was on the video when modal opened
+      const initialTags = initialTagsRef.current
+      const toRemove = initialTags.filter((it) => !localTags.find((lt) => lt.id && lt.id === it.id))
+      const toAdd = localTags.filter((lt) => !initialTags.find((it) => it.id && it.id === lt.id))
+      const toCreate = toAdd.filter((t) => !t.id)
+      const toLink = toAdd.filter((t) => !!t.id)
+
+      const createdTags = await Promise.all(
+        toCreate.map(async (t) => {
+          const res = await TagService.createTag({ name: t.name })
+          return res.data
+        }),
+      )
+      await Promise.all([
+        ...toLink.map((t) => TagService.addTagToVideo(videoId, t.id)),
+        ...createdTags.map((t) => TagService.addTagToVideo(videoId, t.id)),
+        ...toRemove.map((t) => TagService.removeTagFromVideo(videoId, t.id)),
+      ])
+
+      const finalTags = [
+        ...localTags.filter((lt) => lt.id && !toRemove.find((t) => t.id === lt.id)),
+        ...createdTags,
+      ]
+
       alertHandler?.({ open: true, type: 'success', message: 'Video details updated!' })
-      close({ title: title || currentTitle, description: description || currentDescription, game: linkedGame })
+      close({ title: title || currentTitle, description: description || currentDescription, game: linkedGame, tags: finalTags })
     } catch (err) {
       alertHandler?.({ open: true, type: 'error', message: err.response?.data || 'An unknown error occurred.' })
     }
@@ -272,6 +376,17 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
               onLink={handleGameLinked}
               onUnlink={handleGameUnlink}
               alertHandler={alertHandler}
+            />
+          </LabeledField>
+
+          <LabeledField label="Tags">
+            <TagsField
+              localTags={localTags}
+              allTags={allTags}
+              tagInput={tagInput}
+              setTagInput={setTagInput}
+              setLocalTags={setLocalTags}
+              inputSx={inputSx}
             />
           </LabeledField>
         </Stack>

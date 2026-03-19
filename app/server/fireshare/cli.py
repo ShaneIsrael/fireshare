@@ -7,7 +7,7 @@ import click
 from datetime import datetime
 from flask import current_app, request
 from fireshare import create_app, db, util, logger
-from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink
+from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink, VideoTagLink
 from werkzeug.security import generate_password_hash
 from pathlib import Path
 from sqlalchemy import func
@@ -341,7 +341,9 @@ def scan_videos(root):
 @cli.command()
 @click.pass_context
 @click.option("--path", "-p", help="path to video to scan", required=False)
-def scan_video(ctx, path):
+@click.option("--tag-ids", help="comma-separated custom tag IDs to apply", required=False, default=None)
+@click.option("--game-id", type=int, help="game ID to apply", required=False, default=None)
+def scan_video(ctx, path, tag_ids, game_id):
     with create_app().app_context():
         paths = current_app.config['PATHS']
         domain = current_app.config['DOMAIN']
@@ -418,6 +420,16 @@ def scan_video(ctx, path):
                 info = VideoInfo(video_id=v.video_id, title=Path(v.path).stem, private=video_config["private"])
                 db.session.add(info)
                 db.session.commit()
+
+                # Apply pre-upload metadata (tags and game) passed from the upload endpoint
+                if tag_ids:
+                    for tid in [int(t) for t in tag_ids.split(',') if t.strip().isdigit()]:
+                        if not VideoTagLink.query.filter_by(video_id=v.video_id, tag_id=tid).first():
+                            db.session.add(VideoTagLink(video_id=v.video_id, tag_id=tid, created_at=datetime.utcnow()))
+                    db.session.commit()
+                if game_id and not VideoGameLink.query.filter_by(video_id=v.video_id).first():
+                    db.session.add(VideoGameLink(video_id=v.video_id, game_id=game_id, created_at=datetime.utcnow()))
+                    db.session.commit()
 
                 # Check folder rules for auto-tagging
                 auto_tagged = False
