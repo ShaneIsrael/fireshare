@@ -17,6 +17,7 @@ import { ConfigService } from './services'
 import { getSetting, setSetting } from './common/utils'
 import AuthWrapper from './components/utils/AuthWrapper'
 import Navbar20 from './components/nav/Navbar20'
+import GlobalDragDropOverlay from './components/utils/GlobalDragDropOverlay'
 
 const muitheme = createTheme(darkTheme)
 
@@ -36,6 +37,7 @@ export default function App() {
     <Router>
       <ThemeProvider theme={muitheme}>
         <CssBaseline />
+        <GlobalDragDropOverlay>
         <Routes>
           <Route
             path="/"
@@ -136,6 +138,7 @@ export default function App() {
             }
           />
         </Routes>
+        </GlobalDragDropOverlay>
       </ThemeProvider>
     </Router>
   )

@@ -28,7 +28,7 @@ const Input = styled('input')({
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
+const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleAlert, mini, onUploadComplete, dropOnly = false }, ref) {
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
@@ -52,6 +52,14 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
   const [selectedFolder, setSelectedFolder] = React.useState('')
   // Stored metadata to attach on next upload
   const pendingMetadata = React.useRef({ tag_ids: null, game_id: null, folder: null })
+
+  React.useImperativeHandle(ref, () => ({
+    openFile(file) {
+      setProgress(0)
+      lastProgressUpdate.current = 0
+      openMetadataDialog(file)
+    },
+  }))
 
   const openMetadataDialog = (file) => {
     setPendingFile(file)
@@ -338,8 +346,144 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     // eslint-disable-next-line
   }, [selectedFile])
 
-  if (!authenticated && !uiConfig?.allow_public_upload) return null
-  if (authenticated && !uiConfig?.show_admin_upload) return null
+  const canUpload = authenticated ? !!uiConfig?.show_admin_upload : !!uiConfig?.allow_public_upload
+  if (!canUpload) return null
+
+  if (dropOnly) {
+    return (
+      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          Upload {pendingFile?.name}
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
+          {/* Game selector */}
+          <Autocomplete
+            options={gameOptions}
+            getOptionLabel={(o) => o.name || ''}
+            groupBy={(o) => (o._source === 'db' ? 'Already in library' : 'From SteamGridDB')}
+            value={selectedGame}
+            inputValue={gameInput}
+            onInputChange={handleGameInputChange}
+            onChange={handleGameChange}
+            loading={gameSearchLoading}
+            disabled={gameCreating}
+            filterOptions={(x) => x}
+            isOptionEqualToValue={(option, value) =>
+              option.id === value.id || (option.steamgriddb_id && option.steamgriddb_id === value.steamgriddb_id)
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Game"
+                size="small"
+                placeholder="Search for a game..."
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {(gameSearchLoading || gameCreating) && (
+                        <InputAdornment position="end">
+                          <CircularProgress size={16} sx={{ mr: 1 }} />
+                        </InputAdornment>
+                      )}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props} key={`${option._source}-${option.id}`}>
+                {option.icon_url && (
+                  <img
+                    src={option.icon_url}
+                    alt=""
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                  />
+                )}
+                {option.name}
+                {option._source === 'sgdb' && option.release_date && ` (${new Date(option.release_date * 1000).getFullYear()})`}
+              </Box>
+            )}
+          />
+          {availableFolders.length > 0 && (
+            <Autocomplete
+              options={availableFolders}
+              value={selectedFolder || null}
+              onChange={(_, value) => setSelectedFolder(value || '')}
+              disableClearable={!!selectedFolder}
+              renderInput={(params) => (
+                <TextField {...params} label="Upload Folder" size="small" />
+              )}
+            />
+          )}
+          <Autocomplete
+            multiple
+            freeSolo
+            options={allTags.filter((t) => !selectedTags.find((s) => s.id === t.id))}
+            getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
+            value={selectedTags}
+            inputValue={tagInput}
+            onInputChange={(_, v) => setTagInput(v)}
+            onChange={(_, values) => {
+              setSelectedTags(values.map((v) => (typeof v === 'string' ? { name: v } : v)))
+              setTagInput('')
+            }}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  key={index}
+                  label={option.name}
+                  size="small"
+                  {...getTagProps({ index })}
+                  sx={{
+                    bgcolor: option.color ? `${option.color}33` : '#FFFFFF14',
+                    color: 'white',
+                    '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+                  }}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tags"
+                size="small"
+                placeholder="Add tags..."
+                inputProps={{ ...params.inputProps, maxLength: 12 }}
+                onKeyDown={(e) => {
+                  if (e.key === ',') {
+                    e.preventDefault()
+                    const parts = parseTagInput(tagInput)
+                    if (parts.length > 0) {
+                      setSelectedTags((prev) => {
+                        const merged = [...prev]
+                        parts.forEach((p) => {
+                          if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
+                            const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
+                            merged.push(existing || { name: p })
+                          }
+                        })
+                        return merged
+                      })
+                      setTagInput('')
+                    }
+                  }
+                }}
+              />
+            )}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogCancel}>Cancel</Button>
+          <Button onClick={handleDialogConfirm} variant="contained">
+            Upload
+          </Button>
+        </DialogActions>
+      </Dialog>
+    )
+  }
 
   return (
     <>
@@ -588,6 +732,6 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
       </Dialog>
     </>
   )
-}
+})
 
 export default UploadCard
