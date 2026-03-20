@@ -350,6 +350,8 @@ const CompactVideoCard = ({
           borderRadius: { xs: 0, sm: '12px' },
           overflow: 'hidden',
           position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         {selected && (
@@ -647,7 +649,8 @@ const CompactVideoCard = ({
         <Box
           sx={{
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'stretch',
+            flex: 1,
             mt: 1.5,
             px: 1.5,
             pb: 1.5,
@@ -659,7 +662,7 @@ const CompactVideoCard = ({
             <a
               href={`#/games/${game.steamgriddb_id}`}
               onClick={(e) => e.stopPropagation()}
-              style={{ flexShrink: 0, lineHeight: 0 }}
+              style={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
             >
               <img
                 src={game.icon_url}
@@ -673,7 +676,7 @@ const CompactVideoCard = ({
           )}
 
           {/* Text info */}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {/* Title */}
             {editingTitle ? (
               <input
@@ -770,7 +773,8 @@ const CompactVideoCard = ({
                 sx={{
                   fontSize: 14,
                   color: '#FFFFFF80',
-                  mt: 0.25,
+                  mt: 'auto',
+                  pt: 0.5,
                 }}
               >
                 {new Date(video.recorded_at).toLocaleDateString('en-US', {
