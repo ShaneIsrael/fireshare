@@ -45,6 +45,7 @@ import FolderSuggestionInline from './FolderSuggestionInline'
 import DiskSpaceIndicator from './DiskSpaceIndicator'
 import { GameService } from '../../services'
 import UploadCard from '../cards/UploadCard'
+import { RegisterUploadCardContext } from '../utils/GlobalDragDropOverlay'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
 
@@ -154,6 +155,7 @@ function Navbar20({
 
   const [alert, setAlert] = React.useState({ open: false })
   const [uploadTick, setUploadTick] = React.useState(0)
+  const registerUploadCard = React.useContext(RegisterUploadCardContext)
   const [folderSuggestions, setFolderSuggestions] = React.useState({})
   const [currentSuggestionFolder, setCurrentSuggestionFolder] = React.useState(null)
   const navigate = useNavigate()
@@ -443,7 +445,7 @@ function Navbar20({
         </>
       )}
       <Divider />
-      <UploadCard authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} onUploadComplete={() => setUploadTick((t) => t + 1)} />
+      <UploadCard ref={registerUploadCard} authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} onUploadComplete={() => setUploadTick((t) => t + 1)} />
 
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
         <GameScanStatus open={open} onComplete={handleGameScanComplete} authenticated={authenticated} />

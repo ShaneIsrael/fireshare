@@ -18,9 +18,11 @@ import {
 } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
+import { keyframes } from '@emotion/react'
 import { motion } from 'framer-motion'
 import { VideoService, GameService, TagService } from '../../services'
 import { getSetting } from '../../common/utils'
+import logo from '../../assets/logo.png'
 
 const Input = styled('input')({
   display: 'none',
@@ -28,7 +30,54 @@ const Input = styled('input')({
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
+const logoPulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+`
+
+const borderSpin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`
+
+const maskCss = {
+  maskImage: `url(${logo})`,
+  maskSize: 'contain',
+  maskRepeat: 'no-repeat',
+  maskPosition: 'center',
+  WebkitMaskImage: `url(${logo})`,
+  WebkitMaskSize: 'contain',
+  WebkitMaskRepeat: 'no-repeat',
+  WebkitMaskPosition: 'center',
+}
+
+function LogoProgress({ progress, size = 44 }) {
+  const isProcessing = progress >= 1
+  const fillPct = isProcessing ? 100 : progress * 100
+  return (
+    <Box sx={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      {/* White base — full logo shape */}
+      <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'white', ...maskCss }} />
+      {/* Colored fill — clips from top, grows upward */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(to top, #FF6B00, #FF2E80, #BC00E6)',
+          clipPath: `inset(${100 - fillPct}% 0 0 0)`,
+          transition: isProcessing ? 'none' : 'clip-path 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)',
+          animation: isProcessing ? `${logoPulse} 1.5s ease-in-out infinite` : 'none',
+          ...maskCss,
+        }}
+      />
+    </Box>
+  )
+}
+
+const UploadCard = React.forwardRef(function UploadCard(
+  { authenticated, handleAlert, mini, onUploadComplete, onProgress, dropOnly = false },
+  ref,
+) {
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
@@ -48,8 +97,18 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
   const [gameSearchLoading, setGameSearchLoading] = React.useState(false)
   const [gameCreating, setGameCreating] = React.useState(false)
   const [gameInput, setGameInput] = React.useState('')
+  const [availableFolders, setAvailableFolders] = React.useState([])
+  const [selectedFolder, setSelectedFolder] = React.useState('')
   // Stored metadata to attach on next upload
-  const pendingMetadata = React.useRef({ tag_ids: null, game_id: null })
+  const pendingMetadata = React.useRef({ tag_ids: null, game_id: null, folder: null })
+
+  React.useImperativeHandle(ref, () => ({
+    openFile(file) {
+      setProgress(0)
+      lastProgressUpdate.current = 0
+      openMetadataDialog(file)
+    },
+  }))
 
   const openMetadataDialog = (file) => {
     setPendingFile(file)
@@ -58,22 +117,32 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     setTagInput('')
     setGameInput('')
     setGameOptions([])
-    Promise.all([GameService.getGames(), TagService.getTags()])
-      .then(([gRes, tRes]) => {
+    Promise.all([GameService.getGames(), TagService.getTags(), VideoService.getUploadFolders()])
+      .then(([gRes, tRes, fRes]) => {
         const games = gRes.data || []
         setAllGames(games)
         setGameOptions(games.map((g) => ({ ...g, _source: 'db' })))
         setAllTags(tRes.data || [])
+        const folders = fRes.data?.folders || []
+        const defaultFolder = fRes.data?.default_folder || ''
+        setAvailableFolders(folders)
+        setSelectedFolder(folders.includes(defaultFolder) ? defaultFolder : folders[0] || '')
       })
       .catch(() => {
         setAllGames([])
         setGameOptions([])
         setAllTags([])
+        setAvailableFolders([])
+        setSelectedFolder('')
       })
     setDialogOpen(true)
   }
 
-  const parseTagInput = (raw) => raw.split(',').map((s) => s.trim()).filter(Boolean)
+  const parseTagInput = (raw) =>
+    raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
 
   const handleDialogConfirm = async () => {
     // Flush any pending typed input (user didn't press Enter or comma)
@@ -98,15 +167,8 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     pendingMetadata.current = {
       tag_ids: resolvedTags.length ? resolvedTags.map((t) => t.id).join(',') : null,
       game_id: selectedGame ? selectedGame.id : null,
+      folder: selectedFolder || null,
     }
-    setDialogOpen(false)
-    setSelectedFile(pendingFile)
-    setIsSelected(true)
-    setPendingFile(null)
-  }
-
-  const handleDialogSkip = () => {
-    pendingMetadata.current = { tag_ids: null, game_id: null }
     setDialogOpen(false)
     setSelectedFile(pendingFile)
     setIsSelected(true)
@@ -136,9 +198,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
         .filter((g) => g.name.toLowerCase().includes(value.toLowerCase()))
         .map((g) => ({ ...g, _source: 'db' }))
       const existingSgdbIds = new Set(allGames.map((g) => g.steamgriddb_id).filter(Boolean))
-      const newFromSgdb = sgdbResults
-        .filter((r) => !existingSgdbIds.has(r.id))
-        .map((r) => ({ ...r, _source: 'sgdb' }))
+      const newFromSgdb = sgdbResults.filter((r) => !existingSgdbIds.has(r.id)).map((r) => ({ ...r, _source: 'sgdb' }))
       setGameOptions([...dbMatches, ...newFromSgdb])
     } catch {
       setGameOptions(allGames.map((g) => ({ ...g, _source: 'db' })))
@@ -162,9 +222,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
       const gameData = {
         steamgriddb_id: newValue.id,
         name: newValue.name,
-        release_date: newValue.release_date
-          ? new Date(newValue.release_date * 1000).toISOString().split('T')[0]
-          : null,
+        release_date: newValue.release_date ? new Date(newValue.release_date * 1000).toISOString().split('T')[0] : null,
         hero_url: assets.hero_url,
         logo_url: assets.logo_url,
         icon_url: assets.icon_url,
@@ -191,6 +249,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
         lastProgressUpdate.current = now
         setProgress(progress)
         setUploadRate(() => ({ ...rate }))
+        onProgress?.(progress, rate)
       }
     }
   }
@@ -203,11 +262,13 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
         lastProgressUpdate.current = now
         setProgress(progressTotal)
         setUploadRate(() => ({ ...rate }))
+        onProgress?.(progressTotal, rate)
       }
     } else if (progress <= 1 && progress >= 0 && (progress === 1 || stale)) {
       lastProgressUpdate.current = now
       setProgress(progress)
       setUploadRate(() => ({ ...rate }))
+      onProgress?.(progress, rate)
     }
   }
 
@@ -228,13 +289,14 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     if (!selectedFile) return
 
     const chunkSize = 90 * 1024 * 1024 // 90MB chunk size
-    const { tag_ids, game_id } = pendingMetadata.current
+    const { tag_ids, game_id, folder } = pendingMetadata.current
 
     async function upload() {
       const formData = new FormData()
       formData.append('file', selectedFile)
       if (tag_ids) formData.append('tag_ids', tag_ids)
       if (game_id) formData.append('game_id', game_id)
+      if (folder) formData.append('folder', folder)
       try {
         if (authenticated) {
           await VideoService.upload(formData, uploadProgress)
@@ -300,6 +362,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
           formData.append('fileType', selectedFile.type)
           if (tag_ids) formData.append('tag_ids', tag_ids)
           if (game_id) formData.append('game_id', game_id)
+          if (folder) formData.append('folder', folder)
 
           authenticated
             ? await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
@@ -334,119 +397,45 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
     // eslint-disable-next-line
   }, [selectedFile])
 
-  if (!authenticated && !uiConfig?.allow_public_upload) return null
-  if (authenticated && !uiConfig?.show_admin_upload) return null
+  const canUpload = authenticated ? !!uiConfig?.show_admin_upload : !!uiConfig?.allow_public_upload
+  if (!canUpload) return null
 
-  return (
-    <>
-      <Grid item sx={{ mx: 1, mt: 2 }}>
-        <label htmlFor="icon-button-file">
-          {/* Add onDrop and onDragOver handlers */}
-          <Paper
-            sx={{
-              position: 'relative',
-              width: '100%',
-              height: '64px',
-              cursor: 'pointer',
-              background: 'rgba(0,0,0,0)',
-              overflow: 'hidden',
-            }}
-            variant="outlined"
-            onDrop={dropHandler}
-            onDragOver={dragOverHandler}
-          >
-            <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
-              <Stack sx={{ zIndex: 0 }} alignItems="center" justifyContent="center">
-                {!isSelected && (
-                  <Input
-                    id="icon-button-file"
-                    accept="video/mp4,video/webm,video/mov"
-                    type="file"
-                    name="file"
-                    onChange={changeHandler}
-                  />
-                )}
-                {progress === 0 && !mini && <CloudUploadIcon sx={{ fontSize: 32 }} />}
-                {progress === 0 && mini && progress === 0 && <CloudUploadIcon sx={{ fontSize: 20 }} />}
-                {progress !== 0 && progress !== 1 && (
-                  <>
-                    {!mini ? (
-                      <>
-                        <Typography
-                          component="div"
-                          variant="overline"
-                          align="center"
-                          sx={{ fontWeight: 600, fontSize: 12 }}
-                        >
-                          Uploading... {(100 * progress).toFixed(0)}%
-                        </Typography>
-                        <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
-                          {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
-                          {numberFormat.format(uploadRate.total.toFixed(0))} MB's
-                        </Typography>
-                      </>
-                    ) : (
-                      <Typography
-                        component="div"
-                        variant="overline"
-                        align="center"
-                        justifyItems="center"
-                        sx={{ fontWeight: 600, fontSize: 12 }}
-                      >
-                        {(100 * progress).toFixed(0)}%
-                      </Typography>
-                    )}
-                  </>
-                )}
-                {progress === 1 && !mini && (
-                  <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
-                    Processing...
-                    <Typography
-                      component="span"
-                      variant="overline"
-                      align="center"
-                      display="block"
-                      sx={{ fontWeight: 400, fontSize: 12 }}
-                    >
-                      This may take a few minutes
-                    </Typography>
-                  </Typography>
-                )}
-                {progress === 1 && mini && (
-                  <Typography
-                    component="div"
-                    variant="overline"
-                    align="center"
-                    justifyItems="center"
-                    sx={{ fontWeight: 600, fontSize: 12 }}
-                  >
-                    100%
-                  </Typography>
-                )}
-              </Stack>
+  if (dropOnly) {
+    return (
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: '#0b132b',
+            border: '1px solid #FFFFFF14',
+            borderRadius: '16px',
+            backgroundImage: 'none',
+          },
+        }}
+      >
+        <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <CloudUploadIcon sx={{ color: '#2684FF', fontSize: 24, flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: 'white' }}>Upload Video</Typography>
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  color: '#FFFFFF66',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {pendingFile?.name}
+              </Typography>
             </Box>
-            <motion.div
-              animate={{
-                height: mini ? `${progress * 100}%` : '100%',
-                width: mini ? '100%' : `${progress * 100}%`,
-              }}
-              transition={progress === 0 ? { duration: 0 } : { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                zIndex: -1,
-                backgroundImage: 'linear-gradient(90deg, #BC00E6DF, #FF3729D9)',
-                borderRadius: '10px',
-              }}
-            />
-          </Paper>
-        </label>
-      </Grid>
-
-      {/* Pre-upload metadata dialog */}
-      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>Tag this clip before uploading</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '24px !important', px: 3 }}>
           {/* Game selector */}
           <Autocomplete
             options={gameOptions}
@@ -484,20 +473,327 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
               />
             )}
             renderOption={(props, option) => (
-              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props} key={`${option._source}-${option.id}`}>
+              <Box
+                component="li"
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                {...props}
+                key={`${option._source}-${option.id}`}
+              >
                 {option.icon_url && (
                   <img
                     src={option.icon_url}
                     alt=""
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
                     style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                   />
                 )}
                 {option.name}
-                {option._source === 'sgdb' && option.release_date && ` (${new Date(option.release_date * 1000).getFullYear()})`}
+                {option._source === 'sgdb' &&
+                  option.release_date &&
+                  ` (${new Date(option.release_date * 1000).getFullYear()})`}
               </Box>
             )}
           />
+          {availableFolders.length > 0 && (
+            <Autocomplete
+              options={availableFolders}
+              value={selectedFolder || null}
+              onChange={(_, value) => setSelectedFolder(value || '')}
+              disableClearable={!!selectedFolder}
+              renderInput={(params) => <TextField {...params} label="Upload Folder" size="small" />}
+            />
+          )}
+          <Autocomplete
+            multiple
+            freeSolo
+            options={allTags.filter((t) => !selectedTags.find((s) => s.id === t.id))}
+            getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
+            value={selectedTags}
+            inputValue={tagInput}
+            onInputChange={(_, v) => setTagInput(v)}
+            onChange={(_, values) => {
+              setSelectedTags(values.map((v) => (typeof v === 'string' ? { name: v } : v)))
+              setTagInput('')
+            }}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  key={index}
+                  label={option.name}
+                  size="small"
+                  {...getTagProps({ index })}
+                  sx={{
+                    bgcolor: option.color ? `${option.color}33` : '#FFFFFF14',
+                    color: 'white',
+                    '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+                  }}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Tags"
+                size="small"
+                placeholder="Add tags..."
+                inputProps={{ ...params.inputProps, maxLength: 12 }}
+                onKeyDown={(e) => {
+                  if (e.key === ',') {
+                    e.preventDefault()
+                    const parts = parseTagInput(tagInput)
+                    if (parts.length > 0) {
+                      setSelectedTags((prev) => {
+                        const merged = [...prev]
+                        parts.forEach((p) => {
+                          if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
+                            const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
+                            merged.push(existing || { name: p })
+                          }
+                        })
+                        return merged
+                      })
+                      setTagInput('')
+                    }
+                  }
+                }}
+              />
+            )}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
+          <Button
+            onClick={handleDialogCancel}
+            sx={{ color: '#FFFFFF80', '&:hover': { color: 'white', bgcolor: '#FFFFFF0F' } }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDialogConfirm}
+            variant="contained"
+            sx={{
+              background: 'linear-gradient(90deg, #BC00E6, #FF3729)',
+              '&:hover': { background: 'linear-gradient(90deg, #CC10F6, #FF4739)' },
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
+            Upload
+          </Button>
+        </DialogActions>
+      </Dialog>
+    )
+  }
+
+  return (
+    <>
+      <Grid item sx={{ mx: 1, mt: 2 }}>
+        <label htmlFor="icon-button-file">
+          {/* Add onDrop and onDragOver handlers */}
+          <Box
+            sx={{
+              position: 'relative',
+              borderRadius: '13px',
+              padding: progress > 0 ? '2px' : '0px',
+              overflow: 'hidden',
+              transition: 'padding 0.2s',
+              '&::before': {
+                content: '""',
+                display: progress > 0 ? 'block' : 'none',
+                position: 'absolute',
+                inset: '-100%',
+                background: 'conic-gradient(#BC00E6DF, #FF3729D9, #0084ff, #BC00E6DF)',
+                animation: `${borderSpin} 1s linear infinite`,
+              },
+            }}
+          >
+            <Paper
+              sx={{
+                position: 'relative',
+                width: '100%',
+                height: mini ? '56px' : '90px',
+                cursor: 'pointer',
+                background: '#001224',
+                overflow: 'hidden',
+                border: '2px solid',
+                borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.25)',
+                borderRadius: '12px',
+                transition: 'border-color 0.2s, background 0.2s',
+                '&:hover': {
+                  borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.5)',
+                  background: progress > 0 ? 'rgb(0, 32, 73)' : 'rgba(38, 132, 255, 0.1)',
+                },
+              }}
+              onDrop={dropHandler}
+              onDragOver={dragOverHandler}
+            >
+              <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
+                <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center" justifyContent="center" spacing={0.5}>
+                  {!isSelected && (
+                    <Input
+                      id="icon-button-file"
+                      accept="video/mp4,video/webm,video/mov"
+                      type="file"
+                      name="file"
+                      onChange={changeHandler}
+                    />
+                  )}
+                  {progress === 0 && !mini && (
+                    <>
+                      <CloudUploadIcon sx={{ fontSize: 32, color: '#fff' }} />
+                      <Typography sx={{ fontSize: 12, color: '#ffffff77', fontWeight: 500, letterSpacing: 0.2 }}>
+                        Click to browse or drag anywhere
+                      </Typography>
+                    </>
+                  )}
+                  {progress === 0 && mini && <CloudUploadIcon sx={{ fontSize: 20, color: '#fff' }} />}
+                  {progress > 0 && (
+                    <>
+                      {!mini ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', px: 2 }}>
+                          <LogoProgress progress={progress} size={48} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: 14,
+                                color: 'white',
+                                lineHeight: 1.3,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {progress < 1 ? `Uploading ${(100 * progress).toFixed(0)}%` : 'Processing...'}
+                            </Typography>
+                            <Typography
+                              sx={{ fontSize: 11, color: '#FFFFFFAA', lineHeight: 1.3, whiteSpace: 'nowrap' }}
+                            >
+                              {progress < 1
+                                ? `${numberFormat.format(uploadRate.loaded.toFixed(0))} / ${numberFormat.format(uploadRate.total.toFixed(0))} MB`
+                                : 'Please wait...'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ) : (
+                        <Typography sx={{ fontWeight: 700, fontSize: 12, color: 'white' }}>
+                          {progress < 1 ? `${(100 * progress).toFixed(0)}%` : '100%'}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </Box>
+            </Paper>
+          </Box>
+        </label>
+      </Grid>
+
+      {/* Pre-upload metadata dialog */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: '#0b132b',
+            border: '1px solid #FFFFFF14',
+            borderRadius: '16px',
+            backgroundImage: 'none',
+          },
+        }}
+      >
+        <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <CloudUploadIcon sx={{ color: '#fff', fontSize: 38, flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: 'white' }}>Upload Video</Typography>
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  color: '#FFFFFF66',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {pendingFile?.name}
+              </Typography>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '24px !important', px: 3 }}>
+          {/* Game selector */}
+          <Autocomplete
+            options={gameOptions}
+            getOptionLabel={(o) => o.name || ''}
+            groupBy={(o) => (o._source === 'db' ? 'Already in library' : 'From SteamGridDB')}
+            value={selectedGame}
+            inputValue={gameInput}
+            onInputChange={handleGameInputChange}
+            onChange={handleGameChange}
+            loading={gameSearchLoading}
+            disabled={gameCreating}
+            filterOptions={(x) => x}
+            isOptionEqualToValue={(option, value) =>
+              option.id === value.id || (option.steamgriddb_id && option.steamgriddb_id === value.steamgriddb_id)
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Game"
+                size="small"
+                placeholder="Search for a game..."
+                InputProps={{
+                  ...params.InputProps,
+                  endAdornment: (
+                    <>
+                      {(gameSearchLoading || gameCreating) && (
+                        <InputAdornment position="end">
+                          <CircularProgress size={16} sx={{ mr: 1 }} />
+                        </InputAdornment>
+                      )}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <Box
+                component="li"
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                {...props}
+                key={`${option._source}-${option.id}`}
+              >
+                {option.icon_url && (
+                  <img
+                    src={option.icon_url}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                    style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                  />
+                )}
+                {option.name}
+                {option._source === 'sgdb' &&
+                  option.release_date &&
+                  ` (${new Date(option.release_date * 1000).getFullYear()})`}
+              </Box>
+            )}
+          />
+
+          {/* Folder selector */}
+          {availableFolders.length > 0 && (
+            <Autocomplete
+              options={availableFolders}
+              value={selectedFolder || null}
+              onChange={(_, value) => setSelectedFolder(value || '')}
+              disableClearable={!!selectedFolder}
+              renderInput={(params) => <TextField {...params} label="Upload Folder" size="small" />}
+            />
+          )}
 
           {/* Tag selector */}
           <Autocomplete
@@ -534,6 +830,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
                 label="Tags"
                 size="small"
                 placeholder="Add tags..."
+                inputProps={{ ...params.inputProps, maxLength: 12 }}
                 onKeyDown={(e) => {
                   if (e.key === ',') {
                     e.preventDefault()
@@ -543,9 +840,7 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
                         const merged = [...prev]
                         parts.forEach((p) => {
                           if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
-                            const existing = allTags.find(
-                              (t) => t.name.toLowerCase() === p.toLowerCase(),
-                            )
+                            const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
                             merged.push(existing || { name: p })
                           }
                         })
@@ -559,16 +854,29 @@ const UploadCard = ({ authenticated, handleAlert, mini, onUploadComplete }) => {
             )}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogCancel}>Cancel</Button>
-          <Button onClick={handleDialogSkip}>Skip</Button>
-          <Button onClick={handleDialogConfirm} variant="contained">
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
+          <Button
+            onClick={handleDialogCancel}
+            sx={{ color: '#FFFFFF80', '&:hover': { color: 'white', bgcolor: '#FFFFFF0F' } }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDialogConfirm}
+            variant="contained"
+            sx={{
+              background: 'linear-gradient(90deg, #BC00E6, #FF3729)',
+              '&:hover': { background: 'linear-gradient(90deg, #CC10F6, #FF4739)' },
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
             Upload
           </Button>
         </DialogActions>
       </Dialog>
     </>
   )
-}
+})
 
 export default UploadCard

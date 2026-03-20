@@ -1,5 +1,19 @@
 import React, { useEffect, useState } from 'react'
-import { Autocomplete, Box, Button, Chip, Divider, IconButton, Modal, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material'
+import {
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  IconButton,
+  Modal,
+  Paper,
+  Popover,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material'
+import TagChip from '../misc/TagChip'
 import { motion } from 'framer-motion'
 import { DayPicker } from 'react-day-picker'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -295,10 +309,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
           if (!cancelled) setSelectedGame(null)
         }
         try {
-          const [tagsRes, allTagsRes] = await Promise.all([
-            TagService.getVideoTags(videoId),
-            TagService.getTags(),
-          ])
+          const [tagsRes, allTagsRes] = await Promise.all([TagService.getVideoTags(videoId), TagService.getTags()])
           if (cancelled) return
           setVideoTags(tagsRes.data || [])
           setAllTags(allTagsRes.data || [])
@@ -702,7 +713,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                               <img
                                 src={selectedGame.icon_url}
                                 alt=""
-                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
                                 style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                               />
                             )}
@@ -722,21 +735,12 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                         {videoTags.length > 0 && (
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
                             {videoTags.map((tag) => (
-                              <Chip
+                              <TagChip
                                 key={tag.id}
-                                label={tag.name}
-                                size="small"
-                                component="a"
+                                name={tag.name}
+                                color={tag.color}
                                 href={`#/tags/${tag.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                                sx={{
-                                  bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
-                                  color: 'white',
-                                  fontSize: 12,
-                                  cursor: 'pointer',
-                                  textDecoration: 'none',
-                                  '&:hover': { bgcolor: tag.color ? `${tag.color}55` : '#FFFFFF22' },
-                                }}
+                                size="small"
                               />
                             ))}
                           </Box>
@@ -765,7 +769,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             <img
                               src={selectedGame.icon_url}
                               alt=""
-                              onError={(e) => { e.currentTarget.style.display = 'none' }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
                               style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                             />
                           )}
@@ -819,44 +825,44 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   {editMode && authenticated && (
                     <Box>
                       <Typography sx={labelSx}>Tags</Typography>
-                      {videoTags.length > 0 && (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1 }}>
-                          {videoTags.map((tag) => (
-                            <Chip
-                              key={tag.id}
-                              label={tag.name}
-                              size="small"
-                              onDelete={() => handleRemoveTag(tag.id)}
-                              sx={{
-                                bgcolor: tag.color ? `${tag.color}33` : '#FFFFFF14',
-                                color: 'white',
-                                fontSize: 12,
-                                '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
-                              }}
-                            />
-                          ))}
-                        </Box>
-                      )}
                       <Autocomplete
+                        multiple
                         freeSolo
+                        componentsProps={{ root: { sx: { '& .MuiAutocomplete-tag': { my: 0.25 } } } }}
+                        sx={{ '& .MuiOutlinedInput-root': { gap: 0.5 } }}
                         options={allTags.filter((t) => !videoTags.find((vt) => vt.id === t.id))}
                         getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                        value={videoTags}
                         inputValue={tagInputValue}
                         onInputChange={(_, v) => setTagInputValue(v)}
-                        onChange={(_, value) => {
-                          if (!value) return
-                          if (typeof value === 'string') {
-                            handleAddTag({ name: value })
-                          } else {
-                            handleAddTag(value)
+                        onChange={(_, newValues) => {
+                          if (newValues.length > videoTags.length) {
+                            const added = newValues[newValues.length - 1]
+                            if (typeof added === 'string') {
+                              handleAddTag({ name: added })
+                            } else {
+                              handleAddTag(added)
+                            }
                           }
                         }}
+                        renderTags={(value) =>
+                          value.map((tag) => (
+                            <TagChip
+                              key={tag.id}
+                              name={tag.name}
+                              color={tag.color}
+                              size="small"
+                              onDelete={() => handleRemoveTag(tag.id)}
+                            />
+                          ))
+                        }
                         renderInput={(params) => (
                           <TextField
                             {...params}
                             size="small"
-                            placeholder="Add a tag..."
+                            placeholder={videoTags.length === 0 ? 'Add a tag...' : ''}
                             sx={inputSx}
+                            inputProps={{ ...params.inputProps, maxLength: 12 }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && tagInputValue.trim()) {
                                 e.preventDefault()
@@ -873,9 +879,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                                   .filter(Boolean)
                                 setTagInputValue('')
                                 parts.forEach((p) => {
-                                  const existing = allTags.find(
-                                    (t) => t.name.toLowerCase() === p.toLowerCase(),
-                                  )
+                                  const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
                                   handleAddTag(existing || { name: p })
                                 })
                               }

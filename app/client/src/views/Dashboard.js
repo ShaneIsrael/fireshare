@@ -27,6 +27,7 @@ import VideoCards from '../components/cards/VideoCards'
 import { VideoService, GameService, ReleaseService, TagService } from '../services'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
+import TagChip from '../components/misc/TagChip'
 
 import selectSortTheme from '../common/reactSelectSortTheme'
 import { SORT_OPTIONS } from '../common/constants'
@@ -65,7 +66,7 @@ const Dashboard = ({
   const [refreshKey, setRefreshKey] = React.useState(0)
   const [tagDialogOpen, setTagDialogOpen] = React.useState(false)
   const [allTags, setAllTags] = React.useState([])
-  const [selectedTagForBulk, setSelectedTagForBulk] = React.useState(null)
+  const [selectedTagsForBulk, setSelectedTagsForBulk] = React.useState([])
   const [tagInputValueBulk, setTagInputValueBulk] = React.useState('')
   const [featureAlertOpen, setFeatureAlertOpen] = React.useState(showReleaseNotes)
   const releaseNotes = releaseNotesProp
@@ -75,7 +76,27 @@ const Dashboard = ({
 
   if (searchText !== search) {
     setSearch(searchText)
-    setFilteredVideos(videos.filter((v) => v.info.title.search(new RegExp(searchText, 'i')) >= 0))
+    const tagMatches = searchText.match(/#(\w+)/g) || []
+    const tagNames = tagMatches.map((t) => t.slice(1).toLowerCase())
+    const textQuery = searchText.replace(/#\w+/g, '').trim()
+    setFilteredVideos(
+      videos.filter((v) => {
+        const titleMatch =
+          !textQuery ||
+          v.info.title.search(new RegExp(textQuery, 'i')) >= 0 ||
+          (v.game?.name && v.game.name.search(new RegExp(textQuery, 'i')) >= 0)
+        const tagMatch = tagNames.every(
+          (tagName) =>
+            v.tags &&
+            v.tags.some(
+              (t) =>
+                t.name.toLowerCase() === tagName ||
+                t.name.replace(/_/g, ' ').toLowerCase() === tagName,
+            ),
+        )
+        return titleMatch && tagMatch
+      }),
+    )
   }
   if (cardSize !== prevCardSize) {
     setPrevCardSize(cardSize)
@@ -383,7 +404,7 @@ const Dashboard = ({
       const res = await TagService.getTags()
       setAllTags(res.data)
       setTagDialogOpen(true)
-      setSelectedTagForBulk(null)
+      setSelectedTagsForBulk([])
       setTagInputValueBulk('')
     } catch (err) {
       console.error('Error fetching tags:', err)
@@ -391,18 +412,22 @@ const Dashboard = ({
   }
 
   const handleTagConfirm = async () => {
-    if (!selectedTagForBulk) return
+    if (selectedTagsForBulk.length === 0) return
     try {
-      let tagId = selectedTagForBulk.id
-      if (!tagId) {
-        const res = await TagService.createTag({ name: selectedTagForBulk.name })
-        tagId = res.data.id
+      const videoIds = Array.from(selectedVideos)
+      for (const tag of selectedTagsForBulk) {
+        let tagId = tag.id
+        if (!tagId) {
+          const res = await TagService.createTag({ name: tag.name })
+          tagId = res.data.id
+        }
+        await TagService.bulkAssign(tagId, videoIds)
       }
-      await TagService.bulkAssign(tagId, Array.from(selectedVideos))
+      const tagNames = selectedTagsForBulk.map((t) => t.name).join(', ')
       setAlert({
         open: true,
         type: 'success',
-        message: `Tagged ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''} with "${selectedTagForBulk.name}"`,
+        message: `Tagged ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''} with "${tagNames}"`,
       })
       fetchVideos()
       setRefreshKey((k) => k + 1)
@@ -417,7 +442,7 @@ const Dashboard = ({
 
   const handleTagCancel = () => {
     setTagDialogOpen(false)
-    setSelectedTagForBulk(null)
+    setSelectedTagsForBulk([])
   }
 
   return (
@@ -613,39 +638,56 @@ const Dashboard = ({
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           <Autocomplete
+            multiple
             freeSolo
-            options={allTags}
+            componentsProps={{ root: { sx: { '& .MuiAutocomplete-tag': { my: 0.25 } } } }}
+            sx={{ '& .MuiOutlinedInput-root': { gap: 0.5 } }}
+            options={allTags.filter((t) => !selectedTagsForBulk.find((s) => s.id === t.id))}
             getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+            value={selectedTagsForBulk}
             inputValue={tagInputValueBulk}
-            onInputChange={(_, v) => {
-              setTagInputValueBulk(v)
-              if (typeof v === 'string' && v) {
-                const found = allTags.find((t) => t.name.toLowerCase() === v.toLowerCase())
-                setSelectedTagForBulk(found || { name: v })
-              } else {
-                setSelectedTagForBulk(null)
-              }
+            onInputChange={(_, v) => setTagInputValueBulk(v)}
+            onChange={(_, newValues) => {
+              const seen = new Set()
+              setSelectedTagsForBulk(
+                newValues
+                  .map((v) => (typeof v === 'string' ? { name: v } : v))
+                  .filter((t) => {
+                    const key = (t.name || '').toLowerCase()
+                    if (!key || seen.has(key)) return false
+                    seen.add(key)
+                    return true
+                  }),
+              )
+              setTagInputValueBulk('')
             }}
-            onChange={(_, value) => {
-              if (typeof value === 'string') {
-                setSelectedTagForBulk({ name: value })
-              } else {
-                setSelectedTagForBulk(value)
-              }
-            }}
+            renderTags={(value, getTagProps) =>
+              value.map((tag, idx) => {
+                const { onDelete } = getTagProps({ index: idx })
+                return (
+                  <TagChip key={tag.id ?? `new-${idx}`} name={tag.name} color={tag.color} size="small" onDelete={onDelete} />
+                )
+              })
+            }
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder="Select or create a tag..."
+                placeholder={selectedTagsForBulk.length === 0 ? 'Select or create tags...' : ''}
                 onKeyDown={(e) => {
-                  if (e.key === ',') {
+                  if ((e.key === 'Enter' || e.key === ',') && tagInputValueBulk.trim()) {
                     e.preventDefault()
-                    const val = tagInputValueBulk.split(',')[0].trim()
-                    if (val) {
-                      const found = allTags.find((t) => t.name.toLowerCase() === val.toLowerCase())
-                      setSelectedTagForBulk(found || { name: val })
-                      setTagInputValueBulk(val)
-                    }
+                    const parts = tagInputValueBulk.split(',').map((s) => s.trim()).filter(Boolean)
+                    setTagInputValueBulk('')
+                    setSelectedTagsForBulk((prev) => {
+                      const merged = [...prev]
+                      parts.forEach((p) => {
+                        if (!merged.find((t) => (t.name || '').toLowerCase() === p.toLowerCase())) {
+                          const found = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
+                          merged.push(found || { name: p })
+                        }
+                      })
+                      return merged
+                    })
                   }
                 }}
               />
@@ -654,7 +696,7 @@ const Dashboard = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={handleTagCancel}>Cancel</Button>
-          <Button onClick={handleTagConfirm} variant="contained" disabled={!selectedTagForBulk}>
+          <Button onClick={handleTagConfirm} variant="contained" disabled={selectedTagsForBulk.length === 0}>
             Tag
           </Button>
         </DialogActions>

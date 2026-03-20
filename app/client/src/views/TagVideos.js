@@ -96,7 +96,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
       >
         <LocalOfferIcon sx={{ color, fontSize: 28 }} />
         <Typography sx={{ fontWeight: 700, fontSize: 24, color: 'white' }}>
-          {tag?.name || 'Tag'}
+          {(tag?.name || 'Tag').replace(/_/g, ' ')}
         </Typography>
         <Typography sx={{ fontSize: 14, color: '#FFFFFF55', ml: 1 }}>
           {sortedVideos.length} video{sortedVideos.length !== 1 ? 's' : ''}

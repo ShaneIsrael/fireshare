@@ -27,6 +27,9 @@ const service = {
   getViews(id) {
     return Api().get(`/api/video/${id}/views`)
   },
+  getUploadFolders() {
+    return Api().get('/api/upload-folders')
+  },
   updateTitle(id, title) {
     return Api().put(`/api/video/details/${id}`, {
       title,
