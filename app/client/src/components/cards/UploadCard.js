@@ -28,7 +28,10 @@ const Input = styled('input')({
 
 const numberFormat = new Intl.NumberFormat('en-US')
 
-const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleAlert, mini, onUploadComplete, dropOnly = false }, ref) {
+const UploadCard = React.forwardRef(function UploadCard(
+  { authenticated, handleAlert, mini, onUploadComplete, onProgress, dropOnly = false },
+  ref,
+) {
   const [selectedFile, setSelectedFile] = React.useState()
   const [isSelected, setIsSelected] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
@@ -89,7 +92,11 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
     setDialogOpen(true)
   }
 
-  const parseTagInput = (raw) => raw.split(',').map((s) => s.trim()).filter(Boolean)
+  const parseTagInput = (raw) =>
+    raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
 
   const handleDialogConfirm = async () => {
     // Flush any pending typed input (user didn't press Enter or comma)
@@ -122,7 +129,6 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
     setPendingFile(null)
   }
 
-
   const handleDialogCancel = () => {
     setDialogOpen(false)
     setPendingFile(null)
@@ -146,9 +152,7 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
         .filter((g) => g.name.toLowerCase().includes(value.toLowerCase()))
         .map((g) => ({ ...g, _source: 'db' }))
       const existingSgdbIds = new Set(allGames.map((g) => g.steamgriddb_id).filter(Boolean))
-      const newFromSgdb = sgdbResults
-        .filter((r) => !existingSgdbIds.has(r.id))
-        .map((r) => ({ ...r, _source: 'sgdb' }))
+      const newFromSgdb = sgdbResults.filter((r) => !existingSgdbIds.has(r.id)).map((r) => ({ ...r, _source: 'sgdb' }))
       setGameOptions([...dbMatches, ...newFromSgdb])
     } catch {
       setGameOptions(allGames.map((g) => ({ ...g, _source: 'db' })))
@@ -172,9 +176,7 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
       const gameData = {
         steamgriddb_id: newValue.id,
         name: newValue.name,
-        release_date: newValue.release_date
-          ? new Date(newValue.release_date * 1000).toISOString().split('T')[0]
-          : null,
+        release_date: newValue.release_date ? new Date(newValue.release_date * 1000).toISOString().split('T')[0] : null,
         hero_url: assets.hero_url,
         logo_url: assets.logo_url,
         icon_url: assets.icon_url,
@@ -201,6 +203,7 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
         lastProgressUpdate.current = now
         setProgress(progress)
         setUploadRate(() => ({ ...rate }))
+        onProgress?.(progress, rate)
       }
     }
   }
@@ -213,11 +216,13 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
         lastProgressUpdate.current = now
         setProgress(progressTotal)
         setUploadRate(() => ({ ...rate }))
+        onProgress?.(progressTotal, rate)
       }
     } else if (progress <= 1 && progress >= 0 && (progress === 1 || stale)) {
       lastProgressUpdate.current = now
       setProgress(progress)
       setUploadRate(() => ({ ...rate }))
+      onProgress?.(progress, rate)
     }
   }
 
@@ -351,11 +356,40 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
 
   if (dropOnly) {
     return (
-      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          Upload {pendingFile?.name}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: '#0b132b',
+            border: '1px solid #FFFFFF14',
+            borderRadius: '16px',
+            backgroundImage: 'none',
+          },
+        }}
+      >
+        <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <CloudUploadIcon sx={{ color: '#2684FF', fontSize: 24, flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: 'white' }}>Upload Video</Typography>
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  color: '#FFFFFF66',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {pendingFile?.name}
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '24px !important', px: 3 }}>
           {/* Game selector */}
           <Autocomplete
             options={gameOptions}
@@ -393,17 +427,26 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
               />
             )}
             renderOption={(props, option) => (
-              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props} key={`${option._source}-${option.id}`}>
+              <Box
+                component="li"
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                {...props}
+                key={`${option._source}-${option.id}`}
+              >
                 {option.icon_url && (
                   <img
                     src={option.icon_url}
                     alt=""
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
                     style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                   />
                 )}
                 {option.name}
-                {option._source === 'sgdb' && option.release_date && ` (${new Date(option.release_date * 1000).getFullYear()})`}
+                {option._source === 'sgdb' &&
+                  option.release_date &&
+                  ` (${new Date(option.release_date * 1000).getFullYear()})`}
               </Box>
             )}
           />
@@ -413,9 +456,7 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
               value={selectedFolder || null}
               onChange={(_, value) => setSelectedFolder(value || '')}
               disableClearable={!!selectedFolder}
-              renderInput={(params) => (
-                <TextField {...params} label="Upload Folder" size="small" />
-              )}
+              renderInput={(params) => <TextField {...params} label="Upload Folder" size="small" />}
             />
           )}
           <Autocomplete
@@ -475,9 +516,23 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
             )}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogCancel}>Cancel</Button>
-          <Button onClick={handleDialogConfirm} variant="contained">
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
+          <Button
+            onClick={handleDialogCancel}
+            sx={{ color: '#FFFFFF80', '&:hover': { color: 'white', bgcolor: '#FFFFFF0F' } }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDialogConfirm}
+            variant="contained"
+            sx={{
+              background: 'linear-gradient(90deg, #BC00E6, #FF3729)',
+              '&:hover': { background: 'linear-gradient(90deg, #CC10F6, #FF4739)' },
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
             Upload
           </Button>
         </DialogActions>
@@ -494,17 +549,24 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
             sx={{
               position: 'relative',
               width: '100%',
-              height: '64px',
+              height: mini ? '56px' : '90px',
               cursor: 'pointer',
-              background: 'rgba(0,0,0,0)',
+              background: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.06)',
               overflow: 'hidden',
+              border: '1px solid',
+              borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.25)',
+              borderRadius: '10px',
+              transition: 'border-color 0.2s, background 0.2s',
+              '&:hover': {
+                borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.5)',
+                background: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.1)',
+              },
             }}
-            variant="outlined"
             onDrop={dropHandler}
             onDragOver={dragOverHandler}
           >
             <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
-              <Stack sx={{ zIndex: 0 }} alignItems="center" justifyContent="center">
+              <Stack sx={{ zIndex: 0 }} alignItems="center" justifyContent="center" spacing={0.5}>
                 {!isSelected && (
                   <Input
                     id="icon-button-file"
@@ -514,62 +576,58 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
                     onChange={changeHandler}
                   />
                 )}
-                {progress === 0 && !mini && <CloudUploadIcon sx={{ fontSize: 32 }} />}
-                {progress === 0 && mini && progress === 0 && <CloudUploadIcon sx={{ fontSize: 20 }} />}
-                {progress !== 0 && progress !== 1 && (
+                {progress === 0 && !mini && (
+                  <>
+                    <CloudUploadIcon sx={{ fontSize: 32, color: '#fff' }} />
+                    <Typography sx={{ fontSize: 12, color: '#ffffff77', fontWeight: 500, letterSpacing: 0.2 }}>
+                      Click to browse or drag anywhere
+                    </Typography>
+                  </>
+                )}
+                {progress === 0 && mini && <CloudUploadIcon sx={{ fontSize: 20, color: '#fff' }} />}
+                {progress > 0 && progress < 1 && (
                   <>
                     {!mini ? (
-                      <>
-                        <Typography
-                          component="div"
-                          variant="overline"
-                          align="center"
-                          sx={{ fontWeight: 600, fontSize: 12 }}
-                        >
-                          Uploading... {(100 * progress).toFixed(0)}%
-                        </Typography>
-                        <Typography variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
-                          {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
-                          {numberFormat.format(uploadRate.total.toFixed(0))} MB's
-                        </Typography>
-                      </>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <CircularProgress
+                          variant="determinate"
+                          value={progress * 100}
+                          size={30}
+                          thickness={4.5}
+                          sx={{ color: 'white', flexShrink: 0 }}
+                        />
+                        <Box>
+                          <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'white', lineHeight: 1.3 }}>
+                            Uploading {(100 * progress).toFixed(0)}%
+                          </Typography>
+                          <Typography sx={{ fontSize: 11, color: '#FFFFFFAA', lineHeight: 1.3 }}>
+                            {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
+                            {numberFormat.format(uploadRate.total.toFixed(0))} MB
+                          </Typography>
+                        </Box>
+                      </Box>
                     ) : (
-                      <Typography
-                        component="div"
-                        variant="overline"
-                        align="center"
-                        justifyItems="center"
-                        sx={{ fontWeight: 600, fontSize: 12 }}
-                      >
+                      <Typography sx={{ fontWeight: 700, fontSize: 12, color: 'white' }}>
                         {(100 * progress).toFixed(0)}%
                       </Typography>
                     )}
                   </>
                 )}
                 {progress === 1 && !mini && (
-                  <Typography component="div" variant="overline" align="center" sx={{ fontWeight: 600, fontSize: 12 }}>
-                    Processing...
-                    <Typography
-                      component="span"
-                      variant="overline"
-                      align="center"
-                      display="block"
-                      sx={{ fontWeight: 400, fontSize: 12 }}
-                    >
-                      This may take a few minutes
-                    </Typography>
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <CircularProgress size={30} thickness={4.5} sx={{ color: 'white', flexShrink: 0 }} />
+                    <Box>
+                      <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'white', lineHeight: 1.3 }}>
+                        Processing...
+                      </Typography>
+                      <Typography sx={{ fontSize: 11, color: '#FFFFFFAA', lineHeight: 1.3 }}>
+                        This may take a few minutes
+                      </Typography>
+                    </Box>
+                  </Box>
                 )}
                 {progress === 1 && mini && (
-                  <Typography
-                    component="div"
-                    variant="overline"
-                    align="center"
-                    justifyItems="center"
-                    sx={{ fontWeight: 600, fontSize: 12 }}
-                  >
-                    100%
-                  </Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: 12, color: 'white' }}>100%</Typography>
                 )}
               </Stack>
             </Box>
@@ -592,11 +650,40 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
       </Grid>
 
       {/* Pre-upload metadata dialog */}
-      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          Upload {pendingFile?.name}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleDialogCancel}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: '#0b132b',
+            border: '1px solid #FFFFFF14',
+            borderRadius: '16px',
+            backgroundImage: 'none',
+          },
+        }}
+      >
+        <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <CloudUploadIcon sx={{ color: '#fff', fontSize: 38, flexShrink: 0 }} />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontSize: 16, fontWeight: 700, color: 'white' }}>Upload Video</Typography>
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  color: '#FFFFFF66',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {pendingFile?.name}
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important' }}>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '24px !important', px: 3 }}>
           {/* Game selector */}
           <Autocomplete
             options={gameOptions}
@@ -634,17 +721,26 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
               />
             )}
             renderOption={(props, option) => (
-              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props} key={`${option._source}-${option.id}`}>
+              <Box
+                component="li"
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                {...props}
+                key={`${option._source}-${option.id}`}
+              >
                 {option.icon_url && (
                   <img
                     src={option.icon_url}
                     alt=""
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
                     style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                   />
                 )}
                 {option.name}
-                {option._source === 'sgdb' && option.release_date && ` (${new Date(option.release_date * 1000).getFullYear()})`}
+                {option._source === 'sgdb' &&
+                  option.release_date &&
+                  ` (${new Date(option.release_date * 1000).getFullYear()})`}
               </Box>
             )}
           />
@@ -656,9 +752,7 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
               value={selectedFolder || null}
               onChange={(_, value) => setSelectedFolder(value || '')}
               disableClearable={!!selectedFolder}
-              renderInput={(params) => (
-                <TextField {...params} label="Upload Folder" size="small" />
-              )}
+              renderInput={(params) => <TextField {...params} label="Upload Folder" size="small" />}
             />
           )}
 
@@ -707,9 +801,7 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
                         const merged = [...prev]
                         parts.forEach((p) => {
                           if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
-                            const existing = allTags.find(
-                              (t) => t.name.toLowerCase() === p.toLowerCase(),
-                            )
+                            const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
                             merged.push(existing || { name: p })
                           }
                         })
@@ -723,9 +815,23 @@ const UploadCard = React.forwardRef(function UploadCard({ authenticated, handleA
             )}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogCancel}>Cancel</Button>
-          <Button onClick={handleDialogConfirm} variant="contained">
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
+          <Button
+            onClick={handleDialogCancel}
+            sx={{ color: '#FFFFFF80', '&:hover': { color: 'white', bgcolor: '#FFFFFF0F' } }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDialogConfirm}
+            variant="contained"
+            sx={{
+              background: 'linear-gradient(90deg, #BC00E6, #FF3729)',
+              '&:hover': { background: 'linear-gradient(90deg, #CC10F6, #FF4739)' },
+              fontWeight: 600,
+              px: 3,
+            }}
+          >
             Upload
           </Button>
         </DialogActions>
