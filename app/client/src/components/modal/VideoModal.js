@@ -825,9 +825,28 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   {editMode && authenticated && (
                     <Box>
                       <Typography sx={labelSx}>Tags</Typography>
-                      {videoTags.length > 0 && (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mb: 1 }}>
-                          {videoTags.map((tag) => (
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        componentsProps={{ root: { sx: { '& .MuiAutocomplete-tag': { my: 0.25 } } } }}
+                        sx={{ '& .MuiOutlinedInput-root': { gap: 0.5 } }}
+                        options={allTags.filter((t) => !videoTags.find((vt) => vt.id === t.id))}
+                        getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                        value={videoTags}
+                        inputValue={tagInputValue}
+                        onInputChange={(_, v) => setTagInputValue(v)}
+                        onChange={(_, newValues) => {
+                          if (newValues.length > videoTags.length) {
+                            const added = newValues[newValues.length - 1]
+                            if (typeof added === 'string') {
+                              handleAddTag({ name: added })
+                            } else {
+                              handleAddTag(added)
+                            }
+                          }
+                        }}
+                        renderTags={(value) =>
+                          value.map((tag) => (
                             <TagChip
                               key={tag.id}
                               name={tag.name}
@@ -835,28 +854,13 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                               size="small"
                               onDelete={() => handleRemoveTag(tag.id)}
                             />
-                          ))}
-                        </Box>
-                      )}
-                      <Autocomplete
-                        freeSolo
-                        options={allTags.filter((t) => !videoTags.find((vt) => vt.id === t.id))}
-                        getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
-                        inputValue={tagInputValue}
-                        onInputChange={(_, v) => setTagInputValue(v)}
-                        onChange={(_, value) => {
-                          if (!value) return
-                          if (typeof value === 'string') {
-                            handleAddTag({ name: value })
-                          } else {
-                            handleAddTag(value)
-                          }
-                        }}
+                          ))
+                        }
                         renderInput={(params) => (
                           <TextField
                             {...params}
                             size="small"
-                            placeholder="Add a tag..."
+                            placeholder={videoTags.length === 0 ? 'Add a tag...' : ''}
                             sx={inputSx}
                             inputProps={{ ...params.inputProps, maxLength: 12 }}
                             onKeyDown={(e) => {
