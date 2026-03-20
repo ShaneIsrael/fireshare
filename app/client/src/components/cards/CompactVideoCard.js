@@ -349,10 +349,21 @@ const CompactVideoCard = ({
           bgcolor: '#00000066',
           borderRadius: { xs: 0, sm: '12px' },
           overflow: 'hidden',
-          outline: selected ? '2px solid #2684FF' : 'none',
-          outlineOffset: '-2px',
+          position: 'relative',
         }}
       >
+        {selected && (
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              border: '2px solid #2684FF',
+              borderRadius: { xs: 0, sm: '12px' },
+              zIndex: 10,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
         {/* Thumbnail */}
         <Box ref={cardRef} sx={{ aspectRatio: '16 / 9', overflow: 'hidden', position: 'relative' }}>
           <Skeleton
