@@ -18,15 +18,56 @@ import {
 } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
+import { keyframes } from '@emotion/react'
 import { motion } from 'framer-motion'
 import { VideoService, GameService, TagService } from '../../services'
 import { getSetting } from '../../common/utils'
+import logo from '../../assets/logo.png'
 
 const Input = styled('input')({
   display: 'none',
 })
 
 const numberFormat = new Intl.NumberFormat('en-US')
+
+const logoPulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+`
+
+const maskCss = {
+  maskImage: `url(${logo})`,
+  maskSize: 'contain',
+  maskRepeat: 'no-repeat',
+  maskPosition: 'center',
+  WebkitMaskImage: `url(${logo})`,
+  WebkitMaskSize: 'contain',
+  WebkitMaskRepeat: 'no-repeat',
+  WebkitMaskPosition: 'center',
+}
+
+function LogoProgress({ progress, size = 44 }) {
+  const isProcessing = progress >= 1
+  const fillPct = isProcessing ? 100 : progress * 100
+  return (
+    <Box sx={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      {/* White base — full logo shape */}
+      <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'white', ...maskCss }} />
+      {/* Colored fill — clips from top, grows upward */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(to top, #FF6B00, #FF2E80, #BC00E6)',
+          clipPath: `inset(${100 - fillPct}% 0 0 0)`,
+          transition: isProcessing ? 'none' : 'clip-path 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)',
+          animation: isProcessing ? `${logoPulse} 1.5s ease-in-out infinite` : 'none',
+          ...maskCss,
+        }}
+      />
+    </Box>
+  )
+}
 
 const UploadCard = React.forwardRef(function UploadCard(
   { authenticated, handleAlert, mini, onUploadComplete, onProgress, dropOnly = false },
@@ -589,13 +630,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                   <>
                     {!mini ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <CircularProgress
-                          variant="determinate"
-                          value={progress * 100}
-                          size={30}
-                          thickness={4.5}
-                          sx={{ color: 'white', flexShrink: 0 }}
-                        />
+                        <LogoProgress progress={progress} size={44} />
                         <Box>
                           <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'white', lineHeight: 1.3 }}>
                             Uploading {(100 * progress).toFixed(0)}%
@@ -615,7 +650,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                 )}
                 {progress === 1 && !mini && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <CircularProgress size={30} thickness={4.5} sx={{ color: 'white', flexShrink: 0 }} />
+                    <LogoProgress progress={1} size={44} />
                     <Box>
                       <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'white', lineHeight: 1.3 }}>
                         Processing...
@@ -641,7 +676,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                 position: 'absolute',
                 bottom: 0,
                 zIndex: -1,
-                backgroundImage: 'linear-gradient(90deg, #BC00E6DF, #FF3729D9)',
+                backgroundImage: 'linear-gradient(90deg, #6B008580, #8B1A1A70)',
                 borderRadius: '10px',
               }}
             />

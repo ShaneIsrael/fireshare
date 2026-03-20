@@ -120,7 +120,7 @@ export default function GlobalDragDropOverlay({ children }) {
                   bgcolor: 'rgba(38, 132, 255, 0.08)',
                 }}
               >
-                <CloudUploadIcon sx={{ fontSize: 72, color: '#2684FF', mb: 2 }} />
+                <CloudUploadIcon sx={{ fontSize: 72, color: '#fff', mb: 2 }} />
                 <Typography variant="h5" sx={{ color: 'white', fontWeight: 700 }}>
                   Drop to Upload
                 </Typography>
