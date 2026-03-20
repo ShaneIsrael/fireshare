@@ -35,6 +35,11 @@ const logoPulse = keyframes`
   50% { opacity: 0.45; }
 `
 
+const borderSpin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`
+
 const maskCss = {
   maskImage: `url(${logo})`,
   maskSize: 'contain',
@@ -586,101 +591,100 @@ const UploadCard = React.forwardRef(function UploadCard(
       <Grid item sx={{ mx: 1, mt: 2 }}>
         <label htmlFor="icon-button-file">
           {/* Add onDrop and onDragOver handlers */}
-          <Paper
+          <Box
             sx={{
               position: 'relative',
-              width: '100%',
-              height: mini ? '56px' : '90px',
-              cursor: 'pointer',
-              background: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.06)',
+              borderRadius: '13px',
+              padding: progress > 0 ? '2px' : '0px',
               overflow: 'hidden',
-              border: '1px solid',
-              borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.25)',
-              borderRadius: '10px',
-              transition: 'border-color 0.2s, background 0.2s',
-              '&:hover': {
-                borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.5)',
-                background: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.1)',
+              transition: 'padding 0.2s',
+              '&::before': {
+                content: '""',
+                display: progress > 0 ? 'block' : 'none',
+                position: 'absolute',
+                inset: '-100%',
+                background: 'conic-gradient(#BC00E6DF, #FF3729D9, #0084ff, #BC00E6DF)',
+                animation: `${borderSpin} 1s linear infinite`,
               },
             }}
-            onDrop={dropHandler}
-            onDragOver={dragOverHandler}
           >
-            <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
-              <Stack sx={{ zIndex: 0 }} alignItems="center" justifyContent="center" spacing={0.5}>
-                {!isSelected && (
-                  <Input
-                    id="icon-button-file"
-                    accept="video/mp4,video/webm,video/mov"
-                    type="file"
-                    name="file"
-                    onChange={changeHandler}
-                  />
-                )}
-                {progress === 0 && !mini && (
-                  <>
-                    <CloudUploadIcon sx={{ fontSize: 32, color: '#fff' }} />
-                    <Typography sx={{ fontSize: 12, color: '#ffffff77', fontWeight: 500, letterSpacing: 0.2 }}>
-                      Click to browse or drag anywhere
-                    </Typography>
-                  </>
-                )}
-                {progress === 0 && mini && <CloudUploadIcon sx={{ fontSize: 20, color: '#fff' }} />}
-                {progress > 0 && progress < 1 && (
-                  <>
-                    {!mini ? (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <LogoProgress progress={progress} size={44} />
-                        <Box>
-                          <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'white', lineHeight: 1.3 }}>
-                            Uploading {(100 * progress).toFixed(0)}%
-                          </Typography>
-                          <Typography sx={{ fontSize: 11, color: '#FFFFFFAA', lineHeight: 1.3 }}>
-                            {numberFormat.format(uploadRate.loaded.toFixed(0))} /{' '}
-                            {numberFormat.format(uploadRate.total.toFixed(0))} MB
-                          </Typography>
+            <Paper
+              sx={{
+                position: 'relative',
+                width: '100%',
+                height: mini ? '56px' : '90px',
+                cursor: 'pointer',
+                background: '#001224',
+                overflow: 'hidden',
+                border: '2px solid',
+                borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.25)',
+                borderRadius: '12px',
+                transition: 'border-color 0.2s, background 0.2s',
+                '&:hover': {
+                  borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.5)',
+                  background: progress > 0 ? 'rgb(0, 32, 73)' : 'rgba(38, 132, 255, 0.1)',
+                },
+              }}
+              onDrop={dropHandler}
+              onDragOver={dragOverHandler}
+            >
+              <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
+                <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center" justifyContent="center" spacing={0.5}>
+                  {!isSelected && (
+                    <Input
+                      id="icon-button-file"
+                      accept="video/mp4,video/webm,video/mov"
+                      type="file"
+                      name="file"
+                      onChange={changeHandler}
+                    />
+                  )}
+                  {progress === 0 && !mini && (
+                    <>
+                      <CloudUploadIcon sx={{ fontSize: 32, color: '#fff' }} />
+                      <Typography sx={{ fontSize: 12, color: '#ffffff77', fontWeight: 500, letterSpacing: 0.2 }}>
+                        Click to browse or drag anywhere
+                      </Typography>
+                    </>
+                  )}
+                  {progress === 0 && mini && <CloudUploadIcon sx={{ fontSize: 20, color: '#fff' }} />}
+                  {progress > 0 && (
+                    <>
+                      {!mini ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', px: 2 }}>
+                          <LogoProgress progress={progress} size={48} />
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: 14,
+                                color: 'white',
+                                lineHeight: 1.3,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {progress < 1 ? `Uploading ${(100 * progress).toFixed(0)}%` : 'Processing...'}
+                            </Typography>
+                            <Typography
+                              sx={{ fontSize: 11, color: '#FFFFFFAA', lineHeight: 1.3, whiteSpace: 'nowrap' }}
+                            >
+                              {progress < 1
+                                ? `${numberFormat.format(uploadRate.loaded.toFixed(0))} / ${numberFormat.format(uploadRate.total.toFixed(0))} MB`
+                                : 'Please wait...'}
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                    ) : (
-                      <Typography sx={{ fontWeight: 700, fontSize: 12, color: 'white' }}>
-                        {(100 * progress).toFixed(0)}%
-                      </Typography>
-                    )}
-                  </>
-                )}
-                {progress === 1 && !mini && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <LogoProgress progress={1} size={44} />
-                    <Box>
-                      <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'white', lineHeight: 1.3 }}>
-                        Processing...
-                      </Typography>
-                      <Typography sx={{ fontSize: 11, color: '#FFFFFFAA', lineHeight: 1.3 }}>
-                        This may take a few minutes
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-                {progress === 1 && mini && (
-                  <Typography sx={{ fontWeight: 700, fontSize: 12, color: 'white' }}>100%</Typography>
-                )}
-              </Stack>
-            </Box>
-            <motion.div
-              animate={{
-                height: mini ? `${progress * 100}%` : '100%',
-                width: mini ? '100%' : `${progress * 100}%`,
-              }}
-              transition={progress === 0 ? { duration: 0 } : { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                zIndex: -1,
-                backgroundImage: 'linear-gradient(90deg, #6B008580, #8B1A1A70)',
-                borderRadius: '10px',
-              }}
-            />
-          </Paper>
+                      ) : (
+                        <Typography sx={{ fontWeight: 700, fontSize: 12, color: 'white' }}>
+                          {progress < 1 ? `${(100 * progress).toFixed(0)}%` : '100%'}
+                        </Typography>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </Box>
+            </Paper>
+          </Box>
         </label>
       </Grid>
 

@@ -58,6 +58,10 @@ const CompactVideoCard = ({
   const [editingTitle, setEditingTitle] = React.useState(false)
   const [titleDraft, setTitleDraft] = React.useState(title)
   const [imgLoaded, setImgLoaded] = React.useState(false)
+  const [imgRetryKey, setImgRetryKey] = React.useState(0)
+  const retryTimeoutRef = React.useRef(null)
+  const retryCountRef = React.useRef(0)
+  const MAX_THUMBNAIL_RETRIES = 20
   const [localTags, setLocalTags] = React.useState(video.tags || [])
 
   const uiConfig = getSetting('ui_config')
@@ -130,10 +134,31 @@ const CompactVideoCard = ({
     setDescription(video.info?.description || '')
     setLocalTags(video.tags || [])
     setImgLoaded(false)
+    setImgRetryKey(0)
+    retryCountRef.current = 0
+    clearTimeout(retryTimeoutRef.current)
   }
   React.useEffect(() => {
     previousVideoRef.current = video
   })
+
+  React.useEffect(() => {
+    return () => clearTimeout(retryTimeoutRef.current)
+  }, [])
+
+  const handleThumbnailLoad = () => {
+    setImgLoaded(true)
+    clearTimeout(retryTimeoutRef.current)
+    retryCountRef.current = 0
+  }
+
+  const handleThumbnailError = () => {
+    if (retryCountRef.current >= MAX_THUMBNAIL_RETRIES) return
+    retryCountRef.current += 1
+    retryTimeoutRef.current = setTimeout(() => {
+      setImgRetryKey((k) => k + 1)
+    }, 4000)
+  }
 
   React.useEffect(() => {
     GameService.getVideoGame(video.video_id)
@@ -396,13 +421,14 @@ const CompactVideoCard = ({
             onMouseDown={handleMouseDown}
           >
             <img
-              src={`${
+              src={
                 SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
-                  : `${URL}/api/video/poster?id=${video.video_id}`
-              }`}
+                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg${imgRetryKey > 0 ? `?r=${imgRetryKey}` : ''}`
+                  : `${URL}/api/video/poster?id=${video.video_id}${imgRetryKey > 0 ? `&r=${imgRetryKey}` : ''}`
+              }
               alt=""
-              onLoad={() => setImgLoaded(true)}
+              onLoad={handleThumbnailLoad}
+              onError={handleThumbnailError}
               style={{
                 width: '100%',
                 height: '100%',

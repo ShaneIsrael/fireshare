@@ -1,9 +1,10 @@
 import React, { useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Box, Button, Grid, Paper, Typography } from '@mui/material'
+import { Box, Button, Grid, Typography } from '@mui/material'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
+import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import { VideoService } from '../../services'
 import CompactVideoCard from './CompactVideoCard'
 
@@ -89,46 +90,54 @@ const VideoCards = ({
   }, [size, vids])
 
   const EMPTY_STATE = () => (
-    <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-      <Grid
-        sx={{ p: 2, height: 200 }}
-        container
-        item
-        spacing={2}
-        direction="column"
-        justifyContent="center"
-        alignItems="center"
-      >
-        {!loadingIcon && (
-          <>
-            <Grid item>
-              <Typography
-                variant="h4"
-                align="center"
-                color="primary"
-                sx={{
-                  fontFamily: 'monospace',
-                  fontWeight: 500,
-                  letterSpacing: '.2rem',
-                  textDecoration: 'none',
-                }}
-              >
-                NO VIDEOS FOUND
-              </Typography>
-            </Grid>
-
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+        py: 8,
+        px: 3,
+        border: '1px solid #FFFFFF14',
+        borderRadius: '16px',
+        background: '#00000040',
+      }}
+    >
+      {!loadingIcon && (
+        <>
+          <OndemandVideoIcon sx={{ fontSize: 56, color: '#FFFFFF33' }} />
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>
+              No videos found
+            </Typography>
             {!feedView && (
-              <Grid item>
-                <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
-                  Scan Library
-                </Button>
-              </Grid>
+              <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>
+                Scan your library to discover videos
+              </Typography>
             )}
-          </>
-        )}
-        {loadingIcon}
-      </Grid>
-    </Paper>
+          </Box>
+          {!feedView && (
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<SensorsIcon />}
+              onClick={handleScan}
+              sx={{
+                background: 'linear-gradient(90deg, #BC00E6, #FF3729)',
+                '&:hover': { background: 'linear-gradient(90deg, #CC10F6, #FF4739)' },
+                fontWeight: 600,
+                px: 3,
+                mt: 1,
+              }}
+            >
+              Scan Library
+            </Button>
+          )}
+        </>
+      )}
+      {loadingIcon}
+    </Box>
   )
 
   return (
