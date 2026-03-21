@@ -1843,6 +1843,33 @@ def get_original_video():
         return Response(status=404)
 
 
+@api.route('/api/video/audio')
+def get_video_audio():
+    """
+    Serves a tiny mono MP3 extract of the original video, used by the waveform editor.
+    The extract is created on first request and cached at derived/{id}/{id}-audio.mp3.
+    Much smaller than the full video, so WaveSurfer loads and decodes it much faster.
+    """
+    video_id = request.args.get('id')
+    if not video_id:
+        return Response(status=400)
+    try:
+        paths = current_app.config['PATHS']
+        derived_dir = paths['processed'] / 'derived' / video_id
+        audio_path = derived_dir / f'{video_id}-audio.mp3'
+
+        if not audio_path.exists():
+            video_path = get_video_path(video_id, subid=None, quality=None)
+            derived_dir.mkdir(parents=True, exist_ok=True)
+            if not util.create_audio_extract(video_path, audio_path):
+                return Response(status=500)
+
+        return send_file(audio_path, mimetype='audio/mpeg', conditional=True)
+    except Exception as e:
+        logger.error(f"Error serving audio extract for {video_id}: {e}")
+        return Response(status=404)
+
+
 @api.route('/api/video')
 def get_video():
     video_id = request.args.get('id')

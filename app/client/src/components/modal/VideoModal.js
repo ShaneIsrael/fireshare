@@ -191,27 +191,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
   const playerRef = React.useRef()
   const waveformRef = React.useRef(null)
-  // Refs so the Video.js timeupdate listener closure always sees current values
-  const cropStartRef = React.useRef(null)
-  const cropEndRef = React.useRef(null)
-  const editModeRef = React.useRef(false)
 
-  // Keep refs in sync so Video.js listener always sees current values
-  React.useEffect(() => { cropStartRef.current = cropStart }, [cropStart])
-  React.useEffect(() => { cropEndRef.current = cropEnd }, [cropEnd])
-  React.useEffect(() => { editModeRef.current = editMode }, [editMode])
-
-  // When entering edit mode, seek to crop start
-  React.useEffect(() => {
-    if (!editMode || !playerRef.current) return
-    playerRef.current.seek(cropStart ?? 0)
-  }, [editMode]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // When user adjusts the start handle in edit mode, seek the player live
-  React.useEffect(() => {
-    if (!editMode || !playerRef.current) return
-    playerRef.current.seek(cropStart ?? 0)
-  }, [cropStart]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open || editMode) return
@@ -503,15 +483,6 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     // Sync waveform cursor with video playback
     waveformRef.current?.seekTo(currentTime)
 
-    // Crop boundary enforcement in edit mode (only while playing, not when paused/seeking)
-    if (editModeRef.current && !playerRef.current?.paused()) {
-      const end = cropEndRef.current
-      if (end !== null && currentTime >= end) {
-        playerRef.current?.pause()
-        playerRef.current?.seek(cropStartRef.current ?? 0)
-        return
-      }
-    }
 
     if (!viewAdded) {
       if (!vid.info?.duration || vid.info?.duration < 10) {

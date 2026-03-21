@@ -14,13 +14,14 @@ const TagChip = ({ name, color, href, size = 'medium', onDelete, ...rest }) => {
   const accentColor = color || '#2684FF'
 
   const smallSx = {
-    height: 18,
+    height: 22,
     fontSize: 11,
     '& .MuiChip-label': { px: 0.75 },
     '&:hover': {
       bgcolor: `${accentColor}25`,
       color: 'white',
     },
+    borderRadius: '6px',
   }
 
   const mediumSx = {
@@ -28,9 +29,7 @@ const TagChip = ({ name, color, href, size = 'medium', onDelete, ...rest }) => {
     py: 2,
   }
 
-  const deleteSx = onDelete
-    ? { '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } } }
-    : {}
+  const deleteSx = onDelete ? { '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } } } : {}
 
   return (
     <Chip

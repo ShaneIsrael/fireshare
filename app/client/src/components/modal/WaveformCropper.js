@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Box, Typography, CircularProgress, Button, Menu, MenuItem } from '@mui/material'
-import RestartAltIcon from '@mui/icons-material/RestartAlt'
+import { Box, Typography, CircularProgress, Menu, MenuItem } from '@mui/material'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { getUrl } from '../../common/utils'
@@ -102,7 +101,7 @@ const WaveformCropper = React.forwardRef(
         barGap: 1,
         barRadius: 3,
         barAlign: 'bottom',
-        url: `${getUrl()}/api/video/original?id=${videoId}`,
+        url: `${getUrl()}/api/video/audio?id=${videoId}`,
         fetchParams: { credentials: 'include' },
         plugins: [regionsPlugin],
       })
@@ -295,16 +294,6 @@ const WaveformCropper = React.forwardRef(
                 sx={numInputSx}
               />
             </Box>
-            <Button
-              size="small"
-              variant="text"
-              startIcon={<RestartAltIcon />}
-              onClick={handleReset}
-              disabled={isLoading}
-              sx={{ color: '#FFFFFF55', '&:hover': { color: 'white' }, mt: 2.5, ml: 0.5 }}
-            >
-              Reset
-            </Button>
           </Box>
         </Box>
 
@@ -313,7 +302,7 @@ const WaveformCropper = React.forwardRef(
           onClose={() => setContextMenu(null)}
           anchorReference="anchorPosition"
           anchorPosition={contextMenu ? { top: contextMenu.y, left: contextMenu.x } : undefined}
-          slotProps={{ paper: { sx: { bgcolor: '#0D1F33', border: '1px solid #FFFFFF1A', color: 'white' } } }}
+          slotProps={{ paper: { sx: { bgcolor: '#0D1F33', border: '1px solid #FFFFFF1A', color: 'white', minWidth: 140 } } }}
         >
           <MenuItem
             disabled={contextMenu?.cursorTime >= localEnd}
@@ -321,7 +310,7 @@ const WaveformCropper = React.forwardRef(
               handleStartChange(parseFloat(contextMenu.cursorTime.toFixed(2)))
               setContextMenu(null)
             }}
-            sx={{ fontSize: 13, '&.Mui-disabled': { color: '#FFFFFF33' } }}
+            sx={{ fontSize: 13, color: 'white', '&:hover': { bgcolor: '#FFFFFF14' }, '&.Mui-disabled': { color: '#FFFFFF33' } }}
           >
             Set Start
           </MenuItem>
@@ -331,9 +320,18 @@ const WaveformCropper = React.forwardRef(
               handleEndChange(parseFloat(contextMenu.cursorTime.toFixed(2)))
               setContextMenu(null)
             }}
-            sx={{ fontSize: 13, '&.Mui-disabled': { color: '#FFFFFF33' } }}
+            sx={{ fontSize: 13, color: 'white', '&:hover': { bgcolor: '#FFFFFF14' }, '&.Mui-disabled': { color: '#FFFFFF33' } }}
           >
             Set End
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              handleReset()
+              setContextMenu(null)
+            }}
+            sx={{ fontSize: 13, color: '#FFFFFF99', '&:hover': { bgcolor: '#FFFFFF14', color: 'white' } }}
+          >
+            Reset
           </MenuItem>
         </Menu>
       </>

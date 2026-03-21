@@ -386,6 +386,30 @@ def create_video_crop(source_path, out_path, start_time=None, end_time=None):
     return result == 0
 
 
+def create_audio_extract(source_path, out_path):
+    """
+    Extract a tiny mono audio-only MP3 from source_path for waveform display.
+    Low bitrate + mono keeps the file small so WaveSurfer loads/decodes quickly.
+    Returns True on success, False on failure.
+    """
+    cmd = [
+        'ffmpeg', '-v', 'quiet', '-y',
+        '-i', str(source_path),
+        '-vn',           # drop video
+        '-ac', '1',      # mono
+        '-ar', '22050',  # 22 kHz sample rate (plenty for a waveform visual)
+        '-b:a', '32k',   # 32 kbps — keeps file tiny
+        str(out_path),
+    ]
+    logger.debug(f"$ {' '.join(cmd)}")
+    result = sp.call(cmd)
+    if result == 0:
+        logger.info(f'Created audio extract {str(out_path)}')
+    else:
+        logger.error(f'Failed to create audio extract {str(out_path)} (exit code {result})')
+    return result == 0
+
+
 def create_poster(video_path, out_path, second=0):
     s = time.time()
     cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', '-vf', 'scale=iw:ih:force_original_aspect_ratio=decrease', str(out_path)]
