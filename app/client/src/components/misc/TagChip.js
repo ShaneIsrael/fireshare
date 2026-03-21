@@ -11,21 +11,20 @@ import { Chip } from '@mui/material'
  */
 const TagChip = ({ name, color, href, size = 'medium', onDelete, ...rest }) => {
   const displayName = name ? name.replace(/_/g, ' ') : ''
-  const bg = color ? `${color}90` : '#FFFFFF14'
-  const border = color ? `${color}90` : '#FFFFFF14'
+  const accentColor = color || '#2684FF'
 
   const smallSx = {
     height: 18,
     fontSize: 11,
     '& .MuiChip-label': { px: 0.75 },
     '&:hover': {
-      bgcolor: color ? `${color}55` : '#FFFFFF22',
+      bgcolor: `${accentColor}25`,
       color: 'white',
     },
   }
 
   const mediumSx = {
-    borderRadius: 2,
+    borderRadius: '6px',
     py: 2,
   }
 
@@ -42,10 +41,12 @@ const TagChip = ({ name, color, href, size = 'medium', onDelete, ...rest }) => {
       onClick={href ? (e) => e.stopPropagation() : undefined}
       onDelete={onDelete}
       sx={{
-        bgcolor: bg,
+        bgcolor: `${accentColor}18`,
         color: '#FFF',
         border: '1px solid',
-        borderColor: border,
+        borderColor: `${accentColor}44`,
+        // Left accent stripe
+        boxShadow: `inset 3px 0 0 ${accentColor}`,
         position: 'relative',
         overflow: 'hidden',
         cursor: href ? 'pointer' : 'default',
