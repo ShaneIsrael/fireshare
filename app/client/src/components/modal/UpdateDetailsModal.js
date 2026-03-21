@@ -18,7 +18,6 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { DayPicker } from 'react-day-picker'
 import { VideoService, GameService, TagService } from '../../services'
 import GameSearch from '../game/GameSearch'
-import WaveformCropper from './WaveformCropper'
 import './datepicker-dark.css'
 
 // ─── Shared style constants ───────────────────────────────────────────────────
@@ -270,9 +269,6 @@ const UpdateDetailsModal = ({
   currentDescription,
   currentRecordedAt,
   currentGame,
-  currentStartTime,
-  currentEndTime,
-  videoDuration,
   alertHandler,
 }) => {
   const [title, setTitle] = React.useState(currentTitle)
@@ -284,8 +280,6 @@ const UpdateDetailsModal = ({
   const [localTags, setLocalTags] = React.useState([])
   const [allTags, setAllTags] = React.useState([])
   const [tagInput, setTagInput] = React.useState('')
-  const [cropStart, setCropStart] = React.useState(currentStartTime ?? null)
-  const [cropEnd, setCropEnd] = React.useState(currentEndTime ?? null)
   const initialTagsRef = React.useRef([])
 
   React.useEffect(() => {
@@ -293,8 +287,6 @@ const UpdateDetailsModal = ({
     setTitle(currentTitle)
     setDescription(currentDescription)
     setLinkedGame(currentGame || null)
-    setCropStart(currentStartTime ?? null)
-    setCropEnd(currentEndTime ?? null)
     setTagInput('')
     Promise.all([TagService.getVideoTags(videoId), TagService.getTags()])
       .then(([videoTagsRes, allTagsRes]) => {
@@ -332,8 +324,6 @@ const UpdateDetailsModal = ({
         title: title || currentTitle,
         description: description || currentDescription,
         recorded_at: getRecordedAtISO(),
-        start_time: cropStart,
-        end_time: cropEnd,
       })
 
       // Apply tag changes: diff localTags vs what was on the video when modal opened
@@ -444,21 +434,6 @@ const UpdateDetailsModal = ({
             />
           </LabeledField>
 
-          <Divider sx={{ borderColor: '#FFFFFF14' }} />
-
-          <LabeledField label="Trim">
-            <WaveformCropper
-              key={open ? videoId : 'closed'}
-              videoId={videoId}
-              duration={videoDuration || 0}
-              startTime={cropStart}
-              endTime={cropEnd}
-              onChange={({ startTime, endTime }) => {
-                setCropStart(startTime)
-                setCropEnd(endTime)
-              }}
-            />
-          </LabeledField>
         </Stack>
 
         <Stack direction="row" spacing={1.5} sx={{ mt: 4 }}>

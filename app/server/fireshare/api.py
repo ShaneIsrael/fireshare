@@ -1831,14 +1831,16 @@ def _retranscode_async(video_id, source_path, paths, do_480p, do_720p, do_1080p)
 
 
 @api.route('/api/video/original')
-@login_required
 def get_original_video():
     """Serves the original unmodified video file, bypassing any crop. Used by the waveform editor."""
     video_id = request.args.get('id')
     subid = request.args.get('subid')
-    # Pass quality=None to skip crop logic and get the video_links symlink
-    video_path = get_video_path(video_id, subid, quality=None)
-    return _stream_video_file(video_path)
+    try:
+        video_path = get_video_path(video_id, subid, quality=None)
+        return send_file(video_path, mimetype='video/mp4', conditional=True)
+    except Exception as e:
+        logger.error(f"Error serving original video {video_id}: {e}")
+        return Response(status=404)
 
 
 @api.route('/api/video')

@@ -364,9 +364,6 @@ const CompactVideoCard = ({
         currentDescription={description}
         currentRecordedAt={video.recorded_at}
         currentGame={game}
-        currentStartTime={video.info?.start_time ?? null}
-        currentEndTime={video.info?.end_time ?? null}
-        videoDuration={video.info?.duration ?? 0}
         alertHandler={alertHandler}
       />
 
