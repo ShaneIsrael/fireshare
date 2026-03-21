@@ -144,13 +144,23 @@ export const getVideoUrl = (videoId, quality, extension) => {
  */
 export const getVideoSources = (videoId, videoInfo, extension) => {
   const sources = []
+  const URL = getUrl()
+  const SERVED_BY = getServedBy()
 
   const has480p = videoInfo?.has_480p
   const has720p = videoInfo?.has_720p
   const has1080p = videoInfo?.has_1080p
+  const hasCrop = videoInfo?.has_crop
+
+  // When a cropped version exists, point "Source" at the cropped file instead of the original
+  const sourceUrl = hasCrop
+    ? (SERVED_BY === 'nginx'
+        ? `${URL}/_content/derived/${videoId}/${videoId}-cropped.mp4`
+        : `${URL}/api/video?id=${videoId}&quality=cropped`)
+    : getVideoUrl(videoId, 'original', extension)
 
   sources.push({
-    src: getVideoUrl(videoId, 'original', extension),
+    src: sourceUrl,
     type: 'video/mp4',
     label: 'Source',
     selected: true,
