@@ -35,7 +35,7 @@ const CompactVideoCard = ({
   const [intVideo, setIntVideo] = React.useState(video)
   const [hover, setHover] = React.useState(false)
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
-  const [game, setGame] = React.useState(null)
+  const [game, setGame] = React.useState(video.game || null)
   const [privateView, setPrivateView] = React.useState(video.info?.private)
   const [title, setTitle] = React.useState(
     video.info?.title ||
@@ -133,6 +133,7 @@ const CompactVideoCard = ({
     )
     setDescription(video.info?.description || '')
     setLocalTags(video.tags || [])
+    if (video.game !== undefined) setGame(video.game || null)
     setImgLoaded(false)
     setImgRetryKey(0)
     retryCountRef.current = 0
@@ -161,6 +162,7 @@ const CompactVideoCard = ({
   }
 
   React.useEffect(() => {
+    if (video.game) return
     GameService.getVideoGame(video.video_id)
       .then((response) => {
         if (response.data) {
@@ -170,7 +172,7 @@ const CompactVideoCard = ({
       .catch(() => {
         // No game linked
       })
-  }, [video.video_id])
+  }, [video.video_id, video.game])
 
   const gameRef = React.useRef(game)
   React.useEffect(() => {
@@ -189,22 +191,43 @@ const CompactVideoCard = ({
     return () => window.removeEventListener('gameAssetsUpdated', handler)
   }, [video.video_id])
 
+  const suggestionFetchedRef = React.useRef(false)
   React.useEffect(() => {
-    VideoService.getGameSuggestion(video.video_id)
-      .then((response) => {
-        if (response.data) {
-          setGameSuggestion(response.data)
-          setShowSuggestion(true)
-          if (response.data.steamgriddb_id) {
-            GameService.getGameAssets(response.data.steamgriddb_id)
-              .then((assets) => {
-                if (assets.data?.icon_url) setSuggestionIcon(assets.data.icon_url)
-              })
-              .catch(() => {})
+    const el = cardRef.current
+    if (!el) return
+    if (suggestionFetchedRef.current) return
+
+    const fetchSuggestion = () => {
+      if (suggestionFetchedRef.current) return
+      suggestionFetchedRef.current = true
+      VideoService.getGameSuggestion(video.video_id)
+        .then((response) => {
+          if (response.data) {
+            setGameSuggestion(response.data)
+            setShowSuggestion(true)
+            if (response.data.steamgriddb_id) {
+              GameService.getGameAssets(response.data.steamgriddb_id)
+                .then((assets) => {
+                  if (assets.data?.icon_url) setSuggestionIcon(assets.data.icon_url)
+                })
+                .catch(() => {})
+            }
           }
+        })
+        .catch(() => {})
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          observer.disconnect()
+          fetchSuggestion()
         }
-      })
-      .catch(() => {})
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [video.video_id])
 
   const handleSuggestionAccept = async () => {
