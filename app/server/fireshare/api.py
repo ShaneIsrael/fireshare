@@ -1593,23 +1593,29 @@ def upload_videoChunked():
     blob = request.files.get('blob')
     chunkPart = int(request.form.get('chunkPart'))
     totalChunks = int(request.form.get('totalChunks'))
-    checkSum = request.form.get('checkSum')
+    checkSum = re.sub(r'[^a-zA-Z0-9_-]', '', request.form.get('checkSum'))
     fileName = secure_filename(request.form.get('fileName'))
     fileSize = int(request.form.get('fileSize'))
-    
+
+    if not checkSum:
+        return Response(status=400)
+
     if not fileName:
         return Response(status=400)
-    
+
     filetype = fileName.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
-    
+
     upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
-    
+
     # Store chunks with part number to ensure proper ordering
     tempPath = os.path.join(upload_directory, f"{checkSum}.part{chunkPart:04d}")
+    # Guard against path traversal: ensure the resolved path stays within upload_directory
+    if not os.path.realpath(tempPath).startswith(os.path.realpath(upload_directory) + os.sep):
+        return Response(status=400)
     
     # Write this specific chunk
     with open(tempPath, 'wb') as f:
