@@ -41,6 +41,8 @@
 - Mobile Device Support
 - Uploads (optional, can be restricted)
 - Video view counting
+- Video Cropping
+- Video Tags for improved search and categorization
 - Open Graph metadata for rich link previews
 - RSS feed for new public videos
 - LDAP support
