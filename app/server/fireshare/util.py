@@ -882,17 +882,12 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
     # This allows the calling code to continue processing other videos
     return (False, 'encoders')
 
-def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
-    # https://stackoverflow.com/questions/65874316/trim-a-video-and-add-the-boomerang-effect-on-it-with-ffmpeg
-    # https://ffmpeg.org/ffmpeg-filters.html#reverse
-    # https://ffmpeg.org/ffmpeg-filters.html#Examples-148
-    # ffmpeg -ss 0 -t 1.5 -i in.mp4 -y -filter_complex "[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:720" -an out.mp4
+def create_boomerang_preview(video_path, out_path, clip_duration=5):
     s = time.time()
-    boomerang_filter_720p = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:720'
-    boomerang_filter_480p = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:480'
-    boomerang_filter = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat'
     cmd = ['ffmpeg', '-v', 'quiet', '-ss', '0', '-t', str(clip_duration),
-        '-i', str(video_path), '-y', '-filter_complex', boomerang_filter_480p, '-an', str(out_path)]
+        '-i', str(video_path), '-y', '-vf', 'scale=-2:480',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+        '-an', '-movflags', '+faststart', str(out_path)]
     logger.info(f"Creating boomerang preview")
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)

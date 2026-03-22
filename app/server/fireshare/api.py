@@ -1151,7 +1151,7 @@ def get_videos():
     for v in videos:
         vjson = v.json()
         vjson["view_count"] = VideoView.count(v.video_id)
-        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all()]
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all() if l.tag is not None]
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -1207,7 +1207,7 @@ def get_public_videos():
         if (not vjson["available"]):
             continue
         vjson["view_count"] = VideoView.count(v.video_id)
-        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all()]
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all() if l.tag is not None]
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -1339,11 +1339,16 @@ def handle_video_details(id):
 @api.route('/api/video/poster', methods=['GET'])
 def get_video_poster():
     video_id = request.args['id']
-    webm_poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "boomerang-preview.webm")
-    jpg_poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "poster.jpg")
+    derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
+    jpg_poster_path = derived_dir / "poster.jpg"
 
     if request.args.get('animated'):
-        response = send_file(webm_poster_path, mimetype='video/webm')
+        mp4_path = derived_dir / "boomerang-preview.mp4"
+        webm_path = derived_dir / "boomerang-preview.webm"
+        if mp4_path.exists():
+            response = send_file(mp4_path, mimetype='video/mp4')
+        else:
+            response = send_file(webm_path, mimetype='video/webm')
     else:
         response = send_file(jpg_poster_path, mimetype='image/jpg')
 
@@ -2461,10 +2466,23 @@ def get_tag_videos(tag_id):
                 continue
         vjson = link.video.json()
         vjson["view_count"] = VideoView.count(link.video_id)
-        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=link.video_id).all()]
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=link.video_id).all() if l.tag is not None]
         videos_json.append(vjson)
 
     return jsonify(videos_json)
+
+
+def _regenerate_boomerang_bg(video_id, extension, processed_directory):
+    video_path = Path(processed_directory, "video_links", video_id + extension)
+    derived_path = Path(processed_directory, "derived", video_id)
+    out_path = derived_path / "boomerang-preview.mp4"
+    def run():
+        if not video_path.exists():
+            return
+        if not derived_path.exists():
+            derived_path.mkdir(parents=True)
+        util.create_boomerang_preview(video_path, out_path)
+    threading.Thread(target=run, daemon=True).start()
 
 
 @api.route('/api/videos/<video_id>/tags', methods=["GET"])
@@ -2499,6 +2517,7 @@ def add_tag_to_video(video_id):
     )
     db.session.add(link)
     db.session.commit()
+    _regenerate_boomerang_bg(video.video_id, video.extension, current_app.config["PROCESSED_DIRECTORY"])
     return jsonify(link.json()), 201
 
 
@@ -2525,6 +2544,7 @@ def bulk_assign_tag():
         return Response(status=404, response='Tag not found.')
 
     created = 0
+    new_video_ids = []
     for video_id in data['video_ids']:
         existing = VideoTagLink.query.filter_by(video_id=video_id, tag_id=data['tag_id']).first()
         if not existing:
@@ -2535,8 +2555,14 @@ def bulk_assign_tag():
             )
             db.session.add(link)
             created += 1
+            new_video_ids.append(video_id)
 
     db.session.commit()
+    processed_dir = current_app.config["PROCESSED_DIRECTORY"]
+    for video_id in new_video_ids:
+        v = Video.query.filter_by(video_id=video_id).first()
+        if v:
+            _regenerate_boomerang_bg(v.video_id, v.extension, processed_dir)
     return jsonify({"created": created, "skipped": len(data['video_ids']) - created}), 200
 
 
