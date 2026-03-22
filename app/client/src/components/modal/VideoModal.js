@@ -1,5 +1,19 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Button, Divider, IconButton, Modal, Paper, Popover, TextField, Tooltip, Typography } from '@mui/material'
+import {
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  IconButton,
+  Modal,
+  Paper,
+  Popover,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material'
+import TagChip from '../misc/TagChip'
 import { motion } from 'framer-motion'
 import { DayPicker } from 'react-day-picker'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -17,10 +31,11 @@ import {
   getVideoSources,
   getSetting,
 } from '../../common/utils'
-import { ConfigService, VideoService, GameService } from '../../services'
+import { ConfigService, VideoService, GameService, TagService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../misc/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
+import WaveformCropper from './WaveformCropper'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -168,8 +183,15 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [editMode, setEditMode] = React.useState(false)
   const [gamePillColor, setGamePillColor] = React.useState(null)
+  const [videoTags, setVideoTags] = React.useState([])
+  const [allTags, setAllTags] = React.useState([])
+  const [tagInputValue, setTagInputValue] = React.useState('')
+  const [cropStart, setCropStart] = React.useState(null)
+  const [cropEnd, setCropEnd] = React.useState(null)
 
   const playerRef = React.useRef()
+  const waveformRef = React.useRef(null)
+
 
   useEffect(() => {
     if (!open || editMode) return
@@ -274,6 +296,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         setTitle(details.info?.title)
         setDescription(details.info?.description)
         setPrivateView(details.info?.private)
+        setCropStart(details.info?.start_time ?? null)
+        setCropEnd(details.info?.end_time ?? null)
         setUpdatable(false)
         if (details.recorded_at) {
           const d = new Date(details.recorded_at)
@@ -291,6 +315,17 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         } catch (err) {
           if (!cancelled) setSelectedGame(null)
         }
+        try {
+          const [tagsRes, allTagsRes] = await Promise.all([TagService.getVideoTags(videoId), TagService.getTags()])
+          if (cancelled) return
+          setVideoTags(tagsRes.data || [])
+          setAllTags(allTagsRes.data || [])
+        } catch (err) {
+          if (!cancelled) {
+            setVideoTags([])
+            setAllTags([])
+          }
+        }
       } catch (err) {
         if (!cancelled) setAlert({ type: 'error', message: 'Unable to load video details', open: true })
       }
@@ -302,6 +337,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setSelectedDate(null)
       setSelectedTime('')
       setEditMode(false)
+      setVideoTags([])
+      setCropStart(null)
+      setCropEnd(null)
       fetch()
     }
     return () => {
@@ -333,6 +371,35 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
     }
   }
 
+  const handleAddTag = async (tag) => {
+    if (!tag || !vid) return
+    try {
+      let tagId = tag.id
+      if (!tagId) {
+        // Create the tag if it doesn't exist yet
+        const res = await TagService.createTag({ name: tag.name })
+        tagId = res.data.id
+        setAllTags((prev) => [...prev, res.data])
+      }
+      await TagService.addTagToVideo(vid.video_id, tagId)
+      const updatedTags = (await TagService.getVideoTags(vid.video_id)).data
+      setVideoTags(updatedTags)
+      setTagInputValue('')
+    } catch (err) {
+      console.error('Failed to add tag:', err)
+    }
+  }
+
+  const handleRemoveTag = async (tagId) => {
+    if (!vid) return
+    try {
+      await TagService.removeTagFromVideo(vid.video_id, tagId)
+      setVideoTags((prev) => prev.filter((t) => t.id !== tagId))
+    } catch (err) {
+      console.error('Failed to remove tag:', err)
+    }
+  }
+
   const handleMouseDown = (e) => {
     if (e.button === 1) window.open(`${PURL}${vid.video_id}`, '_blank')
   }
@@ -348,16 +415,28 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const update = async () => {
-    if (updateable && authenticated) {
-      try {
-        await VideoService.updateDetails(vid.video_id, { title, description, recorded_at: getRecordedAtISO() })
-        setUpdatable(false)
-        setEditMode(false)
-        updateCallback({ id: vid.video_id, title, description })
-        setAlert({ type: 'success', message: 'Details Updated', open: true })
-      } catch (err) {
-        setAlert({ type: 'error', message: 'An error occurred trying to update the title', open: true })
+    if (!authenticated) return
+    const cropChanged = cropStart !== (vid?.info?.start_time ?? null) || cropEnd !== (vid?.info?.end_time ?? null)
+    if (!updateable && !cropChanged) {
+      setEditMode(false)
+      return
+    }
+    try {
+      const payload = { title, description, recorded_at: getRecordedAtISO() }
+      if (cropChanged) {
+        payload.start_time = cropStart
+        payload.end_time = cropEnd
       }
+      await VideoService.updateDetails(vid.video_id, payload)
+      if (cropChanged) {
+        setVideo((prev) => ({ ...prev, info: { ...prev.info, start_time: cropStart, end_time: cropEnd } }))
+      }
+      setUpdatable(false)
+      setEditMode(false)
+      updateCallback({ id: vid.video_id, title, description })
+      setAlert({ type: 'success', message: 'Details Updated', open: true })
+    } catch (err) {
+      setAlert({ type: 'error', message: 'An error occurred trying to update the details', open: true })
     }
   }
 
@@ -399,8 +478,13 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const handleTimeUpdate = (e) => {
+    const currentTime = e.playedSeconds || 0
+
+    // Sync waveform cursor with video playback
+    waveformRef.current?.seekTo(currentTime)
+
+
     if (!viewAdded) {
-      const currentTime = e.playedSeconds || 0
       if (!vid.info?.duration || vid.info?.duration < 10) {
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
@@ -457,7 +541,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            style={{ display: 'flex', width: '100%', maxWidth: '100%', maxHeight: '100%' }}
+            style={{ display: 'flex', justifyContent: 'center', width: '100%', maxWidth: '100%', maxHeight: '100%' }}
           >
             <Paper
               sx={{
@@ -466,14 +550,22 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
                 bgcolor: '#020D1A',
                 display: 'flex',
-                flexDirection: { xs: 'column', md: 'row' },
-                // Small: auto-height so it can be vertically centred. Desktop: sized to video AR.
-                width: { xs: '100%', md: 'auto' },
-                height: { xs: 'auto', md: videoH_css },
+                flexDirection: 'column',
+                width: { xs: '100%', md: `calc(${videoW_css} + ${SIDEBAR_WIDTH})` },
+                height: 'auto',
                 maxHeight: '100%',
                 maxWidth: '100%',
               }}
             >
+              {/* ── Top row: Video + Sidebar ─────────────────────────────────── */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  height: { xs: 'auto', md: videoH_css },
+                  overflow: 'hidden',
+                }}
+              >
               {/* ── Left: Video Player ───────────────────────────────────────── */}
               <Box
                 sx={{
@@ -486,13 +578,16 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                   aspectRatio: { xs: `${vid?.info?.width || 16} / ${vid?.info?.height || 9}`, md: 'initial' },
                   // Override VideoJS default 8px border-radius responsively
                   '& > div': {
-                    borderRadius: { xs: '0 !important', md: '8px 0 0 8px !important' },
+                    borderRadius: {
+                      xs: '0 !important',
+                      md: editMode ? '8px 0 0 0 !important' : '8px 0 0 8px !important',
+                    },
                   },
                 }}
               >
                 <VideoJSPlayer
                   key={vid.video_id}
-                  sources={getVideoSources(vid.video_id, vid?.info, vid.extension)}
+                  sources={getVideoSources(vid.video_id, editMode ? { ...vid?.info, has_crop: false } : vid?.info, vid.extension)}
                   poster={getPosterUrl()}
                   autoplay={autoplay}
                   controls={true}
@@ -655,7 +750,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                               <img
                                 src={selectedGame.icon_url}
                                 alt=""
-                                onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
                                 style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                               />
                             )}
@@ -670,6 +767,19 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             >
                               {selectedGame.name}
                             </Typography>
+                          </Box>
+                        )}
+                        {videoTags.length > 0 && (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
+                            {videoTags.map((tag) => (
+                              <TagChip
+                                key={tag.id}
+                                name={tag.name}
+                                color={tag.color}
+                                href={`#/tags/${tag.id}`}
+                                size="small"
+                              />
+                            ))}
                           </Box>
                         )}
                       </Box>
@@ -696,7 +806,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             <img
                               src={selectedGame.icon_url}
                               alt=""
-                              onError={(e) => { e.currentTarget.style.display = 'none' }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
                               style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                             />
                           )}
@@ -743,6 +855,75 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                           />
                         </Box>
                       )}
+                    </Box>
+                  )}
+
+                  {/* Tags (edit mode only) */}
+                  {editMode && authenticated && (
+                    <Box>
+                      <Typography sx={labelSx}>Tags</Typography>
+                      <Autocomplete
+                        multiple
+                        freeSolo
+                        componentsProps={{ root: { sx: { '& .MuiAutocomplete-tag': { my: 0.25 } } } }}
+                        sx={{ '& .MuiOutlinedInput-root': { gap: 0.5 } }}
+                        options={allTags.filter((t) => !videoTags.find((vt) => vt.id === t.id))}
+                        getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
+                        value={videoTags}
+                        inputValue={tagInputValue}
+                        onInputChange={(_, v) => setTagInputValue(v)}
+                        onChange={(_, newValues) => {
+                          if (newValues.length > videoTags.length) {
+                            const added = newValues[newValues.length - 1]
+                            if (typeof added === 'string') {
+                              handleAddTag({ name: added })
+                            } else {
+                              handleAddTag(added)
+                            }
+                          }
+                        }}
+                        renderTags={(value) =>
+                          value.map((tag) => (
+                            <TagChip
+                              key={tag.id}
+                              name={tag.name}
+                              color={tag.color}
+                              size="small"
+                              onDelete={() => handleRemoveTag(tag.id)}
+                            />
+                          ))
+                        }
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            size="small"
+                            placeholder={videoTags.length === 0 ? 'Add a tag...' : ''}
+                            sx={inputSx}
+                            inputProps={{ ...params.inputProps, maxLength: 12 }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && tagInputValue.trim()) {
+                                e.preventDefault()
+                                const existing = allTags.find(
+                                  (t) => t.name.toLowerCase() === tagInputValue.trim().toLowerCase(),
+                                )
+                                handleAddTag(existing || { name: tagInputValue.trim() })
+                              }
+                              if (e.key === ',') {
+                                e.preventDefault()
+                                const parts = tagInputValue
+                                  .split(',')
+                                  .map((s) => s.trim())
+                                  .filter(Boolean)
+                                setTagInputValue('')
+                                parts.forEach((p) => {
+                                  const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
+                                  handleAddTag(existing || { name: p })
+                                })
+                              }
+                            }}
+                          />
+                        )}
+                      />
                     </Box>
                   )}
 
@@ -863,7 +1044,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       <Button
                         size="small"
                         variant="outlined"
-                        onClick={updateable ? update : () => setEditMode(false)}
+                        onClick={update}
                         sx={{
                           ml: 'auto',
                           fontSize: 12,
@@ -903,6 +1084,27 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                     ))}
                 </Box>
               </Box>
+              </Box>
+
+              {/* ── Waveform Cropper (edit mode only) ────────────────────────── */}
+              {editMode && authenticated && (
+                <Box sx={{ borderTop: '1px solid #FFFFFF1A', bgcolor: '#020D1A', p: 2, overflow: 'hidden' }}>
+                  <WaveformCropper
+                    ref={waveformRef}
+                    key={vid.video_id}
+                    videoId={vid.video_id}
+                    duration={vid.info?.duration || 0}
+                    startTime={cropStart}
+                    endTime={cropEnd}
+                    onChange={({ startTime, endTime }) => {
+                      setCropStart(startTime)
+                      setCropEnd(endTime)
+                    }}
+                    onSeek={(time) => playerRef.current?.seek(time)}
+                    getCurrentTime={() => playerRef.current?.currentTime() ?? 0}
+                  />
+                </Box>
+              )}
             </Paper>
           </motion.div>
         </Box>

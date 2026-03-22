@@ -1,11 +1,14 @@
 import React, { useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Box, Button, Grid, Paper, Typography } from '@mui/material'
+import { Box, Button, Grid, Typography } from '@mui/material'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoModal from '../modal/VideoModal'
 import SensorsIcon from '@mui/icons-material/Sensors'
+import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import { VideoService } from '../../services'
 import CompactVideoCard from './CompactVideoCard'
+
+const PAGE_SIZE = 48
 
 const VideoCards = ({
   videos,
@@ -23,10 +26,13 @@ const VideoCards = ({
     open: false,
   })
   const [isSingleColumn, setIsSingleColumn] = React.useState(false)
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
   const containerRef = React.useRef()
+  const sentinelRef = React.useRef()
 
   React.useEffect(() => {
     setVideos(videos || [])
+    setVisibleCount(PAGE_SIZE)
   }, [videos])
 
   const openVideo = (id) => {
@@ -88,47 +94,72 @@ const VideoCards = ({
     return () => observer.disconnect()
   }, [size, vids])
 
-  const EMPTY_STATE = () => (
-    <Paper variant="outlined" sx={{ overflow: 'hidden' }}>
-      <Grid
-        sx={{ p: 2, height: 200 }}
-        container
-        item
-        spacing={2}
-        direction="column"
-        justifyContent="center"
-        alignItems="center"
-      >
-        {!loadingIcon && (
-          <>
-            <Grid item>
-              <Typography
-                variant="h4"
-                align="center"
-                color="primary"
-                sx={{
-                  fontFamily: 'monospace',
-                  fontWeight: 500,
-                  letterSpacing: '.2rem',
-                  textDecoration: 'none',
-                }}
-              >
-                NO VIDEOS FOUND
-              </Typography>
-            </Grid>
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
 
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, vids.length))
+        }
+      },
+      { rootMargin: '400px' },
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [vids.length])
+
+  const EMPTY_STATE = () => (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+        py: 8,
+        px: 3,
+        border: '1px solid #FFFFFF14',
+        borderRadius: '16px',
+        background: '#00000040',
+      }}
+    >
+      {!loadingIcon && (
+        <>
+          <OndemandVideoIcon sx={{ fontSize: 56, color: '#FFFFFF33' }} />
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>
+              No videos found
+            </Typography>
             {!feedView && (
-              <Grid item>
-                <Button variant="contained" size="large" startIcon={<SensorsIcon />} onClick={handleScan}>
-                  Scan Library
-                </Button>
-              </Grid>
+              <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>
+                Scan your library to discover videos
+              </Typography>
             )}
-          </>
-        )}
-        {loadingIcon}
-      </Grid>
-    </Paper>
+          </Box>
+          {!feedView && (
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<SensorsIcon />}
+              onClick={handleScan}
+              sx={{
+                background: 'linear-gradient(90deg, #BC00E6, #FF3729)',
+                '&:hover': { background: 'linear-gradient(90deg, #CC10F6, #FF4739)' },
+                fontWeight: 600,
+                px: 3,
+                mt: 1,
+              }}
+            >
+              Scan Library
+            </Button>
+          )}
+        </>
+      )}
+      {loadingIcon}
+    </Box>
   )
 
   return (
@@ -160,36 +191,39 @@ const VideoCards = ({
 
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
-        <Box
-          ref={containerRef}
-          sx={{
-            display: 'grid',
-            width: isSingleColumn ? 'calc(100% + 48px)' : '100%',
-            mx: isSingleColumn ? '-24px' : 0,
-            gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size}px), 1fr))`,
-            gap: '24px',
-          }}
-        >
-          {vids.map((v, index) => (
-            <motion.div
-              key={v.path + v.video_id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-            >
-              <CompactVideoCard
-                video={v}
-                openVideoHandler={openVideo}
-                alertHandler={memoizedHandleAlert}
-                authenticated={authenticated}
-                editMode={editMode}
-                selected={selectedVideos.has(v.video_id)}
-                onSelect={onVideoSelect}
-                onDelete={handleDelete}
-              />
-            </motion.div>
-          ))}
-        </Box>
+        <>
+          <Box
+            ref={containerRef}
+            sx={{
+              display: 'grid',
+              width: isSingleColumn ? 'calc(100% + 48px)' : '100%',
+              mx: isSingleColumn ? '-24px' : 0,
+              gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size}px), 1fr))`,
+              gap: '24px',
+            }}
+          >
+            {vids.slice(0, visibleCount).map((v, index) => (
+              <motion.div
+                key={v.path + v.video_id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: Math.min(index % PAGE_SIZE, 12) * 0.04 }}
+              >
+                <CompactVideoCard
+                  video={v}
+                  openVideoHandler={openVideo}
+                  alertHandler={memoizedHandleAlert}
+                  authenticated={authenticated}
+                  editMode={editMode}
+                  selected={selectedVideos.has(v.video_id)}
+                  onSelect={onVideoSelect}
+                  onDelete={handleDelete}
+                />
+              </motion.div>
+            ))}
+          </Box>
+          <div ref={sentinelRef} style={{ height: 1 }} />
+        </>
       )}
     </Box>
   )

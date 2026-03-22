@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Box, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton } from '@mui/material'
+import { Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip } from '@mui/material'
+import TagChip from '../misc/TagChip'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
@@ -34,7 +35,7 @@ const CompactVideoCard = ({
   const [intVideo, setIntVideo] = React.useState(video)
   const [hover, setHover] = React.useState(false)
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
-  const [game, setGame] = React.useState(null)
+  const [game, setGame] = React.useState(video.game || null)
   const [privateView, setPrivateView] = React.useState(video.info?.private)
   const [title, setTitle] = React.useState(
     video.info?.title ||
@@ -57,6 +58,11 @@ const CompactVideoCard = ({
   const [editingTitle, setEditingTitle] = React.useState(false)
   const [titleDraft, setTitleDraft] = React.useState(title)
   const [imgLoaded, setImgLoaded] = React.useState(false)
+  const [imgRetryKey, setImgRetryKey] = React.useState(0)
+  const retryTimeoutRef = React.useRef(null)
+  const retryCountRef = React.useRef(0)
+  const MAX_THUMBNAIL_RETRIES = 20
+  const [localTags, setLocalTags] = React.useState(video.tags || [])
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
@@ -126,13 +132,37 @@ const CompactVideoCard = ({
           : 'Untitled'),
     )
     setDescription(video.info?.description || '')
+    setLocalTags(video.tags || [])
+    if (video.game !== undefined) setGame(video.game || null)
     setImgLoaded(false)
+    setImgRetryKey(0)
+    retryCountRef.current = 0
+    clearTimeout(retryTimeoutRef.current)
   }
   React.useEffect(() => {
     previousVideoRef.current = video
   })
 
   React.useEffect(() => {
+    return () => clearTimeout(retryTimeoutRef.current)
+  }, [])
+
+  const handleThumbnailLoad = () => {
+    setImgLoaded(true)
+    clearTimeout(retryTimeoutRef.current)
+    retryCountRef.current = 0
+  }
+
+  const handleThumbnailError = () => {
+    if (retryCountRef.current >= MAX_THUMBNAIL_RETRIES) return
+    retryCountRef.current += 1
+    retryTimeoutRef.current = setTimeout(() => {
+      setImgRetryKey((k) => k + 1)
+    }, 4000)
+  }
+
+  React.useEffect(() => {
+    if (video.game) return
     GameService.getVideoGame(video.video_id)
       .then((response) => {
         if (response.data) {
@@ -142,24 +172,62 @@ const CompactVideoCard = ({
       .catch(() => {
         // No game linked
       })
+  }, [video.video_id, video.game])
+
+  const gameRef = React.useRef(game)
+  React.useEffect(() => {
+    gameRef.current = game
+  }, [game])
+  React.useEffect(() => {
+    const handler = (e) => {
+      const { steamgriddbId, bust } = e.detail
+      if (gameRef.current?.steamgriddb_id === steamgriddbId) {
+        setGame((prev) =>
+          prev ? { ...prev, icon_url: `/api/game/assets/${steamgriddbId}/icon_1.png?v=${bust}` } : prev,
+        )
+      }
+    }
+    window.addEventListener('gameAssetsUpdated', handler)
+    return () => window.removeEventListener('gameAssetsUpdated', handler)
   }, [video.video_id])
 
+  const suggestionFetchedRef = React.useRef(false)
   React.useEffect(() => {
-    VideoService.getGameSuggestion(video.video_id)
-      .then((response) => {
-        if (response.data) {
-          setGameSuggestion(response.data)
-          setShowSuggestion(true)
-          if (response.data.steamgriddb_id) {
-            GameService.getGameAssets(response.data.steamgriddb_id)
-              .then((assets) => {
-                if (assets.data?.icon_url) setSuggestionIcon(assets.data.icon_url)
-              })
-              .catch(() => {})
+    const el = cardRef.current
+    if (!el) return
+    if (suggestionFetchedRef.current) return
+
+    const fetchSuggestion = () => {
+      if (suggestionFetchedRef.current) return
+      suggestionFetchedRef.current = true
+      VideoService.getGameSuggestion(video.video_id)
+        .then((response) => {
+          if (response.data) {
+            setGameSuggestion(response.data)
+            setShowSuggestion(true)
+            if (response.data.steamgriddb_id) {
+              GameService.getGameAssets(response.data.steamgriddb_id)
+                .then((assets) => {
+                  if (assets.data?.icon_url) setSuggestionIcon(assets.data.icon_url)
+                })
+                .catch(() => {})
+            }
           }
+        })
+        .catch(() => {})
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          observer.disconnect()
+          fetchSuggestion()
         }
-      })
-      .catch(() => {})
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [video.video_id])
 
   const handleSuggestionAccept = async () => {
@@ -296,6 +364,7 @@ const CompactVideoCard = ({
       if (update.title !== undefined) setTitle(update.title || filenameFallback)
       if (update.description !== undefined) setDescription(update.description || '')
       if ('game' in update) setGame(update.game)
+      if (update.tags !== undefined) setLocalTags(update.tags)
     }
   }
 
@@ -328,10 +397,23 @@ const CompactVideoCard = ({
           bgcolor: '#00000066',
           borderRadius: { xs: 0, sm: '12px' },
           overflow: 'hidden',
-          outline: selected ? '2px solid #2684FF' : 'none',
-          outlineOffset: '-2px',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
+        {selected && (
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              border: '2px solid #2684FF',
+              borderRadius: { xs: 0, sm: '12px' },
+              zIndex: 10,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
         {/* Thumbnail */}
         <Box ref={cardRef} sx={{ aspectRatio: '16 / 9', overflow: 'hidden', position: 'relative' }}>
           <Skeleton
@@ -362,13 +444,14 @@ const CompactVideoCard = ({
             onMouseDown={handleMouseDown}
           >
             <img
-              src={`${
+              src={
                 SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg`
-                  : `${URL}/api/video/poster?id=${video.video_id}`
-              }`}
+                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg${imgRetryKey > 0 ? `?r=${imgRetryKey}` : ''}`
+                  : `${URL}/api/video/poster?id=${video.video_id}${imgRetryKey > 0 ? `&r=${imgRetryKey}` : ''}`
+              }
               alt=""
-              onLoad={() => setImgLoaded(true)}
+              onLoad={handleThumbnailLoad}
+              onError={handleThumbnailError}
               style={{
                 width: '100%',
                 height: '100%',
@@ -615,7 +698,8 @@ const CompactVideoCard = ({
         <Box
           sx={{
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'stretch',
+            flex: 1,
             mt: 1.5,
             px: 1.5,
             pb: 1.5,
@@ -627,7 +711,7 @@ const CompactVideoCard = ({
             <a
               href={`#/games/${game.steamgriddb_id}`}
               onClick={(e) => e.stopPropagation()}
-              style={{ flexShrink: 0, lineHeight: 0 }}
+              style={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
             >
               <img
                 src={game.icon_url}
@@ -641,7 +725,7 @@ const CompactVideoCard = ({
           )}
 
           {/* Text info */}
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
             {/* Title */}
             {editingTitle ? (
               <input
@@ -705,28 +789,31 @@ const CompactVideoCard = ({
               </Typography>
             )}
 
-            {/* Game name */}
+            {/* Game name + tag chips on same row */}
             {gameName && (
-              <Typography
-                component={game?.steamgriddb_id ? 'a' : 'span'}
-                href={game?.steamgriddb_id ? `#/games/${game.steamgriddb_id}` : undefined}
-                onClick={game?.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
-                sx={{
-                  fontSize: 14,
-                  color: '#FFFFFFB3',
-                  mt: 0.25,
-                  display: 'block',
-                  textDecoration: 'none',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  ...(game?.steamgriddb_id && {
-                    '&:hover': { color: '#3399FF', textDecoration: 'underline' },
-                  }),
-                }}
-              >
-                {gameName}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
+                <Typography
+                  component={game?.steamgriddb_id ? 'a' : 'span'}
+                  href={game?.steamgriddb_id ? `#/games/${game.steamgriddb_id}` : undefined}
+                  onClick={game?.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
+                  sx={{
+                    fontSize: 14,
+                    color: '#FFFFFFB3',
+                    flex: 1,
+                    minWidth: 0,
+                    display: 'block',
+                    textDecoration: 'none',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    ...(game?.steamgriddb_id && {
+                      '&:hover': { color: '#3399FF', textDecoration: 'underline' },
+                    }),
+                  }}
+                >
+                  {gameName}
+                </Typography>
+              </Box>
             )}
 
             {/* Recorded date */}
@@ -735,7 +822,8 @@ const CompactVideoCard = ({
                 sx={{
                   fontSize: 14,
                   color: '#FFFFFF80',
-                  mt: 0.25,
+                  mt: 'auto',
+                  pt: 0.5,
                 }}
               >
                 {new Date(video.recorded_at).toLocaleDateString('en-US', {

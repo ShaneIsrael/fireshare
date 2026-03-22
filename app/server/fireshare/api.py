@@ -23,7 +23,7 @@ import requests
 
 from . import db, logger, util
 from .constants import DEFAULT_CONFIG, SUPPORTED_FILE_TYPES
-from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule
+from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule, CustomTag, VideoTagLink
 from .steamgrid import SteamGridDBClient
 
 def secure_filename(filename):
@@ -96,7 +96,15 @@ def get_video_path(id, subid=None, quality=None):
     if not video:
         raise Exception(f"No video found for {id}")
     paths = current_app.config['PATHS']
-    
+
+    # Handle cropped source quality
+    if quality == 'cropped':
+        cropped_path = paths["processed"] / "derived" / id / f"{id}-cropped.mp4"
+        if cropped_path.exists():
+            return str(cropped_path)
+        # Fall back to original if crop file doesn't exist yet
+        logger.warning(f"Requested cropped version for video {id} not found, falling back to original")
+
     # Handle quality variants (480p, 720p, 1080p)
     if quality and quality in ['480p', '720p', '1080p']:
         # Check if the transcoded version exists
@@ -105,7 +113,7 @@ def get_video_path(id, subid=None, quality=None):
             return str(derived_path)
         # Fall back to original if quality doesn't exist
         logger.warning(f"Requested quality {quality} for video {id} not found, falling back to original")
-    
+
     subid_suffix = f"-{subid}" if subid else ""
     ext = ".mp4" if subid else video.extension
     video_path = paths["processed"] / "video_links" / f"{id}{subid_suffix}{ext}"
@@ -597,7 +605,6 @@ def get_folder_size(folder_path):
 @api.route('/api/folder-size', methods=['GET'])
 @login_required
 def folder_size():
-    print("Folder size endpoint was hit!")  # Debugging line
     paths = current_app.config['PATHS']
     video_path = str(paths['video'])
     path = request.args.get('path', default=video_path, type=str)
@@ -1152,6 +1159,7 @@ def get_videos():
     for v in videos:
         vjson = v.json()
         vjson["view_count"] = VideoView.count(v.video_id)
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all()]
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -1207,6 +1215,7 @@ def get_public_videos():
         if (not vjson["available"]):
             continue
         vjson["view_count"] = VideoView.count(v.video_id)
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all()]
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -1265,6 +1274,9 @@ def delete_video(id):
         derived_path = paths['processed'] / 'derived' / id
         
         VideoInfo.query.filter_by(video_id=id).delete()
+        VideoGameLink.query.filter_by(video_id=id).delete()
+        VideoTagLink.query.filter_by(video_id=id).delete()
+        VideoView.query.filter_by(video_id=id).delete()
         Video.query.filter_by(video_id=id).delete()
         db.session.commit()
         
@@ -1309,7 +1321,13 @@ def handle_video_details(id):
             data = request.json.copy()
             recorded_at = data.pop('recorded_at', None)
 
-            # Update VideoInfo fields
+            # Extract crop fields before the generic VideoInfo update so they don't
+            # get written directly (we handle them via the crop pipeline below)
+            _UNSET = object()
+            new_start = data.pop('start_time', _UNSET)
+            new_end   = data.pop('end_time',   _UNSET)
+
+            # Update remaining VideoInfo fields generically
             if data:
                 db.session.query(VideoInfo).filter_by(video_id=id).update(data)
 
@@ -1326,6 +1344,31 @@ def handle_video_details(id):
                             video.recorded_at = None
 
             db.session.commit()
+
+            # Handle crop pipeline if start_time / end_time were included in the payload
+            crop_changed = new_start is not _UNSET or new_end is not _UNSET
+            if crop_changed:
+                resolved_start = new_start if new_start is not _UNSET else video_info.start_time
+                resolved_end   = new_end   if new_end   is not _UNSET else video_info.end_time
+
+                # Persist the new crop time values
+                video_info.start_time = resolved_start
+                video_info.end_time   = resolved_end
+                db.session.commit()
+
+                paths = current_app.config['PATHS']
+                video = Video.query.filter_by(video_id=id).first()
+
+                if resolved_start is None and resolved_end is None:
+                    # Clearing the crop — delete crop files and re-transcode from original
+                    had_480p  = video_info.has_480p
+                    had_720p  = video_info.has_720p
+                    had_1080p = video_info.has_1080p
+                    _clear_crop(video, video_info, paths, had_480p, had_720p, had_1080p)
+                else:
+                    # Creating / replacing the crop
+                    _apply_crop_async(video, video_info, resolved_start, resolved_end, paths)
+
             return Response(status=201)
         else:
             return jsonify({
@@ -1361,20 +1404,36 @@ def get_video_views(video_id):
     return str(views)
 
 
-def _launch_scan_video(save_path, config):
+def _parse_upload_metadata():
+    """Return (tag_ids, game_id) parsed from current request form data."""
+    tag_ids_raw = request.form.get('tag_ids', '')
+    tag_ids = [int(t) for t in tag_ids_raw.split(',') if t.strip().isdigit()] or None
+    game_id_raw = request.form.get('game_id', '')
+    game_id = int(game_id_raw) if game_id_raw.strip().isdigit() else None
+    return tag_ids, game_id
+
+
+def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
     """
     Launch scan-video and publish an initial transcoding-running status when
     auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
+    Optionally apply tag_ids and game_id to the video after the scan completes.
     """
     paths = current_app.config['PATHS']
     data_path = paths['data']
-    scan_proc = Popen(["fireshare", "scan-video", f"--path={save_path}"], shell=False, start_new_session=True)
+    videos_path = paths['video']
+    app = current_app._get_current_object()
+    cmd = ["fireshare", "scan-video", f"--path={save_path}"]
+    if tag_ids:
+        cmd.append(f"--tag-ids={','.join(str(t) for t in tag_ids)}")
+    if game_id:
+        cmd.append(f"--game-id={game_id}")
+    scan_proc = Popen(cmd, shell=False, start_new_session=True)
 
     def reap_and_cleanup():
         try:
             scan_proc.wait()
             status = util.read_transcoding_status(data_path)
-            # Clear stale placeholder/status written for this upload process.
             if status.get('pid') == scan_proc.pid:
                 util.clear_transcoding_status(data_path)
         except Exception as e:
@@ -1429,7 +1488,7 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    _launch_scan_video(save_path, config)
+    _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
 @api.route('/api/uploadChunked/public', methods=['POST'])
@@ -1483,8 +1542,31 @@ def public_upload_videoChunked():
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     
     os.rename(tempPath, save_path)
-    _launch_scan_video(save_path, config)
+    _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
+
+@api.route('/api/upload-folders', methods=['GET'])
+@login_required
+def get_upload_folders():
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
+    folders = []
+    try:
+        for entry in os.scandir(video_path):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                folders.append(entry.name)
+        folders.sort()
+    except Exception:
+        pass
+    default_folder = None
+    try:
+        with open(paths['data'] / 'config.json', 'r') as configfile:
+            config = json.load(configfile)
+        default_folder = config['app_config']['admin_upload_folder_name']
+    except Exception:
+        pass
+    return jsonify({'folders': folders, 'default_folder': default_folder})
+
 
 @api.route('/api/upload', methods=['POST'])
 @login_required
@@ -1498,6 +1580,9 @@ def upload_video():
         configfile.close()
     
     upload_folder = config['app_config']['admin_upload_folder_name']
+    requested_folder = request.form.get('folder', '').strip()
+    if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
+        upload_folder = requested_folder
 
     if 'file' not in request.files:
         return Response(status=400)
@@ -1519,7 +1604,7 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    _launch_scan_video(save_path, config)
+    _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
 @api.route('/api/uploadChunked', methods=['POST'])
@@ -1534,6 +1619,9 @@ def upload_videoChunked():
         configfile.close()
     
     upload_folder = config['app_config']['admin_upload_folder_name']
+    requested_folder = request.form.get('folder', '').strip()
+    if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
+        upload_folder = requested_folder
 
     required_files = ['blob']
     required_form_fields = ['chunkPart', 'totalChunks', 'checkSum', 'fileName', 'fileSize']
@@ -1544,23 +1632,29 @@ def upload_videoChunked():
     blob = request.files.get('blob')
     chunkPart = int(request.form.get('chunkPart'))
     totalChunks = int(request.form.get('totalChunks'))
-    checkSum = request.form.get('checkSum')
+    checkSum = re.sub(r'[^a-zA-Z0-9_-]', '', request.form.get('checkSum'))
     fileName = secure_filename(request.form.get('fileName'))
     fileSize = int(request.form.get('fileSize'))
-    
+
+    if not checkSum:
+        return Response(status=400)
+
     if not fileName:
         return Response(status=400)
-    
+
     filetype = fileName.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
-    
+
     upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
-    
+
     # Store chunks with part number to ensure proper ordering
     tempPath = os.path.join(upload_directory, f"{checkSum}.part{chunkPart:04d}")
+    # Guard against path traversal: ensure the resolved path stays within upload_directory
+    if not os.path.realpath(tempPath).startswith(os.path.realpath(upload_directory) + os.sep):
+        return Response(status=400)
     
     # Write this specific chunk
     with open(tempPath, 'wb') as f:
@@ -1609,15 +1703,11 @@ def upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
-    _launch_scan_video(save_path, config)
+    _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
-@api.route('/api/video')
-def get_video():
-    video_id = request.args.get('id')
-    subid = request.args.get('subid')
-    quality = request.args.get('quality')  # Support quality parameter (720p, 1080p)
-    video_path = get_video_path(video_id, subid, quality)
+def _stream_video_file(video_path):
+    """Shared range-request streaming logic for video endpoints."""
     file_size = os.stat(video_path).st_size
     start = 0
     length = 10240
@@ -1646,6 +1736,154 @@ def get_video():
     rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
     return rv
 
+
+def _delete_if_exists(path):
+    if path.exists():
+        path.unlink()
+
+
+def _clear_crop(video, video_info, paths, had_480p, had_720p, had_1080p):
+    """Delete all crop-related files and reset DB flags, then re-transcode from original."""
+    derived_dir = paths["processed"] / "derived" / video.video_id
+    _delete_if_exists(derived_dir / f"{video.video_id}-cropped.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-480p.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-720p.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-1080p.mp4")
+
+    video_info.has_crop = False
+    video_info.has_480p = False
+    video_info.has_720p = False
+    video_info.has_1080p = False
+    db.session.commit()
+
+    # Re-transcode quality variants from the original if they existed before
+    if had_480p or had_720p or had_1080p:
+        original_path = paths["processed"] / "video_links" / f"{video.video_id}{video.extension}"
+        _retranscode_async(video.video_id, original_path, paths, had_480p, had_720p, had_1080p)
+
+
+def _apply_crop_async(video, video_info, start_time, end_time, paths):
+    """Clear old crop files, then create new crop and re-transcode in a background thread."""
+    had_480p = video_info.has_480p
+    had_720p = video_info.has_720p
+    had_1080p = video_info.has_1080p
+
+    derived_dir = paths["processed"] / "derived" / video.video_id
+    derived_dir.mkdir(parents=True, exist_ok=True)
+
+    # Remove old files and mark flags as pending
+    _delete_if_exists(derived_dir / f"{video.video_id}-cropped.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-480p.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-720p.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-1080p.mp4")
+
+    video_info.has_crop = False
+    video_info.has_480p = False
+    video_info.has_720p = False
+    video_info.has_1080p = False
+    db.session.commit()
+
+    original_path = paths["processed"] / "video_links" / f"{video.video_id}{video.extension}"
+    cropped_path = derived_dir / f"{video.video_id}-cropped.mp4"
+    video_id = video.video_id
+
+    app = current_app._get_current_object()
+
+    def run():
+        success = util.create_video_crop(original_path, cropped_path, start_time, end_time)
+        with app.app_context():
+            vi = VideoInfo.query.filter_by(video_id=video_id).first()
+            if not vi:
+                return
+            if success:
+                vi.has_crop = True
+                db.session.commit()
+                if had_480p or had_720p or had_1080p:
+                    _retranscode_async(video_id, cropped_path, paths, had_480p, had_720p, had_1080p)
+            else:
+                logger.error(f"Crop failed for video {video_id}")
+
+    import threading
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+
+
+def _retranscode_async(video_id, source_path, paths, do_480p, do_720p, do_1080p):
+    """Transcode quality variants from source_path in a background thread."""
+    derived_dir = paths["processed"] / "derived" / video_id
+    app = current_app._get_current_object()
+
+    heights = []
+    if do_480p:
+        heights.append(480)
+    if do_720p:
+        heights.append(720)
+    if do_1080p:
+        heights.append(1080)
+
+    def run():
+        for height in heights:
+            out_path = derived_dir / f"{video_id}-{height}p.mp4"
+            success, _ = util.transcode_video_quality(source_path, out_path, height)
+            with app.app_context():
+                vi = VideoInfo.query.filter_by(video_id=video_id).first()
+                if vi and success:
+                    setattr(vi, f'has_{height}p', True)
+                    db.session.commit()
+
+    import threading
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+
+
+@api.route('/api/video/original')
+def get_original_video():
+    """Serves the original unmodified video file, bypassing any crop. Used by the waveform editor."""
+    video_id = request.args.get('id')
+    subid = request.args.get('subid')
+    try:
+        video_path = get_video_path(video_id, subid, quality=None)
+        return send_file(video_path, mimetype='video/mp4', conditional=True)
+    except Exception as e:
+        logger.error(f"Error serving original video {video_id}: {e}")
+        return Response(status=404)
+
+
+@api.route('/api/video/audio')
+def get_video_audio():
+    """
+    Serves a tiny mono MP3 extract of the original video, used by the waveform editor.
+    The extract is created on first request and cached at derived/{id}/{id}-audio.mp3.
+    Much smaller than the full video, so WaveSurfer loads and decodes it much faster.
+    """
+    video_id = request.args.get('id')
+    if not video_id:
+        return Response(status=400)
+    try:
+        paths = current_app.config['PATHS']
+        derived_dir = paths['processed'] / 'derived' / video_id
+        audio_path = derived_dir / f'{video_id}-audio.mp3'
+
+        if not audio_path.exists():
+            video_path = get_video_path(video_id, subid=None, quality=None)
+            derived_dir.mkdir(parents=True, exist_ok=True)
+            if not util.create_audio_extract(video_path, audio_path):
+                return Response(status=500)
+
+        return send_file(audio_path, mimetype='audio/mpeg', conditional=True)
+    except Exception as e:
+        logger.error(f"Error serving audio extract for {video_id}: {e}")
+        return Response(status=404)
+
+
+@api.route('/api/video')
+def get_video():
+    video_id = request.args.get('id')
+    subid = request.args.get('subid')
+    quality = request.args.get('quality')  # Support quality parameter (720p, 1080p, cropped)
+    video_path = get_video_path(video_id, subid, quality)
+    return _stream_video_file(video_path)
+
 @api.route('/api/steamgrid/search', methods=["GET"])
 def search_steamgrid():
     query = request.args.get('query')
@@ -1671,6 +1909,86 @@ def get_steamgrid_assets(game_id):
 
     assets = client.get_game_assets(game_id)
     return jsonify(assets)
+
+@api.route('/api/steamgrid/game/<int:game_id>/assets/options', methods=["GET"])
+def get_steamgrid_asset_options(game_id):
+    api_key = get_steamgriddb_api_key()
+    if not api_key:
+        return Response(status=503, response='SteamGridDB API key not configured.')
+
+    client = SteamGridDBClient(api_key)
+    options = client.get_all_asset_options(game_id)
+    return jsonify(options)
+
+@api.route('/api/games/<int:steamgriddb_id>/assets', methods=["PUT"])
+@login_required
+def update_game_asset(steamgriddb_id):
+    import tempfile
+
+    data = request.get_json()
+    if not data:
+        return Response(status=400, response='Request body required.')
+
+    asset_type = data.get('asset_type')
+    url = data.get('url')
+
+    if asset_type not in ('hero', 'banner', 'logo', 'icon'):
+        return Response(status=400, response='asset_type must be hero, banner, logo, or icon.')
+    if not url:
+        return Response(status=400, response='url is required.')
+
+    from urllib.parse import urlparse
+    _ALLOWED_STEAMGRIDDB_HOSTS = {
+        'cdn2.steamgriddb.com',
+        'cdn.steamgriddb.com',
+        'steamgriddb.com',
+    }
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ('https',) or parsed.hostname not in _ALLOWED_STEAMGRIDDB_HOSTS:
+            return Response(status=400, response='url must be a SteamGridDB asset URL.')
+    except Exception:
+        return Response(status=400, response='Invalid url.')
+
+    game = GameMetadata.query.filter_by(steamgriddb_id=steamgriddb_id).first()
+    if not game:
+        return Response(status=404, response='Game not found.')
+
+    api_key = get_steamgriddb_api_key()
+    if not api_key:
+        return Response(status=503, response='SteamGridDB API key not configured.')
+
+    client = SteamGridDBClient(api_key)
+    ext = client._get_extension_from_url(url)
+    slot_map = {'hero': 'hero_1', 'banner': 'hero_2', 'logo': 'logo_1', 'icon': 'icon_1'}
+    base_name = slot_map[asset_type]
+
+    paths = current_app.config['PATHS']
+    asset_dir = paths['data'] / 'game_assets' / str(steamgriddb_id)
+    asset_dir.mkdir(parents=True, exist_ok=True)
+
+    dest_path = asset_dir / f'{base_name}{ext}'
+
+    # Download to temp file first — do NOT remove the old asset until success
+    import shutil
+    temp_dir = Path(tempfile.mkdtemp())
+    try:
+        temp_path = temp_dir / f'{base_name}{ext}'
+        success = client._download_asset(url, temp_path)
+        if not success:
+            return Response(status=502, response='Failed to download asset from SteamGridDB.')
+        # Download succeeded — now atomically replace: remove old, move new into place
+        for existing in asset_dir.glob(f'{base_name}.*'):
+            try:
+                existing.unlink()
+            except OSError as e:
+                current_app.logger.warning(f'Could not remove old asset {existing}: {e}')
+        shutil.move(str(temp_path), str(dest_path))
+    finally:
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+
+    return Response(status=200)
 
 @api.route('/api/games', methods=["GET"])
 def get_games():
@@ -1701,7 +2019,20 @@ def get_games():
             .all()
         )
 
-    return jsonify([game.json() for game in games])
+    paths = current_app.config['PATHS']
+    result = []
+    for game in games:
+        data = game.json()
+        if game.steamgriddb_id:
+            asset_dir = paths['data'] / 'game_assets' / str(game.steamgriddb_id)
+            for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'), ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
+                found = find_asset_with_extensions(asset_dir, base)
+                if found and data.get(key):
+                    data[key] = data[key] + f'?v={int(found.stat().st_mtime)}'
+        result.append(data)
+    resp = jsonify(result)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @api.route('/api/games', methods=["POST"])
 @login_required_unless_public_game_tag
@@ -1813,7 +2144,17 @@ def get_video_game(video_id):
     link = VideoGameLink.query.filter_by(video_id=video_id).first()
     if not link:
         return jsonify(None)
-    return jsonify(link.game.json())
+    data = link.game.json()
+    if link.game.steamgriddb_id:
+        paths = current_app.config['PATHS']
+        asset_dir = paths['data'] / 'game_assets' / str(link.game.steamgriddb_id)
+        for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'), ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
+            found = find_asset_with_extensions(asset_dir, base)
+            if found and data.get(key):
+                data[key] = data[key] + f'?v={int(found.stat().st_mtime)}'
+    resp = jsonify(data)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @api.route('/api/videos/<video_id>/game', methods=["DELETE"])
 @login_required_unless_public_game_tag
@@ -1911,7 +2252,11 @@ def get_game_asset(steamgriddb_id, filename):
     mime_type = mime_types.get(ext, 'image/png')
 
     response = send_file(asset_path, mimetype=mime_type)
-    return add_cache_headers(response, f"{steamgriddb_id}-{filename}")
+    stat = asset_path.stat()
+    etag = f"{steamgriddb_id}-{filename}-{int(stat.st_mtime)}-{stat.st_size}"
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    response.headers['ETag'] = f'"{etag}"'
+    return response
 
 @api.route('/api/games/<int:steamgriddb_id>/videos', methods=["GET"])
 def get_game_videos(steamgriddb_id):
@@ -2162,6 +2507,243 @@ def rss_feed():
         render_template('rss.xml', items=rss_items, domain=frontend_domain, now=now_str, feed_title=rss_title, feed_description=rss_description),
         mimetype='application/rss+xml'
     )
+
+@api.route('/api/tags', methods=["GET"])
+def get_tags():
+    if current_user.is_authenticated:
+        tags = CustomTag.query.order_by(CustomTag.name).all()
+    else:
+        tags = (
+            db.session.query(CustomTag)
+            .join(VideoTagLink)
+            .join(Video)
+            .join(VideoInfo)
+            .filter(
+                Video.available.is_(True),
+                VideoInfo.private.is_(False),
+            )
+            .distinct()
+            .order_by(CustomTag.name)
+            .all()
+        )
+
+    result = []
+    for tag in tags:
+        t = tag.json()
+        t["video_count"] = (
+            db.session.query(VideoTagLink)
+            .join(Video, Video.video_id == VideoTagLink.video_id)
+            .filter(VideoTagLink.tag_id == tag.id, Video.available.is_(True))
+            .count()
+        )
+        result.append(t)
+    return jsonify(result)
+
+
+@api.route('/api/tags', methods=["POST"])
+@login_required
+def create_tag():
+    data = request.json
+    if not data or not data.get('name'):
+        return Response(status=400, response='Tag name is required.')
+
+    name = data['name'].strip().replace(' ', '_')
+    if len(name) > 12:
+        return Response(status=400, response='Tag name must be 12 characters or fewer.')
+
+    existing = CustomTag.query.filter_by(name=name).first()
+    if existing:
+        return jsonify(existing.json()), 409
+
+    tag = CustomTag(
+        name=name,
+        color=data.get('color'),
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow(),
+    )
+    db.session.add(tag)
+    db.session.commit()
+    return jsonify(tag.json()), 201
+
+
+@api.route('/api/tags/<int:tag_id>', methods=["PUT"])
+@login_required
+def update_tag(tag_id):
+    tag = CustomTag.query.get(tag_id)
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    data = request.json or {}
+    if 'name' in data:
+        new_name = data['name'].strip().replace(' ', '_')
+        if len(new_name) > 12:
+            return Response(status=400, response='Tag name must be 12 characters or fewer.')
+        conflict = CustomTag.query.filter(CustomTag.name == new_name, CustomTag.id != tag_id).first()
+        if conflict:
+            return Response(status=409, response='Tag name already exists.')
+        tag.name = new_name
+    if 'color' in data:
+        tag.color = data['color']
+    tag.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify(tag.json())
+
+
+@api.route('/api/tags/<int:tag_id>', methods=["DELETE"])
+@login_required
+def delete_tag(tag_id):
+    tag = CustomTag.query.get(tag_id)
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    delete_videos = request.args.get('delete_videos', 'false').lower() == 'true'
+
+    video_links = VideoTagLink.query.filter_by(tag_id=tag_id).all()
+
+    if delete_videos:
+        paths = current_app.config['PATHS']
+        for link in video_links:
+            video = link.video
+            if video is None:
+                db.session.delete(link)
+                continue
+            file_path = paths['video'] / video.path
+            link_path = paths['processed'] / 'video_links' / f"{video.video_id}{video.extension}"
+            derived_path = paths['processed'] / 'derived' / video.video_id
+            VideoTagLink.query.filter_by(video_id=video.video_id).delete()
+            VideoGameLink.query.filter_by(video_id=video.video_id).delete()
+            VideoView.query.filter_by(video_id=video.video_id).delete()
+            VideoInfo.query.filter_by(video_id=video.video_id).delete()
+            Video.query.filter_by(video_id=video.video_id).delete()
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                if link_path.exists() or link_path.is_symlink():
+                    link_path.unlink()
+                if derived_path.exists():
+                    shutil.rmtree(derived_path)
+            except OSError as e:
+                logger.error(f"Error deleting files for video {video.video_id}: {e}")
+    else:
+        for link in video_links:
+            db.session.delete(link)
+
+    db.session.delete(tag)
+    db.session.commit()
+    return Response(status=200)
+
+
+@api.route('/api/tags/<int:tag_id>/videos', methods=["GET"])
+def get_tag_videos(tag_id):
+    tag = CustomTag.query.get(tag_id)
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    videos_json = []
+    for link in tag.videos:
+        if not link.video:
+            continue
+        if not current_user.is_authenticated:
+            if not link.video.available:
+                continue
+            if not link.video.info or link.video.info.private:
+                continue
+        vjson = link.video.json()
+        vjson["view_count"] = VideoView.count(link.video_id)
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=link.video_id).all()]
+        videos_json.append(vjson)
+
+    return jsonify(videos_json)
+
+
+@api.route('/api/videos/<video_id>/tags', methods=["GET"])
+def get_video_tags(video_id):
+    links = VideoTagLink.query.filter_by(video_id=video_id).all()
+    return jsonify([l.tag.json() for l in links])
+
+
+@api.route('/api/videos/<video_id>/tags', methods=["POST"])
+@login_required
+def add_tag_to_video(video_id):
+    data = request.json
+    if not data or not data.get('tag_id'):
+        return Response(status=400, response='tag_id is required.')
+
+    video = Video.query.filter_by(video_id=video_id).first()
+    if not video:
+        return Response(status=404, response='Video not found.')
+
+    tag = CustomTag.query.get(data['tag_id'])
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    existing = VideoTagLink.query.filter_by(video_id=video_id, tag_id=data['tag_id']).first()
+    if existing:
+        return jsonify(existing.json()), 200
+
+    link = VideoTagLink(
+        video_id=video_id,
+        tag_id=data['tag_id'],
+        created_at=datetime.utcnow(),
+    )
+    db.session.add(link)
+    db.session.commit()
+    return jsonify(link.json()), 201
+
+
+@api.route('/api/videos/<video_id>/tags/<int:tag_id>', methods=["DELETE"])
+@login_required
+def remove_tag_from_video(video_id, tag_id):
+    link = VideoTagLink.query.filter_by(video_id=video_id, tag_id=tag_id).first()
+    if not link:
+        return Response(status=404, response='Tag link not found.')
+    db.session.delete(link)
+    db.session.commit()
+    return Response(status=204)
+
+
+@api.route('/api/tags/bulk-assign', methods=["POST"])
+@login_required
+def bulk_assign_tag():
+    data = request.json
+    if not data or not data.get('tag_id') or not data.get('video_ids'):
+        return Response(status=400, response='tag_id and video_ids are required.')
+
+    tag = CustomTag.query.get(data['tag_id'])
+    if not tag:
+        return Response(status=404, response='Tag not found.')
+
+    created = 0
+    for video_id in data['video_ids']:
+        existing = VideoTagLink.query.filter_by(video_id=video_id, tag_id=data['tag_id']).first()
+        if not existing:
+            link = VideoTagLink(
+                video_id=video_id,
+                tag_id=data['tag_id'],
+                created_at=datetime.utcnow(),
+            )
+            db.session.add(link)
+            created += 1
+
+    db.session.commit()
+    return jsonify({"created": created, "skipped": len(data['video_ids']) - created}), 200
+
+
+@api.route('/api/tags/bulk-remove', methods=["POST"])
+@login_required
+def bulk_remove_tag():
+    data = request.json
+    if not data or not data.get('tag_id') or not data.get('video_ids'):
+        return Response(status=400, response='tag_id and video_ids are required.')
+
+    removed = VideoTagLink.query.filter(
+        VideoTagLink.tag_id == data['tag_id'],
+        VideoTagLink.video_id.in_(data['video_ids'])
+    ).delete(synchronize_session=False)
+
+    db.session.commit()
+    return jsonify({"removed": removed}), 200
+
 
 @api.after_request
 def after_request(response):

@@ -151,6 +151,26 @@ class SteamGridDBClient:
             logger.error(f"Error fetching icons for game {game_id}: {e}")
             return []
 
+    def get_all_asset_options(self, game_id: int, limit: int = 8) -> Dict:
+        """
+        Get multiple asset options for each type for manual selection
+
+        Args:
+            game_id: SteamGridDB game ID
+            limit: Max options to return per type
+
+        Returns:
+            Dictionary with heroes, logos, icons as lists of {id, url, thumb}
+        """
+        def extract(items):
+            return [{"id": item.get("id"), "url": item.get("url"), "thumb": item.get("thumb")} for item in items]
+
+        return {
+            "heroes": extract(self.get_heroes(game_id, limit=limit)),
+            "logos": extract(self.get_logos(game_id, limit=limit)),
+            "icons": extract(self.get_icons(game_id, limit=limit)),
+        }
+
     def get_game_assets(self, game_id: int) -> Dict:
         """
         Get all assets for a game (hero, logo, icon)

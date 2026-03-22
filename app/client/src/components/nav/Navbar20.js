@@ -27,6 +27,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 
 import { Grid, useMediaQuery, useTheme } from '@mui/material'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -44,6 +45,7 @@ import FolderSuggestionInline from './FolderSuggestionInline'
 import DiskSpaceIndicator from './DiskSpaceIndicator'
 import { GameService } from '../../services'
 import UploadCard from '../cards/UploadCard'
+import { RegisterUploadCardContext } from '../utils/GlobalDragDropOverlay'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
 
@@ -56,6 +58,7 @@ const allPages = [
   { title: 'My Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
   { title: 'Public Videos', icon: <PublicIcon />, href: '/feed', private: false },
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
+  { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
   { title: 'Settings', icon: <SettingsIcon />, href: '/settings', private: true },
 ]
 
@@ -151,6 +154,8 @@ function Navbar20({
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
 
   const [alert, setAlert] = React.useState({ open: false })
+  const [uploadTick, setUploadTick] = React.useState(0)
+  const registerUploadCard = React.useContext(RegisterUploadCardContext)
   const [folderSuggestions, setFolderSuggestions] = React.useState({})
   const [currentSuggestionFolder, setCurrentSuggestionFolder] = React.useState(null)
   const navigate = useNavigate()
@@ -197,11 +202,19 @@ function Navbar20({
 
   const createSelectFolders = (f) => f.map((v) => ({ value: v, label: v }))
 
-  const uiConfig = getSetting('ui_config') || {}
+  const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || {})
+
+  React.useEffect(() => {
+    const handleUiConfigUpdate = () => setUiConfig(getSetting('ui_config') || {})
+    window.addEventListener('ui_config_updated', handleUiConfigUpdate)
+    return () => window.removeEventListener('ui_config_updated', handleUiConfigUpdate)
+  }, [])
+
   const pages = allPages.filter((p) => {
     if (p.href === '/' && uiConfig.show_my_videos === false) return false
     if (p.href === '/feed' && uiConfig.show_public_videos === false) return false
     if (p.href === '/games' && uiConfig.show_games === false) return false
+    if (p.href === '/tags' && uiConfig.show_tags === false) return false
     return true
   })
 
@@ -432,7 +445,7 @@ function Navbar20({
         </>
       )}
       <Divider />
-      <UploadCard authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} />
+      <UploadCard ref={registerUploadCard} authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} onUploadComplete={() => setUploadTick((t) => t + 1)} />
 
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
         <GameScanStatus open={open} onComplete={handleGameScanComplete} authenticated={authenticated} />
@@ -663,6 +676,7 @@ function Navbar20({
           selectedFolder: effectiveFolder,
           onFolderChange: handleFolderChange,
           onFoldersLoaded: handleFoldersLoaded,
+          uploadTick,
         })}
       </Box>
     </Box>

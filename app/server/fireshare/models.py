@@ -54,6 +54,9 @@ class VideoInfo(db.Model):
     has_480p    = db.Column(db.Boolean, default=False)
     has_720p    = db.Column(db.Boolean, default=False)
     has_1080p   = db.Column(db.Boolean, default=False)
+    start_time  = db.Column(db.Float, nullable=True)
+    end_time    = db.Column(db.Float, nullable=True)
+    has_crop    = db.Column(db.Boolean, default=False)
 
     video       = db.relationship("Video", back_populates="info", uselist=False, lazy="joined")
 
@@ -88,7 +91,10 @@ class VideoInfo(db.Model):
             "framerate": self.framerate,
             "has_480p": self.has_480p,
             "has_720p": self.has_720p,
-            "has_1080p": self.has_1080p
+            "has_1080p": self.has_1080p,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "has_crop": self.has_crop or False,
         }
 
     def __repr__(self):
@@ -117,10 +123,13 @@ class GameMetadata(db.Model):
         logo_url = None
         icon_url = None
 
+        banner_url = None
+
         if self.steamgriddb_id:
             domain = f"https://{current_app.config['DOMAIN']}" if current_app.config.get('DOMAIN') else ""
             # Assume standard .png extension - endpoint handles if missing or different
             hero_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/hero_1.png"
+            banner_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/hero_2.png"
             logo_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/logo_1.png"
             icon_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/icon_1.png"
 
@@ -130,6 +139,7 @@ class GameMetadata(db.Model):
             "name": self.name,
             "release_date": self.release_date,
             "hero_url": hero_url,
+            "banner_url": banner_url,
             "logo_url": logo_url,
             "icon_url": icon_url,
         }
@@ -177,6 +187,51 @@ class FolderRule(db.Model):
 
     def __repr__(self):
         return "<FolderRule {} -> game:{}>".format(self.folder_path, self.game_id)
+
+
+class CustomTag(db.Model):
+    __tablename__ = "custom_tag"
+
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(256), unique=True, nullable=False, index=True)
+    color      = db.Column(db.String(7), nullable=True)   # hex, e.g. "#FF5733"
+    created_at = db.Column(db.DateTime())
+    updated_at = db.Column(db.DateTime())
+
+    videos     = db.relationship("VideoTagLink", back_populates="tag")
+
+    def json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "color": self.color,
+        }
+
+    def __repr__(self):
+        return "<CustomTag {} {}>".format(self.id, self.name)
+
+
+class VideoTagLink(db.Model):
+    __tablename__ = "video_tag_link"
+    __table_args__ = (db.UniqueConstraint("video_id", "tag_id"),)
+
+    id         = db.Column(db.Integer, primary_key=True)
+    video_id   = db.Column(db.String(32), db.ForeignKey("video.video_id"), nullable=False)
+    tag_id     = db.Column(db.Integer, db.ForeignKey("custom_tag.id"), nullable=False)
+    created_at = db.Column(db.DateTime())
+
+    video      = db.relationship("Video")
+    tag        = db.relationship("CustomTag", back_populates="videos")
+
+    def json(self):
+        return {
+            "video_id": self.video_id,
+            "tag_id": self.tag_id,
+            "tag": self.tag.json() if self.tag else None,
+        }
+
+    def __repr__(self):
+        return "<VideoTagLink video:{} tag:{}>".format(self.video_id, self.tag_id)
 
 
 class VideoView(db.Model):

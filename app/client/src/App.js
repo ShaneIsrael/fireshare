@@ -10,11 +10,14 @@ import Settings from './views/Settings'
 import Feed from './views/Feed'
 import Games from './views/Games'
 import GameVideos from './views/GameVideos'
+import Tags from './views/Tags'
+import TagVideos from './views/TagVideos'
 import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
 import { getSetting, setSetting } from './common/utils'
 import AuthWrapper from './components/utils/AuthWrapper'
 import Navbar20 from './components/nav/Navbar20'
+import GlobalDragDropOverlay from './components/utils/GlobalDragDropOverlay'
 
 const muitheme = createTheme(darkTheme)
 
@@ -34,12 +37,13 @@ export default function App() {
     <Router>
       <ThemeProvider theme={muitheme}>
         <CssBaseline />
+        <GlobalDragDropOverlay>
         <Routes>
           <Route
             path="/"
             element={
               <AuthWrapper redirect={'/feed'}>
-                <Navbar20 page="/" collapsed={!drawerOpen} searchable styleToggle cardSlider>
+                <Navbar20 page="/" collapsed={!drawerOpen} searchable styleToggle cardSlider searchPlaceholder="Search title, game, or #tag...">
                   <Dashboard />
                 </Navbar20>
               </AuthWrapper>
@@ -49,7 +53,7 @@ export default function App() {
             path="/feed"
             element={
               <AuthWrapper>
-                <Navbar20 page="/feed" collapsed={!drawerOpen} searchable styleToggle cardSlider>
+                <Navbar20 page="/feed" collapsed={!drawerOpen} searchable styleToggle cardSlider searchPlaceholder="Search title, game, or #tag...">
                   <Feed />
                 </Navbar20>
               </AuthWrapper>
@@ -96,6 +100,26 @@ export default function App() {
             }
           />
           <Route
+            path="/tags"
+            element={
+              <AuthWrapper>
+                <Navbar20 page="/tags" collapsed={!drawerOpen} searchable searchPlaceholder="Search tags...">
+                  <Tags />
+                </Navbar20>
+              </AuthWrapper>
+            }
+          />
+          <Route
+            path="/tags/:tagId"
+            element={
+              <AuthWrapper>
+                <Navbar20 page="/tags" collapsed={!drawerOpen} styleToggle cardSlider searchable mainPadding={0}>
+                  <TagVideos />
+                </Navbar20>
+              </AuthWrapper>
+            }
+          />
+          <Route
             path="/w/:id"
             element={
               <Navbar20 collapsed={true} toolbar page="/w">
@@ -114,6 +138,7 @@ export default function App() {
             }
           />
         </Routes>
+        </GlobalDragDropOverlay>
       </ThemeProvider>
     </Router>
   )

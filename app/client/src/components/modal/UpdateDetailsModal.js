@@ -1,9 +1,22 @@
 import * as React from 'react'
-import { Modal, Box, Typography, Button, Stack, TextField, IconButton, Divider, Popover } from '@mui/material'
+import {
+  Modal,
+  Box,
+  Typography,
+  Button,
+  Stack,
+  TextField,
+  IconButton,
+  Divider,
+  Popover,
+  Chip,
+  Autocomplete,
+} from '@mui/material'
+import TagChip from '../misc/TagChip'
 import CloseIcon from '@mui/icons-material/Close'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { DayPicker } from 'react-day-picker'
-import { VideoService, GameService } from '../../services'
+import { VideoService, GameService, TagService } from '../../services'
 import GameSearch from '../game/GameSearch'
 import './datepicker-dark.css'
 
@@ -38,7 +51,7 @@ const modalSx = {
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: 500,
+  width: { xs: '95vw', sm: 600 },
   bgcolor: '#041223',
   border: '1px solid #FFFFFF1A',
   borderRadius: '12px',
@@ -70,7 +83,8 @@ const DateField = ({ selectedDate, selectedTime, onDateChange, onTimeChange }) =
   const [anchor, setAnchor] = React.useState(null)
 
   const display = selectedDate
-    ? selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + (selectedTime ? ` at ${selectedTime}` : '')
+    ? selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+      (selectedTime ? ` at ${selectedTime}` : '')
     : null
 
   return (
@@ -86,7 +100,11 @@ const DateField = ({ selectedDate, selectedTime, onDateChange, onTimeChange }) =
         {selectedDate && (
           <IconButton
             size="small"
-            onClick={(e) => { e.stopPropagation(); onDateChange(null); onTimeChange('') }}
+            onClick={(e) => {
+              e.stopPropagation()
+              onDateChange(null)
+              onTimeChange('')
+            }}
             sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.25 }}
           >
             <CloseIcon sx={{ fontSize: 16 }} />
@@ -138,7 +156,14 @@ const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
     return (
       <Box sx={rowBoxSx}>
         {game.icon_url && (
-          <img src={game.icon_url} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'contain' }} />
+          <img
+            src={game.icon_url}
+            alt=""
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+            }}
+            style={{ width: 28, height: 28, borderRadius: 4, objectFit: 'contain' }}
+          />
         )}
         <Typography sx={{ color: 'white', fontSize: 14, flex: 1 }}>{game.name}</Typography>
         <IconButton size="small" onClick={onUnlink} sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.5 }}>
@@ -149,14 +174,16 @@ const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
   }
 
   return (
-    <Box sx={{
-      ...rowBoxSx,
-      py: 0,
-      overflow: 'hidden',
-      '& .MuiInputBase-root': { color: 'white', px: 0 },
-      '& input::placeholder': { color: '#FFFFFF66', opacity: 1 },
-      '& .MuiSvgIcon-root': { color: '#FFFFFF66' },
-    }}>
+    <Box
+      sx={{
+        ...rowBoxSx,
+        py: 0,
+        overflow: 'hidden',
+        '& .MuiInputBase-root': { color: 'white', px: 0 },
+        '& input::placeholder': { color: '#FFFFFF66', opacity: 1 },
+        '& .MuiSvgIcon-root': { color: '#FFFFFF66' },
+      }}
+    >
       <GameSearch
         onGameLinked={onLink}
         onError={() => alertHandler?.({ open: true, type: 'error', message: 'Failed to find game.' })}
@@ -168,20 +195,107 @@ const LinkedGameField = ({ game, onLink, onUnlink, alertHandler }) => {
   )
 }
 
+const TagsField = ({ localTags, allTags, tagInput, setTagInput, setLocalTags, inputSx }) => (
+  <Autocomplete
+    multiple
+    freeSolo
+    componentsProps={{ root: { sx: { '& .MuiAutocomplete-tag': { my: 0.25 } } } }}
+    sx={{ '& .MuiOutlinedInput-root': { gap: 0.5 } }}
+    options={allTags.filter((t) => !localTags.find((lt) => lt.id === t.id))}
+    getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
+    value={localTags}
+    inputValue={tagInput}
+    onInputChange={(_, v) => setTagInput(v)}
+    onChange={(_, values) => {
+      const seen = new Set()
+      setLocalTags(
+        values
+          .map((v) => (typeof v === 'string' ? { name: v } : v))
+          .filter((t) => {
+            const key = (t.name || '').toLowerCase()
+            if (!key || seen.has(key)) return false
+            seen.add(key)
+            return true
+          }),
+      )
+      setTagInput('')
+    }}
+    renderTags={(value, getTagProps) =>
+      value.map((tag, idx) => {
+        const { onDelete } = getTagProps({ index: idx })
+        return (
+          <TagChip key={tag.id ?? `new-${idx}`} name={tag.name} color={tag.color} size="small" onDelete={onDelete} />
+        )
+      })
+    }
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        size="small"
+        placeholder="Add clip tags..."
+        sx={inputSx}
+        inputProps={{ ...params.inputProps, maxLength: 12 }}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+            e.preventDefault()
+            const parts = tagInput
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+            setTagInput('')
+            setLocalTags((prev) => {
+              const merged = [...prev]
+              parts.forEach((p) => {
+                if (!merged.find((t) => (t.name || '').toLowerCase() === p.toLowerCase())) {
+                  merged.push(allTags.find((t) => t.name.toLowerCase() === p.toLowerCase()) || { name: p })
+                }
+              })
+              return merged
+            })
+          }
+        }}
+      />
+    )}
+  />
+)
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescription, currentRecordedAt, currentGame, alertHandler }) => {
+const UpdateDetailsModal = ({
+  open,
+  close,
+  videoId,
+  currentTitle,
+  currentDescription,
+  currentRecordedAt,
+  currentGame,
+  alertHandler,
+}) => {
   const [title, setTitle] = React.useState(currentTitle)
   const [description, setDescription] = React.useState(currentDescription)
   const [selectedDate, setSelectedDate] = React.useState(null)
   const [selectedTime, setSelectedTime] = React.useState('')
   const [linkedGame, setLinkedGame] = React.useState(currentGame || null)
   const [loading, setLoading] = React.useState(false)
+  const [localTags, setLocalTags] = React.useState([])
+  const [allTags, setAllTags] = React.useState([])
+  const [tagInput, setTagInput] = React.useState('')
+  const initialTagsRef = React.useRef([])
 
   React.useEffect(() => {
+    if (!open) return
     setTitle(currentTitle)
     setDescription(currentDescription)
     setLinkedGame(currentGame || null)
+    setTagInput('')
+    Promise.all([TagService.getVideoTags(videoId), TagService.getTags()])
+      .then(([videoTagsRes, allTagsRes]) => {
+        const tags = videoTagsRes.data || []
+        initialTagsRef.current = tags
+        setLocalTags(tags)
+        setAllTags(allTagsRes.data || [])
+      })
+      .catch(() => {})
     if (!currentRecordedAt) {
       setSelectedDate(null)
       setSelectedTime('')
@@ -191,7 +305,7 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
     const pad = (n) => n.toString().padStart(2, '0')
     setSelectedDate(d)
     setSelectedTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`)
-  }, [currentTitle, currentDescription, currentRecordedAt, currentGame])
+  }, [open])
 
   const getRecordedAtISO = () => {
     if (!selectedDate) return null
@@ -211,8 +325,35 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
         description: description || currentDescription,
         recorded_at: getRecordedAtISO(),
       })
+
+      // Apply tag changes: diff localTags vs what was on the video when modal opened
+      const initialTags = initialTagsRef.current
+      const toRemove = initialTags.filter((it) => !localTags.find((lt) => lt.id && lt.id === it.id))
+      const toAdd = localTags.filter((lt) => !initialTags.find((it) => it.id && it.id === lt.id))
+      const toCreate = toAdd.filter((t) => !t.id)
+      const toLink = toAdd.filter((t) => !!t.id)
+
+      const createdTags = await Promise.all(
+        toCreate.map(async (t) => {
+          const res = await TagService.createTag({ name: t.name })
+          return res.data
+        }),
+      )
+      await Promise.all([
+        ...toLink.map((t) => TagService.addTagToVideo(videoId, t.id)),
+        ...createdTags.map((t) => TagService.addTagToVideo(videoId, t.id)),
+        ...toRemove.map((t) => TagService.removeTagFromVideo(videoId, t.id)),
+      ])
+
+      const finalTags = [...localTags.filter((lt) => lt.id && !toRemove.find((t) => t.id === lt.id)), ...createdTags]
+
       alertHandler?.({ open: true, type: 'success', message: 'Video details updated!' })
-      close({ title: title || currentTitle, description: description || currentDescription, game: linkedGame })
+      close({
+        title: title || currentTitle,
+        description: description || currentDescription,
+        game: linkedGame,
+        tags: finalTags,
+      })
     } catch (err) {
       alertHandler?.({ open: true, type: 'error', message: err.response?.data || 'An unknown error occurred.' })
     }
@@ -252,7 +393,14 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
           </LabeledField>
 
           <LabeledField label="Description">
-            <TextField value={description ?? ''} onChange={(e) => setDescription(e.target.value)} multiline rows={3} fullWidth sx={inputSx} />
+            <TextField
+              value={description ?? ''}
+              onChange={(e) => setDescription(e.target.value)}
+              multiline
+              rows={3}
+              fullWidth
+              sx={inputSx}
+            />
           </LabeledField>
 
           <LabeledField label="Recorded Date">
@@ -274,6 +422,18 @@ const UpdateDetailsModal = ({ open, close, videoId, currentTitle, currentDescrip
               alertHandler={alertHandler}
             />
           </LabeledField>
+
+          <LabeledField label="Tags">
+            <TagsField
+              localTags={localTags}
+              allTags={allTags}
+              tagInput={tagInput}
+              setTagInput={setTagInput}
+              setLocalTags={setLocalTags}
+              inputSx={inputSx}
+            />
+          </LabeledField>
+
         </Stack>
 
         <Stack direction="row" spacing={1.5} sx={{ mt: 4 }}>

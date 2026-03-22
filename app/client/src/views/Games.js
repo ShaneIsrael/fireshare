@@ -14,15 +14,19 @@ import {
   DialogContent,
   DialogActions,
   FormControlLabel,
+  Skeleton,
   useTheme,
   useMediaQuery,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import CheckIcon from '@mui/icons-material/Check'
+import ImageIcon from '@mui/icons-material/Image'
 import { useNavigate } from 'react-router-dom'
 import { GameService } from '../services'
+import { recordAssetBust, applyAssetBusts } from '../services/GameService'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
+import EditGameAssetsModal from '../components/modal/EditGameAssetsModal'
 
 const Games = ({ authenticated, searchText }) => {
   const [games, setGames] = React.useState([])
@@ -32,6 +36,8 @@ const Games = ({ authenticated, searchText }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [deleteAssociatedVideos, setDeleteAssociatedVideos] = React.useState(false)
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
+  const [editingGame, setEditingGame] = React.useState(null)
+  const [loadedHeroes, setLoadedHeroes] = React.useState(new Set())
   const navigate = useNavigate()
   const theme = useTheme()
   const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
@@ -45,7 +51,7 @@ const Games = ({ authenticated, searchText }) => {
   React.useEffect(() => {
     GameService.getGames()
       .then((res) => {
-        setGames(res.data)
+        setGames(applyAssetBusts(res.data))
         setLoading(false)
       })
       .catch((err) => {
@@ -132,6 +138,27 @@ const Games = ({ authenticated, searchText }) => {
     }
   }
 
+  const handleAssetSaved = () => {
+    const editedId = editingGame?.steamgriddb_id
+    const bust = Date.now()
+    recordAssetBust(editedId)
+    window.dispatchEvent(new CustomEvent('gameAssetsUpdated', { detail: { steamgriddbId: editedId, bust } }))
+    setEditingGame(null)
+    setGames((prev) =>
+      prev.map((g) => {
+        if (g.steamgriddb_id !== editedId) return g
+        const base = `/api/game/assets/${g.steamgriddb_id}`
+        return {
+          ...g,
+          hero_url: `${base}/hero_1.png?v=${bust}`,
+          banner_url: `${base}/hero_2.png?v=${bust}`,
+          logo_url: `${base}/logo_1.png?v=${bust}`,
+          icon_url: `${base}/icon_1.png?v=${bust}`,
+        }
+      }),
+    )
+  }
+
   if (loading) return <LoadingSpinner />
 
   return (
@@ -170,7 +197,7 @@ const Games = ({ authenticated, searchText }) => {
                     height: '38px',
                     border: !editMode ? '1px solid #2684FF' : 'none',
                     '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                      bgcolor: editMode ? 'primary.dark' : '#FFFFFF33',
                     },
                   }}
                 >
@@ -208,7 +235,7 @@ const Games = ({ authenticated, searchText }) => {
                     borderColor: isSelected ? 'primary.main' : 'transparent',
                     '&:hover': {
                       transform: 'scale(1.04)',
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                      boxShadow: '0 8px 24px #00000080',
                     },
                   }}
                 >
@@ -226,7 +253,7 @@ const Games = ({ authenticated, searchText }) => {
                         left: 8,
                         zIndex: 2,
                         color: 'white',
-                        bgcolor: 'rgba(0, 0, 0, 0.5)',
+                        bgcolor: '#00000080',
                         borderRadius: '4px',
                         '&.Mui-checked': {
                           color: 'primary.main',
@@ -235,19 +262,58 @@ const Games = ({ authenticated, searchText }) => {
                     />
                   )}
 
-                  {game.hero_url && (
-                    <Box
-                      component="img"
-                      src={game.hero_url}
-                      onError={(e) => { e.currentTarget.style.display = 'none' }}
-                      sx={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        position: 'absolute',
-                        filter: 'brightness(0.7)',
+                  {/* Edit assets button (edit mode only) */}
+                  {editMode && (
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingGame(game)
                       }}
-                    />
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        zIndex: 2,
+                        bgcolor: '#00000099',
+                        color: 'white',
+                        '&:hover': { bgcolor: '#000000D9' },
+                      }}
+                    >
+                      <ImageIcon fontSize="small" />
+                    </IconButton>
+                  )}
+
+                  {game.hero_url && (
+                    <>
+                      <Skeleton
+                        variant="rectangular"
+                        animation="wave"
+                        sx={{
+                          position: 'absolute',
+                          inset: 0,
+                          width: '100%',
+                          height: '100%',
+                          opacity: loadedHeroes.has(game.id) ? 0 : 1,
+                          transition: 'opacity 0.3s ease',
+                        }}
+                      />
+                      <Box
+                        component="img"
+                        src={game.hero_url}
+                        onLoad={() => setLoadedHeroes((prev) => new Set([...prev, game.id]))}
+                        onError={(e) => { e.currentTarget.style.display = 'none' }}
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          position: 'absolute',
+                          filter: 'brightness(0.7)',
+                          opacity: loadedHeroes.has(game.id) ? 1 : 0,
+                          transition: 'opacity 0.3s ease',
+                        }}
+                      />
+                    </>
                   )}
                   {game.logo_url && (
                     <Box
@@ -272,6 +338,14 @@ const Games = ({ authenticated, searchText }) => {
             )
           })}
       </Grid>
+
+      {/* Edit Game Assets Modal */}
+      <EditGameAssetsModal
+        game={editingGame}
+        open={!!editingGame}
+        onClose={() => setEditingGame(null)}
+        onSaved={handleAssetSaved}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
