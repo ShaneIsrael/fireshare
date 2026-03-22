@@ -54,6 +54,9 @@ class VideoInfo(db.Model):
     has_480p    = db.Column(db.Boolean, default=False)
     has_720p    = db.Column(db.Boolean, default=False)
     has_1080p   = db.Column(db.Boolean, default=False)
+    start_time  = db.Column(db.Float, nullable=True)
+    end_time    = db.Column(db.Float, nullable=True)
+    has_crop    = db.Column(db.Boolean, default=False)
 
     video       = db.relationship("Video", back_populates="info", uselist=False, lazy="joined")
 
@@ -88,7 +91,10 @@ class VideoInfo(db.Model):
             "framerate": self.framerate,
             "has_480p": self.has_480p,
             "has_720p": self.has_720p,
-            "has_1080p": self.has_1080p
+            "has_1080p": self.has_1080p,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "has_crop": self.has_crop or False,
         }
 
     def __repr__(self):

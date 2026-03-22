@@ -51,7 +51,7 @@ const modalSx = {
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: 500,
+  width: { xs: '95vw', sm: 600 },
   bgcolor: '#041223',
   border: '1px solid #FFFFFF1A',
   borderRadius: '12px',
@@ -433,6 +433,7 @@ const UpdateDetailsModal = ({
               inputSx={inputSx}
             />
           </LabeledField>
+
         </Stack>
 
         <Stack direction="row" spacing={1.5} sx={{ mt: 4 }}>

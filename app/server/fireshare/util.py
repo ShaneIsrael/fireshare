@@ -364,6 +364,52 @@ def calculate_transcode_timeout(video_path, base_timeout=7200):
         logger.debug(f"Could not determine video duration, using base timeout: {base_timeout}s")
         return base_timeout
 
+def create_video_crop(source_path, out_path, start_time=None, end_time=None):
+    """
+    Stream-copy a segment of source_path into out_path using FFmpeg.
+    start_time / end_time are in seconds (float). None means file start/end.
+    Uses -c copy (no re-encode) so this is fast even for large files.
+    Returns True on success, False on failure.
+    """
+    cmd = ['ffmpeg', '-y']
+    if start_time:
+        cmd += ['-ss', str(start_time)]
+    if end_time:
+        cmd += ['-to', str(end_time)]
+    cmd += ['-i', str(source_path), '-c', 'copy', str(out_path)]
+    logger.debug(f"$ {' '.join(cmd)}")
+    result = sp.call(cmd)
+    if result == 0:
+        logger.info(f'Created crop {str(out_path)} (start={start_time}, end={end_time})')
+    else:
+        logger.error(f'Failed to create crop {str(out_path)} (exit code {result})')
+    return result == 0
+
+
+def create_audio_extract(source_path, out_path):
+    """
+    Extract a tiny mono audio-only MP3 from source_path for waveform display.
+    Low bitrate + mono keeps the file small so WaveSurfer loads/decodes quickly.
+    Returns True on success, False on failure.
+    """
+    cmd = [
+        'ffmpeg', '-v', 'quiet', '-y',
+        '-i', str(source_path),
+        '-vn',           # drop video
+        '-ac', '1',      # mono
+        '-ar', '22050',  # 22 kHz sample rate (plenty for a waveform visual)
+        '-b:a', '32k',   # 32 kbps — keeps file tiny
+        str(out_path),
+    ]
+    logger.debug(f"$ {' '.join(cmd)}")
+    result = sp.call(cmd)
+    if result == 0:
+        logger.info(f'Created audio extract {str(out_path)}')
+    else:
+        logger.error(f'Failed to create audio extract {str(out_path)} (exit code {result})')
+    return result == 0
+
+
 def create_poster(video_path, out_path, second=0):
     s = time.time()
     cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-ss', str(second), '-vframes', '1', '-vf', 'scale=iw:ih:force_original_aspect_ratio=decrease', str(out_path)]

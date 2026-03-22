@@ -96,7 +96,15 @@ def get_video_path(id, subid=None, quality=None):
     if not video:
         raise Exception(f"No video found for {id}")
     paths = current_app.config['PATHS']
-    
+
+    # Handle cropped source quality
+    if quality == 'cropped':
+        cropped_path = paths["processed"] / "derived" / id / f"{id}-cropped.mp4"
+        if cropped_path.exists():
+            return str(cropped_path)
+        # Fall back to original if crop file doesn't exist yet
+        logger.warning(f"Requested cropped version for video {id} not found, falling back to original")
+
     # Handle quality variants (480p, 720p, 1080p)
     if quality and quality in ['480p', '720p', '1080p']:
         # Check if the transcoded version exists
@@ -105,7 +113,7 @@ def get_video_path(id, subid=None, quality=None):
             return str(derived_path)
         # Fall back to original if quality doesn't exist
         logger.warning(f"Requested quality {quality} for video {id} not found, falling back to original")
-    
+
     subid_suffix = f"-{subid}" if subid else ""
     ext = ".mp4" if subid else video.extension
     video_path = paths["processed"] / "video_links" / f"{id}{subid_suffix}{ext}"
@@ -1313,7 +1321,13 @@ def handle_video_details(id):
             data = request.json.copy()
             recorded_at = data.pop('recorded_at', None)
 
-            # Update VideoInfo fields
+            # Extract crop fields before the generic VideoInfo update so they don't
+            # get written directly (we handle them via the crop pipeline below)
+            _UNSET = object()
+            new_start = data.pop('start_time', _UNSET)
+            new_end   = data.pop('end_time',   _UNSET)
+
+            # Update remaining VideoInfo fields generically
             if data:
                 db.session.query(VideoInfo).filter_by(video_id=id).update(data)
 
@@ -1330,6 +1344,31 @@ def handle_video_details(id):
                             video.recorded_at = None
 
             db.session.commit()
+
+            # Handle crop pipeline if start_time / end_time were included in the payload
+            crop_changed = new_start is not _UNSET or new_end is not _UNSET
+            if crop_changed:
+                resolved_start = new_start if new_start is not _UNSET else video_info.start_time
+                resolved_end   = new_end   if new_end   is not _UNSET else video_info.end_time
+
+                # Persist the new crop time values
+                video_info.start_time = resolved_start
+                video_info.end_time   = resolved_end
+                db.session.commit()
+
+                paths = current_app.config['PATHS']
+                video = Video.query.filter_by(video_id=id).first()
+
+                if resolved_start is None and resolved_end is None:
+                    # Clearing the crop — delete crop files and re-transcode from original
+                    had_480p  = video_info.has_480p
+                    had_720p  = video_info.has_720p
+                    had_1080p = video_info.has_1080p
+                    _clear_crop(video, video_info, paths, had_480p, had_720p, had_1080p)
+                else:
+                    # Creating / replacing the crop
+                    _apply_crop_async(video, video_info, resolved_start, resolved_end, paths)
+
             return Response(status=201)
         else:
             return jsonify({
@@ -1667,12 +1706,8 @@ def upload_videoChunked():
     _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
-@api.route('/api/video')
-def get_video():
-    video_id = request.args.get('id')
-    subid = request.args.get('subid')
-    quality = request.args.get('quality')  # Support quality parameter (720p, 1080p)
-    video_path = get_video_path(video_id, subid, quality)
+def _stream_video_file(video_path):
+    """Shared range-request streaming logic for video endpoints."""
     file_size = os.stat(video_path).st_size
     start = 0
     length = 10240
@@ -1700,6 +1735,154 @@ def get_video():
     rv = Response(chunk, 206, mimetype='video/mp4', content_type='video/mp4', direct_passthrough=True)
     rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
     return rv
+
+
+def _delete_if_exists(path):
+    if path.exists():
+        path.unlink()
+
+
+def _clear_crop(video, video_info, paths, had_480p, had_720p, had_1080p):
+    """Delete all crop-related files and reset DB flags, then re-transcode from original."""
+    derived_dir = paths["processed"] / "derived" / video.video_id
+    _delete_if_exists(derived_dir / f"{video.video_id}-cropped.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-480p.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-720p.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-1080p.mp4")
+
+    video_info.has_crop = False
+    video_info.has_480p = False
+    video_info.has_720p = False
+    video_info.has_1080p = False
+    db.session.commit()
+
+    # Re-transcode quality variants from the original if they existed before
+    if had_480p or had_720p or had_1080p:
+        original_path = paths["processed"] / "video_links" / f"{video.video_id}{video.extension}"
+        _retranscode_async(video.video_id, original_path, paths, had_480p, had_720p, had_1080p)
+
+
+def _apply_crop_async(video, video_info, start_time, end_time, paths):
+    """Clear old crop files, then create new crop and re-transcode in a background thread."""
+    had_480p = video_info.has_480p
+    had_720p = video_info.has_720p
+    had_1080p = video_info.has_1080p
+
+    derived_dir = paths["processed"] / "derived" / video.video_id
+    derived_dir.mkdir(parents=True, exist_ok=True)
+
+    # Remove old files and mark flags as pending
+    _delete_if_exists(derived_dir / f"{video.video_id}-cropped.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-480p.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-720p.mp4")
+    _delete_if_exists(derived_dir / f"{video.video_id}-1080p.mp4")
+
+    video_info.has_crop = False
+    video_info.has_480p = False
+    video_info.has_720p = False
+    video_info.has_1080p = False
+    db.session.commit()
+
+    original_path = paths["processed"] / "video_links" / f"{video.video_id}{video.extension}"
+    cropped_path = derived_dir / f"{video.video_id}-cropped.mp4"
+    video_id = video.video_id
+
+    app = current_app._get_current_object()
+
+    def run():
+        success = util.create_video_crop(original_path, cropped_path, start_time, end_time)
+        with app.app_context():
+            vi = VideoInfo.query.filter_by(video_id=video_id).first()
+            if not vi:
+                return
+            if success:
+                vi.has_crop = True
+                db.session.commit()
+                if had_480p or had_720p or had_1080p:
+                    _retranscode_async(video_id, cropped_path, paths, had_480p, had_720p, had_1080p)
+            else:
+                logger.error(f"Crop failed for video {video_id}")
+
+    import threading
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+
+
+def _retranscode_async(video_id, source_path, paths, do_480p, do_720p, do_1080p):
+    """Transcode quality variants from source_path in a background thread."""
+    derived_dir = paths["processed"] / "derived" / video_id
+    app = current_app._get_current_object()
+
+    heights = []
+    if do_480p:
+        heights.append(480)
+    if do_720p:
+        heights.append(720)
+    if do_1080p:
+        heights.append(1080)
+
+    def run():
+        for height in heights:
+            out_path = derived_dir / f"{video_id}-{height}p.mp4"
+            success, _ = util.transcode_video_quality(source_path, out_path, height)
+            with app.app_context():
+                vi = VideoInfo.query.filter_by(video_id=video_id).first()
+                if vi and success:
+                    setattr(vi, f'has_{height}p', True)
+                    db.session.commit()
+
+    import threading
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+
+
+@api.route('/api/video/original')
+def get_original_video():
+    """Serves the original unmodified video file, bypassing any crop. Used by the waveform editor."""
+    video_id = request.args.get('id')
+    subid = request.args.get('subid')
+    try:
+        video_path = get_video_path(video_id, subid, quality=None)
+        return send_file(video_path, mimetype='video/mp4', conditional=True)
+    except Exception as e:
+        logger.error(f"Error serving original video {video_id}: {e}")
+        return Response(status=404)
+
+
+@api.route('/api/video/audio')
+def get_video_audio():
+    """
+    Serves a tiny mono MP3 extract of the original video, used by the waveform editor.
+    The extract is created on first request and cached at derived/{id}/{id}-audio.mp3.
+    Much smaller than the full video, so WaveSurfer loads and decodes it much faster.
+    """
+    video_id = request.args.get('id')
+    if not video_id:
+        return Response(status=400)
+    try:
+        paths = current_app.config['PATHS']
+        derived_dir = paths['processed'] / 'derived' / video_id
+        audio_path = derived_dir / f'{video_id}-audio.mp3'
+
+        if not audio_path.exists():
+            video_path = get_video_path(video_id, subid=None, quality=None)
+            derived_dir.mkdir(parents=True, exist_ok=True)
+            if not util.create_audio_extract(video_path, audio_path):
+                return Response(status=500)
+
+        return send_file(audio_path, mimetype='audio/mpeg', conditional=True)
+    except Exception as e:
+        logger.error(f"Error serving audio extract for {video_id}: {e}")
+        return Response(status=404)
+
+
+@api.route('/api/video')
+def get_video():
+    video_id = request.args.get('id')
+    subid = request.args.get('subid')
+    quality = request.args.get('quality')  # Support quality parameter (720p, 1080p, cropped)
+    video_path = get_video_path(video_id, subid, quality)
+    return _stream_video_file(video_path)
 
 @api.route('/api/steamgrid/search', methods=["GET"])
 def search_steamgrid():
