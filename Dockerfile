@@ -137,7 +137,7 @@ COPY app/server/ /app/server
 COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
 COPY --from=client /app/package.json /app
-RUN python3.14 -m pip install --no-cache-dir --break-system-packages /app/server
+RUN python3.14 -m pip install --no-cache-dir --break-system-packages --ignore-installed /app/server
 
 ENV FLASK_APP /app/server/fireshare:create_app()
 ENV ENVIRONMENT production
