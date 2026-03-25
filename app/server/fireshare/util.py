@@ -567,10 +567,10 @@ def _get_encoder_candidates(use_gpu=False, encoder_preference='auto'):
     }
     av1_cpu = {
         'name': 'AV1 CPU',
-        'video_codec': 'libaom-av1',
+        'video_codec': 'libsvtav1',
         'audio_codec': 'libopus',
         'audio_bitrate': '96k',
-        'extra_args': ['-cpu-used', '4', '-crf', '30', '-b:v', '0']
+        'extra_args': ['-preset', '6', '-crf', '30', '-b:v', '0', '-movflags', '+faststart']
     }
     h264_nvenc = {
         'name': 'H.264 NVENC',
