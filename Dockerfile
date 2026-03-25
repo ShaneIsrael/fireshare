@@ -16,6 +16,7 @@ WORKDIR /tmp
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    cmake \
     pkg-config \
     yasm \
     nasm \
@@ -33,6 +34,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfreetype6-dev \
     libmp3lame-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Build SVT-AV1 from source, V1.8.0 for FFmpeg 6.1
+RUN git clone --depth 1 --branch v1.8.0 https://gitlab.com/AOMediaCodec/SVT-AV1.git && \
+    cd SVT-AV1/Build && \
+    cmake .. -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install
 
 # Install NVIDIA codec headers for NVENC support
 RUN git clone --depth 1 --branch n12.1.14.0 https://github.com/FFmpeg/nv-codec-headers.git && \
@@ -61,6 +69,7 @@ RUN cd ffmpeg-6.1 && \
         --enable-libmp3lame \
         --enable-libass \
         --enable-libfreetype \
+        --enable-libsvtav1 \
         --disable-debug \
         --disable-doc
 
@@ -72,7 +81,7 @@ RUN cd ffmpeg-6.1 && \
 
 # Verify FFmpeg was built correctly
 RUN ffmpeg -version && \
-    ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|264|265|vpx|aom)" | head -20
+    ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|264|265|vpx|aom|svt)" | head -20
 
 # Main application stage
 FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
