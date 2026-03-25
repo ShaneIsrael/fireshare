@@ -20,4 +20,4 @@ xxhash==3.5.0
 apscheduler==3.11.0
 python-ldap==3.4.4
 requests==2.32.3
-rapidfuzz==3.12.1
+rapidfuzz>=3.10.0
