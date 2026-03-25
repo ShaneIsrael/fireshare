@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
 from .api import _get_local_version, _fetch_release_notes
+from datetime import datetime, timezone
 try:
     import ldap
 except ImportError:
@@ -136,7 +137,16 @@ def loggedin():
             current_app.logger.info(f"A new version of Fireshare is available! You have v{local_version}, latest is v{latest_version}.")
         else:
             current_app.logger.info(f"Fireshare is up to date (v{local_version}).")
-        if update_available and current_user.last_seen_version != latest_version:
+        published_at = release_data.get('published_at', '')
+        release_is_old_enough = False
+        if published_at:
+            try:
+                published_dt = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                release_age = datetime.now(timezone.utc) - published_dt
+                release_is_old_enough = release_age.total_seconds() >= 86400
+            except (ValueError, TypeError):
+                release_is_old_enough = True
+        if update_available and release_is_old_enough and current_user.last_seen_version != latest_version:
             show_release_notes = True
             release_notes = release_data
 
