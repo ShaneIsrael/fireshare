@@ -791,7 +791,7 @@ def transcode_videos(regenerate, video, include_corrupt):
         # before the temp file could be renamed to its final location.
         derived_root = Path(processed_root, "derived")
         if derived_root.exists():
-            for tmp_file in derived_root.glob('**/*.tmp'):
+            for tmp_file in derived_root.glob('**/*.tmp.mp4'):
                 try:
                     tmp_file.unlink()
                     logger.info(f"Removed stale temp transcode file: {tmp_file}")

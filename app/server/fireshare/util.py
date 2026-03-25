@@ -760,7 +760,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
     # Write to a temp path during transcoding; only rename to the final path on
     # success. This ensures a partially-written file from a crashed ffmpeg process
     # is never picked up and served as a valid transcode output.
-    tmp_path = Path(out_path_str + '.tmp')
+    tmp_path = out_path.parent / (out_path.stem + '.tmp.mp4')
     tmp_path_str = str(tmp_path)
     if tmp_path.exists():
         try:
