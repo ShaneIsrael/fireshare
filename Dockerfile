@@ -110,7 +110,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     libopus0 libvorbis0a libvorbisenc2 \
     libass9 libfreetype6 libmp3lame0 \
     && python3.14 -m ensurepip --upgrade \
-    && python3.14 -m pip install --upgrade pip \
+    && python3.14 -m pip install --upgrade --break-system-packages pip \
     && ln -sf /usr/bin/python3.14 /usr/bin/python3 \
     && ln -sf /usr/bin/python3.14 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
@@ -137,7 +137,7 @@ COPY app/server/ /app/server
 COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
 COPY --from=client /app/package.json /app
-RUN python3.14 -m pip install --no-cache-dir /app/server
+RUN python3.14 -m pip install --no-cache-dir --break-system-packages /app/server
 
 ENV FLASK_APP /app/server/fireshare:create_app()
 ENV ENVIRONMENT production
