@@ -954,7 +954,7 @@ def create_folder_rule():
 @login_required
 def delete_folder_rule(rule_id):
     """Delete a folder rule, optionally unlinking videos"""
-    rule = FolderRule.query.get(rule_id)
+    rule = db.session.get(FolderRule, rule_id)
     if not rule:
         return jsonify({'error': 'Folder rule not found'}), 404
 
@@ -2119,7 +2119,7 @@ def link_video_to_game(video_id):
     if not video:
         return Response(status=404, response='Video not found.')
 
-    game = GameMetadata.query.get(data['game_id'])
+    game = db.session.get(GameMetadata, data['game_id'])
     if not game:
         return Response(status=404, response='Game not found.')
 
@@ -2569,7 +2569,7 @@ def create_tag():
 @api.route('/api/tags/<int:tag_id>', methods=["PUT"])
 @login_required
 def update_tag(tag_id):
-    tag = CustomTag.query.get(tag_id)
+    tag = db.session.get(CustomTag, tag_id)
     if not tag:
         return Response(status=404, response='Tag not found.')
 
@@ -2592,7 +2592,7 @@ def update_tag(tag_id):
 @api.route('/api/tags/<int:tag_id>', methods=["DELETE"])
 @login_required
 def delete_tag(tag_id):
-    tag = CustomTag.query.get(tag_id)
+    tag = db.session.get(CustomTag, tag_id)
     if not tag:
         return Response(status=404, response='Tag not found.')
 
@@ -2635,7 +2635,7 @@ def delete_tag(tag_id):
 
 @api.route('/api/tags/<int:tag_id>/videos', methods=["GET"])
 def get_tag_videos(tag_id):
-    tag = CustomTag.query.get(tag_id)
+    tag = db.session.get(CustomTag, tag_id)
     if not tag:
         return Response(status=404, response='Tag not found.')
 
@@ -2673,7 +2673,7 @@ def add_tag_to_video(video_id):
     if not video:
         return Response(status=404, response='Video not found.')
 
-    tag = CustomTag.query.get(data['tag_id'])
+    tag = db.session.get(CustomTag, data['tag_id'])
     if not tag:
         return Response(status=404, response='Tag not found.')
 
@@ -2709,7 +2709,7 @@ def bulk_assign_tag():
     if not data or not data.get('tag_id') or not data.get('video_ids'):
         return Response(status=400, response='tag_id and video_ids are required.')
 
-    tag = CustomTag.query.get(data['tag_id'])
+    tag = db.session.get(CustomTag, data['tag_id'])
     if not tag:
         return Response(status=404, response='Tag not found.')
 

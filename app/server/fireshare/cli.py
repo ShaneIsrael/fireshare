@@ -177,7 +177,7 @@ def init_db():
 @click.option("--password", "-p", help="Password", prompt=True, hide_input=True)
 def add_user(username, password):
     with create_app().app_context():
-        new_user = User(username=username, password=generate_password_hash(password, method='sha256'))
+        new_user = User(username=username, password=generate_password_hash(password, method='pbkdf2:sha256'))
         db.session.add(new_user)
         db.session.commit()
         click.echo(f"Created user {username}")

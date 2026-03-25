@@ -1,11 +1,10 @@
-FROM node:16.15-slim as client
+FROM node:24-slim as client
 WORKDIR /app
 ENV PATH /app/node_modules/.bin:$PATH
 COPY app/client/package.json ./
 COPY app/client/package-lock.json ./
 COPY app/client/.env.* ./
 RUN npm ci --silent
-RUN npm install react-scripts@5.0.1 -g --silent && npm cache clean --force;
 COPY app/client/ ./
 RUN npm run build
 
@@ -95,8 +94,12 @@ COPY --from=ffmpeg-builder /usr/local/lib/lib* /usr/local/lib/
 # Install runtime dependencies
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && DEBIAN_FRONTEND=noninteractive apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     nginx-extras supervisor \
-    python3.9 python3-pip python3-dev \
+    python3.14 python3.14-dev python3.14-venv \
     libldap2-dev libsasl2-dev libssl-dev \
     libffi-dev libc-dev \
     build-essential \
@@ -106,6 +109,10 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     libx264-163 libx265-199 libvpx7 libaom3 \
     libopus0 libvorbis0a libvorbisenc2 \
     libass9 libfreetype6 libmp3lame0 \
+    && python3.14 -m ensurepip --upgrade \
+    && python3.14 -m pip install --upgrade pip \
+    && ln -sf /usr/bin/python3.14 /usr/bin/python3 \
+    && ln -sf /usr/bin/python3.14 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symlinks and configure library path
@@ -130,10 +137,9 @@ COPY app/server/ /app/server
 COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
 COPY --from=client /app/package.json /app
-RUN pip install --no-cache-dir /app/server
+RUN python3.14 -m pip install --no-cache-dir /app/server
 
 ENV FLASK_APP /app/server/fireshare:create_app()
-ENV FLASK_ENV production
 ENV ENVIRONMENT production
 ENV DATA_DIRECTORY /data
 ENV VIDEO_DIRECTORY /videos

@@ -296,7 +296,7 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
               </IconButton>
             </LightTooltip>
             <Typography sx={{ position: 'absolute', right: 10, fontWeight: 600, fontSize: 12, color: '#2684FF' }}>
-              v{process.env.REACT_APP_VERSION}
+              v{import.meta.env.VITE_VERSION}
             </Typography>
           </Box>
         </Paper>
