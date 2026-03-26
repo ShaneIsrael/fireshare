@@ -472,7 +472,7 @@ def scan_video(ctx, path, tag_ids, game_id):
                     if should_create_poster:
                         if not derived_path.exists():
                             derived_path.mkdir(parents=True)
-                        poster_time = int(info.duration * thumbnail_skip)
+                        poster_time = int((info.duration or 0) * thumbnail_skip)
                         util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
                     else:
                         logger.debug(f"Skipping creation of poster for video {info.video_id} because it exists at {str(poster_path)}")
