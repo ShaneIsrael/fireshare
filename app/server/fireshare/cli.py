@@ -765,6 +765,13 @@ def transcode_videos(regenerate, video, include_corrupt):
         total_jobs = len(work_items)
         logger.info(f'Processing {total_jobs:,} transcode job(s) (GPU: {use_gpu}, Encoder: {encoder_preference})')
 
+        # Claim ownership of the status file immediately so the SSE poller has a
+        # stable is_running=True signal to detect regardless of how we were invoked
+        # (upload auto-transcode, bulk-import, or manual queue).  We overwrite any
+        # earlier placeholder written by _launch_scan_video or bulk_import so that
+        # our own PID is authoritative for the duration of this function.
+        util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
+
         if total_jobs == 0:
             if video:
                 vi = vinfos[0] if vinfos else None
@@ -783,9 +790,6 @@ def transcode_videos(regenerate, video, include_corrupt):
             logger.info("No videos need transcoding")
             util.clear_transcoding_status(paths['data'])
             return
-
-        # Write initial transcoding status with our PID so the API can track us
-        util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
 
         # Remove any leftover *.mp4.tmp files from a previous run that crashed
         # before the temp file could be renamed to its final location.
