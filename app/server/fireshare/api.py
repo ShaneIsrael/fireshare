@@ -1443,7 +1443,8 @@ def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
 
     transcoding_enabled = current_app.config.get('ENABLE_TRANSCODING', False)
     auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
-    if transcoding_enabled and auto_transcode:
+    transcode_already_running = _transcoding_process is not None and _transcoding_process.poll() is None
+    if transcoding_enabled and auto_transcode and not transcode_already_running:
         try:
             util.write_transcoding_status(data_path, 0, 0, None, scan_proc.pid)
         except Exception as e:

@@ -613,6 +613,21 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
     # Insert -progress pipe:1 before output file (last arg)
     cmd_with_progress = cmd[:-1] + ['-progress', 'pipe:1'] + [cmd[-1]]
 
+    # Snapshot the stable status fields (current, total, current_video, pid, resolution)
+    # once before ffmpeg starts. Using a snapshot prevents a concurrent write (e.g. from
+    # an upload scan resetting total=0) from being silently preserved through the
+    # read-modify-write that happens on every progress tick.
+    status_snapshot = {}
+    if data_path:
+        existing = read_transcoding_status(data_path)
+        status_snapshot = {
+            'current': existing.get('current', 0),
+            'total': existing.get('total', 0),
+            'current_video': existing.get('current_video'),
+            'pid': existing.get('pid'),
+            'resolution': existing.get('resolution'),
+        }
+
     process = sp.Popen(cmd_with_progress, stdout=sp.PIPE, stderr=sp.PIPE, text=True)
     last_update = 0
     speed = None
@@ -664,17 +679,18 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
                         remaining_seconds = total_duration - current_seconds
                         eta_seconds = remaining_seconds / speed
 
-                    # Read existing status and update with progress
-                    existing = read_transcoding_status(data_path)
+                    # Update status using the snapshot captured before ffmpeg started.
+                    # This prevents a concurrent write (e.g. an upload scan resetting
+                    # total=0 mid-transcode) from corrupting task count or PID.
                     write_transcoding_status(
                         data_path,
-                        existing.get('current', 0),
-                        existing.get('total', 0),
-                        existing.get('current_video'),
-                        existing.get('pid'),
+                        status_snapshot.get('current', 0),
+                        status_snapshot.get('total', 0),
+                        status_snapshot.get('current_video'),
+                        status_snapshot.get('pid'),
                         percent,
                         eta_seconds,
-                        existing.get('resolution')
+                        status_snapshot.get('resolution')
                     )
                     last_update = now
 
