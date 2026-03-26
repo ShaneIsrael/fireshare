@@ -787,6 +787,17 @@ def transcode_videos(regenerate, video, include_corrupt):
         # Write initial transcoding status with our PID so the API can track us
         util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
 
+        # Remove any leftover *.mp4.tmp files from a previous run that crashed
+        # before the temp file could be renamed to its final location.
+        derived_root = Path(processed_root, "derived")
+        if derived_root.exists():
+            for tmp_file in derived_root.glob('**/*.tmp.mp4'):
+                try:
+                    tmp_file.unlink()
+                    logger.info(f"Removed stale temp transcode file: {tmp_file}")
+                except OSError as ex:
+                    logger.warning(f"Could not remove stale temp file {tmp_file}: {ex}")
+
         # Track corrupt videos to skip remaining heights for that video
         corrupt_video_ids = set()
 
