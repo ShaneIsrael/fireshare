@@ -613,9 +613,7 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
     # Insert -progress pipe:1 before output file (last arg)
     cmd_with_progress = cmd[:-1] + ['-progress', 'pipe:1'] + [cmd[-1]]
 
-    # Stderr is unused and hence discarded (DEVNULL). If this is changed, ensure that something is consuming it, as the kernel will
-    # pause the ffmpeg process if the pipe buffer fills up, causing the transcode to hang.
-    process = sp.Popen(cmd_with_progress, stdout=sp.PIPE, stderr=sp.DEVNULL, text=True)
+    process = sp.Popen(cmd_with_progress, stdout=sp.PIPE, stderr=sp.PIPE, text=True)
     last_update = 0
     speed = None
     percent = None
@@ -698,7 +696,7 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
 
 def _build_transcode_command(video_path, out_path, height, encoder):
     """Build an ffmpeg command for transcoding with the given encoder."""
-    cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path)]
+    cmd = ['ffmpeg', '-v', 'warning', '-stats', '-y', '-i', str(video_path)]
     cmd.extend(['-c:v', encoder['video_codec']])
     
     if 'extra_args' in encoder:

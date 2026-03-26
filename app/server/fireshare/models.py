@@ -80,6 +80,14 @@ class VideoInfo(db.Model):
         else:
             return None
 
+    def _cropped_duration(self):
+        """Return the effective duration, accounting for crop start/end times."""
+        if not self.has_crop:
+            return self.duration
+        start = self.start_time or 0
+        end = self.end_time if self.end_time is not None else self.duration
+        return end - start
+
     def json(self):
         return {
             "title": self.title,
@@ -87,7 +95,7 @@ class VideoInfo(db.Model):
             "private": self.private,
             "width": self.width,
             "height": self.height,
-            "duration": round(self.duration) if self.duration else 0,
+            "duration": round(self._cropped_duration()) if self.duration else 0,
             "framerate": self.framerate,
             "has_480p": self.has_480p,
             "has_720p": self.has_720p,
