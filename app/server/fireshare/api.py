@@ -1756,9 +1756,18 @@ def _clear_crop(video, video_info, paths, had_480p, had_720p, had_1080p):
     video_info.has_1080p = False
     db.session.commit()
 
+    # Regenerate thumbnail from the original video
+    original_path = paths["processed"] / "video_links" / f"{video.video_id}{video.extension}"
+    thumbnail_skip = current_app.config.get('THUMBNAIL_VIDEO_LOCATION') or 0
+    if thumbnail_skip > 0 and thumbnail_skip <= 100:
+        thumbnail_skip = thumbnail_skip / 100
+    else:
+        thumbnail_skip = 0
+    poster_time = int((video_info.duration or 0) * thumbnail_skip)
+    util.create_poster(original_path, derived_dir / "poster.jpg", poster_time)
+
     # Re-transcode quality variants from the original if they existed before
     if had_480p or had_720p or had_1080p:
-        original_path = paths["processed"] / "video_links" / f"{video.video_id}{video.extension}"
         _retranscode_async(video.video_id, original_path, paths, had_480p, had_720p, had_1080p)
 
 
@@ -1789,6 +1798,12 @@ def _apply_crop_async(video, video_info, start_time, end_time, paths):
 
     app = current_app._get_current_object()
 
+    thumbnail_skip = current_app.config.get('THUMBNAIL_VIDEO_LOCATION') or 0
+    if thumbnail_skip > 0 and thumbnail_skip <= 100:
+        thumbnail_skip = thumbnail_skip / 100
+    else:
+        thumbnail_skip = 0
+
     def run():
         success = util.create_video_crop(original_path, cropped_path, start_time, end_time)
         with app.app_context():
@@ -1798,6 +1813,10 @@ def _apply_crop_async(video, video_info, start_time, end_time, paths):
             if success:
                 vi.has_crop = True
                 db.session.commit()
+                # Regenerate thumbnail from the cropped video
+                crop_duration = (end_time or vi.duration) - (start_time or 0)
+                poster_time = int(crop_duration * thumbnail_skip)
+                util.create_poster(cropped_path, derived_dir / "poster.jpg", poster_time)
                 if had_480p or had_720p or had_1080p:
                     _retranscode_async(video_id, cropped_path, paths, had_480p, had_720p, had_1080p)
             else:
