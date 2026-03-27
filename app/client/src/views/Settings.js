@@ -46,6 +46,21 @@ const isValidDiscordWebhook = (url) => {
   const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/
   return regex.test(url)
 }
+const isValidJson = (str) => {
+  try {
+    JSON.parse(str);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
+const jsonPlaceholder = 
+`#Example JSON Data:
+{
+  "title": "Fireshare",
+  "body": "New Fireshare Video Uploaded!",
+  "type": "info" 
+}`;
 
 const Settings = () => {
   const [alert, setAlert] = React.useState({ open: false })
@@ -53,6 +68,8 @@ const Settings = () => {
   const [updatedConfig, setUpdatedConfig] = React.useState({})
   const [updateable, setUpdateable] = React.useState(false)
   const [discordUrl, setDiscordUrl] = React.useState('')
+  const [webhookUrl, setwebhookUrl] = React.useState('')
+  const [webhookJson, setwebhookJson] = React.useState('')//needed?
   const [showSteamGridKey, setShowSteamGridKey] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState(0)
   const [transcodingStatus, setTranscodingStatus] = React.useState({
@@ -65,6 +82,7 @@ const Settings = () => {
   const [deleteMenuRuleId, setDeleteMenuRuleId] = React.useState(null)
   const [editingFolder, setEditingFolder] = React.useState(null)
   const isDiscordUsed = discordUrl.trim() !== ''
+  const isWebhookUsed = webhookUrl.trim() !== ''
 
   React.useEffect(() => {
     async function fetch() {
@@ -544,6 +562,7 @@ const Settings = () => {
             {/* Integrations */}
             {activeTab === 2 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                <header>Notifications</header>
                 <TextField
                   size="small"
                   label="Discord Webhook URL"
@@ -566,6 +585,75 @@ const Settings = () => {
                     }))
                   }}
                 />
+
+
+
+
+                <TextField
+                  size="small"
+                  label="Generic Webhook"
+                  value={webhookUrl}
+                  error={webhookUrl !== '' && !isValidDiscordWebhook(webhookUrl)}
+                  helperText={
+                    <span>
+                      Used for API POST to Generic Webhook Endpoint{' '}
+                      <a
+                        href="https://zapier.com/blog/what-are-webhooks/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#2684FF', textDecoration: 'none' }}
+                      >
+                        Example
+                      </a>
+                    </span>
+                  }
+                  onChange={(e) => {
+                    const url = e.target.value
+                    setwebhookUrl(url)
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      integrations: {
+                        ...prev.integrations,
+                        discord_webhook_url: url,
+                      },
+                    }))
+                  }}
+                />
+                <TextField
+                fullWidth
+                multiline
+                rows={6}
+                size="small"
+                label="Generic Webhook JSON Payload"
+                value={webhookJson}
+                placeholder={jsonPlaceholder}
+                error={webhookJson !== '' && !isValidJson(webhookJson)}
+                helperText={
+                  webhookJson !== '' && !isValidJson(webhookJson) 
+                    ? "Invalid JSON format" 
+                    : "Add Valid JSON, with data from the docs of your webhook provider"
+                }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setwebhookJson(val);
+                  
+                  // Only update the config if the JSON is actually valid
+                  if (isValidJson(val)) {
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      integrations: {
+                        ...prev.integrations,
+                        custom_payload: JSON.parse(val),
+                      },
+                    }));
+                  }
+                }}
+              />
+                <Divider />
+
+
+
+                <header>Game Tagging</header>
                 <TextField
                   id="steamgrid-api-key-field"
                   size="small"
@@ -606,6 +694,7 @@ const Settings = () => {
                   }}
                 />
                 <Divider />
+                <header>RSS</header>
                 <TextField
                   size="small"
                   label="RSS Feed Title"
