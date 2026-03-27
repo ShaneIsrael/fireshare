@@ -24,6 +24,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import SaveIcon from '@mui/icons-material/Save'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import RssFeedIcon from '@mui/icons-material/RssFeed'
+import SendIcon from '@mui/icons-material/Send';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -571,7 +572,18 @@ const Settings = () => {
                   helperText={
                     discordUrl !== '' && !isValidDiscordWebhook(discordUrl)
                       ? 'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
-                      : ' '
+                      : 
+                      <span>
+                      Get Discord Webhook for you Server Channel - {' '}
+                      <a
+                        href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#2684FF', textDecoration: 'none' }}
+                      >
+                        Docs
+                      </a>
+                    </span>
                   }
                   onChange={(e) => {
                     const url = e.target.value
@@ -585,10 +597,21 @@ const Settings = () => {
                     }))
                   }}
                 />
+                <Button
+                  variant="outlined"
+                  startIcon={<SendIcon />}
+                  
+                  onClick={handleCopyRssFeedUrl}
+                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
+                >
+                  Test Discord
+                </Button>
 
 
 
-
+              <span></span> {/* Probably A better way to do this */}
+              <span></span>
+              
                 <TextField
                   size="small"
                   label="Generic Webhook"
@@ -596,7 +619,7 @@ const Settings = () => {
                   error={webhookUrl !== '' && !isValidDiscordWebhook(webhookUrl)}
                   helperText={
                     <span>
-                      Used for API POST to Generic Webhook Endpoint{' '}
+                      Used for API POST to Generic Webhook Endpoint - {' '}
                       <a
                         href="https://zapier.com/blog/what-are-webhooks/"
                         target="_blank"
@@ -620,35 +643,44 @@ const Settings = () => {
                   }}
                 />
                 <TextField
-                fullWidth
-                multiline
-                rows={6}
-                size="small"
-                label="Generic Webhook JSON Payload"
-                value={webhookJson}
-                placeholder={jsonPlaceholder}
-                error={webhookJson !== '' && !isValidJson(webhookJson)}
-                helperText={
-                  webhookJson !== '' && !isValidJson(webhookJson) 
-                    ? "Invalid JSON format" 
-                    : "Add Valid JSON, with data from the docs of your webhook provider"
-                }
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setwebhookJson(val);
-                  
-                  // Only update the config if the JSON is actually valid
-                  if (isValidJson(val)) {
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      integrations: {
-                        ...prev.integrations,
-                        custom_payload: JSON.parse(val),
-                      },
-                    }));
+                  fullWidth
+                  multiline
+                  rows={6}
+                  size="small"
+                  label="Generic Webhook JSON Payload"
+                  value={webhookJson}
+                  placeholder={jsonPlaceholder}
+                  error={webhookJson !== '' && !isValidJson(webhookJson)}
+                  helperText={
+                    webhookJson !== '' && !isValidJson(webhookJson) 
+                      ? "Invalid JSON format" 
+                      : "Add Valid JSON, with data from the docs of your webhook provider"
                   }
-                }}
-              />
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setwebhookJson(val);
+                    
+                    // Only update the config if the JSON is actually valid
+                    if (isValidJson(val)) {
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        integrations: {
+                          ...prev.integrations,
+                          custom_payload: JSON.parse(val),
+                        },
+                      }));
+                    }
+                  }}
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<SendIcon />}
+                  
+                  onClick={handleCopyRssFeedUrl}
+                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
+                >
+                  Test Webhook
+                </Button>
                 <Divider />
 
 
