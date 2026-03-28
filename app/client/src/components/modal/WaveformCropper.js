@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Box, Typography, CircularProgress, Menu, MenuItem } from '@mui/material'
+import { Box, Typography, CircularProgress, Menu, MenuItem, Button } from '@mui/material'
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js'
 import { getUrl } from '../../common/utils'
@@ -19,6 +19,8 @@ const numInputSx = {
   '&:focus': { borderColor: '#3399FF' },
 }
 
+const TIMELINE_HEIGHT = 20 // px
+
 /**
  * WaveformCropper — renders an audio waveform for the original (unmodified) video
  * with a draggable/resizable region marking the crop start and end points.
@@ -33,6 +35,11 @@ const numInputSx = {
 const WaveformCropper = React.forwardRef(
   ({ videoId, duration, startTime, endTime, onChange, onSeek, getCurrentTime }, ref) => {
     const containerRef = useRef(null)
+    const timelineCanvasRef = useRef(null)
+    const extScrollbarRef = useRef(null)
+    const extScrollbarInnerRef = useRef(null)
+    const isSyncingScroll = useRef(false)
+    const drawTimelineRef = useRef(() => {})
     const wsRef = useRef(null)
     const regionsPluginRef = useRef(null)
     const regionRef = useRef(null)
@@ -80,8 +87,85 @@ const WaveformCropper = React.forwardRef(
       endTime: e >= total - 0.05 ? null : e,
     })
 
+    // Keep the external scrollbar's inner width in sync with WaveSurfer's content width
+    const syncScrollbarWidth = () => {
+      const scrollContainer = wsRef.current?.getWrapper()?.parentElement
+      if (!scrollContainer || !extScrollbarInnerRef.current) return
+      extScrollbarInnerRef.current.style.width = scrollContainer.scrollWidth + 'px'
+    }
+
     useEffect(() => {
       if (!containerRef.current) return
+
+      // ── Custom canvas timeline ──────────────────────────────────────────────
+      // Draws tick marks + time labels onto a <canvas> above the waveform.
+      // Replaces WaveSurfer's TimelinePlugin which has a virtualAppend bug that
+      // prevents ticks from rendering when clientWidth is 0 on first paint.
+      const drawTimeline = () => {
+        const canvas = timelineCanvasRef.current
+        if (!canvas || !isReadyRef.current) return
+        const ws = wsRef.current
+        const duration = ws?.getDuration() ?? 0
+        if (!duration || zoomRef.current <= 0) return
+
+        // ws.getWrapper() = inner .wrapper div (never scrolls).
+        // ws.getScroll()  = scrollContainer.scrollLeft (the actual scrollable element).
+        // ws.getWrapper().offsetWidth = rendered canvas width = pxPerSec * duration.
+        const scrollLeft = ws.getScroll()
+        const pxPerSec = (ws?.getWrapper()?.offsetWidth ?? 0) / duration
+        const dpr = window.devicePixelRatio || 1
+        const cssWidth = canvas.offsetWidth
+        const cssHeight = canvas.offsetHeight
+
+        canvas.width = cssWidth * dpr
+        canvas.height = cssHeight * dpr
+
+        const ctx = canvas.getContext('2d')
+        ctx.scale(dpr, dpr)
+        ctx.clearRect(0, 0, cssWidth, cssHeight)
+
+        // Pick "nice" intervals so ticks stay ~40px apart, labels ~120px apart
+        const niceAll = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
+        const niceLabel = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
+        const tickInterval = niceAll.find((n) => n >= 40 / pxPerSec) ?? 600
+        const labelInterval = niceLabel.find((n) => n >= 120 / pxPerSec) ?? 600
+        const labelsPerTick = Math.max(1, Math.round(labelInterval / tickInterval))
+
+        const startTime = scrollLeft / pxPerSec
+        const firstTickIndex = Math.max(0, Math.floor(startTime / tickInterval))
+        const firstTick = firstTickIndex * tickInterval
+
+        ctx.font = `10px system-ui, -apple-system, sans-serif`
+        ctx.textBaseline = 'top'
+
+        for (let i = 0; ; i++) {
+          const t = firstTick + i * tickInterval
+          if (t > duration + tickInterval) break
+          const x = Math.round(t * pxPerSec - scrollLeft)
+          if (x > cssWidth + 2) break
+
+          const isLabel = (firstTickIndex + i) % labelsPerTick === 0
+
+          // Tick line
+          ctx.globalAlpha = isLabel ? 0.5 : 0.2
+          ctx.strokeStyle = '#ffffff'
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(x + 0.5, isLabel ? 0 : cssHeight * 0.55)
+          ctx.lineTo(x + 0.5, cssHeight)
+          ctx.stroke()
+
+          if (isLabel) {
+            const m = Math.floor(t / 60)
+            const s = Math.floor(t % 60)
+            const label = `${m}:${s.toString().padStart(2, '0')}`
+            ctx.globalAlpha = 0.55
+            ctx.fillStyle = '#ffffff'
+            ctx.fillText(label, x + 3, 1)
+          }
+        }
+      }
+      drawTimelineRef.current = drawTimeline
 
       const regionsPlugin = RegionsPlugin.create()
       regionsPluginRef.current = regionsPlugin
@@ -89,17 +173,18 @@ const WaveformCropper = React.forwardRef(
       const ws = WaveSurfer.create({
         container: containerRef.current,
         waveColor: '#FFFFFF30',
-        progressColor: '#3399FF55',
+        progressColor: '#3399ff9a',
         cursorColor: 'rgba(255, 255, 255, 0.85)',
         cursorWidth: 2,
         height: 64,
+        barHeight: 1,
         normalize: true,
         interact: false,
         autoScroll: false,
         autoCenter: false,
-        barWidth: 2,
+        barWidth: 1,
         barGap: 1,
-        barRadius: 3,
+        barRadius: 0,
         barAlign: 'bottom',
         url: `${getUrl()}/api/video/audio?id=${videoId}`,
         fetchParams: { credentials: 'include' },
@@ -127,10 +212,44 @@ const WaveformCropper = React.forwardRef(
         regionRef.current = regionsPlugin.addRegion({
           start: s,
           end: e,
-          color: 'rgba(51, 153, 255, 0.20)',
+          color: 'rgba(51, 153, 255, 0.36)',
           drag: true,
           resize: true,
+          minLength: 1,
         })
+
+        // Style the resize handles as solid grab bars with grip lines.
+        // WaveSurfer regions plugin uses part="region-handle region-handle-left/right"
+        // (not data-resize) in this version.
+        const handleEls = regionRef.current.element?.querySelectorAll('[part~="region-handle"]')
+        if (handleEls?.length) {
+          handleEls.forEach((el) => {
+            const side = el.getAttribute('part')?.includes('left') ? 'left' : 'right'
+            Object.assign(el.style, {
+              width: '6px',
+              background: 'rgba(51, 153, 255, 0.88)',
+              border: 'none',
+              cursor: 'ew-resize',
+              borderRadius: side === 'left' ? '3px 0 0 3px' : '0 3px 3px 0',
+            })
+            // Three horizontal grip lines centered in the bar
+            ;['-5px', '0px', '5px'].forEach((offset) => {
+              const line = document.createElement('div')
+              Object.assign(line.style, {
+                position: 'absolute',
+                width: '6px',
+                height: '2px',
+                background: 'rgba(255, 255, 255, 0.5)',
+                left: '50%',
+                top: '50%',
+                transform: `translate(-50%, calc(-50% + ${offset}))`,
+                borderRadius: '1px',
+                pointerEvents: 'none',
+              })
+              el.appendChild(line)
+            })
+          })
+        }
 
         onChange(toNullable(s, e, total))
 
@@ -140,11 +259,43 @@ const WaveformCropper = React.forwardRef(
           ws.seekTo(Math.max(0, Math.min(1, currentVideoTime / total)))
         }
 
-        // Compute the default zoom that fits the full waveform in the container
+        // Compute and apply the zoom that fits the full waveform in the container
         const containerWidth = containerRef.current?.clientWidth || 500
         const fitZoom = containerWidth / total
         minZoomRef.current = fitZoom
         zoomRef.current = fitZoom
+        ws.zoom(fitZoom)
+
+        // Hide WaveSurfer's built-in scrollbar — we use an external one below.
+        // The actual scrollable element is the .scroll div (wrapper's parent), not
+        // the inner .wrapper returned by getWrapper().
+        const scrollContainer = ws.getWrapper()?.parentElement
+        if (scrollContainer) {
+          scrollContainer.style.scrollbarWidth = 'none'
+          scrollContainer.style.msOverflowStyle = 'none'
+          if (!document.getElementById('__fs_ws_hide_sb')) {
+            const styleEl = document.createElement('style')
+            styleEl.id = '__fs_ws_hide_sb'
+            styleEl.textContent = '.__fs_ws_hide_sb::-webkit-scrollbar{display:none}'
+            document.head.appendChild(styleEl)
+          }
+          scrollContainer.classList.add('__fs_ws_hide_sb')
+        }
+
+        requestAnimationFrame(() => {
+          drawTimeline()
+          syncScrollbarWidth()
+        })
+      })
+
+      // Sync WaveSurfer scroll → external scrollbar + timeline redraw
+      ws.on('scroll', () => {
+        if (!isSyncingScroll.current && extScrollbarRef.current) {
+          isSyncingScroll.current = true
+          extScrollbarRef.current.scrollLeft = ws.getScroll()
+          isSyncingScroll.current = false
+        }
+        drawTimeline()
       })
 
       regionsPlugin.on('region-updated', (region) => {
@@ -184,6 +335,10 @@ const WaveformCropper = React.forwardRef(
         const newZoom = Math.max(minZoomRef.current, Math.min(500, zoomRef.current * (e.deltaY < 0 ? 1.3 : 0.77)))
         zoomRef.current = newZoom
         wsRef.current.zoom(newZoom)
+        requestAnimationFrame(() => {
+          drawTimeline()
+          syncScrollbarWidth()
+        })
       }
 
       container.addEventListener('click', handleClick)
@@ -200,9 +355,20 @@ const WaveformCropper = React.forwardRef(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [videoId])
 
+    // External scrollbar → WaveSurfer scroll position + timeline redraw
+    const handleExternalScroll = () => {
+      if (isSyncingScroll.current) return
+      const ws = wsRef.current
+      if (!ws || !extScrollbarRef.current) return
+      isSyncingScroll.current = true
+      ws.setScroll(extScrollbarRef.current.scrollLeft)
+      isSyncingScroll.current = false
+      drawTimelineRef.current()
+    }
+
     const handleStartChange = (val) => {
       const total = wsRef.current?.getDuration() ?? totalDuration
-      const clamped = parseFloat(Math.max(0, Math.min(val, localEnd - 0.1)).toFixed(2))
+      const clamped = parseFloat(Math.max(0, Math.min(val, localEnd - 1)).toFixed(2))
       setLocalStart(clamped)
       if (regionRef.current) regionRef.current.setOptions({ start: clamped })
       onChange(toNullable(clamped, localEnd, total))
@@ -210,7 +376,7 @@ const WaveformCropper = React.forwardRef(
 
     const handleEndChange = (val) => {
       const total = wsRef.current?.getDuration() ?? totalDuration
-      const clamped = parseFloat(Math.min(total, Math.max(val, localStart + 0.1)).toFixed(2))
+      const clamped = parseFloat(Math.min(total, Math.max(val, localStart + 1)).toFixed(2))
       setLocalEnd(clamped)
       if (regionRef.current) regionRef.current.setOptions({ end: clamped })
       onChange(toNullable(localStart, clamped, total))
@@ -226,74 +392,120 @@ const WaveformCropper = React.forwardRef(
 
     return (
       <>
-        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'stretch' }}>
-          {/* Waveform canvas — flex: 1 + minWidth: 0 prevents zoom from expanding the modal */}
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              position: 'relative',
-              bgcolor: '#FFFFFF08',
-              border: '1px solid #FFFFFF1A',
-              borderRadius: '8px',
-              overflow: 'hidden',
-              minHeight: 64,
-            }}
-          >
-            <div ref={containerRef} style={{ width: '100%', overflow: 'hidden' }} />
-            {(isLoading || loadError) && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 1.5,
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', height: '100%' }}>
+          {/* Waveform column — cropper box + external scrollbar below it */}
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <Box
+              sx={{
+                position: 'relative',
+                bgcolor: '#FFFFFF08',
+                border: '1px solid #FFFFFF1A',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                minHeight: 64 + TIMELINE_HEIGHT,
+              }}
+            >
+              {/* Waveform canvas */}
+              <div ref={containerRef} style={{ width: '100%', overflow: 'hidden' }} />
+              {/* Custom timeline canvas — sits below the waveform bars */}
+              <canvas
+                ref={timelineCanvasRef}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: TIMELINE_HEIGHT,
+                  borderTop: '1px solid rgba(255,255,255,0.06)',
                 }}
-              >
-                {loadError ? (
-                  <Typography sx={{ fontSize: 12, color: '#FF6B6B66' }}>Unable to load audio waveform</Typography>
-                ) : (
-                  <>
-                    <CircularProgress size={20} sx={{ color: '#3399FF' }} />
-                    <Typography sx={{ fontSize: 12, color: '#FFFFFF66' }}>Loading audio…</Typography>
-                  </>
-                )}
-              </Box>
-            )}
+              />
+              {(isLoading || loadError) && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 1.5,
+                  }}
+                >
+                  {loadError ? (
+                    <Typography sx={{ fontSize: 12, color: '#FF6B6B66' }}>Unable to load audio waveform</Typography>
+                  ) : (
+                    <>
+                      <CircularProgress size={20} sx={{ color: '#3399FF' }} />
+                      <Typography sx={{ fontSize: 12, color: '#FFFFFF66' }}>Loading audio…</Typography>
+                    </>
+                  )}
+                </Box>
+              )}
+            </Box>
+
+            {/* External scrollbar — sits below the cropper, only visible when zoomed in */}
+            <div
+              ref={extScrollbarRef}
+              onScroll={handleExternalScroll}
+              style={{ overflowX: 'auto', overflowY: 'hidden', width: '100%', height: 14 }}
+            >
+              <div ref={extScrollbarInnerRef} style={{ height: 1 }} />
+            </div>
           </Box>
 
           {/* Controls — horizontal row to the right */}
-          <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-            <Box>
-              <Typography sx={labelSx}>Start (s)</Typography>
-              <Box
-                component="input"
-                type="number"
-                step="0.1"
-                min={0}
-                max={localEnd - 0.1}
-                value={localStart}
-                disabled={isLoading}
-                onChange={(e) => handleStartChange(parseFloat(e.target.value) || 0)}
-                sx={numInputSx}
-              />
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+            }}
+          >
+            <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
+              <Box>
+                <Typography sx={labelSx}>Start (s)</Typography>
+                <Box
+                  component="input"
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  max={localEnd - 1}
+                  value={localStart}
+                  disabled={isLoading}
+                  onChange={(e) => handleStartChange(parseFloat(e.target.value) || 0)}
+                  sx={numInputSx}
+                />
+              </Box>
+              <Box>
+                <Typography sx={labelSx}>End (s)</Typography>
+                <Box
+                  component="input"
+                  type="number"
+                  step="0.1"
+                  min={localStart + 1}
+                  max={totalDuration}
+                  value={localEnd}
+                  disabled={isLoading}
+                  onChange={(e) => handleEndChange(parseFloat(e.target.value) || totalDuration)}
+                  sx={numInputSx}
+                />
+              </Box>
             </Box>
-            <Box>
-              <Typography sx={labelSx}>End (s)</Typography>
-              <Box
-                component="input"
-                type="number"
-                step="0.1"
-                min={localStart + 0.1}
-                max={totalDuration}
-                value={localEnd}
-                disabled={isLoading}
-                onChange={(e) => handleEndChange(parseFloat(e.target.value) || totalDuration)}
-                sx={numInputSx}
-              />
-            </Box>
+            <Button
+              size="medium"
+              disabled={isLoading}
+              onClick={handleReset}
+              sx={{
+                mt: 1,
+                fontSize: 11,
+                color: '#FFFFFF66',
+                bgcolor: '#0D1F33',
+                '&:hover': { color: 'white' },
+                width: '100%',
+              }}
+            >
+              Reset
+            </Button>
           </Box>
         </Box>
 
@@ -302,7 +514,9 @@ const WaveformCropper = React.forwardRef(
           onClose={() => setContextMenu(null)}
           anchorReference="anchorPosition"
           anchorPosition={contextMenu ? { top: contextMenu.y, left: contextMenu.x } : undefined}
-          slotProps={{ paper: { sx: { bgcolor: '#0D1F33', border: '1px solid #FFFFFF1A', color: 'white', minWidth: 140 } } }}
+          slotProps={{
+            paper: { sx: { bgcolor: '#0D1F33', border: '1px solid #FFFFFF1A', color: 'white', minWidth: 140 } },
+          }}
         >
           <MenuItem
             disabled={contextMenu?.cursorTime >= localEnd}
@@ -310,7 +524,12 @@ const WaveformCropper = React.forwardRef(
               handleStartChange(parseFloat(contextMenu.cursorTime.toFixed(2)))
               setContextMenu(null)
             }}
-            sx={{ fontSize: 13, color: 'white', '&:hover': { bgcolor: '#FFFFFF14' }, '&.Mui-disabled': { color: '#FFFFFF33' } }}
+            sx={{
+              fontSize: 13,
+              color: 'white',
+              '&:hover': { bgcolor: '#FFFFFF14' },
+              '&.Mui-disabled': { color: '#FFFFFF33' },
+            }}
           >
             Set Start
           </MenuItem>
@@ -320,7 +539,12 @@ const WaveformCropper = React.forwardRef(
               handleEndChange(parseFloat(contextMenu.cursorTime.toFixed(2)))
               setContextMenu(null)
             }}
-            sx={{ fontSize: 13, color: 'white', '&:hover': { bgcolor: '#FFFFFF14' }, '&.Mui-disabled': { color: '#FFFFFF33' } }}
+            sx={{
+              fontSize: 13,
+              color: 'white',
+              '&:hover': { bgcolor: '#FFFFFF14' },
+              '&.Mui-disabled': { color: '#FFFFFF33' },
+            }}
           >
             Set End
           </MenuItem>
