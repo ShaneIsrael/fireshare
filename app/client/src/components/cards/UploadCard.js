@@ -43,6 +43,16 @@ const borderSpin = keyframes`
   to { transform: rotate(360deg); }
 `
 
+const shimmer = keyframes`
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+`
+
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`
+
 const maskCss = {
   maskImage: `url(${logo})`,
   maskSize: 'contain',
@@ -101,6 +111,8 @@ const UploadCard = React.forwardRef(function UploadCard(
   const [gameCreating, setGameCreating] = React.useState(false)
   const [gameInput, setGameInput] = React.useState('')
   const [uploadToGameFolder, setUploadToGameFolder] = React.useState(false)
+  const [thumbnail, setThumbnail] = React.useState(null)
+  const [thumbnailReady, setThumbnailReady] = React.useState(false)
   const [availableFolders, setAvailableFolders] = React.useState([])
   const [selectedFolder, setSelectedFolder] = React.useState('')
   // Stored metadata to attach on next upload
@@ -114,8 +126,39 @@ const UploadCard = React.forwardRef(function UploadCard(
     },
   }))
 
+  const extractThumbnail = (file) => {
+    setThumbnail(null)
+    setThumbnailReady(false)
+    const url = URL.createObjectURL(file)
+    const video = document.createElement('video')
+    video.preload = 'auto'
+    video.muted = true
+    video.src = url
+    video.addEventListener('loadeddata', () => {
+      video.currentTime = Math.min(video.duration * 0.1, 5)
+    })
+    video.addEventListener('seeked', () => {
+      requestAnimationFrame(() => {
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        canvas.getContext('2d').drawImage(video, 0, 0)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+        URL.revokeObjectURL(url)
+        setThumbnail(dataUrl)
+        setThumbnailReady(true)
+      })
+    })
+    video.addEventListener('error', () => {
+      setThumbnailReady(true)
+      URL.revokeObjectURL(url)
+    })
+    video.load()
+  }
+
   const openMetadataDialog = (file) => {
     setPendingFile(file)
+    extractThumbnail(file)
     setSelectedGame(null)
     setSelectedTags([])
     setTagInput('')
@@ -178,6 +221,8 @@ const UploadCard = React.forwardRef(function UploadCard(
     setSelectedFile(pendingFile)
     setIsSelected(true)
     setPendingFile(null)
+    setThumbnail(null)
+    setThumbnailReady(false)
   }
 
   const handleDialogCancel = () => {
@@ -189,6 +234,8 @@ const UploadCard = React.forwardRef(function UploadCard(
     setGameOptions([])
     setGameInput('')
     setUploadToGameFolder(false)
+    setThumbnail(null)
+    setThumbnailReady(false)
   }
 
   const handleGameInputChange = async (_, value) => {
@@ -412,19 +459,57 @@ const UploadCard = React.forwardRef(function UploadCard(
       <Dialog
         open={dialogOpen}
         onClose={handleDialogCancel}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{ sx: dialogPaperSx }}
       >
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#2684FF', fontSize: 24, flexShrink: 0 }} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
+            <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: '24px !important', px: 3 }}>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+            {/* Thumbnail — left column */}
+            <Box sx={{ flex: 1 }}>
+              <Box
+                sx={{
+                  width: '100%',
+                  aspectRatio: '16/9',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  bgcolor: '#FFFFFF0D',
+                  border: '1px solid #FFFFFF14',
+                  position: 'relative',
+                }}
+              >
+                {thumbnailReady && thumbnail && (
+                  <Box component="img" src={thumbnail} alt="thumbnail" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', animation: `${fadeIn} 0.6s ease` }} />
+                )}
+                {!thumbnailReady && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(90deg, #FFFFFF08 25%, #FFFFFF18 50%, #FFFFFF08 75%)',
+                      backgroundSize: '800px 100%',
+                      animation: `${shimmer} 1.4s ease-in-out infinite`,
+                    }}
+                  />
+                )}
+                {thumbnailReady && !thumbnail && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <CloudUploadIcon sx={{ color: '#FFFFFF33', fontSize: 32 }} />
+                  </Box>
+                )}
+              </Box>
               <Typography
                 sx={{
-                  fontSize: 12,
-                  color: '#FFFFFF66',
+                  mt: 1,
+                  fontSize: 11,
+                  color: '#FFFFFF4D',
+                  textAlign: 'center',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -433,150 +518,146 @@ const UploadCard = React.forwardRef(function UploadCard(
                 {pendingFile?.name}
               </Typography>
             </Box>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '24px !important', px: 3 }}>
-          {/* Game selector */}
-          <Box>
-          <Typography sx={labelSx}>Game</Typography>
-          <Autocomplete
-            options={gameOptions}
-            getOptionLabel={(o) => o.name || ''}
-            groupBy={(o) => (o._source === 'db' ? 'Already in library' : 'From SteamGridDB')}
-            value={selectedGame}
-            inputValue={gameInput}
-            onInputChange={handleGameInputChange}
-            onChange={handleGameChange}
-            loading={gameSearchLoading}
-            disabled={gameCreating}
-            filterOptions={(x) => x}
-            isOptionEqualToValue={(option, value) =>
-              option.id === value.id || (option.steamgriddb_id && option.steamgriddb_id === value.steamgriddb_id)
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="Search for a game..."
-                sx={inputSx}
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {(gameSearchLoading || gameCreating) && (
-                        <InputAdornment position="end">
-                          <CircularProgress size={16} sx={{ mr: 1 }} />
-                        </InputAdornment>
+
+            {/* Form fields — right column */}
+            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Game selector */}
+              <Box>
+                <Typography sx={labelSx}>Game</Typography>
+                <Autocomplete
+                  options={gameOptions}
+                  getOptionLabel={(o) => o.name || ''}
+                  groupBy={(o) => (o._source === 'db' ? 'Already in library' : 'From SteamGridDB')}
+                  value={selectedGame}
+                  inputValue={gameInput}
+                  onInputChange={handleGameInputChange}
+                  onChange={handleGameChange}
+                  loading={gameSearchLoading}
+                  disabled={gameCreating}
+                  filterOptions={(x) => x}
+                  isOptionEqualToValue={(option, value) =>
+                    option.id === value.id || (option.steamgriddb_id && option.steamgriddb_id === value.steamgriddb_id)
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Search for a game..."
+                      sx={inputSx}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: selectedGame?.icon_url
+                          ? <><InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}><img src={selectedGame.icon_url} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} style={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 3 }} /></InputAdornment>{params.InputProps.startAdornment}</>
+                          : params.InputProps.startAdornment,
+                        endAdornment: <>{(gameSearchLoading || gameCreating) && <InputAdornment position="end"><CircularProgress size={16} sx={{ mr: 1 }} /></InputAdornment>}{params.InputProps.endAdornment}</>,
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <Box
+                      component="li"
+                      sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                      {...props}
+                      key={`${option._source}-${option.id}`}
+                    >
+                      {option.icon_url && (
+                        <img
+                          src={option.icon_url}
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                          style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                        />
                       )}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
-            renderOption={(props, option) => (
-              <Box
-                component="li"
-                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                {...props}
-                key={`${option._source}-${option.id}`}
-              >
-                {option.icon_url && (
-                  <img
-                    src={option.icon_url}
-                    alt=""
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                    style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                      {option.name}
+                      {option._source === 'sgdb' &&
+                        option.release_date &&
+                        ` (${new Date(option.release_date * 1000).getFullYear()})`}
+                    </Box>
+                  )}
+                />
+                {selectedGame && (
+                  <FormControlLabel
+                    control={<Checkbox checked={uploadToGameFolder} onChange={(e) => setUploadToGameFolder(e.target.checked)} size="small" sx={checkboxSx} />}
+                    label={<Typography sx={helperTextSx}>Auto-sort into game folder</Typography>}
+                    sx={{ mt: 0.5, ml: 0 }}
                   />
                 )}
-                {option.name}
-                {option._source === 'sgdb' &&
-                  option.release_date &&
-                  ` (${new Date(option.release_date * 1000).getFullYear()})`}
               </Box>
-            )}
-          />
-          {selectedGame && (
-            <FormControlLabel
-              control={<Checkbox checked={uploadToGameFolder} onChange={(e) => setUploadToGameFolder(e.target.checked)} size="small" sx={checkboxSx} />}
-              label={<Typography sx={helperTextSx}>Auto-sort into game folder</Typography>}
-              sx={{ mt: 0.5, ml: 0 }}
-            />
-          )}
-          </Box>
-          {availableFolders.length > 0 && (
-            <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
-            <Typography sx={labelSx}>Upload Folder</Typography>
-            <Autocomplete
-              options={availableFolders}
-              value={uploadToGameFolder && selectedGame ? selectedGame.name : (selectedFolder || null)}
-              onChange={(_, value) => setSelectedFolder(value || '')}
-              disableClearable={uploadToGameFolder ? true : !!selectedFolder}
-              disabled={uploadToGameFolder && !!selectedGame}
-              renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
-            />
-            </Box>
-          )}
-          <Box>
-          <Typography sx={labelSx}>Tags</Typography>
-          <Autocomplete
-            multiple
-            freeSolo
-            options={allTags.filter((t) => !selectedTags.find((s) => s.id === t.id))}
-            getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
-            value={selectedTags}
-            inputValue={tagInput}
-            onInputChange={(_, v) => setTagInput(v)}
-            onChange={(_, values) => {
-              setSelectedTags(values.map((v) => (typeof v === 'string' ? { name: v } : v)))
-              setTagInput('')
-            }}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  key={index}
-                  label={option.name}
-                  size="small"
-                  {...getTagProps({ index })}
-                  sx={{
-                    bgcolor: option.color ? `${option.color}33` : '#FFFFFF14',
-                    color: 'white',
-                    '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+              {availableFolders.length > 0 && (
+                <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+                  <Typography sx={labelSx}>Upload Folder</Typography>
+                  <Autocomplete
+                    options={availableFolders}
+                    value={uploadToGameFolder && selectedGame ? selectedGame.name : (selectedFolder || null)}
+                    onChange={(_, value) => setSelectedFolder(value || '')}
+                    disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+                    disabled={uploadToGameFolder && !!selectedGame}
+                    renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+                  />
+                </Box>
+              )}
+              <Box>
+                <Typography sx={labelSx}>Tags</Typography>
+                <Autocomplete
+                  multiple
+                  freeSolo
+                  options={allTags.filter((t) => !selectedTags.find((s) => s.id === t.id))}
+                  getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
+                  value={selectedTags}
+                  inputValue={tagInput}
+                  onInputChange={(_, v) => setTagInput(v)}
+                  onChange={(_, values) => {
+                    setSelectedTags(values.map((v) => (typeof v === 'string' ? { name: v } : v)))
+                    setTagInput('')
                   }}
-                />
-              ))
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="Add tags..."
-                sx={inputSx}
-                inputProps={{ ...params.inputProps, maxLength: 12 }}
-                onKeyDown={(e) => {
-                  if (e.key === ',') {
-                    e.preventDefault()
-                    const parts = parseTagInput(tagInput)
-                    if (parts.length > 0) {
-                      setSelectedTags((prev) => {
-                        const merged = [...prev]
-                        parts.forEach((p) => {
-                          if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
-                            const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
-                            merged.push(existing || { name: p })
-                          }
-                        })
-                        return merged
-                      })
-                      setTagInput('')
-                    }
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        key={index}
+                        label={option.name}
+                        size="small"
+                        {...getTagProps({ index })}
+                        sx={{
+                          bgcolor: option.color ? `${option.color}33` : '#FFFFFF14',
+                          color: 'white',
+                          '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+                        }}
+                      />
+                    ))
                   }
-                }}
-              />
-            )}
-          />
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Add tags..."
+                      sx={inputSx}
+                      inputProps={{ ...params.inputProps, maxLength: 12 }}
+                      onKeyDown={(e) => {
+                        if (e.key === ',') {
+                          e.preventDefault()
+                          const parts = parseTagInput(tagInput)
+                          if (parts.length > 0) {
+                            setSelectedTags((prev) => {
+                              const merged = [...prev]
+                              parts.forEach((p) => {
+                                if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
+                                  const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
+                                  merged.push(existing || { name: p })
+                                }
+                              })
+                              return merged
+                            })
+                            setTagInput('')
+                          }
+                        }
+                      }}
+                    />
+                  )}
+                />
+              </Box>
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
@@ -709,19 +790,57 @@ const UploadCard = React.forwardRef(function UploadCard(
       <Dialog
         open={dialogOpen}
         onClose={handleDialogCancel}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
         PaperProps={{ sx: dialogPaperSx }}
       >
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <CloudUploadIcon sx={{ color: '#fff', fontSize: 38, flexShrink: 0 }} />
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
+            <CloudUploadIcon sx={{ color: '#fff', fontSize: 24, flexShrink: 0 }} />
+            <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: '24px !important', px: 3 }}>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+            {/* Thumbnail — left column */}
+            <Box sx={{ flex: 1 }}>
+              <Box
+                sx={{
+                  width: '100%',
+                  aspectRatio: '16/9',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  bgcolor: '#FFFFFF0D',
+                  border: '1px solid #FFFFFF14',
+                  position: 'relative',
+                }}
+              >
+                {thumbnailReady && thumbnail && (
+                  <Box component="img" src={thumbnail} alt="thumbnail" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', animation: `${fadeIn} 0.6s ease` }} />
+                )}
+                {!thumbnailReady && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(90deg, #FFFFFF08 25%, #FFFFFF18 50%, #FFFFFF08 75%)',
+                      backgroundSize: '800px 100%',
+                      animation: `${shimmer} 1.4s ease-in-out infinite`,
+                    }}
+                  />
+                )}
+                {thumbnailReady && !thumbnail && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <CloudUploadIcon sx={{ color: '#FFFFFF33', fontSize: 32 }} />
+                  </Box>
+                )}
+              </Box>
               <Typography
                 sx={{
-                  fontSize: 12,
-                  color: '#FFFFFF66',
+                  mt: 1,
+                  fontSize: 11,
+                  color: '#FFFFFF4D',
+                  textAlign: 'center',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -730,155 +849,151 @@ const UploadCard = React.forwardRef(function UploadCard(
                 {pendingFile?.name}
               </Typography>
             </Box>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '24px !important', px: 3 }}>
-          {/* Game selector */}
-          <Box>
-          <Typography sx={labelSx}>Game</Typography>
-          <Autocomplete
-            options={gameOptions}
-            getOptionLabel={(o) => o.name || ''}
-            groupBy={(o) => (o._source === 'db' ? 'Already in library' : 'From SteamGridDB')}
-            value={selectedGame}
-            inputValue={gameInput}
-            onInputChange={handleGameInputChange}
-            onChange={handleGameChange}
-            loading={gameSearchLoading}
-            disabled={gameCreating}
-            filterOptions={(x) => x}
-            isOptionEqualToValue={(option, value) =>
-              option.id === value.id || (option.steamgriddb_id && option.steamgriddb_id === value.steamgriddb_id)
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="Search for a game..."
-                sx={inputSx}
-                InputProps={{
-                  ...params.InputProps,
-                  endAdornment: (
-                    <>
-                      {(gameSearchLoading || gameCreating) && (
-                        <InputAdornment position="end">
-                          <CircularProgress size={16} sx={{ mr: 1 }} />
-                        </InputAdornment>
+
+            {/* Form fields — right column */}
+            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Game selector */}
+              <Box>
+                <Typography sx={labelSx}>Game</Typography>
+                <Autocomplete
+                  options={gameOptions}
+                  getOptionLabel={(o) => o.name || ''}
+                  groupBy={(o) => (o._source === 'db' ? 'Already in library' : 'From SteamGridDB')}
+                  value={selectedGame}
+                  inputValue={gameInput}
+                  onInputChange={handleGameInputChange}
+                  onChange={handleGameChange}
+                  loading={gameSearchLoading}
+                  disabled={gameCreating}
+                  filterOptions={(x) => x}
+                  isOptionEqualToValue={(option, value) =>
+                    option.id === value.id || (option.steamgriddb_id && option.steamgriddb_id === value.steamgriddb_id)
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Search for a game..."
+                      sx={inputSx}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: selectedGame?.icon_url
+                          ? <><InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}><img src={selectedGame.icon_url} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} style={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 3 }} /></InputAdornment>{params.InputProps.startAdornment}</>
+                          : params.InputProps.startAdornment,
+                        endAdornment: <>{(gameSearchLoading || gameCreating) && <InputAdornment position="end"><CircularProgress size={16} sx={{ mr: 1 }} /></InputAdornment>}{params.InputProps.endAdornment}</>,
+                      }}
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <Box
+                      component="li"
+                      sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                      {...props}
+                      key={`${option._source}-${option.id}`}
+                    >
+                      {option.icon_url && (
+                        <img
+                          src={option.icon_url}
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                          style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                        />
                       )}
-                      {params.InputProps.endAdornment}
-                    </>
-                  ),
-                }}
-              />
-            )}
-            renderOption={(props, option) => (
-              <Box
-                component="li"
-                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                {...props}
-                key={`${option._source}-${option.id}`}
-              >
-                {option.icon_url && (
-                  <img
-                    src={option.icon_url}
-                    alt=""
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                    style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                      {option.name}
+                      {option._source === 'sgdb' &&
+                        option.release_date &&
+                        ` (${new Date(option.release_date * 1000).getFullYear()})`}
+                    </Box>
+                  )}
+                />
+                {selectedGame && (
+                  <FormControlLabel
+                    control={<Checkbox checked={uploadToGameFolder} onChange={(e) => setUploadToGameFolder(e.target.checked)} size="small" sx={checkboxSx} />}
+                    label={<Typography sx={helperTextSx}>Auto-sort into game folder</Typography>}
+                    sx={{ mt: 0.5, ml: 0 }}
                   />
                 )}
-                {option.name}
-                {option._source === 'sgdb' &&
-                  option.release_date &&
-                  ` (${new Date(option.release_date * 1000).getFullYear()})`}
               </Box>
-            )}
-          />
-          {selectedGame && (
-            <FormControlLabel
-              control={<Checkbox checked={uploadToGameFolder} onChange={(e) => setUploadToGameFolder(e.target.checked)} size="small" sx={checkboxSx} />}
-              label={<Typography sx={helperTextSx}>Auto-sort into game folder</Typography>}
-              sx={{ mt: 0.5, ml: 0 }}
-            />
-          )}
-          </Box>
 
-          {/* Folder selector */}
-          {availableFolders.length > 0 && (
-            <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
-            <Typography sx={labelSx}>Upload Folder</Typography>
-            <Autocomplete
-              options={availableFolders}
-              value={uploadToGameFolder && selectedGame ? selectedGame.name : (selectedFolder || null)}
-              onChange={(_, value) => setSelectedFolder(value || '')}
-              disableClearable={uploadToGameFolder ? true : !!selectedFolder}
-              disabled={uploadToGameFolder && !!selectedGame}
-              renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
-            />
-            </Box>
-          )}
+              {/* Folder selector */}
+              {availableFolders.length > 0 && (
+                <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+                  <Typography sx={labelSx}>Upload Folder</Typography>
+                  <Autocomplete
+                    options={availableFolders}
+                    value={uploadToGameFolder && selectedGame ? selectedGame.name : (selectedFolder || null)}
+                    onChange={(_, value) => setSelectedFolder(value || '')}
+                    disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+                    disabled={uploadToGameFolder && !!selectedGame}
+                    renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+                  />
+                </Box>
+              )}
 
-          {/* Tag selector */}
-          <Box>
-          <Typography sx={labelSx}>Tags</Typography>
-          <Autocomplete
-            multiple
-            freeSolo
-            options={allTags.filter((t) => !selectedTags.find((s) => s.id === t.id))}
-            getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
-            value={selectedTags}
-            inputValue={tagInput}
-            onInputChange={(_, v) => setTagInput(v)}
-            onChange={(_, values) => {
-              const resolved = values.map((v) => (typeof v === 'string' ? { name: v } : v))
-              setSelectedTags(resolved)
-              setTagInput('')
-            }}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  key={index}
-                  label={option.name}
-                  size="small"
-                  {...getTagProps({ index })}
-                  sx={{
-                    bgcolor: option.color ? `${option.color}33` : '#FFFFFF14',
-                    color: 'white',
-                    '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+              {/* Tag selector */}
+              <Box>
+                <Typography sx={labelSx}>Tags</Typography>
+                <Autocomplete
+                  multiple
+                  freeSolo
+                  options={allTags.filter((t) => !selectedTags.find((s) => s.id === t.id))}
+                  getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
+                  value={selectedTags}
+                  inputValue={tagInput}
+                  onInputChange={(_, v) => setTagInput(v)}
+                  onChange={(_, values) => {
+                    const resolved = values.map((v) => (typeof v === 'string' ? { name: v } : v))
+                    setSelectedTags(resolved)
+                    setTagInput('')
                   }}
-                />
-              ))
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                placeholder="Add tags..."
-                sx={inputSx}
-                inputProps={{ ...params.inputProps, maxLength: 12 }}
-                onKeyDown={(e) => {
-                  if (e.key === ',') {
-                    e.preventDefault()
-                    const parts = parseTagInput(tagInput)
-                    if (parts.length > 0) {
-                      setSelectedTags((prev) => {
-                        const merged = [...prev]
-                        parts.forEach((p) => {
-                          if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
-                            const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
-                            merged.push(existing || { name: p })
-                          }
-                        })
-                        return merged
-                      })
-                      setTagInput('')
-                    }
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => (
+                      <Chip
+                        key={index}
+                        label={option.name}
+                        size="small"
+                        {...getTagProps({ index })}
+                        sx={{
+                          bgcolor: option.color ? `${option.color}33` : '#FFFFFF14',
+                          color: 'white',
+                          '& .MuiChip-deleteIcon': { color: '#FFFFFF66', '&:hover': { color: 'white' } },
+                        }}
+                      />
+                    ))
                   }
-                }}
-              />
-            )}
-          />
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Add tags..."
+                      sx={inputSx}
+                      inputProps={{ ...params.inputProps, maxLength: 12 }}
+                      onKeyDown={(e) => {
+                        if (e.key === ',') {
+                          e.preventDefault()
+                          const parts = parseTagInput(tagInput)
+                          if (parts.length > 0) {
+                            setSelectedTags((prev) => {
+                              const merged = [...prev]
+                              parts.forEach((p) => {
+                                if (!merged.find((t) => t.name.toLowerCase() === p.toLowerCase())) {
+                                  const existing = allTags.find((t) => t.name.toLowerCase() === p.toLowerCase())
+                                  merged.push(existing || { name: p })
+                                }
+                              })
+                              return merged
+                            })
+                            setTagInput('')
+                          }
+                        }
+                      }}
+                    />
+                  )}
+                />
+              </Box>
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
