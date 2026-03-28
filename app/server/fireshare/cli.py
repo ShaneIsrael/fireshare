@@ -343,7 +343,8 @@ def scan_videos(root):
 @click.option("--path", "-p", help="path to video to scan", required=False)
 @click.option("--tag-ids", help="comma-separated custom tag IDs to apply", required=False, default=None)
 @click.option("--game-id", type=int, help="game ID to apply", required=False, default=None)
-def scan_video(ctx, path, tag_ids, game_id):
+@click.option("--title", help="initial title for the video (defaults to filename stem)", required=False, default=None)
+def scan_video(ctx, path, tag_ids, game_id, title):
     with create_app().app_context():
         paths = current_app.config['PATHS']
         domain = current_app.config['DOMAIN']
@@ -417,7 +418,7 @@ def scan_video(ctx, path, tag_ids, game_id):
                         os.symlink(src, dst, dir_fd=fd)
                     except FileExistsError:
                         logger.info(f"{dst} exists already")
-                info = VideoInfo(video_id=v.video_id, title=Path(v.path).stem, private=video_config["private"])
+                info = VideoInfo(video_id=v.video_id, title=title or Path(v.path).stem, private=video_config["private"])
                 db.session.add(info)
                 db.session.commit()
 
