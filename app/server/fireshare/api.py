@@ -1405,15 +1405,16 @@ def get_video_views(video_id):
 
 
 def _parse_upload_metadata():
-    """Return (tag_ids, game_id) parsed from current request form data."""
+    """Return (tag_ids, game_id, title) parsed from current request form data."""
     tag_ids_raw = request.form.get('tag_ids', '')
     tag_ids = [int(t) for t in tag_ids_raw.split(',') if t.strip().isdigit()] or None
     game_id_raw = request.form.get('game_id', '')
     game_id = int(game_id_raw) if game_id_raw.strip().isdigit() else None
-    return tag_ids, game_id
+    title = request.form.get('title', '').strip() or None
+    return tag_ids, game_id, title
 
 
-def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
+def _launch_scan_video(save_path, config, tag_ids=None, game_id=None, title=None):
     """
     Launch scan-video and publish an initial transcoding-running status when
     auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
@@ -1428,6 +1429,8 @@ def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
         cmd.append(f"--tag-ids={','.join(str(t) for t in tag_ids)}")
     if game_id:
         cmd.append(f"--game-id={game_id}")
+    if title:
+        cmd.append(f"--title={title}")
     scan_proc = Popen(cmd, shell=False, start_new_session=True)
 
     def reap_and_cleanup():
