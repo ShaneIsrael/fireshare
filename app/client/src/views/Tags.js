@@ -77,7 +77,7 @@ const hslToHex = (h, s, l) => {
 const normalizeTagColor = (hex) => {
   if (!hex || hex.length < 7) return hex
   const [h, s, l] = hexToHsl(hex)
-  return hslToHex(h, Math.min(s, 65), Math.max(30, Math.min(55, l)))
+  return hslToHex(h, Math.min(s, 65), Math.max(15, Math.min(55, l)))
 }
 
 const darkenColor = (hex, factor = 0.3) => {
@@ -85,6 +85,11 @@ const darkenColor = (hex, factor = 0.3) => {
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
   return `#${Math.round(r * factor).toString(16).padStart(2, '0')}${Math.round(g * factor).toString(16).padStart(2, '0')}${Math.round(b * factor).toString(16).padStart(2, '0')}`
+}
+
+const cardBorderColor = (hex) => {
+  const [h, s, l] = hexToHsl(hex)
+  return l < 25 ? hslToHex(h, s, l + 15) : darkenColor(hex)
 }
 
 const inputSx = {
@@ -107,7 +112,7 @@ const Tags = ({ authenticated, searchText }) => {
   const [deleteAssociatedVideos, setDeleteAssociatedVideos] = React.useState(false)
   const [newTagDialogOpen, setNewTagDialogOpen] = React.useState(false)
   const [newTagName, setNewTagName] = React.useState('')
-  const [newTagColor, setNewTagColor] = React.useState('#2684FF')
+  const [newTagColor, setNewTagColor] = React.useState('#051529')
   const [colorPickerAnchorEl, setColorPickerAnchorEl] = React.useState(null)
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
   const navigate = useNavigate()
@@ -274,7 +279,7 @@ const Tags = ({ authenticated, searchText }) => {
             .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
             .map((tag, index) => {
               const isSelected = selectedTags.has(tag.id)
-              const color = normalizeTagColor(tag.color || '#2684FF')
+              const color = normalizeTagColor(tag.color || '#051529')
 
               return (
                 <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={tag.id}>
@@ -292,7 +297,7 @@ const Tags = ({ authenticated, searchText }) => {
                         overflow: 'hidden',
                         cursor: 'pointer',
                         border: isSelected ? '3px solid' : '2px solid',
-                        borderColor: darkenColor(color),
+                        borderColor: cardBorderColor(color),
                         ...(!tag.preview_video_id && { bgcolor: `${color}44` }),
                         display: 'flex',
                         flexDirection: 'column',
@@ -303,9 +308,9 @@ const Tags = ({ authenticated, searchText }) => {
                         transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                         '&:hover': {
                           transform: 'scale(1.03)',
-                          boxShadow: `inset 0 0 0 1px ${darkenColor(color)}, 0 8px 32px #00000088, 0 4px 20px ${color}44`,
+                          boxShadow: `inset 0 0 0 1px ${cardBorderColor(color)}, 0 8px 32px #00000088, 0 4px 20px ${color}44`,
                         },
-                        boxShadow: `inset 0 0 0 1px ${darkenColor(color)}, 0 4px 16px #00000066`,
+                        boxShadow: `inset 0 0 0 1px ${cardBorderColor(color)}, 0 4px 16px #00000066`,
                       }}
                     >
                       {tag.preview_video_id && (
@@ -360,7 +365,7 @@ const Tags = ({ authenticated, searchText }) => {
                         />
                       )}
                       <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25, px: 2, width: '100%' }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: tag.name.length <= 5 ? 48 : tag.name.length <= 8 ? 38 : 28, color: 'white', textAlign: 'center', lineHeight: 1.2, fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', width: '100%' }}>
+                        <Typography sx={{ fontWeight: 800, fontSize: tag.name.length <= 4 ? 40 : tag.name.length <= 6 ? 32 : tag.name.length <= 8 ? 26 : tag.name.length <= 10 ? 20 : 17, color: 'white', textAlign: 'center', lineHeight: 1.2, fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', width: '100%' }}>
                           {tag.name.replace(/_/g, ' ')}
                         </Typography>
                         <Typography sx={{ fontSize: 13, color: '#FFFFFFB3', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.08em' }}>

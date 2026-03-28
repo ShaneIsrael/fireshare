@@ -884,7 +884,9 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
 
 def create_boomerang_preview(video_path, out_path, clip_duration=5):
     s = time.time()
-    cmd = ['ffmpeg', '-v', 'quiet', '-ss', '0', '-t', str(clip_duration),
+    duration = get_video_duration(video_path) or 0
+    start = max(0, duration / 2 - clip_duration / 2)
+    cmd = ['ffmpeg', '-v', 'quiet', '-ss', str(start), '-t', str(clip_duration),
         '-i', str(video_path), '-y', '-vf', 'scale=-2:480',
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
         '-an', '-movflags', '+faststart', str(out_path)]
