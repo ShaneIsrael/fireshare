@@ -21,7 +21,6 @@ import {
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
 import { keyframes } from '@emotion/react'
-import { motion } from 'framer-motion'
 import { VideoService, GameService, TagService } from '../../services'
 import { getSetting } from '../../common/utils'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, checkboxSx, helperTextSx } from '../../common/modalStyles'
@@ -87,6 +86,7 @@ function LogoProgress({ progress, size = 44 }) {
   )
 }
 
+
 const UploadCard = React.forwardRef(function UploadCard(
   { authenticated, handleAlert, mini, onUploadComplete, onProgress, dropOnly = false },
   ref,
@@ -111,6 +111,9 @@ const UploadCard = React.forwardRef(function UploadCard(
   const [gameCreating, setGameCreating] = React.useState(false)
   const [gameInput, setGameInput] = React.useState('')
   const [uploadToGameFolder, setUploadToGameFolder] = React.useState(false)
+  const [titleInput, setTitleInput] = React.useState('')
+  const [editingTitle, setEditingTitle] = React.useState(false)
+  const [titleDraft, setTitleDraft] = React.useState('')
   const [thumbnail, setThumbnail] = React.useState(null)
   const [thumbnailReady, setThumbnailReady] = React.useState(false)
   const [availableFolders, setAvailableFolders] = React.useState([])
@@ -165,6 +168,9 @@ const UploadCard = React.forwardRef(function UploadCard(
     setGameInput('')
     setGameOptions([])
     setUploadToGameFolder(false)
+    setTitleInput('')
+    setEditingTitle(false)
+    setTitleDraft('')
     Promise.all([GameService.getGames(), TagService.getTags(), VideoService.getUploadFolders()])
       .then(([gRes, tRes, fRes]) => {
         const games = gRes.data || []
@@ -216,6 +222,7 @@ const UploadCard = React.forwardRef(function UploadCard(
       tag_ids: resolvedTags.length ? resolvedTags.map((t) => t.id).join(',') : null,
       game_id: selectedGame ? selectedGame.id : null,
       folder: (uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder) || null,
+      title: titleInput.trim() || null,
     }
     setDialogOpen(false)
     setSelectedFile(pendingFile)
@@ -234,6 +241,8 @@ const UploadCard = React.forwardRef(function UploadCard(
     setGameOptions([])
     setGameInput('')
     setUploadToGameFolder(false)
+    setTitleInput('')
+    setEditingTitle(false)
     setThumbnail(null)
     setThumbnailReady(false)
   }
@@ -343,7 +352,7 @@ const UploadCard = React.forwardRef(function UploadCard(
     if (!selectedFile) return
 
     const chunkSize = 90 * 1024 * 1024 // 90MB chunk size
-    const { tag_ids, game_id, folder } = pendingMetadata.current
+    const { tag_ids, game_id, folder, title } = pendingMetadata.current
 
     async function upload() {
       const formData = new FormData()
@@ -351,6 +360,7 @@ const UploadCard = React.forwardRef(function UploadCard(
       if (tag_ids) formData.append('tag_ids', tag_ids)
       if (game_id) formData.append('game_id', game_id)
       if (folder) formData.append('folder', folder)
+      if (title) formData.append('title', title)
       try {
         if (authenticated) {
           await VideoService.upload(formData, uploadProgress)
@@ -417,6 +427,7 @@ const UploadCard = React.forwardRef(function UploadCard(
           if (tag_ids) formData.append('tag_ids', tag_ids)
           if (game_id) formData.append('game_id', game_id)
           if (folder) formData.append('folder', folder)
+          if (title) formData.append('title', title)
 
           authenticated
             ? await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
@@ -451,6 +462,76 @@ const UploadCard = React.forwardRef(function UploadCard(
     // eslint-disable-next-line
   }, [selectedFile])
 
+  const filenameStem = pendingFile ? pendingFile.name.replace(/\.[^/.]+$/, '') : ''
+  const displayTitle = titleInput || filenameStem || 'Untitled'
+
+  const inlineTitleEl = (
+    <Box sx={{ mb: 2 }}>
+      {editingTitle ? (
+        <input
+          autoFocus
+          value={titleDraft}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onBlur={() => {
+            setTitleInput(titleDraft.trim())
+            setEditingTitle(false)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.target.blur()
+            if (e.key === 'Escape') {
+              setTitleDraft(titleInput)
+              setEditingTitle(false)
+            }
+          }}
+          maxLength={200}
+          style={{
+            width: '100%',
+            background: '#FFFFFF1F',
+            border: 'none',
+            borderRadius: '6px',
+            outline: 'none',
+            color: 'white',
+            fontWeight: 800,
+            fontSize: 22,
+            lineHeight: 1.3,
+            padding: '2px 6px',
+            boxSizing: 'border-box',
+            fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
+          }}
+        />
+      ) : (
+        <Box
+          onClick={() => { setTitleDraft(titleInput); setEditingTitle(true) }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'text',
+            borderRadius: '6px',
+            px: '6px',
+            mx: '-6px',
+            transition: 'background 0.15s',
+            '&:hover': { background: '#FFFFFF1F' },
+          }}
+        >
+          <Typography
+            sx={{
+              fontWeight: 800,
+              fontSize: 22,
+              lineHeight: 1.3,
+              color: (titleInput || filenameStem) ? 'white' : '#FFFFFF55',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
+            }}
+          >
+            {displayTitle}
+          </Typography>
+        </Box>
+      )}
+    </Box>
+  )
+
   const canUpload = authenticated ? !!uiConfig?.show_admin_upload : !!uiConfig?.allow_public_upload
   if (!canUpload) return null
 
@@ -469,7 +550,8 @@ const UploadCard = React.forwardRef(function UploadCard(
             <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
           </Box>
         </DialogTitle>
-        <DialogContent sx={{ pt: '24px !important', px: 3 }}>
+        <DialogContent sx={{ pt: '16px !important', px: 3 }}>
+          {inlineTitleEl}
           <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
             {/* Thumbnail — left column */}
             <Box sx={{ flex: 1 }}>
@@ -800,7 +882,8 @@ const UploadCard = React.forwardRef(function UploadCard(
             <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
           </Box>
         </DialogTitle>
-        <DialogContent sx={{ pt: '24px !important', px: 3 }}>
+        <DialogContent sx={{ pt: '16px !important', px: 3 }}>
+          {inlineTitleEl}
           <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
             {/* Thumbnail — left column */}
             <Box sx={{ flex: 1 }}>
