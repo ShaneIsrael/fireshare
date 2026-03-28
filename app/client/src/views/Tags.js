@@ -33,6 +33,8 @@ import { TagService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { labelSx, inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
+const DEFAULT_TAG_COLOR = '#051529'
+
 const normalizeTagColor = (hex) => {
   if (!hex || hex.length < 7) return hex
   const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255
