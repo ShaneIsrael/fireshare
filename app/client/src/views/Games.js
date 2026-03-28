@@ -24,6 +24,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import ImageIcon from '@mui/icons-material/Image'
 import { useNavigate } from 'react-router-dom'
 import { GameService } from '../services'
+import { dialogPaperSx, dialogTitleSx, helperTextSx, checkboxSx } from '../common/modalStyles'
 import { recordAssetBust, applyAssetBusts } from '../services/GameService'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import EditGameAssetsModal from '../components/modal/EditGameAssetsModal'
@@ -348,12 +349,12 @@ const Games = ({ authenticated, searchText }) => {
       />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
-        <DialogTitle>
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel} PaperProps={{ sx: dialogPaperSx }}>
+        <DialogTitle sx={{ ...dialogTitleSx, px: 3, pt: 2.5, pb: 0 }}>
           Delete {selectedGames.size} Game{selectedGames.size > 1 ? 's' : ''}?
         </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 2 }}>
+        <DialogContent sx={{ px: 3, pt: '20px !important', pb: 1 }}>
+          <Typography sx={{ ...helperTextSx, mb: 2 }}>
             Are you sure you want to delete the selected game{selectedGames.size > 1 ? 's' : ''}?
           </Typography>
           <FormControlLabel
@@ -361,20 +362,17 @@ const Games = ({ authenticated, searchText }) => {
               <Checkbox
                 checked={deleteAssociatedVideos}
                 onChange={(e) => setDeleteAssociatedVideos(e.target.checked)}
-                sx={{
-                  color: 'error.main',
-                  '&.Mui-checked': {
-                    color: 'error.main',
-                  },
-                }}
+                sx={{ ...checkboxSx, '&.Mui-checked': { color: 'error.main' } }}
               />
             }
-            label="Also delete associated videos"
+            label={<Typography sx={helperTextSx}>Also delete associated videos</Typography>}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} variant="contained" color="error">
+        <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
+          <Button onClick={handleDeleteCancel} sx={{ color: '#FFFFFF80', '&:hover': { color: 'white', bgcolor: '#FFFFFF0F' } }}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error" sx={{ fontWeight: 600, px: 3 }}>
             Delete
           </Button>
         </DialogActions>

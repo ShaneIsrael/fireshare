@@ -15,6 +15,8 @@ import {
   Chip,
   CircularProgress,
   InputAdornment,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
@@ -22,6 +24,7 @@ import { keyframes } from '@emotion/react'
 import { motion } from 'framer-motion'
 import { VideoService, GameService, TagService } from '../../services'
 import { getSetting } from '../../common/utils'
+import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, checkboxSx, helperTextSx } from '../../common/modalStyles'
 import logo from '../../assets/logo.png'
 
 const Input = styled('input')({
@@ -97,6 +100,7 @@ const UploadCard = React.forwardRef(function UploadCard(
   const [gameSearchLoading, setGameSearchLoading] = React.useState(false)
   const [gameCreating, setGameCreating] = React.useState(false)
   const [gameInput, setGameInput] = React.useState('')
+  const [uploadToGameFolder, setUploadToGameFolder] = React.useState(false)
   const [availableFolders, setAvailableFolders] = React.useState([])
   const [selectedFolder, setSelectedFolder] = React.useState('')
   // Stored metadata to attach on next upload
@@ -117,6 +121,7 @@ const UploadCard = React.forwardRef(function UploadCard(
     setTagInput('')
     setGameInput('')
     setGameOptions([])
+    setUploadToGameFolder(false)
     Promise.all([GameService.getGames(), TagService.getTags(), VideoService.getUploadFolders()])
       .then(([gRes, tRes, fRes]) => {
         const games = gRes.data || []
@@ -167,7 +172,7 @@ const UploadCard = React.forwardRef(function UploadCard(
     pendingMetadata.current = {
       tag_ids: resolvedTags.length ? resolvedTags.map((t) => t.id).join(',') : null,
       game_id: selectedGame ? selectedGame.id : null,
-      folder: selectedFolder || null,
+      folder: (uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder) || null,
     }
     setDialogOpen(false)
     setSelectedFile(pendingFile)
@@ -183,6 +188,7 @@ const UploadCard = React.forwardRef(function UploadCard(
     setTagInput('')
     setGameOptions([])
     setGameInput('')
+    setUploadToGameFolder(false)
   }
 
   const handleGameInputChange = async (_, value) => {
@@ -209,6 +215,7 @@ const UploadCard = React.forwardRef(function UploadCard(
   const handleGameChange = async (_, newValue) => {
     if (!newValue) {
       setSelectedGame(null)
+      setUploadToGameFolder(false)
       return
     }
     if (newValue._source === 'db') {
@@ -407,20 +414,13 @@ const UploadCard = React.forwardRef(function UploadCard(
         onClose={handleDialogCancel}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: {
-            bgcolor: '#0b132b',
-            border: '1px solid #FFFFFF14',
-            borderRadius: '16px',
-            backgroundImage: 'none',
-          },
-        }}
+        PaperProps={{ sx: dialogPaperSx }}
       >
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#2684FF', fontSize: 24, flexShrink: 0 }} />
             <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: 'white' }}>Upload Video</Typography>
+              <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
               <Typography
                 sx={{
                   fontSize: 12,
@@ -437,6 +437,8 @@ const UploadCard = React.forwardRef(function UploadCard(
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '24px !important', px: 3 }}>
           {/* Game selector */}
+          <Box>
+          <Typography sx={labelSx}>Game</Typography>
           <Autocomplete
             options={gameOptions}
             getOptionLabel={(o) => o.name || ''}
@@ -454,9 +456,9 @@ const UploadCard = React.forwardRef(function UploadCard(
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Game"
                 size="small"
                 placeholder="Search for a game..."
+                sx={inputSx}
                 InputProps={{
                   ...params.InputProps,
                   endAdornment: (
@@ -496,15 +498,29 @@ const UploadCard = React.forwardRef(function UploadCard(
               </Box>
             )}
           />
-          {availableFolders.length > 0 && (
-            <Autocomplete
-              options={availableFolders}
-              value={selectedFolder || null}
-              onChange={(_, value) => setSelectedFolder(value || '')}
-              disableClearable={!!selectedFolder}
-              renderInput={(params) => <TextField {...params} label="Upload Folder" size="small" />}
+          {selectedGame && (
+            <FormControlLabel
+              control={<Checkbox checked={uploadToGameFolder} onChange={(e) => setUploadToGameFolder(e.target.checked)} size="small" sx={checkboxSx} />}
+              label={<Typography sx={helperTextSx}>Auto-sort into game folder</Typography>}
+              sx={{ mt: 0.5, ml: 0 }}
             />
           )}
+          </Box>
+          {availableFolders.length > 0 && (
+            <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+            <Typography sx={labelSx}>Upload Folder</Typography>
+            <Autocomplete
+              options={availableFolders}
+              value={uploadToGameFolder && selectedGame ? selectedGame.name : (selectedFolder || null)}
+              onChange={(_, value) => setSelectedFolder(value || '')}
+              disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+              disabled={uploadToGameFolder && !!selectedGame}
+              renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+            />
+            </Box>
+          )}
+          <Box>
+          <Typography sx={labelSx}>Tags</Typography>
           <Autocomplete
             multiple
             freeSolo
@@ -535,9 +551,9 @@ const UploadCard = React.forwardRef(function UploadCard(
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Tags"
                 size="small"
                 placeholder="Add tags..."
+                sx={inputSx}
                 inputProps={{ ...params.inputProps, maxLength: 12 }}
                 onKeyDown={(e) => {
                   if (e.key === ',') {
@@ -561,6 +577,7 @@ const UploadCard = React.forwardRef(function UploadCard(
               />
             )}
           />
+          </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
           <Button
@@ -694,20 +711,13 @@ const UploadCard = React.forwardRef(function UploadCard(
         onClose={handleDialogCancel}
         maxWidth="sm"
         fullWidth
-        PaperProps={{
-          sx: {
-            bgcolor: '#0b132b',
-            border: '1px solid #FFFFFF14',
-            borderRadius: '16px',
-            backgroundImage: 'none',
-          },
-        }}
+        PaperProps={{ sx: dialogPaperSx }}
       >
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#fff', fontSize: 38, flexShrink: 0 }} />
             <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: 16, fontWeight: 700, color: 'white' }}>Upload Video</Typography>
+              <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
               <Typography
                 sx={{
                   fontSize: 12,
@@ -724,6 +734,8 @@ const UploadCard = React.forwardRef(function UploadCard(
         </DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '24px !important', px: 3 }}>
           {/* Game selector */}
+          <Box>
+          <Typography sx={labelSx}>Game</Typography>
           <Autocomplete
             options={gameOptions}
             getOptionLabel={(o) => o.name || ''}
@@ -741,9 +753,9 @@ const UploadCard = React.forwardRef(function UploadCard(
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Game"
                 size="small"
                 placeholder="Search for a game..."
+                sx={inputSx}
                 InputProps={{
                   ...params.InputProps,
                   endAdornment: (
@@ -783,19 +795,33 @@ const UploadCard = React.forwardRef(function UploadCard(
               </Box>
             )}
           />
+          {selectedGame && (
+            <FormControlLabel
+              control={<Checkbox checked={uploadToGameFolder} onChange={(e) => setUploadToGameFolder(e.target.checked)} size="small" sx={checkboxSx} />}
+              label={<Typography sx={helperTextSx}>Auto-sort into game folder</Typography>}
+              sx={{ mt: 0.5, ml: 0 }}
+            />
+          )}
+          </Box>
 
           {/* Folder selector */}
           {availableFolders.length > 0 && (
+            <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+            <Typography sx={labelSx}>Upload Folder</Typography>
             <Autocomplete
               options={availableFolders}
-              value={selectedFolder || null}
+              value={uploadToGameFolder && selectedGame ? selectedGame.name : (selectedFolder || null)}
               onChange={(_, value) => setSelectedFolder(value || '')}
-              disableClearable={!!selectedFolder}
-              renderInput={(params) => <TextField {...params} label="Upload Folder" size="small" />}
+              disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+              disabled={uploadToGameFolder && !!selectedGame}
+              renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
             />
+            </Box>
           )}
 
           {/* Tag selector */}
+          <Box>
+          <Typography sx={labelSx}>Tags</Typography>
           <Autocomplete
             multiple
             freeSolo
@@ -827,9 +853,9 @@ const UploadCard = React.forwardRef(function UploadCard(
             renderInput={(params) => (
               <TextField
                 {...params}
-                label="Tags"
                 size="small"
                 placeholder="Add tags..."
+                sx={inputSx}
                 inputProps={{ ...params.inputProps, maxLength: 12 }}
                 onKeyDown={(e) => {
                   if (e.key === ',') {
@@ -853,6 +879,7 @@ const UploadCard = React.forwardRef(function UploadCard(
               />
             )}
           />
+          </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
           <Button

@@ -42,6 +42,17 @@ export const dialogTitleSx = {
   color: 'white',
 }
 
+export const checkboxSx = {
+  color: '#FFFFFF33',
+  '&.Mui-checked': { color: '#3399FF' },
+  p: 0.5,
+}
+
+export const helperTextSx = {
+  fontSize: 14,
+  color: '#FFFFFFB3',
+}
+
 export const timeInputStyle = {
   background: '#FFFFFF0D',
   border: '1px solid #FFFFFF26',
