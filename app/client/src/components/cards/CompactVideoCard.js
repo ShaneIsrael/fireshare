@@ -496,6 +496,7 @@ const CompactVideoCard = ({
                   fontWeight: 600,
                   fontSize: 14,
                   color: 'white',
+                  fontFamily: 'monospace',
                 }}
               >
                 {toHHMMSS(video.info?.duration)}
@@ -516,17 +517,20 @@ const CompactVideoCard = ({
                 transition: 'opacity 0.2s ease-in-out',
               }}
             >
-              <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'white' }}>
-                {viewCount} {viewCount === 1 ? 'view' : 'views'}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'white', fontFamily: 'monospace' }}>
+                  {viewCount}
+                </Typography>
+                <VisibilityIcon sx={{ fontSize: 18, color: 'white' }} />
+              </Box>
             </Box>
 
             {/* Copy link button - shows on hover */}
             <Box
               sx={{
                 position: 'absolute',
-                bottom: 12,
-                left: 12,
+                top: 8,
+                right: 8,
                 opacity: thumbnailHover ? 1 : 0,
                 transition: 'opacity 0.2s ease-in-out',
               }}
@@ -534,7 +538,7 @@ const CompactVideoCard = ({
               <CopyToClipboard text={`${PURL}${video.video_id}`}>
                 <IconButton
                   sx={{
-                    background: '#00000099',
+                    bgcolor: '#000000BF',
                     '&:hover': {
                       background: '#2684FF88',
                     },
@@ -560,15 +564,15 @@ const CompactVideoCard = ({
               <Box
                 sx={{
                   position: 'absolute',
-                  top: 12,
-                  right: 12,
+                  bottom: 8,
+                  left: 8,
                   opacity: thumbnailHover ? 1 : 0,
                   transition: 'opacity 0.2s ease-in-out',
                 }}
               >
                 <IconButton
                   sx={{
-                    background: '#00000099',
+                    bgcolor: '#000000BF',
                     '&:hover': {
                       background: privateView ? '#FF232360' : '#2684FF88',
                     },
