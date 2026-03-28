@@ -204,7 +204,7 @@ def create_app(init_schedule=False):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return db.session.get(User, int(user_id))
 
     # blueprint for auth routes in our app
     from .auth import auth as auth_blueprint
@@ -225,5 +225,31 @@ def create_app(init_schedule=False):
 
     with app.app_context():
         # db.create_all()
+
+        from sqlalchemy.exc import OperationalError
+        from werkzeug.security import generate_password_hash, check_password_hash
+        from .models import User as _User
+        try:
+            admin = _User.query.filter_by(admin=True, ldap=False).first()
+            if not admin and not app.config['DISABLE_ADMINCREATE']:
+                username = app.config['ADMIN_USERNAME'] or 'admin'
+                admin_user = _User(username=username, password=generate_password_hash(app.config['ADMIN_PASSWORD'] or 'admin', method='pbkdf2:sha256'), admin=True)
+                db.session.add(admin_user)
+                db.session.commit()
+            if admin:
+                try:
+                    password_mismatch = not check_password_hash(admin.password, app.config['ADMIN_PASSWORD'])
+                except ValueError:
+                    password_mismatch = True  # old hash format (sha256), force reset to pbkdf2:sha256
+                if password_mismatch:
+                    row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
+                    row.password = generate_password_hash(app.config['ADMIN_PASSWORD'], method='pbkdf2:sha256')
+                    db.session.commit()
+                if app.config['ADMIN_USERNAME'] and admin.username != app.config['ADMIN_USERNAME']:
+                    row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
+                    row.username = app.config['ADMIN_USERNAME'] or admin.username
+                    db.session.commit()
+        except OperationalError:
+            pass  # tables don't exist yet (e.g. during flask db upgrade), skip init
 
         return app

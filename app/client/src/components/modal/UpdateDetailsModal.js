@@ -394,6 +394,7 @@ const UpdateDetailsModal = ({
               inputSx={inputSx}
             />
           </LabeledField>
+
         </Stack>
 
         <Stack direction="row" spacing={1.5} sx={{ mt: 4 }}>

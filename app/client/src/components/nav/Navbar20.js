@@ -525,7 +525,7 @@ function Navbar20({
                 </Grid>
                 <Grid item>
                   <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12, color: '#2684FF' }}>
-                    v{process.env.REACT_APP_VERSION}
+                    v{import.meta.env.VITE_VERSION}
                   </Typography>
                 </Grid>
               </Grid>

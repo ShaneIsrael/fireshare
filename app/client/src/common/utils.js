@@ -4,7 +4,7 @@ let isLocalhost =
   (window.location.hostname.indexOf('localhost') >= 0 || window.location.hostname.indexOf('127.0.0.1') >= 0) &&
   window.location.port !== ''
 export const getServedBy = () => {
-  // When running `react-scripts start` over LAN IP, hostname is not localhost
+  // When running `vite` over LAN IP, hostname is not localhost
   // but static content is still served by the dev server proxy, not nginx.
   const isDevClient = process.env.NODE_ENV === 'development' && window.location.port !== ''
   return isLocalhost || isDevClient ? 'flask' : 'nginx'
@@ -13,7 +13,7 @@ export const getServedBy = () => {
 export const getUrl = () => {
   const portWithColon = window.location.port ? `:${window.location.port}` : ''
   return isLocalhost
-    ? `http://${window.location.hostname}:${process.env.REACT_APP_SERVER_PORT || window.location.port}`
+    ? `http://${window.location.hostname}:${import.meta.env.VITE_SERVER_PORT || window.location.port}`
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}`
 }
 
@@ -24,7 +24,7 @@ export const getPublicWatchUrl = () => {
   }
   const portWithColon = window.location.port ? `:${window.location.port}` : ''
   return isLocalhost
-    ? `http://${window.location.hostname}:${process.env.REACT_APP_SERVER_PORT || window.location.port}/#/w/`
+    ? `http://${window.location.hostname}:${import.meta.env.VITE_SERVER_PORT || window.location.port}/#/w/`
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}/w/`
 }
 
@@ -144,13 +144,23 @@ export const getVideoUrl = (videoId, quality, extension) => {
  */
 export const getVideoSources = (videoId, videoInfo, extension) => {
   const sources = []
+  const URL = getUrl()
+  const SERVED_BY = getServedBy()
 
   const has480p = videoInfo?.has_480p
   const has720p = videoInfo?.has_720p
   const has1080p = videoInfo?.has_1080p
+  const hasCrop = videoInfo?.has_crop
+
+  // When a cropped version exists, point "Source" at the cropped file instead of the original
+  const sourceUrl = hasCrop
+    ? (SERVED_BY === 'nginx'
+        ? `${URL}/_content/derived/${videoId}/${videoId}-cropped.mp4`
+        : `${URL}/api/video?id=${videoId}&quality=cropped`)
+    : getVideoUrl(videoId, 'original', extension)
 
   sources.push({
-    src: getVideoUrl(videoId, 'original', extension),
+    src: sourceUrl,
     type: 'video/mp4',
     label: 'Source',
     selected: true,

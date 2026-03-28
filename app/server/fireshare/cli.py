@@ -177,7 +177,7 @@ def init_db():
 @click.option("--password", "-p", help="Password", prompt=True, hide_input=True)
 def add_user(username, password):
     with create_app().app_context():
-        new_user = User(username=username, password=generate_password_hash(password, method='sha256'))
+        new_user = User(username=username, password=generate_password_hash(password, method='pbkdf2:sha256'))
         db.session.add(new_user)
         db.session.commit()
         click.echo(f"Created user {username}")
@@ -472,7 +472,7 @@ def scan_video(ctx, path, tag_ids, game_id):
                     if should_create_poster:
                         if not derived_path.exists():
                             derived_path.mkdir(parents=True)
-                        poster_time = int(info.duration * thumbnail_skip)
+                        poster_time = int((info.duration or 0) * thumbnail_skip)
                         util.create_poster(video_path, derived_path / "poster.jpg", poster_time)
                     else:
                         logger.debug(f"Skipping creation of poster for video {info.video_id} because it exists at {str(poster_path)}")
@@ -765,6 +765,13 @@ def transcode_videos(regenerate, video, include_corrupt):
         total_jobs = len(work_items)
         logger.info(f'Processing {total_jobs:,} transcode job(s) (GPU: {use_gpu}, Encoder: {encoder_preference})')
 
+        # Claim ownership of the status file immediately so the SSE poller has a
+        # stable is_running=True signal to detect regardless of how we were invoked
+        # (upload auto-transcode, bulk-import, or manual queue).  We overwrite any
+        # earlier placeholder written by _launch_scan_video or bulk_import so that
+        # our own PID is authoritative for the duration of this function.
+        util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
+
         if total_jobs == 0:
             if video:
                 vi = vinfos[0] if vinfos else None
@@ -784,8 +791,16 @@ def transcode_videos(regenerate, video, include_corrupt):
             util.clear_transcoding_status(paths['data'])
             return
 
-        # Write initial transcoding status with our PID so the API can track us
-        util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
+        # Remove any leftover *.mp4.tmp files from a previous run that crashed
+        # before the temp file could be renamed to its final location.
+        derived_root = Path(processed_root, "derived")
+        if derived_root.exists():
+            for tmp_file in derived_root.glob('**/*.tmp.mp4'):
+                try:
+                    tmp_file.unlink()
+                    logger.info(f"Removed stale temp transcode file: {tmp_file}")
+                except OSError as ex:
+                    logger.warning(f"Could not remove stale temp file {tmp_file}: {ex}")
 
         # Track corrupt videos to skip remaining heights for that video
         corrupt_video_ids = set()

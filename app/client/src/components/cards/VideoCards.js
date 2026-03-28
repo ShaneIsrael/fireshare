@@ -8,6 +8,8 @@ import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import { VideoService } from '../../services'
 import CompactVideoCard from './CompactVideoCard'
 
+const PAGE_SIZE = 48
+
 const VideoCards = ({
   videos,
   loadingIcon = null,
@@ -24,10 +26,13 @@ const VideoCards = ({
     open: false,
   })
   const [isSingleColumn, setIsSingleColumn] = React.useState(false)
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
   const containerRef = React.useRef()
+  const sentinelRef = React.useRef()
 
   React.useEffect(() => {
     setVideos(videos || [])
+    setVisibleCount(PAGE_SIZE)
   }, [videos])
 
   const openVideo = (id) => {
@@ -88,6 +93,23 @@ const VideoCards = ({
     observer.observe(el)
     return () => observer.disconnect()
   }, [size, vids])
+
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, vids.length))
+        }
+      },
+      { rootMargin: '400px' },
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [vids.length])
 
   const EMPTY_STATE = () => (
     <Box
@@ -169,36 +191,39 @@ const VideoCards = ({
 
       {(!vids || vids.length === 0) && EMPTY_STATE()}
       {vids && vids.length !== 0 && (
-        <Box
-          ref={containerRef}
-          sx={{
-            display: 'grid',
-            width: isSingleColumn ? 'calc(100% + 48px)' : '100%',
-            mx: isSingleColumn ? '-24px' : 0,
-            gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size}px), 1fr))`,
-            gap: '24px',
-          }}
-        >
-          {vids.map((v, index) => (
-            <motion.div
-              key={v.path + v.video_id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
-            >
-              <CompactVideoCard
-                video={v}
-                openVideoHandler={openVideo}
-                alertHandler={memoizedHandleAlert}
-                authenticated={authenticated}
-                editMode={editMode}
-                selected={selectedVideos.has(v.video_id)}
-                onSelect={onVideoSelect}
-                onDelete={handleDelete}
-              />
-            </motion.div>
-          ))}
-        </Box>
+        <>
+          <Box
+            ref={containerRef}
+            sx={{
+              display: 'grid',
+              width: isSingleColumn ? 'calc(100% + 48px)' : '100%',
+              mx: isSingleColumn ? '-24px' : 0,
+              gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size}px), 1fr))`,
+              gap: '24px',
+            }}
+          >
+            {vids.slice(0, visibleCount).map((v, index) => (
+              <motion.div
+                key={v.path + v.video_id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: Math.min(index % PAGE_SIZE, 12) * 0.04 }}
+              >
+                <CompactVideoCard
+                  video={v}
+                  openVideoHandler={openVideo}
+                  alertHandler={memoizedHandleAlert}
+                  authenticated={authenticated}
+                  editMode={editMode}
+                  selected={selectedVideos.has(v.video_id)}
+                  onSelect={onVideoSelect}
+                  onDelete={handleDelete}
+                />
+              </motion.div>
+            ))}
+          </Box>
+          <div ref={sentinelRef} style={{ height: 1 }} />
+        </>
       )}
     </Box>
   )
