@@ -176,6 +176,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
               color: 'white',
               letterSpacing: '-0.5px',
               lineHeight: 1,
+              fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
             }}
           >
             {(tag?.name || 'Tag').replace(/_/g, ' ')}

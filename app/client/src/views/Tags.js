@@ -360,7 +360,7 @@ const Tags = ({ authenticated, searchText }) => {
                         />
                       )}
                       <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.25, px: 2, width: '100%' }}>
-                        <Typography sx={{ fontWeight: 800, fontSize: tag.name.length <= 5 ? 48 : tag.name.length <= 8 ? 38 : 28, color: 'white', textAlign: 'center', lineHeight: 1.2, textTransform: 'uppercase', fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', width: '100%' }}>
+                        <Typography sx={{ fontWeight: 800, fontSize: tag.name.length <= 5 ? 48 : tag.name.length <= 8 ? 38 : 28, color: 'white', textAlign: 'center', lineHeight: 1.2, fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif', width: '100%' }}>
                           {tag.name.replace(/_/g, ' ')}
                         </Typography>
                         <Typography sx={{ fontSize: 13, color: '#FFFFFFB3', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
