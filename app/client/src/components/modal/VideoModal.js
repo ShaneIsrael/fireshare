@@ -1100,7 +1100,15 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
 
               {/* ── Waveform Cropper (edit mode only) ────────────────────────── */}
               {editMode && authenticated && (
-                <Box sx={{ borderTop: '1px solid #FFFFFF1A', bgcolor: '#020D1A', px: 2, pt: 1, overflow: 'hidden' }}>
+                <Box
+                  sx={{
+                    borderTop: '1px solid #FFFFFF1A',
+                    bgcolor: '#020D1A',
+                    px: 2,
+                    py: 1,
+                    overflow: 'hidden',
+                  }}
+                >
                   <WaveformCropper
                     ref={waveformRef}
                     key={vid.video_id}

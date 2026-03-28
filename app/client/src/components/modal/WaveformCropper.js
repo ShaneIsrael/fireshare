@@ -135,7 +135,7 @@ const WaveformCropper = React.forwardRef(
         const firstTickIndex = Math.max(0, Math.floor(startTime / tickInterval))
         const firstTick = firstTickIndex * tickInterval
 
-        ctx.font = `10px system-ui, -apple-system, sans-serif`
+        ctx.font = `13px monospace, -apple-system, sans-serif`
         ctx.textBaseline = 'top'
 
         for (let i = 0; ; i++) {
@@ -402,7 +402,7 @@ const WaveformCropper = React.forwardRef(
                 border: '1px solid #FFFFFF1A',
                 borderRadius: '8px',
                 overflow: 'hidden',
-                minHeight: 64 + TIMELINE_HEIGHT,
+                minHeight: 68 + TIMELINE_HEIGHT,
               }}
             >
               {/* Waveform canvas */}
@@ -456,9 +456,9 @@ const WaveformCropper = React.forwardRef(
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyItems: 'center',
               justifyContent: 'center',
               height: '100%',
+              pb: '14px', // offset the external scrollbar height so centering aligns with the cropper box
             }}
           >
             <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1 }}>
