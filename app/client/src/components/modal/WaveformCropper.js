@@ -187,7 +187,7 @@ const WaveformCropper = React.forwardRef(
         barRadius: 0,
         barAlign: 'bottom',
         url: `${getUrl()}/api/video/audio?id=${videoId}`,
-        fetchParams: { credentials: 'include' },
+        fetchParams: { credentials: 'include', signal: AbortSignal.timeout(180000) },
         plugins: [regionsPlugin],
       })
       wsRef.current = ws
