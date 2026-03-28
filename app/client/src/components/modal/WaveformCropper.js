@@ -426,6 +426,7 @@ const WaveformCropper = React.forwardRef(
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 1.5,
+                    pb: `${TIMELINE_HEIGHT}px`, // account for timeline canvas at the bottom
                   }}
                 >
                   {loadError ? (
