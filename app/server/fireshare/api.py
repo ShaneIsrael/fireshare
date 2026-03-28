@@ -2561,8 +2561,11 @@ def get_tags():
         links = (
             db.session.query(VideoTagLink)
             .join(Video, Video.video_id == VideoTagLink.video_id)
+            .join(VideoInfo, VideoInfo.video_id == VideoTagLink.video_id)
             .filter(VideoTagLink.tag_id == tag.id, Video.available.is_(True))
         )
+        if not current_user.is_authenticated:
+            links = links.filter(VideoInfo.private.is_(False))
         t["video_count"] = links.count()
         random_link = links.order_by(func.random()).first()
         t["preview_video_id"] = random_link.video_id if random_link else None

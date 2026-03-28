@@ -635,7 +635,12 @@ def create_posters(regenerate, skip):
 def create_boomerang_posters(regenerate):
     with create_app().app_context():
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
-        vinfos = VideoInfo.query.all()
+        vinfos = (
+            VideoInfo.query
+            .join(VideoTagLink, VideoTagLink.video_id == VideoInfo.video_id)
+            .distinct()
+            .all()
+        )
         for vi in vinfos:
             derived_path = Path(processed_root, "derived", vi.video_id)
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
