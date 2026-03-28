@@ -173,7 +173,7 @@ const WaveformCropper = React.forwardRef(
       const ws = WaveSurfer.create({
         container: containerRef.current,
         waveColor: '#FFFFFF30',
-        progressColor: '#3399ff9a',
+        progressColor: '#3399ffce',
         cursorColor: 'rgba(255, 255, 255, 0.85)',
         cursorWidth: 2,
         height: 64,
