@@ -1519,7 +1519,9 @@ def public_upload_videoChunked():
     blob = request.files.get('blob')
     chunkPart = int(request.form.get('chunkPart'))
     totalChunks = int(request.form.get('totalChunks'))
-    checkSum = request.form.get('checkSum')
+    checkSum = re.sub(r'[^a-zA-Z0-9_-]', '', request.form.get('checkSum'))
+    if not checkSum:
+        return Response(status=400)
     if not blob.filename or blob.filename.strip() == '' or blob.filename == 'blob':
         return Response(status=400)
     filename = secure_filename(blob.filename)
@@ -1528,11 +1530,14 @@ def public_upload_videoChunked():
     filetype = filename.split('.')[-1] # TODO, probe filetype with fmpeg instead and remux to supporrted
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
-     
+
     upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
-        os.makedirs(upload_directory) 
+        os.makedirs(upload_directory)
     tempPath = os.path.join(upload_directory, f"{checkSum}.{filetype}")
+    # Guard against path traversal: ensure the resolved path stays within upload_directory
+    if not os.path.realpath(tempPath).startswith(os.path.realpath(upload_directory) + os.sep):
+        return Response(status=400)
     with open(tempPath, 'ab') as f:
         f.write(blob.read())
     if chunkPart < totalChunks:
