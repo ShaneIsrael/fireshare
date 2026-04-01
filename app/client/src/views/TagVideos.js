@@ -46,7 +46,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
 
-  const clips = React.useMemo(() => videos.slice(0, 6).map((v) => `/api/video/poster?id=${v.video_id}&animated=true`), [videos])
+  const clips = React.useMemo(() => videos.filter((v) => (v.info?.duration || 0) >= 5).slice(0, 6).map((v) => `/api/video/poster?id=${v.video_id}&animated=true`), [videos])
 
   React.useEffect(() => {
     if (clips.length <= 1) return
@@ -138,7 +138,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
           sx={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(to top, #00000088 0%, transparent 50%)',
+            background: 'linear-gradient(to top, #00000066 0%, transparent 60%)',
             pointerEvents: 'none',
           }}
         />
@@ -150,6 +150,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
             inset: 0,
             bgcolor: color,
             mixBlendMode: 'multiply',
+            opacity: 0.8,
             pointerEvents: 'none',
           }}
         />

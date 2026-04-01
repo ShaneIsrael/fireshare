@@ -478,7 +478,12 @@ def scan_video(ctx, path, tag_ids, game_id, title):
                     else:
                         logger.debug(f"Skipping creation of poster for video {info.video_id} because it exists at {str(poster_path)}")
                     db.session.commit()
-                    
+
+                    if tag_ids:
+                        boomerang_path = derived_path / "boomerang-preview.mp4"
+                        if not boomerang_path.exists():
+                            util.create_boomerang_preview(video_path, boomerang_path)
+
                     if discord_webhook_url:
                         logger.info(f"Posting to Discord webhook")
                         video_url = get_public_watch_url(video_id, config, domain)

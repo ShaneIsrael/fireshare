@@ -33,7 +33,7 @@ import { TagService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { labelSx, inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
-const DEFAULT_TAG_COLOR = '#051529'
+const DEFAULT_TAG_COLOR = '#1a3a5c'
 
 const normalizeTagColor = (hex) => {
   if (!hex || hex.length < 7) return hex
@@ -65,7 +65,7 @@ const Tags = ({ authenticated, searchText }) => {
   const [deleteAssociatedVideos, setDeleteAssociatedVideos] = React.useState(false)
   const [newTagDialogOpen, setNewTagDialogOpen] = React.useState(false)
   const [newTagName, setNewTagName] = React.useState('')
-  const [newTagColor, setNewTagColor] = React.useState('#051529')
+  const [newTagColor, setNewTagColor] = React.useState('#1a3a5c')
   const [colorPickerAnchorEl, setColorPickerAnchorEl] = React.useState(null)
   const [editingTag, setEditingTag] = React.useState(null)
   const [editTagColor, setEditTagColor] = React.useState(DEFAULT_TAG_COLOR)
@@ -189,53 +189,49 @@ const Tags = ({ authenticated, searchText }) => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {toolbarTarget &&
+      {toolbarTarget && authenticated &&
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {authenticated && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {editMode && (
-                  <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content', borderRadius: '8px' }}>
-                    <Button color="primary" onClick={handleSelectAllToggle} sx={{ borderRadius: '8px 0 0 8px' }}>
-                      {allSelected ? 'Select None' : 'Select All'}
-                    </Button>
-                    <Button
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => setDeleteDialogOpen(true)}
-                      disabled={selectedTags.size === 0}
-                      sx={{ borderRadius: '0 8px 8px 0' }}
-                    >
-                      Delete {selectedTags.size > 0 && !isMdDown && `(${selectedTags.size})`}
-                    </Button>
-                  </ButtonGroup>
-                )}
-                {!editMode && (
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => setNewTagDialogOpen(true)}
-                    sx={{ height: 38, borderRadius: '8px', bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}
-                  >
-                    New Tag
-                  </Button>
-                )}
-                <IconButton
-                  onClick={handleEditModeToggle}
-                  sx={{
-                    bgcolor: editMode ? 'primary.main' : '#001E3C',
-                    borderRadius: '8px',
-                    height: '38px',
-                    border: !editMode ? '1px solid #2684FF' : 'none',
-                    '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
-                    },
-                  }}
+            {editMode && (
+              <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content', borderRadius: '8px' }}>
+                <Button color="primary" onClick={handleSelectAllToggle} sx={{ borderRadius: '8px 0 0 8px' }}>
+                  {allSelected ? 'Select None' : 'Select All'}
+                </Button>
+                <Button
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={selectedTags.size === 0}
+                  sx={{ borderRadius: '0 8px 8px 0' }}
                 >
-                  {editMode ? <CheckIcon /> : <EditIcon />}
-                </IconButton>
-              </Box>
+                  Delete {selectedTags.size > 0 && !isMdDown && `(${selectedTags.size})`}
+                </Button>
+              </ButtonGroup>
             )}
+            {!editMode && (
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setNewTagDialogOpen(true)}
+                sx={{ height: 38, borderRadius: '8px', bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}
+              >
+                New Tag
+              </Button>
+            )}
+            <IconButton
+              onClick={handleEditModeToggle}
+              sx={{
+                bgcolor: editMode ? 'primary.main' : '#001E3C',
+                borderRadius: '8px',
+                height: '38px',
+                border: !editMode ? '1px solid #2684FF' : 'none',
+                '&:hover': {
+                  bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                },
+              }}
+            >
+              {editMode ? <CheckIcon /> : <EditIcon />}
+            </IconButton>
           </Box>,
           toolbarTarget,
         )}
@@ -275,7 +271,7 @@ const Tags = ({ authenticated, searchText }) => {
             .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
             .map((tag, index) => {
               const isSelected = selectedTags.has(tag.id)
-              const color = normalizeTagColor(tag.color || '#051529')
+              const color = normalizeTagColor(tag.color || '#1a3a5c')
 
               return (
                 <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={tag.id}>
