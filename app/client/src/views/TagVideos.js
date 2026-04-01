@@ -127,7 +127,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              opacity: i === currentClipIndex ? 0.1 : 0,
+              opacity: i === currentClipIndex ? 0.45 : 0,
               transition: 'opacity 1.5s ease',
               pointerEvents: 'none',
             }}
@@ -150,7 +150,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
             inset: 0,
             bgcolor: color,
             mixBlendMode: 'multiply',
-            opacity: 0.8,
+            opacity: 1,
             pointerEvents: 'none',
           }}
         />
