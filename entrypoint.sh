@@ -56,6 +56,15 @@ gosu appuser env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" flask db upgrad
 
 echo "Database migrations complete"
 
+# Generate boomerang previews once on first boot
+BOOMERANG_FLAG="$DATA_DIRECTORY/.boomerangs_generated"
+if [ ! -f "$BOOMERANG_FLAG" ]; then
+    echo "First boot: generating boomerang previews..."
+    gosu appuser env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" python -m fireshare.cli create-boomerang-posters || true
+    touch "$BOOMERANG_FLAG"
+    echo "Boomerang generation complete"
+fi
+
 # Start gunicorn as appuser via gosu (drops from root to PUID:PGID)
 echo "Starting gunicorn as appuser ($PUID:$PGID)..."
 exec gosu appuser env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
