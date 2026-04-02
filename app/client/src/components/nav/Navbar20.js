@@ -16,6 +16,8 @@ import MuiAppBar from '@mui/material/AppBar'
 import { styled } from '@mui/material/styles'
 
 import MenuIcon from '@mui/icons-material/Menu'
+import SearchIcon from '@mui/icons-material/Search'
+import CloseIcon from '@mui/icons-material/Close'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import PublicIcon from '@mui/icons-material/Public'
 import SettingsIcon from '@mui/icons-material/Settings'
@@ -149,6 +151,8 @@ function Navbar20({
   children,
 }) {
   const [mobileOpen, setMobileOpen] = React.useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false)
+  const [mobileSearchKey, setMobileSearchKey] = React.useState(0)
   const [searchText, setSearchText] = React.useState()
   const [open, setOpen] = React.useState(!collapsed)
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
@@ -612,13 +616,70 @@ function Navbar20({
             >
               <MenuIcon />
             </IconButton>
-            <Box sx={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
-              {searchable && (
-                <Box id="navbar-search-container" sx={{ flexGrow: 1, minWidth: 0, ml: { xs: 0, sm: 2 } }}>
+            <Box sx={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+              {/* Mobile: expanded search */}
+              {isMobile && mobileSearchOpen && searchable && (
+                <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
+                  <Search
+                    key={mobileSearchKey}
+                    placeholder={searchPlaceholder}
+                    searchHandler={(value) => setSearchText(value)}
+                    autoFocus
+                  />
+                </Box>
+              )}
+              {isMobile && mobileSearchOpen && (
+                <IconButton
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setMobileSearchOpen(false)
+                    setSearchText('')
+                    setMobileSearchKey((k) => k + 1)
+                  }}
+                  sx={{ flexShrink: 0 }}
+                >
+                  <CloseIcon />
+                </IconButton>
+              )}
+
+              {/* Desktop: left spacer + centered search */}
+              {!isMobile && <Box sx={{ flex: 1 }} />}
+              {searchable && !isMobile && (
+                <Box id="navbar-search-container" sx={{ width: 520, flexShrink: 1, minWidth: 0 }}>
                   <Search placeholder={searchPlaceholder} searchHandler={(value) => setSearchText(value)} />
                 </Box>
               )}
-              <Box id="navbar-toolbar-extra" />
+
+              {/* Right controls — always in DOM so portal target stays valid */}
+              <Box
+                sx={{
+                  flex: 1,
+                  display: isMobile && mobileSearchOpen ? 'none' : 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <Box id="navbar-toolbar-extra" />
+                {searchable && isMobile && (
+                  <IconButton
+                    color="inherit"
+                    size="small"
+                    onClick={() => setMobileSearchOpen(true)}
+                    sx={{
+                      borderRadius: '8px',
+                      height: '38px',
+                      width: '38px',
+                      border: '1px solid #2684FF',
+                      bgcolor: '#001E3C',
+                      '&:hover': { bgcolor: '#FFFFFF33' },
+                    }}
+                  >
+                    <SearchIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
             </Box>
           </Toolbar>
         </AppBar>
