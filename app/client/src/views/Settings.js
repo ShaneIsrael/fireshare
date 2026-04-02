@@ -47,6 +47,10 @@ const isValidDiscordWebhook = (url) => {
   const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/
   return regex.test(url)
 }
+const isValidGenericWebhook = (url) => {
+  const regex = /^https?:\/\/[^\s\/$.?#].[^\s]*$/;
+  return regex.test(url)
+}
 const isValidJson = (str) => {
   try {
     JSON.parse(str);
@@ -698,9 +702,9 @@ const handleTestDiscordWebhook = async () => {
 
                 <TextField
                   size="small"
-                  label="Generic Webhook"
+                  label="Generic Webhook URL"
                   value={webhookUrl}
-                  // error={webhookUrl !== '' && !isValidDiscordWebhook(webhookUrl)} //NEED TO VALIDATE HERE!!!!!
+                  error={webhookUrl !== '' && !isValidGenericWebhook(webhookUrl)}
                   helperText={
                     <span>
                       Used for API POST to Generic Webhook Endpoint - {' '}
