@@ -691,14 +691,11 @@ const handleTestDiscordWebhook = async () => {
                     }
                   }}
                 >
-                  Test Webhook
+                  Test Discord
                 </Button>
 
+                <Divider />
 
-
-              <span></span> {/* Probably A better way to do this */}
-              <span></span>
-              
                 <TextField
                   size="small"
                   label="Generic Webhook"
@@ -775,9 +772,8 @@ const handleTestDiscordWebhook = async () => {
                 >
                   Test Webhook
                 </Button>
+
                 <Divider />
-
-
 
                 <header>Game Tagging</header>
                 <TextField
