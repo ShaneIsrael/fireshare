@@ -140,6 +140,7 @@ def config():
         public_config = config["ui_config"].copy()
         public_config["allow_public_game_tag"] = config.get("app_config", {}).get("allow_public_game_tag", False)
         public_config["allow_public_upload"] = config.get("app_config", {}).get("allow_public_upload", False)
+        public_config["allow_public_folder_selection"] = config.get("app_config", {}).get("allow_public_folder_selection", False)
         return public_config
     else:
         return jsonify({})
@@ -1474,8 +1475,12 @@ def public_upload_video():
     if not config['app_config']['allow_public_upload']:
         logging.warn("A public upload attempt was made but public uploading is disabled")
         return Response(status=401)
-    
+
     upload_folder = config['app_config']['public_upload_folder_name']
+    if config['app_config'].get('allow_public_folder_selection', False):
+        requested_folder = request.form.get('folder', '').strip()
+        if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
+            upload_folder = requested_folder
 
     if 'file' not in request.files:
         return Response(status=400)
@@ -1514,7 +1519,7 @@ def public_upload_videoChunked():
     if not config['app_config']['allow_public_upload']:
         logging.warn("A public upload attempt was made but public uploading is disabled")
         return Response(status=401)
-    
+
     upload_folder = config['app_config']['public_upload_folder_name']
 
     required_files = ['blob']
@@ -1535,6 +1540,11 @@ def public_upload_videoChunked():
     filetype = filename.split('.')[-1] # TODO, probe filetype with fmpeg instead and remux to supporrted
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
+
+    if config['app_config'].get('allow_public_folder_selection', False):
+        requested_folder = request.form.get('folder', '').strip()
+        if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
+            upload_folder = requested_folder
 
     upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
@@ -1579,6 +1589,32 @@ def get_upload_folders():
         default_folder = config['app_config']['admin_upload_folder_name']
     except Exception:
         pass
+    return jsonify({'folders': folders, 'default_folder': default_folder})
+
+
+@api.route('/api/upload-folders/public', methods=['GET'])
+def get_public_upload_folders():
+    paths = current_app.config['PATHS']
+    try:
+        with open(paths['data'] / 'config.json', 'r') as configfile:
+            config = json.load(configfile)
+    except Exception:
+        return jsonify({'folders': [], 'default_folder': None})
+
+    if not config.get('app_config', {}).get('allow_public_folder_selection', False):
+        return Response(status=403)
+
+    video_path = paths['video']
+    folders = []
+    try:
+        for entry in os.scandir(video_path):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                folders.append(entry.name)
+        folders.sort()
+    except Exception:
+        pass
+
+    default_folder = config['app_config'].get('public_upload_folder_name')
     return jsonify({'folders': folders, 'default_folder': default_folder})
 
 

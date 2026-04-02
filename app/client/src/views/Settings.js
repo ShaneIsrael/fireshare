@@ -386,6 +386,21 @@ const Settings = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
+                      checked={updatedConfig.app_config?.allow_public_folder_selection || false}
+                      disabled={!updatedConfig.app_config?.allow_public_upload}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          app_config: { ...prev.app_config, allow_public_folder_selection: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Allow Public Upload Folder Selection"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
                       checked={updatedConfig.ui_config?.show_admin_upload || false}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({

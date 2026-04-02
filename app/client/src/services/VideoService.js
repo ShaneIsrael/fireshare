@@ -30,6 +30,9 @@ const service = {
   getUploadFolders() {
     return Api().get('/api/upload-folders')
   },
+  getPublicUploadFolders() {
+    return Api().get('/api/upload-folders/public')
+  },
   updateTitle(id, title) {
     return Api().put(`/api/video/details/${id}`, {
       title,
