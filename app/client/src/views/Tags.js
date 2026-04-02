@@ -17,7 +17,6 @@ import {
   FormControlLabel,
   Popover,
   TextField,
-  Chip,
   useTheme,
   useMediaQuery,
 } from '@mui/material'
@@ -32,8 +31,51 @@ import { useNavigate } from 'react-router-dom'
 import { SketchPicker } from 'react-color'
 import { TagService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
+import { labelSx, inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
-const DEFAULT_TAG_COLOR = '#2684FF'
+const DEFAULT_TAG_COLOR = '#1a3a5c'
+
+const normalizeTagColor = (hex) => {
+  if (!hex || hex.length < 7) return hex
+  const r = parseInt(hex.slice(1, 3), 16) / 255,
+    g = parseInt(hex.slice(3, 5), 16) / 255,
+    b = parseInt(hex.slice(5, 7), 16) / 255
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b),
+    d = max - min
+  let h = 0,
+    s = 0,
+    l = (max + min) / 2
+  if (d) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    h = (max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4) / 6
+  }
+  l = Math.max(0.15, Math.min(0.55, l))
+  s = Math.min(s, 0.65)
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s,
+    p = 2 * l - q
+  const hf = (t) => {
+    t = ((t % 1) + 1) % 1
+    return Math.round(
+      255 * (t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p),
+    )
+      .toString(16)
+      .padStart(2, '0')
+  }
+  return `#${hf(h + 1 / 3)}${hf(h)}${hf(h - 1 / 3)}`
+}
+
+const cardBorderColor = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  const factor = (Math.max(r, g, b) + Math.min(r, g, b)) / 510 < 0.25 ? 2.5 : 0.3
+  return `#${[r, g, b]
+    .map((c) =>
+      Math.min(255, Math.round(c * factor))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`
+}
 
 const Tags = ({ authenticated, searchText }) => {
   const [tags, setTags] = React.useState([])
@@ -44,7 +86,7 @@ const Tags = ({ authenticated, searchText }) => {
   const [deleteAssociatedVideos, setDeleteAssociatedVideos] = React.useState(false)
   const [newTagDialogOpen, setNewTagDialogOpen] = React.useState(false)
   const [newTagName, setNewTagName] = React.useState('')
-  const [newTagColor, setNewTagColor] = React.useState(DEFAULT_TAG_COLOR)
+  const [newTagColor, setNewTagColor] = React.useState('#1a3a5c')
   const [colorPickerAnchorEl, setColorPickerAnchorEl] = React.useState(null)
   const [editingTag, setEditingTag] = React.useState(null)
   const [editTagColor, setEditTagColor] = React.useState(DEFAULT_TAG_COLOR)
@@ -169,51 +211,56 @@ const Tags = ({ authenticated, searchText }) => {
   return (
     <Box sx={{ p: 3 }}>
       {toolbarTarget &&
+        authenticated &&
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {authenticated && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {editMode && (
-                  <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content' }}>
-                    <Button color="primary" onClick={handleSelectAllToggle}>
-                      {allSelected ? 'Select None' : 'Select All'}
-                    </Button>
-                    <Button
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={() => setDeleteDialogOpen(true)}
-                      disabled={selectedTags.size === 0}
-                    >
-                      Delete {selectedTags.size > 0 && !isMdDown && `(${selectedTags.size})`}
-                    </Button>
-                  </ButtonGroup>
-                )}
-                {!editMode && (
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => setNewTagDialogOpen(true)}
-                    sx={{ height: 38 }}
-                  >
-                    New Tag
-                  </Button>
-                )}
-                <IconButton
-                  onClick={handleEditModeToggle}
-                  sx={{
-                    bgcolor: editMode ? 'primary.main' : '#001E3C',
-                    borderRadius: '8px',
-                    height: '38px',
-                    border: !editMode ? '1px solid #2684FF' : 'none',
-                    '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
-                    },
-                  }}
+            {editMode && (
+              <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content', borderRadius: '8px' }}>
+                <Button color="primary" onClick={handleSelectAllToggle} sx={{ borderRadius: '8px 0 0 8px' }}>
+                  {allSelected ? 'Select None' : 'Select All'}
+                </Button>
+                <Button
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={selectedTags.size === 0}
+                  sx={{ borderRadius: '0 8px 8px 0' }}
                 >
-                  {editMode ? <CheckIcon /> : <EditIcon />}
-                </IconButton>
-              </Box>
+                  Delete {selectedTags.size > 0 && !isMdDown && `(${selectedTags.size})`}
+                </Button>
+              </ButtonGroup>
             )}
+            {!editMode && (
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => setNewTagDialogOpen(true)}
+                sx={{
+                  height: 38,
+                  width: 120,
+                  color: 'white',
+                  borderRadius: '8px',
+                  bgcolor: '#3399FF',
+                  '&:hover': { bgcolor: '#1976D2' },
+                }}
+              >
+                New Tag
+              </Button>
+            )}
+            <IconButton
+              onClick={handleEditModeToggle}
+              sx={{
+                bgcolor: editMode ? 'primary.main' : '#001E3C',
+                borderRadius: '8px',
+                height: '38px',
+                border: !editMode ? '1px solid #2684FF' : 'none',
+                '&:hover': {
+                  bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                },
+              }}
+            >
+              {editMode ? <CheckIcon /> : <EditIcon />}
+            </IconButton>
           </Box>,
           toolbarTarget,
         )}
@@ -253,10 +300,10 @@ const Tags = ({ authenticated, searchText }) => {
             .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
             .map((tag, index) => {
               const isSelected = selectedTags.has(tag.id)
-              const color = tag.color || DEFAULT_TAG_COLOR
+              const color = normalizeTagColor(tag.color || '#1a3a5c')
 
               return (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={tag.id}>
+                <Grid item xs={12} sm={6} md={4} lg={3} xl={2} key={tag.id}>
                   <motion.div
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -266,102 +313,123 @@ const Tags = ({ authenticated, searchText }) => {
                       onClick={() => handleTagClick(tag.id)}
                       sx={{
                         position: 'relative',
-                        height: 80,
+                        height: 140,
                         borderRadius: 2,
                         overflow: 'hidden',
                         cursor: 'pointer',
+                        border: isSelected ? '3px solid' : '2px solid',
+                        borderColor: cardBorderColor(color),
+                        ...(!tag.preview_video_id && { bgcolor: `${color}44` }),
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 2,
-                        pl: 2.5,
-                        pr: 1.5,
-                        // Left accent stripe via inset shadow
-                        boxShadow: isSelected
-                          ? `inset 5px 0 0 ${color}, 0 0 0 2px ${color}99`
-                          : `inset 5px 0 0 ${color}`,
-                        // Subtle gradient wash from tag color
-                        background: `linear-gradient(100deg, ${color}22 0%, ${color}0D 35%, #0A1929 70%)`,
-                        border: '1px solid',
-                        borderColor: isSelected ? `${color}99` : 'rgba(255,255,255,0.06)',
-                        transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+                        justifyContent: 'center',
+                        gap: 0.25,
+                        py: 2,
+                        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                         '&:hover': {
-                          transform: 'translateY(-2px)',
-                          boxShadow: isSelected
-                            ? `inset 5px 0 0 ${color}, 0 0 0 2px ${color}99, 0 6px 24px ${color}30`
-                            : `inset 5px 0 0 ${color}, 0 6px 24px ${color}28`,
+                          transform: 'scale(1.03)',
+                          boxShadow: `inset 0 0 0 1px ${cardBorderColor(color)}, 0 8px 32px #00000088, 0 4px 20px ${color}44`,
                         },
+                        boxShadow: `inset 0 0 0 1px ${cardBorderColor(color)}, 0 4px 16px #00000066`,
                       }}
                     >
-                      {/* Tag icon in accent color */}
-                      <LocalOfferIcon
-                        sx={{
-                          color,
-                          fontSize: 20,
-                          flexShrink: 0,
-                          filter: `drop-shadow(0 0 6px ${color}88)`,
-                        }}
-                      />
-
-                      {/* Name + count */}
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography
-                          noWrap
-                          sx={{ fontWeight: 700, fontSize: 14, color: 'white', lineHeight: 1.3 }}
-                        >
-                          {tag.name.replace(/_/g, ' ')}
-                        </Typography>
-                        <Typography sx={{ fontSize: 11, color: '#FFFFFF55', mt: 0.2 }}>
-                          {tag.video_count ?? 0} video{tag.video_count !== 1 ? 's' : ''}
-                        </Typography>
-                      </Box>
-
-                      {/* Edit mode controls */}
-                      {editMode && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-                          {/* Color edit button */}
-                          <IconButton
-                            size="small"
-                            onClick={(e) => handleOpenColorEdit(e, tag)}
+                      {tag.preview_video_id && (
+                        <>
+                          <Box
                             sx={{
-                              color: '#FFFFFF66',
-                              '&:hover': { color: color, bgcolor: `${color}22` },
-                            }}
-                          >
-                            <PaletteIcon fontSize="small" />
-                          </IconButton>
-                          {/* Checkbox */}
-                          <Checkbox
-                            checked={isSelected}
-                            onChange={(e) => {
-                              e.stopPropagation()
-                              handleTagSelect(tag.id)
-                            }}
-                            sx={{
-                              color: '#FFFFFF44',
-                              '&.Mui-checked': { color },
-                              p: 0.75,
+                              position: 'absolute',
+                              inset: 0,
+                              backgroundImage: `url(/api/video/poster?id=${tag.preview_video_id})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              filter: 'saturate(0.25)',
+                              zIndex: 0,
                             }}
                           />
-                        </Box>
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              inset: 0,
+                              bgcolor: color,
+                              mixBlendMode: 'multiply',
+                              zIndex: 0,
+                            }}
+                          />
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              inset: 0,
+                              bgcolor: '#00000077',
+                              zIndex: 0,
+                            }}
+                          />
+                        </>
                       )}
-
-                      {/* Video count badge (non-edit mode, right side) */}
-                      {!editMode && (
-                        <Chip
-                          label={tag.video_count ?? 0}
-                          size="small"
+                      {editMode && (
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            handleTagSelect(tag.id)
+                          }}
                           sx={{
-                            height: 20,
-                            fontSize: 11,
-                            bgcolor: `${color}22`,
-                            color: color,
-                            border: `1px solid ${color}44`,
-                            fontWeight: 700,
-                            flexShrink: 0,
-                            '& .MuiChip-label': { px: 1 },
+                            position: 'absolute',
+                            top: 8,
+                            left: 8,
+                            zIndex: 2,
+                            color: 'white',
+                            bgcolor: '#00000080',
+                            borderRadius: '4px',
+                            '&.Mui-checked': { color: 'primary.main' },
                           }}
                         />
                       )}
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          zIndex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 0.25,
+                          px: 2,
+                          width: '100%',
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontWeight: 800,
+                            fontSize:
+                              tag.name.length <= 4
+                                ? 40
+                                : tag.name.length <= 6
+                                  ? 32
+                                  : tag.name.length <= 8
+                                    ? 26
+                                    : tag.name.length <= 10
+                                      ? 20
+                                      : 17,
+                            color: 'white',
+                            textAlign: 'center',
+                            lineHeight: 1.2,
+                            fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
+                            width: '100%',
+                          }}
+                        >
+                          {tag.name.replace(/_/g, ' ')}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: 13,
+                            color: '#FFFFFFB3',
+                            textAlign: 'center',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                          }}
+                        >
+                          {tag.video_count ?? 0} video{tag.video_count !== 1 ? 's' : ''}
+                        </Typography>
+                      </Box>
                     </Box>
                   </motion.div>
                 </Grid>
@@ -371,12 +439,12 @@ const Tags = ({ authenticated, searchText }) => {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} PaperProps={{ sx: dialogPaperSx }}>
+        <DialogTitle sx={dialogTitleSx}>
           Delete {selectedTags.size} Tag{selectedTags.size > 1 ? 's' : ''}?
         </DialogTitle>
         <DialogContent>
-          <Typography sx={{ mb: 2 }}>
+          <Typography sx={{ mb: 2, fontSize: 14, color: '#FFFFFFB3' }}>
             Are you sure you want to delete the selected tag{selectedTags.size > 1 ? 's' : ''}?
           </Typography>
           <FormControlLabel
@@ -396,17 +464,24 @@ const Tags = ({ authenticated, searchText }) => {
               setDeleteDialogOpen(false)
               setDeleteAssociatedVideos(false)
             }}
+            sx={{ borderRadius: '8px', color: 'white', borderColor: 'white' }}
           >
             Cancel
           </Button>
-          <Button onClick={handleDeleteConfirm} variant="contained" color="error">
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error" sx={{ borderRadius: '8px' }}>
             Delete
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Edit Tag Color Dialog */}
-      <Dialog open={!!editingTag} onClose={() => { setEditingTag(null); setEditColorPickerAnchorEl(null) }}>
+      <Dialog
+        open={!!editingTag}
+        onClose={() => {
+          setEditingTag(null)
+          setEditColorPickerAnchorEl(null)
+        }}
+      >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <PaletteIcon sx={{ color: editTagColor }} />
           Edit Tag Color
@@ -453,7 +528,9 @@ const Tags = ({ authenticated, searchText }) => {
               border: '1px solid rgba(255,255,255,0.06)',
             }}
           >
-            <LocalOfferIcon sx={{ color: editTagColor, fontSize: 18, filter: `drop-shadow(0 0 6px ${editTagColor}88)` }} />
+            <LocalOfferIcon
+              sx={{ color: editTagColor, fontSize: 18, filter: `drop-shadow(0 0 6px ${editTagColor}88)` }}
+            />
             <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'white' }}>
               {editingTag?.name?.replace(/_/g, ' ')}
             </Typography>
@@ -480,8 +557,17 @@ const Tags = ({ authenticated, searchText }) => {
           </Popover>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => { setEditingTag(null); setEditColorPickerAnchorEl(null) }}>Cancel</Button>
-          <Button onClick={handleSaveTagColor} variant="contained">Save</Button>
+          <Button
+            onClick={() => {
+              setEditingTag(null)
+              setEditColorPickerAnchorEl(null)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button onClick={handleSaveTagColor} variant="contained">
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -492,20 +578,24 @@ const Tags = ({ authenticated, searchText }) => {
           setNewTagDialogOpen(false)
           setColorPickerAnchorEl(null)
         }}
+        PaperProps={{ sx: dialogPaperSx }}
       >
-        <DialogTitle>Create New Tag</DialogTitle>
+        <DialogTitle sx={dialogTitleSx}>Create New Tag</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important', minWidth: 300 }}>
-          <TextField
-            autoFocus
-            label="Tag Name"
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
-            fullWidth
-            inputProps={{ maxLength: 12 }}
-          />
+          <Box>
+            <Typography sx={labelSx}>Tag Name</Typography>
+            <TextField
+              autoFocus
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
+              fullWidth
+              sx={inputSx}
+              inputProps={{ maxLength: 12 }}
+            />
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography sx={{ color: '#FFFFFFB3', fontSize: 14 }}>Color</Typography>
+            <Typography sx={labelSx}>Color</Typography>
             <Box
               onClick={(e) => setColorPickerAnchorEl(e.currentTarget)}
               sx={{
@@ -546,10 +636,16 @@ const Tags = ({ authenticated, searchText }) => {
               setNewTagDialogOpen(false)
               setColorPickerAnchorEl(null)
             }}
+            sx={{ borderRadius: '8px', color: 'white', borderColor: 'white' }}
           >
             Cancel
           </Button>
-          <Button onClick={handleCreateTag} variant="contained" disabled={!newTagName.trim()}>
+          <Button
+            onClick={handleCreateTag}
+            variant="contained"
+            disabled={!newTagName.trim()}
+            sx={{ borderRadius: '8px', bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}
+          >
             Create
           </Button>
         </DialogActions>

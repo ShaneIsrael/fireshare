@@ -1,7 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { Box, Typography } from '@mui/material'
-import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import { useParams } from 'react-router-dom'
 import Select from 'react-select'
 import { TagService } from '../services'
@@ -19,6 +18,8 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
   const [loading, setLoading] = React.useState(true)
   const [sortOrder, setSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
+  const [currentClipIndex, setCurrentClipIndex] = React.useState(0)
+  const videoRefs = React.useRef([])
 
   if (searchText !== search) {
     setSearch(searchText)
@@ -44,6 +45,20 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
   React.useEffect(() => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
+
+  const clips = React.useMemo(() => videos.filter((v) => (v.info?.duration || 0) >= 5).slice(0, 6).map((v) => `/api/video/poster?id=${v.video_id}&animated=true`), [videos])
+
+  React.useEffect(() => {
+    if (clips.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentClipIndex((i) => (i + 1) % clips.length)
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [clips.length])
+
+  React.useEffect(() => {
+    videoRefs.current.forEach((v) => { if (v) v.play().catch(() => {}) })
+  }, [clips])
 
   const sortedVideos = React.useMemo(() => {
     if (!filteredVideos || !Array.isArray(filteredVideos)) return []
@@ -83,24 +98,91 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
           toolbarTarget,
         )}
 
-      {/* Tag header */}
+      {/* Tag hero banner */}
       <Box
         sx={{
-          px: 3,
-          pt: 3,
-          pb: 2,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
+          position: 'relative',
+          width: '100%',
+          height: 200,
+          overflow: 'hidden',
+          mb: 3,
+          bgcolor: '#0A1929',
         }}
       >
-        <LocalOfferIcon sx={{ color, fontSize: 28 }} />
-        <Typography sx={{ fontWeight: 700, fontSize: 24, color: 'white' }}>
-          {(tag?.name || 'Tag').replace(/_/g, ' ')}
-        </Typography>
-        <Typography sx={{ fontSize: 14, color: '#FFFFFF55', ml: 1 }}>
-          {sortedVideos.length} video{sortedVideos.length !== 1 ? 's' : ''}
-        </Typography>
+        {/* Video clips cycling in background */}
+        {clips.map((src, i) => (
+          <Box
+            key={src}
+            component="video"
+            ref={(el) => { videoRefs.current[i] = el }}
+            src={src}
+            autoPlay
+            muted
+            loop
+            playsInline
+            onLoadedMetadata={(e) => { e.target.currentTime = (e.target.duration / clips.length) * i }}
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              opacity: i === currentClipIndex ? 0.45 : 0,
+              transition: 'opacity 1.5s ease',
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
+
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(to top, #00000066 0%, transparent 60%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Solid color multiply overlay */}
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            bgcolor: color,
+            mixBlendMode: 'multiply',
+            opacity: 1,
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Tag name - bottom left */}
+        <Box
+          sx={{
+            position: 'relative',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            px: 3,
+          }}
+        >
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#999', letterSpacing: 1.5, textTransform: 'uppercase', mb: 0.5 }}>
+            Tag
+          </Typography>
+          <Typography
+            sx={{
+              fontWeight: 800,
+              fontSize: { xs: 36, sm: 52 },
+              color: 'white',
+              letterSpacing: '-0.5px',
+              lineHeight: 1,
+              fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
+            }}
+          >
+            {(tag?.name || 'Tag').replace(/_/g, ' ')}
+          </Typography>
+        </Box>
       </Box>
 
       <Box sx={{ p: 3 }}>

@@ -19,55 +19,16 @@ import { DayPicker } from 'react-day-picker'
 import { VideoService, GameService, TagService } from '../../services'
 import GameSearch from '../game/GameSearch'
 import './datepicker-dark.css'
-
-// ─── Shared style constants ───────────────────────────────────────────────────
-
-const labelSx = { fontSize: 12, color: '#FFFFFFB3', mb: 1, textTransform: 'uppercase', letterSpacing: '0.08em' }
-
-const inputSx = {
-  '& .MuiOutlinedInput-root': {
-    color: 'white',
-    bgcolor: '#FFFFFF0D',
-    borderRadius: '8px',
-    '& fieldset': { borderColor: '#FFFFFF26' },
-    '&:hover fieldset': { borderColor: '#FFFFFF55' },
-    '&.Mui-focused fieldset': { borderColor: '#3399FF' },
-  },
-}
-
-const rowBoxSx = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 1.5,
-  bgcolor: '#FFFFFF0D',
-  border: '1px solid #FFFFFF26',
-  borderRadius: '8px',
-  px: 1.5,
-  py: 1,
-}
+import { labelSx, inputSx, rowBoxSx, dialogPaperSx, timeInputStyle } from '../../common/modalStyles'
 
 const modalSx = {
   position: 'absolute',
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: { xs: '95vw', sm: 600 },
-  bgcolor: '#041223',
-  border: '1px solid #FFFFFF1A',
-  borderRadius: '12px',
-  boxShadow: '0 16px 48px #00000099',
+  width: 500,
   p: 4,
-}
-
-const timeInputStyle = {
-  background: '#FFFFFF0D',
-  border: '1px solid #FFFFFF26',
-  borderRadius: 6,
-  color: 'white',
-  fontSize: 13,
-  padding: '4px 8px',
-  colorScheme: 'dark',
-  flex: 1,
+  ...dialogPaperSx,
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
