@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, re
 import os.path
 try:
     import ldap
@@ -116,6 +116,19 @@ def create_app(init_schedule=False):
     app.config['TRANSCODE_GPU'] = os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
     app.config['TRANSCODE_TIMEOUT'] = int(os.getenv('TRANSCODE_TIMEOUT', '7200'))  # Default: 2 hours
 
+    #Integrations
+    app.config['DISCORD_WEBHOOK_URL'] = os.getenv('DISCORD_WEBHOOK_URL', '')
+    app.config['GENERIC_WEBHOOK_URL'] = os.getenv('GENERIC_WEBHOOK_URL', '')
+    raw_payload = os.getenv('GENERIC_WEBHOOK_PAYLOAD')
+    if raw_payload:
+        try:
+            app.config['GENERIC_WEBHOOK_PAYLOAD'] = json.loads(raw_payload)
+        except (json.JSONDecodeError, TypeError) as e:
+            app.logger.error(f"FATAL: GENERIC_WEBHOOK_PAYLOAD contains invalid JSON syntax, please verify JSON format")
+            sys.exit(1) 
+    else:
+        app.config['GENERIC_WEBHOOK_PAYLOAD'] = None
+
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/db.sqlite'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     # Configure SQLite connection for thread safety with Flask's --with-threads
@@ -222,6 +235,37 @@ def create_app(init_schedule=False):
         from .schedule import init_schedule
         init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'],
             app.config['MINUTES_BETWEEN_VIDEO_SCANS'])
+    
+    #Integrations Validation
+    if app.config.get('DISCORD_WEBHOOK_URL'):
+        discord_regex = r"^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$"
+        if re.match(discord_regex, app.config['DISCORD_WEBHOOK_URL']):
+            app.logger.info(f"Discord Integration: URL VALID | ENABLED (URL: {app.config['DISCORD_WEBHOOK_URL'][:20]}...)")
+        else:            
+            app.logger.error("Discord Webhook URL format looks invalid. Please double-check the URL.")
+            sys.exit(1)
+
+    if app.config.get("GENERIC_WEBHOOK_URL") or app.config.get("GENERIC_WEBHOOK_PAYLOAD"):
+        # Check for missing pieces
+        if not app.config.get("GENERIC_WEBHOOK_URL") or not app.config.get("GENERIC_WEBHOOK_PAYLOAD"):
+            app.logger.error("FATAL: Incomplete Generic Webhook configuration. Both URL and PAYLOAD must be set.")
+            sys.exit(1)
+
+        # Validate URL Format
+        url_regex = r"^https?:\/\/[^\s\/$.?#].[^\s]*$"
+        if re.match(url_regex, app.config['GENERIC_WEBHOOK_URL']):
+            app.logger.info(f"Generic Webhook: URL VALID | ENABLED ({app.config['GENERIC_WEBHOOK_URL'][:20]}...)")
+        else:            
+            app.logger.error(f"FATAL: Generic Webhook URL format is invalid: {app.config['GENERIC_WEBHOOK_URL']}")
+            sys.exit(1)
+
+        # Final Type Check (Since it's already been json.loads'd above)
+        if isinstance(app.config['GENERIC_WEBHOOK_PAYLOAD'], dict):
+            app.logger.info("Generic Webhook: PAYLOAD VALID | ENABLED")
+        else:
+            app.logger.error("FATAL: Generic Webhook PAYLOAD must be a JSON object (dictionary).")
+            sys.exit(1)
+
 
     with app.app_context():
         # db.create_all()
