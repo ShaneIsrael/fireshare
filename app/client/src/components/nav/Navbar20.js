@@ -162,6 +162,7 @@ function Navbar20({
   const location = useLocation()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const effectiveOpen = isMobile ? true : open
 
   // --- Folder selection state (shared with Feed / Dashboard) ---
   const [folders, setFolders] = React.useState(['All Videos'])
@@ -428,7 +429,7 @@ function Navbar20({
             </Box>
           </>
         )}
-      {cardSlider && open && (
+      {cardSlider && open && !isMobile && (
         <>
           <Divider />
           <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
@@ -445,19 +446,19 @@ function Navbar20({
         </>
       )}
       <Divider />
-      <UploadCard ref={registerUploadCard} authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!open} onUploadComplete={() => setUploadTick((t) => t + 1)} />
+      <UploadCard ref={registerUploadCard} authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!effectiveOpen} onUploadComplete={() => setUploadTick((t) => t + 1)} />
 
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
-        <GameScanStatus open={open} onComplete={handleGameScanComplete} authenticated={authenticated} />
-        <TranscodingStatus open={open} authenticated={authenticated} />
+        <GameScanStatus open={effectiveOpen} onComplete={handleGameScanComplete} authenticated={authenticated} />
+        <TranscodingStatus open={effectiveOpen} authenticated={authenticated} />
         <FolderSuggestionInline
-          open={open}
+          open={effectiveOpen}
           suggestion={currentSuggestionFolder ? folderSuggestions[currentSuggestionFolder] : null}
           folderName={currentSuggestionFolder}
           onApplied={handleFolderSuggestionApplied}
           onDismiss={handleFolderSuggestionClose}
         />
-        <DiskSpaceIndicator open={open} visible={authenticated} />
+        <DiskSpaceIndicator open={effectiveOpen} visible={authenticated} />
         <List sx={{ pl: 1, pr: 1 }}>
           {authenticated && (
             <ListItem disablePadding>
@@ -496,7 +497,7 @@ function Navbar20({
           )}
         </List>
         <Divider />
-        {open ? (
+        {effectiveOpen ? (
           <Box
             sx={{
               width: 222,
@@ -638,7 +639,7 @@ function Navbar20({
             }}
             sx={{
               display: { xs: 'block', sm: 'none' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: open ? drawerWidth : minimizedDrawerWidth },
+              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: effectiveOpen ? drawerWidth : minimizedDrawerWidth },
             }}
           >
             {drawer}

@@ -530,6 +530,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             justifyContent: 'center',
             // Full-screen on small viewports, padded on desktop
             p: { xs: 0, md: '96px' },
+            overflowY: { xs: 'auto', md: 'unset' },
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose()
@@ -539,7 +540,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            style={{ display: 'flex', justifyContent: 'center', width: '100%', maxWidth: '100%', maxHeight: '100%' }}
+            style={{ display: 'flex', justifyContent: 'center', width: '100%', maxWidth: '100%' }}
           >
             <Paper
               sx={{
@@ -551,7 +552,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 flexDirection: 'column',
                 width: { xs: '100%', md: `calc(${videoW_css} + ${SIDEBAR_WIDTH})` },
                 height: 'auto',
-                maxHeight: '100%',
+                maxHeight: { xs: 'none', md: '100%' },
                 maxWidth: '100%',
               }}
             >
@@ -1102,6 +1103,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
               {editMode && authenticated && (
                 <Box
                   sx={{
+                    display: { xs: 'none', md: 'block' },
                     borderTop: '1px solid #FFFFFF1A',
                     bgcolor: '#020D1A',
                     px: 2,
