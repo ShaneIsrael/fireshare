@@ -67,7 +67,14 @@ def update_config(path):
                     else:
                         dict1[key].append(dict2[key])
                 elif isinstance(dict1[key], dict): # calling itself recursively
-                    dict1[key] = combine(dict1[key], dict2[key])
+                    if key in dict2 and isinstance(dict2[key], dict):
+                        dict1[key] = combine(dict1[key], dict2[key])
+                    else:
+                        pass #keep default dict as is
+
+
+
+
                 else: # Overwrites all other values
                     dict1[key] = dict2[key]
             else: # Creates the values that doesn't exist.
