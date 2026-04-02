@@ -450,7 +450,13 @@ function Navbar20({
         </>
       )}
       <Divider />
-      <UploadCard ref={registerUploadCard} authenticated={authenticated} handleAlert={memoizedHandleAlert} mini={!effectiveOpen} onUploadComplete={() => setUploadTick((t) => t + 1)} />
+      <UploadCard
+        ref={registerUploadCard}
+        authenticated={authenticated}
+        handleAlert={memoizedHandleAlert}
+        mini={!effectiveOpen}
+        onUploadComplete={() => setUploadTick((t) => t + 1)}
+      />
 
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
         <GameScanStatus open={effectiveOpen} onComplete={handleGameScanComplete} authenticated={authenticated} />
@@ -647,7 +653,7 @@ function Navbar20({
               {/* Desktop: left spacer + centered search */}
               {!isMobile && <Box sx={{ flex: 1 }} />}
               {searchable && !isMobile && (
-                <Box id="navbar-search-container" sx={{ width: 520, flexShrink: 1, minWidth: 0 }}>
+                <Box id="navbar-search-container" sx={{ width: 520, flexShrink: 1, minWidth: 0, mr: 1, ml: 2 }}>
                   <Search placeholder={searchPlaceholder} searchHandler={(value) => setSearchText(value)} />
                 </Box>
               )}
@@ -700,7 +706,10 @@ function Navbar20({
             }}
             sx={{
               display: { xs: 'block', sm: 'none' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: effectiveOpen ? drawerWidth : minimizedDrawerWidth },
+              '& .MuiDrawer-paper': {
+                boxSizing: 'border-box',
+                width: effectiveOpen ? drawerWidth : minimizedDrawerWidth,
+              },
             }}
           >
             {drawer}
