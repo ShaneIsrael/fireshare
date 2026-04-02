@@ -2,7 +2,7 @@ import requests
 import json
 
 # The target webhook URL
-webhook_url = "https://webhook.site/6a20bb51-32ff-45fd-b6c6-40be0135b159"
+webhook_url = "https://eager-hawk-15.webhook.cool"
 
 # The data you want to send (formatted as a dictionary)
 data_to_send = {

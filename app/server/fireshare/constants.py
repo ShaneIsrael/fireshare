@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
   },
   "integrations": {
     "discord_webhook_url": "",
+    "generic_webhook_url": "",
     "steamgriddb_api_key": "",
   },
   "rss_config": {

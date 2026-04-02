@@ -69,8 +69,8 @@ const Settings = () => {
   const [updatedConfig, setUpdatedConfig] = React.useState({})
   const [updateable, setUpdateable] = React.useState(false)
   const [discordUrl, setDiscordUrl] = React.useState('')
-  const [webhookUrl, setwebhookUrl] = React.useState('')
-  const [webhookJson, setwebhookJson] = React.useState('')//needed?
+  const [webhookUrl, setWebhookUrl] = React.useState('')
+  const [webhookJson, setWebhookJson] = React.useState('')//needed?
   const [showSteamGridKey, setShowSteamGridKey] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState(0)
   const [transcodingStatus, setTranscodingStatus] = React.useState({
@@ -84,6 +84,50 @@ const Settings = () => {
   const [editingFolder, setEditingFolder] = React.useState(null)
   const isDiscordUsed = discordUrl.trim() !== ''
   const isWebhookUsed = webhookUrl.trim() !== ''
+
+ const handleTestWebhook = async () => {
+    let payloadToTest = {};
+    
+    try {
+      // Attempt to parse the text field, otherwise fall back to what's in the config
+      payloadToTest = webhookJson ? JSON.parse(webhookJson) : (updatedConfig.integrations?.custom_payload || {});
+    } catch (e) {
+      setAlert({ open: true, message: 'Invalid JSON in payload field', type: 'error' });
+      return;
+    }
+
+    const testData = {
+      webhook_url: webhookUrl, 
+      video_url: "https://example.com/test-video.mp4",
+      payload: payloadToTest 
+    };
+
+    if (!webhookUrl) {
+      setAlert({ open: true, message: 'Please enter a Webhook URL first', type: 'error' });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/test-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testData),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setAlert({ open: true, message: 'Test Webhook Sent!', type: 'success' });
+      } else {
+        setAlert({ open: true, message: result.error || 'Failed to send test', type: 'error' });
+      }
+    } catch (err) {
+      console.error("Connection failed:", err);
+      setAlert({ open: true, message: 'Network error connecting to server', type: 'error' });
+    }
+  };
 
   React.useEffect(() => {
     async function fetch() {
@@ -135,6 +179,12 @@ const Settings = () => {
   React.useEffect(() => {
     if (updatedConfig.integrations?.discord_webhook_url) {
       setDiscordUrl(updatedConfig.integrations.discord_webhook_url)
+    }
+  }, [updatedConfig])
+
+  React.useEffect(() => {
+    if (updatedConfig.integrations?.generic_webhook_url) {
+      setWebhookUrl(updatedConfig.integrations.generic_webhook_url)
     }
   }, [updatedConfig])
 
@@ -616,7 +666,7 @@ const Settings = () => {
                   size="small"
                   label="Generic Webhook"
                   value={webhookUrl}
-                  error={webhookUrl !== '' && !isValidDiscordWebhook(webhookUrl)}
+                  // error={webhookUrl !== '' && !isValidDiscordWebhook(webhookUrl)} //NEED TO VALIDATE HERE!!!!!
                   helperText={
                     <span>
                       Used for API POST to Generic Webhook Endpoint - {' '}
@@ -632,12 +682,12 @@ const Settings = () => {
                   }
                   onChange={(e) => {
                     const url = e.target.value
-                    setwebhookUrl(url)
+                    setWebhookUrl(url)
                     setUpdatedConfig((prev) => ({
                       ...prev,
                       integrations: {
                         ...prev.integrations,
-                        discord_webhook_url: url,
+                        generic_webhook_url: url,
                       },
                     }))
                   }}
@@ -658,7 +708,7 @@ const Settings = () => {
                   }
                   onChange={(e) => {
                     const val = e.target.value;
-                    setwebhookJson(val);
+                    setWebhookJson(val);
                     
                     // Only update the config if the JSON is actually valid
                     if (isValidJson(val)) {
@@ -675,9 +725,16 @@ const Settings = () => {
                 <Button
                   variant="outlined"
                   startIcon={<SendIcon />}
-                  
-                  onClick={handleCopyRssFeedUrl}
-                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
+                  // Change this from handleCopyRssFeedUrl to your new function
+                  onClick={handleTestWebhook}
+                  sx={{ 
+                    borderColor: 'rgba(255, 255, 255, 0.23)', 
+                    color: '#fff',
+                    '&:hover': {
+                      borderColor: '#fff',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)'
+                    }
+                  }}
                 >
                   Test Webhook
                 </Button>

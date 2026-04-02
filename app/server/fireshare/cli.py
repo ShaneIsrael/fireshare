@@ -148,6 +148,22 @@ def send_discord_webhook(webhook_url=None, video_url=None):
         print("Webhook sent successfully.")
     except requests.exceptions.RequestException as e:
         print(f"Failed to send webhook: {e}")
+#####
+def send_generic_webhook(webhook_url, video_url=None, custom_payload=None):
+
+    payload = custom_payload if custom_payload is not None else {}
+
+    if video_url and "content" not in payload:
+        payload["content"] = video_url
+
+    try:
+        response = requests.post(webhook_url, json=payload)     
+        response.raise_for_status()
+        return {"status": "success", "code": response.status_code}
+        
+    except requests.exceptions.RequestException as e:
+        return {"status": "error", "message": str(e)}
+#####
 
 def get_public_watch_url(video_id, config, host):
     shareable_link_domain = config.get("ui_config", {}).get("shareable_link_domain", "")
@@ -195,6 +211,7 @@ def scan_videos(root):
         config = json.load(config_file)
         video_config = config["app_config"]["video_defaults"]
         discord_webhook_url = config["integrations"]["discord_webhook_url"]
+        generic_webhook_url = config["integrations"]["generic_webhook_url"]
         config_file.close()
         
         if not video_links.is_dir():
@@ -360,6 +377,7 @@ def scan_video(ctx, path, tag_ids, game_id, title):
         config = json.load(config_file)
         video_config = config["app_config"]["video_defaults"]
         discord_webhook_url = config["integrations"]["discord_webhook_url"]
+        generic_webhook_url = config["integrations"]["generic_webhook_url"]
 
         config_file.close()
         

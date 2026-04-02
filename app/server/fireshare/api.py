@@ -2807,3 +2807,30 @@ def bulk_remove_tag():
 def after_request(response):
     response.headers.add('Accept-Ranges', 'bytes')
     return response
+
+from flask import request, jsonify, current_app
+from .cli import send_generic_webhook
+@api.route('/api/test-webhook', methods=['POST'])
+def test_webhook():
+    # 1. Get the data sent from the JavaScript frontend
+    data = request.get_json()
+    
+    webhook_url = data.get('webhook_url')
+    video_url = data.get('video_url')
+    payload = data.get('payload')
+
+    if not webhook_url:
+        return jsonify({"error": "No Webhook URL provided"}), 400
+
+    # 2. Call your function from cli.py
+    try:
+        # Assuming send_generic_webhook is the function we built earlier
+        result = send_generic_webhook(webhook_url, video_url, payload)
+        
+        if result.get("status") == "success":
+            return jsonify({"message": "Webhook sent successfully!"}), 200
+        else:
+            return jsonify({"error": result.get("message")}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
