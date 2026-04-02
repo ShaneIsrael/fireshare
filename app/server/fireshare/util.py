@@ -8,6 +8,7 @@ import time
 import glob
 import shutil
 import re
+import threading
 from datetime import datetime
 
 # Corruption indicators to detect during video validation
@@ -606,15 +607,41 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
 
     If data_path is provided, reads the existing status file and updates it with
     percent/speed. Progress is throttled to every 0.5 seconds to avoid I/O overhead.
+    stderr is drained in a background thread to prevent pipe buffer deadlock and
+    is logged at warning level if the process exits with a non-zero code.
     """
     # Insert -progress pipe:1 before output file (last arg)
     cmd_with_progress = cmd[:-1] + ['-progress', 'pipe:1'] + [cmd[-1]]
+
+    # Snapshot the stable status fields (current, total, current_video, pid, resolution)
+    # once before ffmpeg starts. Using a snapshot prevents a concurrent write (e.g. from
+    # an upload scan resetting total=0) from being silently preserved through the
+    # read-modify-write that happens on every progress tick.
+    status_snapshot = {}
+    if data_path:
+        existing = read_transcoding_status(data_path)
+        status_snapshot = {
+            'current': existing.get('current', 0),
+            'total': existing.get('total', 0),
+            'current_video': existing.get('current_video'),
+            'pid': existing.get('pid'),
+            'resolution': existing.get('resolution'),
+        }
 
     process = sp.Popen(cmd_with_progress, stdout=sp.PIPE, stderr=sp.PIPE, text=True)
     last_update = 0
     speed = None
     percent = None
     current_seconds = 0
+
+    # Drain stderr in a background thread to prevent pipe buffer from filling
+    # and blocking ffmpeg. Collected lines are logged on failure.
+    stderr_lines = []
+    def _drain_stderr():
+        for line in process.stderr:
+            stderr_lines.append(line.rstrip())
+    stderr_thread = threading.Thread(target=_drain_stderr, daemon=True)
+    stderr_thread.start()
 
     # -progress outputs clean key=value lines:
     # out_time_us=83450000
@@ -652,17 +679,18 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
                         remaining_seconds = total_duration - current_seconds
                         eta_seconds = remaining_seconds / speed
 
-                    # Read existing status and update with progress
-                    existing = read_transcoding_status(data_path)
+                    # Update status using the snapshot captured before ffmpeg started.
+                    # This prevents a concurrent write (e.g. an upload scan resetting
+                    # total=0 mid-transcode) from corrupting task count or PID.
                     write_transcoding_status(
                         data_path,
-                        existing.get('current', 0),
-                        existing.get('total', 0),
-                        existing.get('current_video'),
-                        existing.get('pid'),
+                        status_snapshot.get('current', 0),
+                        status_snapshot.get('total', 0),
+                        status_snapshot.get('current_video'),
+                        status_snapshot.get('pid'),
                         percent,
                         eta_seconds,
-                        existing.get('resolution')
+                        status_snapshot.get('resolution')
                     )
                     last_update = now
 
@@ -671,6 +699,13 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
         process.kill()
         process.wait()
         raise
+    finally:
+        stderr_thread.join(timeout=5)
+
+    if process.returncode != 0 and stderr_lines:
+        logger.warning(f"FFmpeg exited with code {process.returncode}. stderr output:")
+        for line in stderr_lines[-100:]:
+            logger.warning(f"  ffmpeg: {line}")
 
     return process
 
@@ -737,9 +772,21 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
     
     # Determine output container based on codec
     out_path_str = str(out_path)
-    
+
+    # Write to a temp path during transcoding; only rename to the final path on
+    # success. This ensures a partially-written file from a crashed ffmpeg process
+    # is never picked up and served as a valid transcode output.
+    tmp_path = out_path.parent / (out_path.stem + '.tmp.mp4')
+    tmp_path_str = str(tmp_path)
+    if tmp_path.exists():
+        try:
+            tmp_path.unlink()
+            logger.debug(f"Cleaned up leftover temp file: {tmp_path_str}")
+        except OSError as ex:
+            logger.debug(f"Could not remove leftover temp file: {ex}")
+
     mode = 'gpu' if use_gpu else 'cpu'
-    
+
     # Use cached encoder if available to avoid redundant encoder detection during bulk transcoding.
     if _working_encoder_cache[mode] is not None:
         encoder = _working_encoder_cache[mode]
@@ -747,13 +794,14 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
 
         # Build ffmpeg command using the cached encoder
         logger.info(f"Transcoding video to {height}p using {encoder['name']}")
-        cmd = _build_transcode_command(video_path, out_path, height, encoder)
+        cmd = _build_transcode_command(video_path, tmp_path, height, encoder)
 
         logger.debug(f"$: {' '.join(cmd)}")
 
         try:
             result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds, data_path)
             if result.returncode == 0:
+                tmp_path.rename(out_path)
                 e = time.time()
                 logger.info(f'Transcoded {str(out_path)} to {height}p in {e-s:.2f}s')
                 return (True, None)
@@ -762,22 +810,32 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
                 logger.warning(f"Cached encoder {encoder['name']} failed with exit code {result.returncode}")
                 logger.info("Clearing encoder cache and retrying with all available encoders...")
                 _working_encoder_cache[mode] = None
+                if tmp_path.exists():
+                    try:
+                        tmp_path.unlink()
+                    except OSError as cleanup_ex:
+                        logger.debug(f"Could not clean up temp file: {cleanup_ex}")
         except sp.TimeoutExpired:
             logger.warning(f"Cached encoder {encoder['name']} timed out after {timeout_seconds} seconds")
             logger.info("Clearing encoder cache and retrying with all available encoders...")
             _working_encoder_cache[mode] = None
             # Clean up the process and any partial output
-            if os.path.exists(out_path_str):
+            if tmp_path.exists():
                 try:
-                    os.remove(out_path_str)
-                    logger.debug(f"Cleaned up timed out output file: {out_path_str}")
+                    tmp_path.unlink()
+                    logger.debug(f"Cleaned up timed out temp file: {tmp_path_str}")
                 except OSError as cleanup_ex:
-                    logger.debug(f"Could not clean up timed out output: {cleanup_ex}")
+                    logger.debug(f"Could not clean up timed out temp file: {cleanup_ex}")
         except Exception as ex:
             # Cached encoder failed - clear cache and fall through to try all encoders
             logger.warning(f"Cached encoder {encoder['name']} failed: {ex}")
             logger.info("Clearing encoder cache and retrying with all available encoders...")
             _working_encoder_cache[mode] = None
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError as cleanup_ex:
+                    logger.debug(f"Could not clean up temp file: {cleanup_ex}")
     
     # No cached encoder - need to detect a working encoder
     # Check if GPU is requested but NVENC is not available in ffmpeg
@@ -868,20 +926,21 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
     # as fallback, so CPU transcoding will be attempted automatically if GPU fails
     logger.info(f"Detecting working {mode.upper()} encoder by attempting transcode...")
     encoders = _get_encoder_candidates(use_gpu, encoder_preference)
-    
+
     last_exception = None
     for encoder in encoders:
         logger.info(f"Trying {encoder['name']}...")
 
-        # Build ffmpeg command
-        cmd = _build_transcode_command(video_path, out_path, height, encoder)
+        # Build ffmpeg command targeting the temp path
+        cmd = _build_transcode_command(video_path, tmp_path, height, encoder)
 
         logger.debug(f"$: {' '.join(cmd)}")
 
         try:
             result = run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds, data_path)
             if result.returncode == 0:
-                # Success! Cache this encoder and return
+                # Success! Move temp file to final location, cache encoder, and return.
+                tmp_path.rename(out_path)
                 logger.info(f"✓ {encoder['name']} works! Using it for all transcodes this session.")
                 _working_encoder_cache[mode] = encoder
                 e = time.time()
@@ -890,33 +949,33 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
             else:
                 logger.warning(f"✗ {encoder['name']} failed with exit code {result.returncode}")
                 last_exception = Exception(f"Transcode failed with exit code {result.returncode}")
-                # Clean up failed output file before trying next encoder
-                if os.path.exists(out_path_str):
+                # Clean up temp file before trying next encoder
+                if tmp_path.exists():
                     try:
-                        os.remove(out_path_str)
-                        logger.debug(f"Cleaned up failed output file: {out_path_str}")
+                        tmp_path.unlink()
+                        logger.debug(f"Cleaned up failed temp file: {tmp_path_str}")
                     except OSError as cleanup_ex:
-                        logger.debug(f"Could not clean up failed output: {cleanup_ex}")
+                        logger.debug(f"Could not clean up failed temp file: {cleanup_ex}")
         except sp.TimeoutExpired:
             logger.warning(f"✗ {encoder['name']} timed out after {timeout_seconds} seconds")
             last_exception = Exception(f"Transcode timed out after {timeout_seconds} seconds")
-            # Clean up failed output file before trying next encoder
-            if os.path.exists(out_path_str):
+            # Clean up temp file before trying next encoder
+            if tmp_path.exists():
                 try:
-                    os.remove(out_path_str)
-                    logger.debug(f"Cleaned up timed out output file: {out_path_str}")
+                    tmp_path.unlink()
+                    logger.debug(f"Cleaned up timed out temp file: {tmp_path_str}")
                 except OSError as cleanup_ex:
-                    logger.debug(f"Could not clean up timed out output: {cleanup_ex}")
+                    logger.debug(f"Could not clean up timed out temp file: {cleanup_ex}")
         except Exception as ex:
             logger.warning(f"✗ {encoder['name']} failed: {ex}")
             last_exception = ex
-            # Clean up failed output file before trying next encoder
-            if os.path.exists(out_path_str):
+            # Clean up temp file before trying next encoder
+            if tmp_path.exists():
                 try:
-                    os.remove(out_path_str)
-                    logger.debug(f"Cleaned up failed output file: {out_path_str}")
+                    tmp_path.unlink()
+                    logger.debug(f"Cleaned up failed temp file: {tmp_path_str}")
                 except OSError as cleanup_ex:
-                    logger.debug(f"Could not clean up failed output: {cleanup_ex}")
+                    logger.debug(f"Could not clean up failed temp file: {cleanup_ex}")
     
     # If we get here, no encoder worked
     error_msg = f"No working {mode.upper()} encoder found for video. Tried: {', '.join([e['name'] for e in encoders])}"
@@ -928,17 +987,14 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
     # This allows the calling code to continue processing other videos
     return (False, 'encoders')
 
-def create_boomerang_preview(video_path, out_path, clip_duration=1.5):
-    # https://stackoverflow.com/questions/65874316/trim-a-video-and-add-the-boomerang-effect-on-it-with-ffmpeg
-    # https://ffmpeg.org/ffmpeg-filters.html#reverse
-    # https://ffmpeg.org/ffmpeg-filters.html#Examples-148
-    # ffmpeg -ss 0 -t 1.5 -i in.mp4 -y -filter_complex "[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:720" -an out.mp4
+def create_boomerang_preview(video_path, out_path, clip_duration=5):
     s = time.time()
-    boomerang_filter_720p = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:720'
-    boomerang_filter_480p = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat[clip];[clip]scale=-1:480'
-    boomerang_filter = '[0]split[a][b];[b]reverse[a_rev];[a][a_rev]concat'
-    cmd = ['ffmpeg', '-v', 'quiet', '-ss', '0', '-t', str(clip_duration),
-        '-i', str(video_path), '-y', '-filter_complex', boomerang_filter_480p, '-an', str(out_path)]
+    duration = get_video_duration(video_path) or 0
+    start = max(0, duration / 2 - clip_duration / 2)
+    cmd = ['ffmpeg', '-v', 'quiet', '-ss', str(start), '-t', str(clip_duration),
+        '-i', str(video_path), '-y', '-vf', 'scale=-2:480',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
+        '-an', '-movflags', '+faststart', str(out_path)]
     logger.info(f"Creating boomerang preview")
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)

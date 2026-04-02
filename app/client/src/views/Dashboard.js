@@ -31,6 +31,7 @@ import TagChip from '../components/misc/TagChip'
 
 import selectSortTheme from '../common/reactSelectSortTheme'
 import { SORT_OPTIONS } from '../common/constants'
+import { inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
 const Dashboard = ({
   authenticated,
@@ -632,8 +633,8 @@ const Dashboard = ({
       </Dialog>
 
       {/* Tag Selected Dialog */}
-      <Dialog open={tagDialogOpen} onClose={handleTagCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog open={tagDialogOpen} onClose={handleTagCancel} maxWidth="sm" fullWidth PaperProps={{ sx: dialogPaperSx }}>
+        <DialogTitle sx={dialogTitleSx}>
           Tag {selectedVideos.size} Clip{selectedVideos.size !== 1 ? 's' : ''}
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
@@ -641,7 +642,7 @@ const Dashboard = ({
             multiple
             freeSolo
             componentsProps={{ root: { sx: { '& .MuiAutocomplete-tag': { my: 0.25 } } } }}
-            sx={{ '& .MuiOutlinedInput-root': { gap: 0.5 } }}
+            sx={{ ...inputSx, '& .MuiOutlinedInput-root': { ...inputSx['& .MuiOutlinedInput-root'], gap: 0.5 } }}
             options={allTags.filter((t) => !selectedTagsForBulk.find((s) => s.id === t.id))}
             getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
             value={selectedTagsForBulk}
@@ -695,8 +696,8 @@ const Dashboard = ({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleTagCancel}>Cancel</Button>
-          <Button onClick={handleTagConfirm} variant="contained" disabled={selectedTagsForBulk.length === 0}>
+          <Button onClick={handleTagCancel} sx={{ borderRadius: '8px', color: 'white' }}>Cancel</Button>
+          <Button onClick={handleTagConfirm} variant="contained" disabled={selectedTagsForBulk.length === 0} sx={{ borderRadius: '8px', bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}>
             Tag
           </Button>
         </DialogActions>

@@ -954,7 +954,7 @@ def create_folder_rule():
 @login_required
 def delete_folder_rule(rule_id):
     """Delete a folder rule, optionally unlinking videos"""
-    rule = FolderRule.query.get(rule_id)
+    rule = db.session.get(FolderRule, rule_id)
     if not rule:
         return jsonify({'error': 'Folder rule not found'}), 404
 
@@ -1159,7 +1159,7 @@ def get_videos():
     for v in videos:
         vjson = v.json()
         vjson["view_count"] = VideoView.count(v.video_id)
-        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all()]
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all() if l.tag is not None]
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -1215,7 +1215,7 @@ def get_public_videos():
         if (not vjson["available"]):
             continue
         vjson["view_count"] = VideoView.count(v.video_id)
-        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all()]
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all() if l.tag is not None]
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -1378,11 +1378,16 @@ def handle_video_details(id):
 @api.route('/api/video/poster', methods=['GET'])
 def get_video_poster():
     video_id = request.args['id']
-    webm_poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "boomerang-preview.webm")
-    jpg_poster_path = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id, "poster.jpg")
+    derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
+    jpg_poster_path = derived_dir / "poster.jpg"
 
     if request.args.get('animated'):
-        response = send_file(webm_poster_path, mimetype='video/webm')
+        mp4_path = derived_dir / "boomerang-preview.mp4"
+        webm_path = derived_dir / "boomerang-preview.webm"
+        if mp4_path.exists():
+            response = send_file(mp4_path, mimetype='video/mp4')
+        else:
+            response = send_file(webm_path, mimetype='video/webm')
     else:
         response = send_file(jpg_poster_path, mimetype='image/jpg')
 
@@ -1405,15 +1410,16 @@ def get_video_views(video_id):
 
 
 def _parse_upload_metadata():
-    """Return (tag_ids, game_id) parsed from current request form data."""
+    """Return (tag_ids, game_id, title) parsed from current request form data."""
     tag_ids_raw = request.form.get('tag_ids', '')
     tag_ids = [int(t) for t in tag_ids_raw.split(',') if t.strip().isdigit()] or None
     game_id_raw = request.form.get('game_id', '')
     game_id = int(game_id_raw) if game_id_raw.strip().isdigit() else None
-    return tag_ids, game_id
+    title = request.form.get('title', '').strip() or None
+    return tag_ids, game_id, title
 
 
-def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
+def _launch_scan_video(save_path, config, tag_ids=None, game_id=None, title=None):
     """
     Launch scan-video and publish an initial transcoding-running status when
     auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
@@ -1428,6 +1434,8 @@ def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
         cmd.append(f"--tag-ids={','.join(str(t) for t in tag_ids)}")
     if game_id:
         cmd.append(f"--game-id={game_id}")
+    if title:
+        cmd.append(f"--title={title}")
     scan_proc = Popen(cmd, shell=False, start_new_session=True)
 
     def reap_and_cleanup():
@@ -1443,7 +1451,8 @@ def _launch_scan_video(save_path, config, tag_ids=None, game_id=None):
 
     transcoding_enabled = current_app.config.get('ENABLE_TRANSCODING', False)
     auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
-    if transcoding_enabled and auto_transcode:
+    transcode_already_running = _transcoding_process is not None and _transcoding_process.poll() is None
+    if transcoding_enabled and auto_transcode and not transcode_already_running:
         try:
             util.write_transcoding_status(data_path, 0, 0, None, scan_proc.pid)
         except Exception as e:
@@ -1761,9 +1770,18 @@ def _clear_crop(video, video_info, paths, had_480p, had_720p, had_1080p):
     video_info.has_1080p = False
     db.session.commit()
 
+    # Regenerate thumbnail from the original video
+    original_path = paths["processed"] / "video_links" / f"{video.video_id}{video.extension}"
+    thumbnail_skip = current_app.config.get('THUMBNAIL_VIDEO_LOCATION') or 0
+    if thumbnail_skip > 0 and thumbnail_skip <= 100:
+        thumbnail_skip = thumbnail_skip / 100
+    else:
+        thumbnail_skip = 0
+    poster_time = int((video_info.duration or 0) * thumbnail_skip)
+    util.create_poster(original_path, derived_dir / "poster.jpg", poster_time)
+
     # Re-transcode quality variants from the original if they existed before
     if had_480p or had_720p or had_1080p:
-        original_path = paths["processed"] / "video_links" / f"{video.video_id}{video.extension}"
         _retranscode_async(video.video_id, original_path, paths, had_480p, had_720p, had_1080p)
 
 
@@ -1794,6 +1812,12 @@ def _apply_crop_async(video, video_info, start_time, end_time, paths):
 
     app = current_app._get_current_object()
 
+    thumbnail_skip = current_app.config.get('THUMBNAIL_VIDEO_LOCATION') or 0
+    if thumbnail_skip > 0 and thumbnail_skip <= 100:
+        thumbnail_skip = thumbnail_skip / 100
+    else:
+        thumbnail_skip = 0
+
     def run():
         success = util.create_video_crop(original_path, cropped_path, start_time, end_time)
         with app.app_context():
@@ -1803,6 +1827,10 @@ def _apply_crop_async(video, video_info, start_time, end_time, paths):
             if success:
                 vi.has_crop = True
                 db.session.commit()
+                # Regenerate thumbnail from the cropped video
+                crop_duration = (end_time or vi.duration) - (start_time or 0)
+                poster_time = int(crop_duration * thumbnail_skip)
+                util.create_poster(cropped_path, derived_dir / "poster.jpg", poster_time)
                 if had_480p or had_720p or had_1080p:
                     _retranscode_async(video_id, cropped_path, paths, had_480p, had_720p, had_1080p)
             else:
@@ -2124,7 +2152,7 @@ def link_video_to_game(video_id):
     if not video:
         return Response(status=404, response='Video not found.')
 
-    game = GameMetadata.query.get(data['game_id'])
+    game = db.session.get(GameMetadata, data['game_id'])
     if not game:
         return Response(status=404, response='Game not found.')
 
@@ -2535,12 +2563,16 @@ def get_tags():
     result = []
     for tag in tags:
         t = tag.json()
-        t["video_count"] = (
+        links = (
             db.session.query(VideoTagLink)
             .join(Video, Video.video_id == VideoTagLink.video_id)
             .filter(VideoTagLink.tag_id == tag.id, Video.available.is_(True))
-            .count()
         )
+        if not current_user.is_authenticated:
+            links = links.join(VideoInfo, VideoInfo.video_id == VideoTagLink.video_id).filter(VideoInfo.private.is_(False))
+        t["video_count"] = links.count()
+        random_link = links.order_by(func.random()).first()
+        t["preview_video_id"] = random_link.video_id if random_link else None
         result.append(t)
     return jsonify(result)
 
@@ -2574,7 +2606,7 @@ def create_tag():
 @api.route('/api/tags/<int:tag_id>', methods=["PUT"])
 @login_required
 def update_tag(tag_id):
-    tag = CustomTag.query.get(tag_id)
+    tag = db.session.get(CustomTag, tag_id)
     if not tag:
         return Response(status=404, response='Tag not found.')
 
@@ -2597,7 +2629,7 @@ def update_tag(tag_id):
 @api.route('/api/tags/<int:tag_id>', methods=["DELETE"])
 @login_required
 def delete_tag(tag_id):
-    tag = CustomTag.query.get(tag_id)
+    tag = db.session.get(CustomTag, tag_id)
     if not tag:
         return Response(status=404, response='Tag not found.')
 
@@ -2640,7 +2672,7 @@ def delete_tag(tag_id):
 
 @api.route('/api/tags/<int:tag_id>/videos', methods=["GET"])
 def get_tag_videos(tag_id):
-    tag = CustomTag.query.get(tag_id)
+    tag = db.session.get(CustomTag, tag_id)
     if not tag:
         return Response(status=404, response='Tag not found.')
 
@@ -2655,10 +2687,23 @@ def get_tag_videos(tag_id):
                 continue
         vjson = link.video.json()
         vjson["view_count"] = VideoView.count(link.video_id)
-        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=link.video_id).all()]
+        vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=link.video_id).all() if l.tag is not None]
         videos_json.append(vjson)
 
     return jsonify(videos_json)
+
+
+def _regenerate_boomerang_bg(video_id, extension, processed_directory):
+    video_path = Path(processed_directory, "video_links", video_id + extension)
+    derived_path = Path(processed_directory, "derived", video_id)
+    out_path = derived_path / "boomerang-preview.mp4"
+    def run():
+        if not video_path.exists():
+            return
+        if not derived_path.exists():
+            derived_path.mkdir(parents=True)
+        util.create_boomerang_preview(video_path, out_path)
+    threading.Thread(target=run, daemon=True).start()
 
 
 @api.route('/api/videos/<video_id>/tags', methods=["GET"])
@@ -2678,7 +2723,7 @@ def add_tag_to_video(video_id):
     if not video:
         return Response(status=404, response='Video not found.')
 
-    tag = CustomTag.query.get(data['tag_id'])
+    tag = db.session.get(CustomTag, data['tag_id'])
     if not tag:
         return Response(status=404, response='Tag not found.')
 
@@ -2693,6 +2738,7 @@ def add_tag_to_video(video_id):
     )
     db.session.add(link)
     db.session.commit()
+    _regenerate_boomerang_bg(video.video_id, video.extension, current_app.config["PROCESSED_DIRECTORY"])
     return jsonify(link.json()), 201
 
 
@@ -2714,11 +2760,12 @@ def bulk_assign_tag():
     if not data or not data.get('tag_id') or not data.get('video_ids'):
         return Response(status=400, response='tag_id and video_ids are required.')
 
-    tag = CustomTag.query.get(data['tag_id'])
+    tag = db.session.get(CustomTag, data['tag_id'])
     if not tag:
         return Response(status=404, response='Tag not found.')
 
     created = 0
+    new_video_ids = []
     for video_id in data['video_ids']:
         existing = VideoTagLink.query.filter_by(video_id=video_id, tag_id=data['tag_id']).first()
         if not existing:
@@ -2729,8 +2776,14 @@ def bulk_assign_tag():
             )
             db.session.add(link)
             created += 1
+            new_video_ids.append(video_id)
 
     db.session.commit()
+    processed_dir = current_app.config["PROCESSED_DIRECTORY"]
+    for video_id in new_video_ids:
+        v = Video.query.filter_by(video_id=video_id).first()
+        if v:
+            _regenerate_boomerang_bg(v.video_id, v.extension, processed_dir)
     return jsonify({"created": created, "skipped": len(data['video_ids']) - created}), 200
 
 
