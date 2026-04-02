@@ -169,6 +169,7 @@ def create_app(init_schedule=False):
         'data': Path(app.config['DATA_DIRECTORY']),
         'video': Path(app.config['VIDEO_DIRECTORY']),
         'processed': Path(app.config['PROCESSED_DIRECTORY']),
+    
     }
     app.config['PATHS'] = paths
     for k, path in paths.items():
@@ -189,7 +190,7 @@ def create_app(init_schedule=False):
     if not game_assets_dir.is_dir():
         logger.info(f"Creating game_assets directory at {str(game_assets_dir.absolute())}")
         game_assets_dir.mkdir(parents=True, exist_ok=True)
-
+    
     update_config(paths['data'] / 'config.json')
 
     db.init_app(app)
@@ -266,6 +267,31 @@ def create_app(init_schedule=False):
             app.logger.error("FATAL: Generic Webhook PAYLOAD must be a JSON object (dictionary).")
             sys.exit(1)
 
+    #Allow config.json updates 
+    from .constants import DEFAULT_CONFIG
+    if 'integrations' not in DEFAULT_CONFIG:
+        DEFAULT_CONFIG['integrations'] = {}
+
+    DEFAULT_CONFIG['integrations']['discord_webhook_url'] = app.config.get('DISCORD_WEBHOOK_URL', '')
+    DEFAULT_CONFIG['integrations']['generic_webhook_url'] = app.config.get('GENERIC_WEBHOOK_URL', '')
+    DEFAULT_CONFIG['integrations']['generic_webhook_payload'] = app.config.get('GENERIC_WEBHOOK_PAYLOAD', {})
+
+    # Run the merge first to get everything else from the file
+    update_config(paths['data'] / 'config.json')
+
+    # NOW force the ENV vars into the file so they definitely stick
+    config_path = paths['data'] / 'config.json'
+    with open(config_path, 'r+') as f:
+        data = json.load(f)
+        
+        # Force the integrations block to match our validated app.config
+        data['integrations']['discord_webhook_url'] = app.config.get('DISCORD_WEBHOOK_URL', '')
+        data['integrations']['generic_webhook_url'] = app.config.get('GENERIC_WEBHOOK_URL', '')
+        data['integrations']['generic_webhook_payload'] = app.config.get('GENERIC_WEBHOOK_PAYLOAD', {})
+        
+        f.seek(0)
+        json.dump(data, f, indent=2)
+        f.truncate()
 
     with app.app_context():
         # db.create_all()

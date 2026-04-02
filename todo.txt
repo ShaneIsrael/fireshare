@@ -1,8 +1,8 @@
 add test url for discord
-add config backend to handle webhook input vars
-validate webhook data on boot of container to validate it's accurate 
+!add config backend to handle webhook input vars
+!validate webhook data on boot of container to validate it's accurate 
 
-Integrate docker vars to generic webhook
+!Integrate docker vars to generic webhook
 
 !add save functionlality
 
