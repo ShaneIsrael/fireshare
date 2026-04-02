@@ -247,12 +247,10 @@ def create_app(init_schedule=False):
             sys.exit(1)
 
     if app.config.get("GENERIC_WEBHOOK_URL") or app.config.get("GENERIC_WEBHOOK_PAYLOAD"):
-        # Check for missing pieces
         if not app.config.get("GENERIC_WEBHOOK_URL") or not app.config.get("GENERIC_WEBHOOK_PAYLOAD"):
             app.logger.error("FATAL: Incomplete Generic Webhook configuration. Both URL and PAYLOAD must be set.")
             sys.exit(1)
 
-        # Validate URL Format
         url_regex = r"^https?:\/\/[^\s\/$.?#].[^\s]*$"
         if re.match(url_regex, app.config['GENERIC_WEBHOOK_URL']):
             app.logger.info(f"Generic Webhook: URL VALID | ENABLED ({app.config['GENERIC_WEBHOOK_URL'][:20]}...)")
@@ -260,14 +258,12 @@ def create_app(init_schedule=False):
             app.logger.error(f"FATAL: Generic Webhook URL format is invalid: {app.config['GENERIC_WEBHOOK_URL']}")
             sys.exit(1)
 
-        # Final Type Check (Since it's already been json.loads'd above)
         if isinstance(app.config['GENERIC_WEBHOOK_PAYLOAD'], dict):
             app.logger.info("Generic Webhook: PAYLOAD VALID | ENABLED")
         else:
             app.logger.error("FATAL: Generic Webhook PAYLOAD must be a JSON object (dictionary).")
             sys.exit(1)
 
-    #Allow config.json updates 
     from .constants import DEFAULT_CONFIG
     if 'integrations' not in DEFAULT_CONFIG:
         DEFAULT_CONFIG['integrations'] = {}
@@ -276,15 +272,12 @@ def create_app(init_schedule=False):
     DEFAULT_CONFIG['integrations']['generic_webhook_url'] = app.config.get('GENERIC_WEBHOOK_URL', '')
     DEFAULT_CONFIG['integrations']['generic_webhook_payload'] = app.config.get('GENERIC_WEBHOOK_PAYLOAD', {})
 
-    # Run the merge first to get everything else from the file
     update_config(paths['data'] / 'config.json')
 
-    # NOW force the ENV vars into the file so they definitely stick
     config_path = paths['data'] / 'config.json'
     with open(config_path, 'r+') as f:
         data = json.load(f)
         
-        # Force the integrations block to match our validated app.config
         data['integrations']['discord_webhook_url'] = app.config.get('DISCORD_WEBHOOK_URL', '')
         data['integrations']['generic_webhook_url'] = app.config.get('GENERIC_WEBHOOK_URL', '')
         data['integrations']['generic_webhook_payload'] = app.config.get('GENERIC_WEBHOOK_PAYLOAD', {})

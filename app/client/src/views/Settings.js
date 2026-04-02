@@ -747,8 +747,6 @@ const handleTestDiscordWebhook = async () => {
                   onChange={(e) => {
                     const val = e.target.value;
                     setWebhookJson(val);
-                    
-                    // Only update the config if the JSON is actually valid
                     if (isValidJson(val)) {
                       setUpdatedConfig((prev) => ({
                         ...prev,
@@ -763,7 +761,6 @@ const handleTestDiscordWebhook = async () => {
                 <Button
                   variant="outlined"
                   startIcon={<SendIcon />}
-                  // Change this from handleCopyRssFeedUrl to your new function
                   onClick={handleTestWebhook}
                   sx={{ 
                     borderColor: 'rgba(255, 255, 255, 0.23)', 
