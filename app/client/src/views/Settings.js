@@ -90,7 +90,7 @@ const Settings = () => {
     
     try {
       // Attempt to parse the text field, otherwise fall back to what's in the config
-      payloadToTest = webhookJson ? JSON.parse(webhookJson) : (updatedConfig.integrations?.custom_payload || {});
+      payloadToTest = webhookJson ? JSON.parse(webhookJson) : (updatedConfig.integrations?.generic_webhook_payload || {});
     } catch (e) {
       setAlert({ open: true, message: 'Invalid JSON in payload field', type: 'error' });
       return;
@@ -183,10 +183,17 @@ const Settings = () => {
   }, [updatedConfig])
 
   React.useEffect(() => {
-    if (updatedConfig.integrations?.generic_webhook_url) {
-      setWebhookUrl(updatedConfig.integrations.generic_webhook_url)
+    if (updatedConfig.integrations) {
+      if (updatedConfig.integrations.generic_webhook_url) {
+        setWebhookUrl(updatedConfig.integrations.generic_webhook_url);
+      }
+
+      if (updatedConfig.integrations.generic_webhook_payload) {
+        const jsonString = JSON.stringify(updatedConfig.integrations.generic_webhook_payload, null, 2);
+        setWebhookJson(jsonString);
+      }
     }
-  }, [updatedConfig])
+  }, [updatedConfig]);
 
   const handleSave = async () => {
     try {
@@ -716,7 +723,7 @@ const Settings = () => {
                         ...prev,
                         integrations: {
                           ...prev.integrations,
-                          custom_payload: JSON.parse(val),
+                          generic_webhook_payload: JSON.parse(val),
                         },
                       }));
                     }
