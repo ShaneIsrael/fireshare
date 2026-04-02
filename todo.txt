@@ -1,4 +1,4 @@
-add test url for discord
+!add test url for discord
 !add config backend to handle webhook input vars
 !validate webhook data on boot of container to validate it's accurate 
 

@@ -141,14 +141,15 @@ def send_discord_webhook(webhook_url=None, video_url=None):
         "username": "Fireshare",
         "avatar_url": "https://github.com/ShaneIsrael/fireshare/raw/develop/app/client/src/assets/logo_square.png",
     }
-
     try:
         response = requests.post(webhook_url, json=payload)
         response.raise_for_status()
         print("Webhook sent successfully.")
+        return {"status": "success", "message": "Webhook sent successfully."} 
     except requests.exceptions.RequestException as e:
         print(f"Failed to send webhook: {e}")
-#####
+        return {"status": "error", "message": str(e)}
+
 def send_generic_webhook(webhook_url, video_url=None, custom_payload=None):
 
     payload = custom_payload if custom_payload is not None else {}
@@ -163,7 +164,6 @@ def send_generic_webhook(webhook_url, video_url=None, custom_payload=None):
         
     except requests.exceptions.RequestException as e:
         return {"status": "error", "message": str(e)}
-#####
 
 def get_public_watch_url(video_id, config, host):
     shareable_link_domain = config.get("ui_config", {}).get("shareable_link_domain", "")

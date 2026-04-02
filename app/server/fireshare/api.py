@@ -20,11 +20,11 @@ from sqlalchemy.sql import text
 from pathlib import Path
 import requests
 
-
 from . import db, logger, util
 from .constants import DEFAULT_CONFIG, SUPPORTED_FILE_TYPES
 from .models import User, Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, FolderRule, CustomTag, VideoTagLink
 from .steamgrid import SteamGridDBClient
+from .cli import send_discord_webhook,send_generic_webhook
 
 def secure_filename(filename):
     clean = re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F]", "-", filename)
@@ -2808,29 +2808,42 @@ def after_request(response):
     response.headers.add('Accept-Ranges', 'bytes')
     return response
 
-from flask import request, jsonify, current_app
-from .cli import send_generic_webhook
+@api.route('/api/test-discord-webhook', methods=['POST'])
+def test_discord_webhook():
+    data = request.get_json()
+    webhook_url = data.get('webhook_url')
+    video_url = data.get('video_url', 'https://fireshare.test.worked')
+
+    if not webhook_url:
+        return jsonify({"error": "No Discord Webhook URL provided"}), 400
+    try:
+        result = send_discord_webhook(webhook_url, video_url) 
+        if result and isinstance(result, dict):
+            if result.get("status") == "success":
+                return jsonify({"message": "Discord Webhook sent successfully!"}), 200
+            else:
+                return jsonify({"error": result.get("message", "Unknown discord error")}), 500
+        else:
+            return jsonify({"error": "Webhook function did not return a valid response object"}), 500
+    except Exception as e:
+        print(f"DEBUG ERROR: {str(e)}") 
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+
 @api.route('/api/test-webhook', methods=['POST'])
 def test_webhook():
-    # 1. Get the data sent from the JavaScript frontend
     data = request.get_json()
-    
     webhook_url = data.get('webhook_url')
     video_url = data.get('video_url')
     payload = data.get('payload')
 
     if not webhook_url:
         return jsonify({"error": "No Webhook URL provided"}), 400
-
-    # 2. Call your function from cli.py
     try:
-        # Assuming send_generic_webhook is the function we built earlier
         result = send_generic_webhook(webhook_url, video_url, payload)
-        
         if result.get("status") == "success":
             return jsonify({"message": "Webhook sent successfully!"}), 200
         else:
             return jsonify({"error": result.get("message")}), 500
-            
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    

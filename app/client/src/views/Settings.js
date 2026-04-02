@@ -85,28 +85,52 @@ const Settings = () => {
   const isDiscordUsed = discordUrl.trim() !== ''
   const isWebhookUsed = webhookUrl.trim() !== ''
 
+const handleTestDiscordWebhook = async () => {
+  const urlToTest = discordUrl || updatedConfig.integrations?.discord_webhook_url;
+  if (!urlToTest) {
+    setAlert({ open: true, message: 'Please enter a Discord Webhook URL first', type: 'error' });
+    return;
+  }
+  try {
+    const response = await fetch('/api/test-discord-webhook', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        webhook_url: urlToTest,
+        video_url: "https://fireshare.test.worked"
+      }),
+    });
+    const result = await response.json();
+    if (response.ok) {
+      setAlert({ open: true, message: 'Discord Test Sent!', type: 'success' });
+    } else {
+      setAlert({ open: true, message: result.error || 'Discord test failed', type: 'error' });
+    }
+  } catch (err) {
+    console.error("Connection failed:", err);
+    setAlert({ open: true, message: 'Network error connecting to server', type: 'error' });
+  }
+};
+
  const handleTestWebhook = async () => {
     let payloadToTest = {};
-    
     try {
-      // Attempt to parse the text field, otherwise fall back to what's in the config
       payloadToTest = webhookJson ? JSON.parse(webhookJson) : (updatedConfig.integrations?.generic_webhook_payload || {});
     } catch (e) {
       setAlert({ open: true, message: 'Invalid JSON in payload field', type: 'error' });
       return;
     }
-
     const testData = {
       webhook_url: webhookUrl, 
-      video_url: "https://example.com/test-video.mp4",
+      video_url: "https://fireshare.test.worked",
       payload: payloadToTest 
     };
-
     if (!webhookUrl) {
       setAlert({ open: true, message: 'Please enter a Webhook URL first', type: 'error' });
       return;
     }
-
     try {
       const response = await fetch('/api/test-webhook', {
         method: 'POST',
@@ -117,7 +141,6 @@ const Settings = () => {
       });
 
       const result = await response.json();
-
       if (response.ok) {
         setAlert({ open: true, message: 'Test Webhook Sent!', type: 'success' });
       } else {
@@ -657,11 +680,18 @@ const Settings = () => {
                 <Button
                   variant="outlined"
                   startIcon={<SendIcon />}
-                  
-                  onClick={handleCopyRssFeedUrl}
-                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
+                  // Change this from handleCopyRssFeedUrl to your new function
+                  onClick={handleTestDiscordWebhook}
+                  sx={{ 
+                    borderColor: 'rgba(255, 255, 255, 0.23)', 
+                    color: '#fff',
+                    '&:hover': {
+                      borderColor: '#fff',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)'
+                    }
+                  }}
                 >
-                  Test Discord
+                  Test Webhook
                 </Button>
 
 
