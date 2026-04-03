@@ -275,7 +275,10 @@ const UpdateDetailsModal = ({
       const [h, m] = selectedTime.split(':')
       d.setHours(+h, +m, 0, 0)
     }
-    return d.toISOString()
+    // Return a naive local ISO string (no Z/offset) so the server stores the
+    // time exactly as the user entered it, without any timezone conversion.
+    const pad = (n) => n.toString().padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`
   }
 
   const handleSave = async () => {

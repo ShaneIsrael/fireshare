@@ -1340,7 +1340,12 @@ def handle_video_details(id):
                         video.recorded_at = None
                     else:
                         try:
-                            video.recorded_at = datetime.fromisoformat(recorded_at.replace('Z', '+00:00'))
+                            # Strip any timezone suffix and store as naive local datetime.
+                            # The frontend sends a naive local ISO string; treating it as
+                            # UTC (via the old Z→+00:00 replacement) caused a timezone
+                            # offset to be baked in on every save.
+                            dt = datetime.fromisoformat(recorded_at.replace('Z', '+00:00'))
+                            video.recorded_at = dt.replace(tzinfo=None)
                         except (ValueError, AttributeError):
                             video.recorded_at = None
 
