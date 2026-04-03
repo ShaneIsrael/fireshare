@@ -382,10 +382,10 @@ function Navbar20({
       </List>
       {/* Folder selector — hidden on mobile (xs) */}
       {(page === '/' || page === '/feed') &&
-        open &&
-        !isMobile &&
-        folders.length > 1 &&
-        uiConfig.show_folder_dropdown === true && (
+      open &&
+      !isMobile &&
+      folders.length > 1 &&
+      uiConfig.show_folder_dropdown === true ? (
           <>
             <Divider />
             <Box sx={{ p: open ? 1.5 : 0.75 }}>
@@ -432,8 +432,8 @@ function Navbar20({
               )}
             </Box>
           </>
-        )}
-      {cardSlider && open && !isMobile && (
+        ) : null}
+      {cardSlider && open && !isMobile ? (
         <>
           <Divider />
           <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
@@ -448,7 +448,7 @@ function Navbar20({
             />
           </Box>
         </>
-      )}
+      ) : null}
       <Divider />
       <UploadCard
         ref={registerUploadCard}

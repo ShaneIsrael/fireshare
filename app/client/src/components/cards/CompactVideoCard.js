@@ -9,6 +9,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EditIcon from '@mui/icons-material/Edit'
 import SlowMotionVideoIcon from '@mui/icons-material/SlowMotionVideo'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import FolderIcon from '@mui/icons-material/Folder'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
@@ -16,6 +17,7 @@ import { getPublicWatchUrl, toHHMMSS, getVideoUrl, getSetting, getPosterUrl } fr
 import { GameService, VideoService, ConfigService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import DeleteVideoModal from '../modal/DeleteVideoModal'
+import MoveVideoModal from '../modal/MoveVideoModal'
 import _ from 'lodash'
 
 const PURL = getPublicWatchUrl()
@@ -29,7 +31,8 @@ const CompactVideoCard = ({
   editMode = false,
   selected = false,
   onSelect,
-  onDelete,
+  onRemoveFromView,
+  removeOnMove = false,
 }) => {
   const [intVideo, setIntVideo] = React.useState(video)
   const [hover, setHover] = React.useState(false)
@@ -49,6 +52,7 @@ const CompactVideoCard = ({
   const [menuAnchorEl, setMenuAnchorEl] = React.useState(null)
   const [detailsModalOpen, setDetailsModalOpen] = React.useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false)
+  const [moveModalOpen, setMoveModalOpen] = React.useState(false)
   const menuOpen = Boolean(menuAnchorEl)
   const [gameSuggestion, setGameSuggestion] = React.useState(null)
   const [showSuggestion, setShowSuggestion] = React.useState(true)
@@ -373,9 +377,25 @@ const CompactVideoCard = ({
         open={deleteModalOpen}
         onClose={(result) => {
           setDeleteModalOpen(false)
-          if (result === 'delete') onDelete?.(video.video_id)
+          if (result === 'delete') onRemoveFromView?.(video.video_id)
         }}
         videoId={video.video_id}
+        alertHandler={alertHandler}
+      />
+      <MoveVideoModal
+        open={moveModalOpen}
+        onClose={(result, newFolder) => {
+          setMoveModalOpen(false)
+          if (result === 'move') {
+            if (removeOnMove) {
+              onRemoveFromView?.(video.video_id)
+            } else {
+              const filename = intVideo.path.split('/').pop()
+              setIntVideo((v) => ({ ...v, path: `${newFolder}/${filename}` }))
+            }
+          }
+        }}
+        video={intVideo}
         alertHandler={alertHandler}
       />
       <UpdateDetailsModal
@@ -897,6 +917,13 @@ const CompactVideoCard = ({
                 navigator.clipboard.writeText(`${PURL}${video.video_id}`)
                 alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true })
               },
+            },
+            {
+              label: 'Move...',
+              Icon: FolderIcon,
+              color: '#FFFFFFE6',
+              requiresAuth: true,
+              onClick: () => setMoveModalOpen(true),
             },
             {
               label: 'Delete',

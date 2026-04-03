@@ -19,6 +19,7 @@ const VideoCards = ({
   editMode = false,
   selectedVideos = new Set(),
   onVideoSelect,
+  removeOnMove = false,
 }) => {
   const [vids, setVideos] = React.useState(videos)
   const [alert, setAlert] = React.useState({ open: false })
@@ -217,7 +218,8 @@ const VideoCards = ({
                   editMode={editMode}
                   selected={selectedVideos.has(v.video_id)}
                   onSelect={onVideoSelect}
-                  onDelete={handleDelete}
+                  onRemoveFromView={handleDelete}
+                  removeOnMove={removeOnMove}
                 />
               </motion.div>
             ))}

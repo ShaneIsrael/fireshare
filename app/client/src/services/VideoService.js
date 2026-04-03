@@ -56,6 +56,9 @@ const service = {
   delete(id) {
     return Api().delete(`/api/video/delete/${id}`)
   },
+  move(id, folder) {
+    return Api().post(`/api/video/move/${id}`, { folder })
+  },
   upload(formData, uploadProgress) {
     return Api().post('/api/upload', formData, {
       timeout: 999999999,

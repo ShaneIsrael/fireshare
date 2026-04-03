@@ -227,7 +227,7 @@ const Tags = ({ authenticated, searchText }) => {
                   disabled={selectedTags.size === 0}
                   sx={{ borderRadius: '0 8px 8px 0' }}
                 >
-                  Delete {selectedTags.size > 0 && !isMdDown && `(${selectedTags.size})`}
+                  Delete {selectedTags.size > 0 && !isMdDown ? `(${selectedTags.size})` : null}
                 </Button>
               </ButtonGroup>
             )}

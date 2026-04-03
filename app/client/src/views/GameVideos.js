@@ -243,7 +243,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
                       onClick={handleLinkGameClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Link to Game {selectedVideos.size > 0 && !isMdDown && `(${selectedVideos.size})`}
+                      Link to Game {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
                     </Button>
                     <Button
                       color="error"
@@ -251,7 +251,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
                       onClick={() => setDeleteDialogOpen(true)}
                       disabled={selectedVideos.size === 0}
                     >
-                      Delete {selectedVideos.size > 0 && !isMdDown && `(${selectedVideos.size})`}
+                      Delete {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
                     </Button>
                   </ButtonGroup>
                 )}
@@ -284,6 +284,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
           authenticated={authenticated}
           size={cardSize}
           feedView={false}
+          removeOnMove={true}
           editMode={editMode}
           selectedVideos={selectedVideos}
           onVideoSelect={handleVideoSelect}

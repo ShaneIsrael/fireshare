@@ -1308,6 +1308,63 @@ def delete_video(id):
     else:
         return Response(status=404, response=f"A video with id: {id}, does not exist.")
 
+@api.route('/api/video/move/<id>', methods=['POST'])
+@login_required
+def move_video(id):
+    video = Video.query.filter_by(video_id=id).first()
+    if not video:
+        return Response(status=404, response=f"A video with id: {id}, does not exist.")
+
+    data = request.json
+    target_folder = (data.get('folder') or '').strip()
+    if not target_folder:
+        return Response(status=400, response='A target folder must be provided.')
+
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
+
+    target_folder_path = video_path / target_folder
+    if not target_folder_path.is_dir():
+        return Response(status=400, response=f"Folder '{target_folder}' does not exist.")
+
+    old_file_path = video_path / video.path
+    filename = Path(video.path).name
+    new_path = f"{target_folder}/{filename}"
+    new_file_path = video_path / new_path
+
+    if old_file_path.resolve() == new_file_path.resolve():
+        return Response(status=400, response='Video is already in that folder.')
+
+    if new_file_path.exists():
+        return Response(status=409, response=f"A file named '{filename}' already exists in '{target_folder}'.")
+
+    try:
+        shutil.move(str(old_file_path), str(new_file_path))
+
+        link_path = paths['processed'] / 'video_links' / f"{id}{video.extension}"
+        if link_path.exists() or link_path.is_symlink():
+            link_path.unlink()
+        os.symlink(new_file_path.absolute(), link_path)
+
+        video.path = new_path
+
+        folder_rule = FolderRule.query.filter_by(folder_path=target_folder).first()
+        if folder_rule:
+            existing_link = VideoGameLink.query.filter_by(video_id=id).first()
+            if existing_link:
+                existing_link.game_id = folder_rule.game_id
+            else:
+                db.session.add(VideoGameLink(video_id=id, game_id=folder_rule.game_id, created_at=datetime.utcnow()))
+
+        db.session.commit()
+
+        logging.info(f"Moved video {id} from {old_file_path} to {new_file_path}")
+        return Response(status=200)
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error moving video {id}: {e}")
+        return Response(status=500, response=str(e))
+
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
     if request.method == 'GET':
