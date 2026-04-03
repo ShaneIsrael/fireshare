@@ -74,6 +74,14 @@
 
 <center><img src=".github/images/ogg-data.png" alt="Open graph preview" /></center>
 
+# Navigation
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Demo](#demo)
+- [Features](#features)
+- [Contributing](#contributing)
+
 ## Installation
 
 Fireshare is designed to run in Docker.
@@ -109,6 +117,9 @@ docker run --name fireshare \
 ```
 
 Open `http://localhost:8080`.
+
+## All Docker ENVs
+### 
 
 ## Configuration
 
