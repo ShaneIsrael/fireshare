@@ -3,6 +3,7 @@ import os, re, signal, string
 import shutil
 import random
 import logging
+import tempfile
 import threading
 import subprocess
 import time
@@ -34,6 +35,12 @@ def add_cache_headers(response, cache_key, max_age=604800):
     """Add cache headers for static assets (default: 7 days)."""
     response.headers['Cache-Control'] = f'public, max-age={max_age}, must-revalidate'
     response.headers['ETag'] = f'"{cache_key}"'
+    return response
+
+def add_poster_cache_headers(response, etag):
+    """Add cache headers for poster images: always revalidate so custom/generated switches are picked up."""
+    response.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    response.headers['ETag'] = f'"{etag}"'
     return response
 
 templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
@@ -124,7 +131,9 @@ def video_metadata(video_id):
     video = Video.query.filter_by(video_id=video_id).first()
     domain = f"https://{current_app.config['DOMAIN']}" if current_app.config['DOMAIN'] else ""
     if video:
-        return render_template('metadata.html', video=video.json(), domain=domain)
+        derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
+        poster_file = "custom_poster.webp" if (derived_dir / "custom_poster.webp").exists() else "poster.jpg"
+        return render_template('metadata.html', video=video.json(), domain=domain, poster_file=poster_file)
     else:
         return redirect('{}/#/w/{}'.format(domain, video_id), code=302)
 
@@ -1308,6 +1317,8 @@ def handle_video_details(id):
         if video:
             vjson = video.json()
             vjson["view_count"] = VideoView.count(video.video_id)
+            derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video.video_id)
+            vjson["has_custom_poster"] = (derived_dir / "custom_poster.webp").exists()
             return jsonify(vjson)
         else:
             return jsonify({
@@ -1385,6 +1396,7 @@ def handle_video_details(id):
 def get_video_poster():
     video_id = request.args['id']
     derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
+    custom_poster_path = derived_dir / "custom_poster.webp"
     jpg_poster_path = derived_dir / "poster.jpg"
 
     if request.args.get('animated'):
@@ -1394,10 +1406,57 @@ def get_video_poster():
             response = send_file(mp4_path, mimetype='video/mp4')
         else:
             response = send_file(webm_path, mimetype='video/webm')
+        return add_cache_headers(response, video_id)
+    elif custom_poster_path.exists():
+        response = send_file(custom_poster_path, mimetype='image/webp')
+        return add_poster_cache_headers(response, f'{video_id}-custom')
     else:
         response = send_file(jpg_poster_path, mimetype='image/jpg')
+        return add_poster_cache_headers(response, f'{video_id}-generated')
 
-    return add_cache_headers(response, video_id)
+@api.route('/api/video/<video_id>/poster/custom', methods=['POST'])
+@login_required
+def upload_custom_poster(video_id):
+    if 'file' not in request.files:
+        return jsonify({'message': 'No file provided'}), 400
+    file = request.files['file']
+    if not file or file.filename == '':
+        return jsonify({'message': 'No file selected'}), 400
+
+    allowed_types = {'image/jpeg', 'image/png', 'image/webp'}
+    if file.content_type not in allowed_types:
+        return jsonify({'message': 'Invalid file type. Allowed: JPEG, PNG, WebP'}), 400
+
+    derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
+    if not derived_dir.exists():
+        return jsonify({'message': 'Video derived directory not found'}), 404
+
+    ext_map = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'}
+    suffix = ext_map.get(file.content_type, '.jpg')
+
+    tmp_fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(tmp_fd)
+    try:
+        file.save(tmp_path)
+        custom_poster_path = derived_dir / "custom_poster.webp"
+        cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', tmp_path, str(custom_poster_path)]
+        subprocess.call(cmd)
+    finally:
+        os.unlink(tmp_path)
+
+    if not custom_poster_path.exists():
+        return jsonify({'message': 'Failed to process image'}), 500
+
+    return Response(status=200)
+
+@api.route('/api/video/<video_id>/poster/custom', methods=['DELETE'])
+@login_required
+def delete_custom_poster(video_id):
+    derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
+    custom_poster_path = derived_dir / "custom_poster.webp"
+    if custom_poster_path.exists():
+        custom_poster_path.unlink()
+    return Response(status=200)
 
 @api.route('/api/video/view', methods=['POST'])
 def add_video_view():

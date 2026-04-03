@@ -134,6 +134,14 @@ const service = {
   rejectGameSuggestion(videoId) {
     return Api().delete(`/api/videos/${videoId}/game/suggestion`)
   },
+  uploadCustomPoster(id, formData) {
+    return Api().post(`/api/video/${id}/poster/custom`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  deleteCustomPoster(id) {
+    return Api().delete(`/api/video/${id}/poster/custom`)
+  },
 }
 
 export default service

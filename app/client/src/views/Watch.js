@@ -186,12 +186,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:url" value={window.location.href} />
         <meta property="og:title" value={details?.info?.title} />
         {details?.info?.description && <meta property="og:description" value={details?.info?.description} />}
-        <meta
-          property="og:image"
-          value={
-            SERVED_BY === 'nginx' ? `${URL}/_content/derived/${id}/poster.jpg` : `${URL}/api/video/poster?id=${id}`
-          }
-        />
+        <meta property="og:image" value={`${URL}/api/video/poster?id=${id}`} />
         <meta
           property="og:video"
           value={

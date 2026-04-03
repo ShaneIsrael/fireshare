@@ -12,7 +12,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, getServedBy, getUrl, toHHMMSS, getVideoUrl, getSetting } from '../../common/utils'
+import { getPublicWatchUrl, getUrl, toHHMMSS, getVideoUrl, getSetting } from '../../common/utils'
 import { GameService, VideoService, ConfigService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import DeleteVideoModal from '../modal/DeleteVideoModal'
@@ -20,7 +20,7 @@ import _ from 'lodash'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
-const SERVED_BY = getServedBy()
+const POSTER_VERSION = Date.now()
 
 const CompactVideoCard = ({
   video,
@@ -444,11 +444,7 @@ const CompactVideoCard = ({
             onMouseDown={handleMouseDown}
           >
             <img
-              src={
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/derived/${video.video_id}/poster.jpg${imgRetryKey > 0 ? `?r=${imgRetryKey}` : ''}`
-                  : `${URL}/api/video/poster?id=${video.video_id}${imgRetryKey > 0 ? `&r=${imgRetryKey}` : ''}`
-              }
+              src={`${URL}/api/video/poster?id=${video.video_id}&v=${POSTER_VERSION}${imgRetryKey > 0 ? `&r=${imgRetryKey}` : ''}`}
               alt=""
               onLoad={handleThumbnailLoad}
               onError={handleThumbnailError}

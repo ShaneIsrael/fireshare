@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Divider,
   IconButton,
   Modal,
@@ -20,13 +21,15 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import CloseIcon from '@mui/icons-material/Close'
+import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
 import './datepicker-dark.css'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import {
   copyToClipboard,
   getPublicWatchUrl,
-  getServedBy,
   getUrl,
   getVideoSources,
   getSetting,
@@ -39,7 +42,6 @@ import WaveformCropper from './WaveformCropper'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
-const SERVED_BY = getServedBy()
 
 // ─── Shared style constants (matching UpdateDetailsModal / CompactVideoCard) ──
 
@@ -188,9 +190,16 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [tagInputValue, setTagInputValue] = React.useState('')
   const [cropStart, setCropStart] = React.useState(null)
   const [cropEnd, setCropEnd] = React.useState(null)
+  const [hasCustomPoster, setHasCustomPoster] = React.useState(false)
+  const [thumbnailHover, setThumbnailHover] = React.useState(false)
+  const [posterCacheKey, setPosterCacheKey] = React.useState(() => Date.now())
+  const [pendingThumbnailFile, setPendingThumbnailFile] = React.useState(null)
+  const [pendingThumbnailPreview, setPendingThumbnailPreview] = React.useState(null)
+  const [thumbnailLoaded, setThumbnailLoaded] = React.useState(false)
 
   const playerRef = React.useRef()
   const waveformRef = React.useRef(null)
+  const thumbnailInputRef = React.useRef(null)
 
   useEffect(() => {
     if (!open || editMode) return
@@ -297,6 +306,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         setPrivateView(details.info?.private)
         setCropStart(details.info?.start_time ?? null)
         setCropEnd(details.info?.end_time ?? null)
+        setHasCustomPoster(details.has_custom_poster || false)
         setUpdatable(false)
         if (details.recorded_at) {
           const d = new Date(details.recorded_at)
@@ -339,6 +349,11 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setVideoTags([])
       setCropStart(null)
       setCropEnd(null)
+      setHasCustomPoster(false)
+      setPosterCacheKey(Date.now())
+      if (pendingThumbnailPreview) window.URL.revokeObjectURL(pendingThumbnailPreview)
+      setPendingThumbnailFile(null)
+      setPendingThumbnailPreview(null)
       fetch()
     }
     return () => {
@@ -419,10 +434,33 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const update = async () => {
     if (!authenticated) return
     const cropChanged = cropStart !== (vid?.info?.start_time ?? null) || cropEnd !== (vid?.info?.end_time ?? null)
+    if (!updateable && !cropChanged && !pendingThumbnailFile) {
+      setEditMode(false)
+      return
+    }
+
+    // Upload pending thumbnail first
+    if (pendingThumbnailFile) {
+      const formData = new FormData()
+      formData.append('file', pendingThumbnailFile)
+      try {
+        await VideoService.uploadCustomPoster(vid.video_id, formData)
+        setHasCustomPoster(true)
+        setPosterCacheKey(Date.now())
+        window.URL.revokeObjectURL(pendingThumbnailPreview)
+        setPendingThumbnailFile(null)
+        setPendingThumbnailPreview(null)
+      } catch (err) {
+        setAlert({ type: 'error', message: 'Failed to upload thumbnail', open: true })
+        return
+      }
+    }
+
     if (!updateable && !cropChanged) {
       setEditMode(false)
       return
     }
+
     try {
       const payload = { title, description, recorded_at: getRecordedAtISO() }
       if (cropChanged) {
@@ -497,8 +535,62 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const getPosterUrl = () => {
-    if (SERVED_BY === 'nginx') return `${URL}/_content/derived/${vid.video_id}/poster.jpg`
     return `${URL}/api/video/poster?id=${vid.video_id}`
+  }
+
+  const getThumbnailPreviewUrl = () => {
+    if (pendingThumbnailPreview) return pendingThumbnailPreview
+    return `${URL}/api/video/poster?id=${vid.video_id}&_cb=${posterCacheKey}`
+  }
+
+  const handleThumbnailUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !vid) return
+    e.target.value = ''
+    if (pendingThumbnailPreview) window.URL.revokeObjectURL(pendingThumbnailPreview)
+    setPendingThumbnailFile(file)
+    setPendingThumbnailPreview(window.URL.createObjectURL(file))
+    setThumbnailLoaded(false)
+  }
+
+  const handleCaptureThumbnail = () => {
+    const videoEl = playerRef.current?.el()
+    if (!videoEl || videoEl.readyState < 2) {
+      setAlert({ type: 'warning', message: 'Play the video first before capturing a frame', open: true })
+      return
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = videoEl.videoWidth
+    canvas.height = videoEl.videoHeight
+    canvas.getContext('2d').drawImage(videoEl, 0, 0)
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setAlert({ type: 'error', message: 'Failed to capture frame', open: true })
+        return
+      }
+      if (pendingThumbnailPreview) window.URL.revokeObjectURL(pendingThumbnailPreview)
+      setPendingThumbnailFile(new File([blob], 'capture.webp', { type: 'image/webp' }))
+      setPendingThumbnailPreview(window.URL.createObjectURL(blob))
+      setThumbnailLoaded(false)
+    }, 'image/webp')
+  }
+
+  const handleClearThumbnail = async () => {
+    if (pendingThumbnailFile) {
+      window.URL.revokeObjectURL(pendingThumbnailPreview)
+      setPendingThumbnailFile(null)
+      setPendingThumbnailPreview(null)
+      return
+    }
+    if (!vid) return
+    try {
+      await VideoService.deleteCustomPoster(vid.video_id)
+      setHasCustomPoster(false)
+      setPosterCacheKey(Date.now())
+      setAlert({ type: 'info', message: 'Custom thumbnail removed', open: true })
+    } catch (err) {
+      setAlert({ type: 'error', message: 'Failed to remove thumbnail', open: true })
+    }
   }
 
   if (!vid) return null
@@ -937,6 +1029,79 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                               }}
                             />
                           )}
+                        />
+                      </Box>
+                    )}
+
+                    {/* Thumbnail (edit mode only) */}
+                    {editMode && authenticated && (
+                      <Box>
+                        <Typography sx={labelSx}>Thumbnail</Typography>
+                        <Box
+                          sx={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', lineHeight: 0 }}
+                          onMouseEnter={() => setThumbnailHover(true)}
+                          onMouseLeave={() => setThumbnailHover(false)}
+                        >
+                          <img
+                            key={pendingThumbnailPreview ?? posterCacheKey}
+                            src={getThumbnailPreviewUrl()}
+                            alt="Thumbnail"
+                            onLoad={() => setThumbnailLoaded(true)}
+                            style={{ width: '100%', display: thumbnailLoaded ? 'block' : 'none', borderRadius: 8 }}
+                          />
+                          {!thumbnailLoaded && (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                              <CircularProgress size={28} sx={{ color: '#FFFFFF44' }} />
+                            </Box>
+                          )}
+                          {thumbnailHover && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                inset: 0,
+                                bgcolor: 'rgba(0,0,0,0.55)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 1,
+                                borderRadius: '8px',
+                              }}
+                            >
+                              <Tooltip title="Upload thumbnail">
+                                <IconButton
+                                  onClick={() => thumbnailInputRef.current?.click()}
+                                  sx={{ color: 'white', bgcolor: '#FFFFFF22', '&:hover': { bgcolor: '#FFFFFF44' } }}
+                                >
+                                  <AddPhotoAlternateIcon />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Use current frame">
+                                <IconButton
+                                  onClick={handleCaptureThumbnail}
+                                  sx={{ color: 'white', bgcolor: '#FFFFFF22', '&:hover': { bgcolor: '#FFFFFF44' } }}
+                                >
+                                  <PhotoCameraIcon />
+                                </IconButton>
+                              </Tooltip>
+                              {(hasCustomPoster || pendingThumbnailFile) && (
+                                <Tooltip title={pendingThumbnailFile ? 'Cancel pending upload' : 'Remove custom thumbnail'}>
+                                  <IconButton
+                                    onClick={handleClearThumbnail}
+                                    sx={{ color: '#FF6B6B', bgcolor: '#FFFFFF22', '&:hover': { bgcolor: '#FFFFFF44' } }}
+                                  >
+                                    <DeleteOutlineIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </Box>
+                          )}
+                        </Box>
+                        <input
+                          ref={thumbnailInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          style={{ display: 'none' }}
+                          onChange={handleThumbnailUpload}
                         />
                       </Box>
                     )}
