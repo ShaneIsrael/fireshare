@@ -109,6 +109,24 @@ export const copyToClipboard = (textToCopy) => {
 }
 
 /**
+ * Gets the URL for a video's poster/thumbnail image.
+ * When served by nginx, uses a static route that tries custom_poster.webp first, then poster.jpg.
+ * @param {string} videoId - The video ID
+ * @param {string|number} [cacheBuster] - Optional cache-busting value appended as a query param
+ * @returns {string} Poster URL
+ */
+export const getPosterUrl = (videoId, cacheBuster) => {
+  const baseUrl = getUrl()
+  const SERVED_BY = getServedBy()
+  if (SERVED_BY === 'nginx') {
+    const url = `${baseUrl}/_content/derived/${videoId}/thumbnail`
+    return cacheBuster ? `${url}?v=${cacheBuster}` : url
+  }
+  const url = `${baseUrl}/api/video/poster?id=${videoId}`
+  return cacheBuster ? `${url}&v=${cacheBuster}` : url
+}
+
+/**
  * Gets the URL for a specific video quality
  * @param {string} videoId - The video ID
  * @param {string} quality - Quality ('720p', '1080p', or 'original')

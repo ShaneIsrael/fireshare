@@ -33,6 +33,7 @@ import {
   getUrl,
   getVideoSources,
   getSetting,
+  getPosterUrl as getVideoPosterUrl,
 } from '../../common/utils'
 import { ConfigService, VideoService, GameService, TagService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
@@ -535,12 +536,12 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   }
 
   const getPosterUrl = () => {
-    return `${URL}/api/video/poster?id=${vid.video_id}`
+    return getVideoPosterUrl(vid.video_id)
   }
 
   const getThumbnailPreviewUrl = () => {
     if (pendingThumbnailPreview) return pendingThumbnailPreview
-    return `${URL}/api/video/poster?id=${vid.video_id}&_cb=${posterCacheKey}`
+    return getVideoPosterUrl(vid.video_id, posterCacheKey)
   }
 
   const handleThumbnailUpload = (e) => {

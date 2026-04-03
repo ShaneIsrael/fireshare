@@ -30,6 +30,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import { useNavigate } from 'react-router-dom'
 import { SketchPicker } from 'react-color'
 import { TagService } from '../services'
+import { getPosterUrl } from '../common/utils'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { labelSx, inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
@@ -339,7 +340,7 @@ const Tags = ({ authenticated, searchText }) => {
                             sx={{
                               position: 'absolute',
                               inset: 0,
-                              backgroundImage: `url(/api/video/poster?id=${tag.preview_video_id})`,
+                              backgroundImage: `url(${getPosterUrl(tag.preview_video_id)})`,
                               backgroundSize: 'cover',
                               backgroundPosition: 'center',
                               filter: 'saturate(0.25)',
