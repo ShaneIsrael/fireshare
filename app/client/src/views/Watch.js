@@ -166,7 +166,7 @@ const Watch = ({ authenticated }) => {
 
   const getPosterUrl = () => {
     if (SERVED_BY === 'nginx') {
-      return `${URL}/_content/derived/${id}/poster.jpg`
+      return `${URL}/_content/derived/${id}/thumbnail`
     }
     return `${URL}/api/video/poster?id=${id}`
   }
