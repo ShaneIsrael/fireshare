@@ -587,7 +587,10 @@ export default function BulkFileManager({ setAlert }) {
 
         <Box sx={{ minWidth: 160 }}>
           <Select
-            options={[{ value: '__all__', label: 'All Folders' }, ...folders.map((f) => ({ value: f, label: f }))]}
+            options={[
+              { value: '__all__', label: 'All Folders' },
+              ...folders.sort((a, b) => a.localeCompare(b)).map((f) => ({ value: f, label: f })),
+            ]}
             value={
               folderFilter === '__all__'
                 ? { value: '__all__', label: 'All Folders' }
@@ -667,7 +670,7 @@ export default function BulkFileManager({ setAlert }) {
                 },
                 { col: 'size', label: 'Size', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
                 { col: 'duration', label: 'Duration', sx: { width: 85, whiteSpace: 'nowrap' } },
-                { col: null, label: 'Resolution', sx: { width: 90, whiteSpace: 'nowrap' } },
+                { col: null, label: 'Resolution', sx: { width: 80, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Transcodes', sx: { width: 140, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Cropped', sx: { width: 80, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Privacy', sx: { width: 75, whiteSpace: 'nowrap' } },
@@ -868,9 +871,17 @@ export default function BulkFileManager({ setAlert }) {
 
                             {/* Resolution */}
                             <TableCell sx={{ ...bodyCellSx }}>
-                              <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
-                                {formatResolution(file.width, file.height)}
-                              </Typography>
+                              <Chip
+                                label={formatResolution(file.width, file.height)}
+                                size="small"
+                                sx={{
+                                  height: 17,
+                                  fontSize: 10,
+                                  bgcolor: '#FFFFFF12',
+                                  color: '#FFFFFF66',
+                                  '& .MuiChip-label': { px: 0.75 },
+                                }}
+                              />
                             </TableCell>
 
                             {/* Transcodes */}
