@@ -35,6 +35,8 @@ import LockOpenIcon from '@mui/icons-material/LockOpen'
 import ContentCutIcon from '@mui/icons-material/ContentCut'
 import VideoSettingsIcon from '@mui/icons-material/VideoSettings'
 import RefreshIcon from '@mui/icons-material/Refresh'
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
 import { dialogPaperSx, labelSx } from '../../common/modalStyles'
@@ -145,6 +147,15 @@ export default function BulkFileManager({ setAlert }) {
   const [sortDir, setSortDir] = useState('desc')
 
   const [selected, setSelected] = useState(new Set())
+  const [collapsedFolders, setCollapsedFolders] = useState(new Set())
+
+  const toggleFolderCollapse = (folder) => {
+    setCollapsedFolders((prev) => {
+      const next = new Set(prev)
+      next.has(folder) ? next.delete(folder) : next.add(folder)
+      return next
+    })
+  }
 
   // Dialog / modal open states
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -657,7 +668,7 @@ export default function BulkFileManager({ setAlert }) {
                 { col: 'size', label: 'Size', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
                 { col: 'duration', label: 'Duration', sx: { width: 85, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Resolution', sx: { width: 90, whiteSpace: 'nowrap' } },
-                { col: null, label: 'Transcodes', sx: { width: 120, whiteSpace: 'nowrap' } },
+                { col: null, label: 'Transcodes', sx: { width: 140, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Cropped', sx: { width: 80, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Privacy', sx: { width: 75, whiteSpace: 'nowrap' } },
                 { col: 'date', label: 'Date', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
@@ -704,209 +715,267 @@ export default function BulkFileManager({ setAlert }) {
                 </TableCell>
               </TableRow>
             ) : (
-              groupedFiles.map(([folder, groupItems], groupIdx) => (
-                <React.Fragment key={folder || '__root__'}>
-                  {/* Folder header row */}
-                  <TableRow sx={folderRowSx}>
-                    <TableCell
-                      colSpan={COL_SPAN}
-                      sx={{
-                        py: 0.75,
-                        pl: 1.5,
-                        borderBottom: '1px solid #FFFFFF14',
-                        bgcolor: 'transparent',
-                      }}
+              groupedFiles.map(([folder, groupItems], groupIdx) => {
+                const isCollapsed = collapsedFolders.has(folder)
+                const folderFileIds = groupItems.map((f) => f.video_id)
+                const allFolderSelected = folderFileIds.length > 0 && folderFileIds.every((id) => selected.has(id))
+                const someFolderSelected = folderFileIds.some((id) => selected.has(id)) && !allFolderSelected
+                const toggleFolderSelect = () => {
+                  setSelected((prev) => {
+                    const next = new Set(prev)
+                    if (allFolderSelected) {
+                      folderFileIds.forEach((id) => next.delete(id))
+                    } else {
+                      folderFileIds.forEach((id) => next.add(id))
+                    }
+                    return next
+                  })
+                }
+                return (
+                  <React.Fragment key={folder || '__root__'}>
+                    {/* Folder header row */}
+                    <TableRow
+                      sx={{ ...folderRowSx, cursor: 'pointer' }}
+                      onClick={() => folderFileIds.length > 0 && toggleFolderCollapse(folder)}
                     >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                        <FolderIcon sx={{ fontSize: 14, color: '#FFFFFF55' }} />
-                        <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF77', letterSpacing: '0.04em' }}>
-                          {folder || '(root)'}
-                        </Typography>
-                        <Typography sx={{ fontSize: 11, color: '#FFFFFF33', ml: 0.25 }}>
-                          ({groupItems.length})
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-
-                  {/* File rows */}
-                  {groupItems.map((file, idx) => {
-                    const isSelected = selected.has(file.video_id)
-                    const displayName = file.title || file.filename
-                    const hasTranscodes = file.has_480p || file.has_720p || file.has_1080p
-                    return (
-                      <TableRow
-                        key={file.video_id}
-                        hover
-                        selected={isSelected}
-                        sx={{
-                          cursor: 'default',
-                          bgcolor: isSelected ? '#3399FF14' : idx % 2 === 0 ? 'transparent' : '#FFFFFF03',
-                          '&:hover': { bgcolor: isSelected ? '#3399FF1E' : '#FFFFFF08' },
-                          '&.Mui-selected': { bgcolor: '#3399FF14' },
-                          '&.Mui-selected:hover': { bgcolor: '#3399FF1E' },
+                      <TableCell
+                        padding="checkbox"
+                        sx={{ borderBottom: '1px solid #FFFFFF14', bgcolor: 'transparent' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (folderFileIds.length > 0) toggleFolderSelect()
                         }}
                       >
-                        {/* Checkbox */}
-                        <TableCell padding="checkbox" sx={{ borderBottom: '1px solid #FFFFFF0D' }}>
-                          <Checkbox
-                            size="small"
-                            checked={isSelected}
-                            onChange={() => toggleSelect(file.video_id)}
-                            sx={{ color: '#FFFFFF44', '&.Mui-checked': { color: '#3399FF' } }}
-                          />
-                        </TableCell>
-
-                        {/* Name */}
-                        <TableCell sx={{ ...bodyCellSx, maxWidth: 300, overflow: 'hidden' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
-                            <Tooltip title={displayName} placement="top" enterDelay={600}>
-                              <Typography
-                                sx={{
-                                  fontSize: 13,
-                                  color: '#FFFFFFCC',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                  flex: 1,
-                                }}
-                              >
-                                {displayName}
-                              </Typography>
-                            </Tooltip>
-                            <Tooltip title="Open in new tab">
-                              <IconButton
-                                size="small"
-                                onClick={() => window.open(`/#/w/${file.video_id}`, '_blank')}
-                                sx={{ color: '#FFFFFF33', p: 0.25, flexShrink: 0, '&:hover': { color: '#FFFFFF99' } }}
-                              >
-                                <OpenInNewIcon sx={{ fontSize: 13 }} />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-
-                        {/* Size */}
-                        <TableCell sx={{ ...bodyCellSx }}>
-                          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
-                        </TableCell>
-
-                        {/* Duration */}
-                        <TableCell sx={{ ...bodyCellSx }}>
-                          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
-                            {formatDuration(file.duration)}
-                          </Typography>
-                        </TableCell>
-
-                        {/* Resolution */}
-                        <TableCell sx={{ ...bodyCellSx }}>
-                          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
-                            {formatResolution(file.width, file.height)}
-                          </Typography>
-                        </TableCell>
-
-                        {/* Transcodes */}
-                        <TableCell sx={{ ...bodyCellSx }}>
-                          {hasTranscodes ? (
-                            <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap' }}>
-                              {file.has_480p && (
-                                <Chip
-                                  label="480p"
-                                  size="small"
-                                  sx={{
-                                    height: 17,
-                                    fontSize: 10,
-                                    bgcolor: '#FFFFFF12',
-                                    color: '#FFFFFF66',
-                                    '& .MuiChip-label': { px: 0.75 },
-                                  }}
-                                />
-                              )}
-                              {file.has_720p && (
-                                <Chip
-                                  label="720p"
-                                  size="small"
-                                  sx={{
-                                    height: 17,
-                                    fontSize: 10,
-                                    bgcolor: '#FFFFFF12',
-                                    color: '#FFFFFF66',
-                                    '& .MuiChip-label': { px: 0.75 },
-                                  }}
-                                />
-                              )}
-                              {file.has_1080p && (
-                                <Chip
-                                  label="1080p"
-                                  size="small"
-                                  sx={{
-                                    height: 17,
-                                    fontSize: 10,
-                                    bgcolor: '#FFFFFF12',
-                                    color: '#FFFFFF66',
-                                    '& .MuiChip-label': { px: 0.75 },
-                                  }}
-                                />
+                        <Checkbox
+                          size="small"
+                          checked={allFolderSelected}
+                          indeterminate={someFolderSelected}
+                          disabled={folderFileIds.length === 0}
+                          sx={{
+                            display: folderFileIds.length === 0 ? 'none' : 'inline-flex',
+                            color: '#FFFFFF44',
+                            '&.Mui-checked, &.MuiCheckbox-indeterminate': { color: '#3399FF' },
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell
+                        colSpan={COL_SPAN - 1}
+                        sx={{
+                          py: 0.75,
+                          borderBottom: '1px solid #FFFFFF14',
+                          bgcolor: 'transparent',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          {folderFileIds.length > 0 ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', width: 16 }}>
+                              {isCollapsed ? (
+                                <KeyboardArrowRightIcon sx={{ fontSize: 16, color: '#FFFFFF44' }} />
+                              ) : (
+                                <KeyboardArrowDownIcon sx={{ fontSize: 16, color: '#FFFFFF44' }} />
                               )}
                             </Box>
                           ) : (
-                            <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>—</Typography>
+                            <Box sx={{ width: 16 }} />
                           )}
-                        </TableCell>
-
-                        {/* Cropped */}
-                        <TableCell sx={{ ...bodyCellSx }}>
-                          {file.has_crop ? (
-                            <Chip
-                              label="Cropped"
-                              size="small"
-                              sx={{
-                                height: 17,
-                                fontSize: 10,
-                                bgcolor: '#FF990018',
-                                color: '#FF9900BB',
-                                border: '1px solid #FF990033',
-                                '& .MuiChip-label': { px: 0.75 },
-                              }}
-                            />
-                          ) : (
-                            <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>—</Typography>
-                          )}
-                        </TableCell>
-
-                        {/* Privacy */}
-                        <TableCell sx={{ ...bodyCellSx }}>
-                          <Chip
-                            label={file.private ? 'Private' : 'Public'}
-                            size="small"
-                            sx={{
-                              height: 17,
-                              fontSize: 10,
-                              bgcolor: file.private ? '#FFFFFF12' : '#1DB95418',
-                              color: file.private ? '#FFFFFF66' : '#1DB954',
-                              border: '1px solid',
-                              borderColor: file.private ? '#FFFFFF22' : '#1DB95433',
-                              '& .MuiChip-label': { px: 0.75 },
-                            }}
-                          />
-                        </TableCell>
-
-                        {/* Date */}
-                        <TableCell sx={{ ...bodyCellSx }}>
-                          <Tooltip
-                            title={file.recorded_at ? `Recorded: ${formatDate(file.recorded_at)}` : ''}
-                            placement="top"
+                          <FolderIcon sx={{ fontSize: 14, color: '#FFFFFF55' }} />
+                          <Typography
+                            sx={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF77', letterSpacing: '0.04em' }}
                           >
-                            <Typography sx={{ fontSize: 12, color: '#FFFFFF55' }}>
-                              {formatDate(file.created_at)}
-                            </Typography>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </React.Fragment>
-              ))
+                            {folder || '(root)'}
+                          </Typography>
+                          <Typography sx={{ fontSize: 11, color: '#FFFFFF33', ml: 0.25 }}>
+                            ({groupItems.length})
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* File rows */}
+                    {!isCollapsed &&
+                      groupItems.map((file, idx) => {
+                        const isSelected = selected.has(file.video_id)
+                        const displayName = file.title || file.filename
+                        const hasTranscodes = file.has_480p || file.has_720p || file.has_1080p
+                        return (
+                          <TableRow
+                            key={file.video_id}
+                            hover
+                            selected={isSelected}
+                            sx={{
+                              cursor: 'default',
+                              bgcolor: isSelected ? '#3399FF14' : idx % 2 === 0 ? 'transparent' : '#FFFFFF03',
+                              '&:hover': { bgcolor: isSelected ? '#3399FF1E' : '#FFFFFF08' },
+                              '&.Mui-selected': { bgcolor: '#3399FF14' },
+                              '&.Mui-selected:hover': { bgcolor: '#3399FF1E' },
+                            }}
+                          >
+                            {/* Checkbox */}
+                            <TableCell padding="checkbox" sx={{ borderBottom: '1px solid #FFFFFF0D' }}>
+                              <Checkbox
+                                size="small"
+                                checked={isSelected}
+                                onChange={() => toggleSelect(file.video_id)}
+                                sx={{ color: '#FFFFFF44', '&.Mui-checked': { color: '#3399FF' } }}
+                              />
+                            </TableCell>
+
+                            {/* Name */}
+                            <TableCell sx={{ ...bodyCellSx, maxWidth: 300, overflow: 'hidden' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
+                                <Tooltip title={displayName} placement="top" enterDelay={600}>
+                                  <Typography
+                                    sx={{
+                                      fontSize: 13,
+                                      color: '#FFFFFFCC',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      flex: 1,
+                                    }}
+                                  >
+                                    {displayName}
+                                  </Typography>
+                                </Tooltip>
+                                <Tooltip title="Open in new tab">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => window.open(`/#/w/${file.video_id}`, '_blank')}
+                                    sx={{
+                                      color: '#FFFFFF33',
+                                      p: 0.25,
+                                      flexShrink: 0,
+                                      '&:hover': { color: '#FFFFFF99' },
+                                    }}
+                                  >
+                                    <OpenInNewIcon sx={{ fontSize: 13 }} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
+                            </TableCell>
+
+                            {/* Size */}
+                            <TableCell sx={{ ...bodyCellSx }}>
+                              <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
+                            </TableCell>
+
+                            {/* Duration */}
+                            <TableCell sx={{ ...bodyCellSx }}>
+                              <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
+                                {formatDuration(file.duration)}
+                              </Typography>
+                            </TableCell>
+
+                            {/* Resolution */}
+                            <TableCell sx={{ ...bodyCellSx }}>
+                              <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
+                                {formatResolution(file.width, file.height)}
+                              </Typography>
+                            </TableCell>
+
+                            {/* Transcodes */}
+                            <TableCell sx={{ ...bodyCellSx }}>
+                              {hasTranscodes ? (
+                                <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap' }}>
+                                  {file.has_1080p && (
+                                    <Chip
+                                      label="1080p"
+                                      size="small"
+                                      sx={{
+                                        height: 17,
+                                        fontSize: 10,
+                                        bgcolor: '#FFFFFF12',
+                                        color: '#FFFFFF66',
+                                        '& .MuiChip-label': { px: 0.75 },
+                                      }}
+                                    />
+                                  )}
+                                  {file.has_720p && (
+                                    <Chip
+                                      label="720p"
+                                      size="small"
+                                      sx={{
+                                        height: 17,
+                                        fontSize: 10,
+                                        bgcolor: '#FFFFFF12',
+                                        color: '#FFFFFF66',
+                                        '& .MuiChip-label': { px: 0.75 },
+                                      }}
+                                    />
+                                  )}
+                                  {file.has_480p && (
+                                    <Chip
+                                      label="480p"
+                                      size="small"
+                                      sx={{
+                                        height: 17,
+                                        fontSize: 10,
+                                        bgcolor: '#FFFFFF12',
+                                        color: '#FFFFFF66',
+                                        '& .MuiChip-label': { px: 0.75 },
+                                      }}
+                                    />
+                                  )}
+                                </Box>
+                              ) : (
+                                <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>—</Typography>
+                              )}
+                            </TableCell>
+
+                            {/* Cropped */}
+                            <TableCell sx={{ ...bodyCellSx }}>
+                              {file.has_crop ? (
+                                <Chip
+                                  label="Cropped"
+                                  size="small"
+                                  sx={{
+                                    height: 17,
+                                    fontSize: 10,
+                                    bgcolor: '#FF990018',
+                                    color: '#FF9900BB',
+                                    border: '1px solid #FF990033',
+                                    '& .MuiChip-label': { px: 0.75 },
+                                  }}
+                                />
+                              ) : (
+                                <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>—</Typography>
+                              )}
+                            </TableCell>
+
+                            {/* Privacy */}
+                            <TableCell sx={{ ...bodyCellSx }}>
+                              <Chip
+                                label={file.private ? 'Private' : 'Public'}
+                                size="small"
+                                sx={{
+                                  height: 17,
+                                  fontSize: 10,
+                                  bgcolor: file.private ? '#FFFFFF12' : '#1DB95418',
+                                  color: file.private ? '#FFFFFF66' : '#1DB954',
+                                  border: '1px solid',
+                                  borderColor: file.private ? '#FFFFFF22' : '#1DB95433',
+                                  '& .MuiChip-label': { px: 0.75 },
+                                }}
+                              />
+                            </TableCell>
+
+                            {/* Date */}
+                            <TableCell sx={{ ...bodyCellSx }}>
+                              <Tooltip
+                                title={file.recorded_at ? `Recorded: ${formatDate(file.recorded_at)}` : ''}
+                                placement="top"
+                              >
+                                <Typography sx={{ fontSize: 12, color: '#FFFFFF55' }}>
+                                  {formatDate(file.created_at)}
+                                </Typography>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                  </React.Fragment>
+                )
+              })
             )}
           </TableBody>
         </Table>
