@@ -671,7 +671,7 @@ export default function BulkFileManager({ setAlert }) {
                 { col: 'size', label: 'Size', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
                 { col: 'duration', label: 'Duration', sx: { width: 85, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Resolution', sx: { width: 80, whiteSpace: 'nowrap' } },
-                { col: null, label: 'Transcodes', sx: { width: 140, whiteSpace: 'nowrap' } },
+                { col: null, label: 'Transcodes', sx: { width: 155, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Cropped', sx: { width: 80, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Privacy', sx: { width: 75, whiteSpace: 'nowrap' } },
                 { col: 'date', label: 'Date', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
