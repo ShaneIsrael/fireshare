@@ -141,13 +141,25 @@ def send_discord_webhook(webhook_url=None, video_url=None):
         "username": "Fireshare",
         "avatar_url": "https://github.com/ShaneIsrael/fireshare/raw/develop/app/client/src/assets/logo_square.png",
     }
-
     try:
         response = requests.post(webhook_url, json=payload)
         response.raise_for_status()
         print("Webhook sent successfully.")
+        return {"status": "success", "message": "Webhook sent successfully."} 
     except requests.exceptions.RequestException as e:
         print(f"Failed to send webhook: {e}")
+        return {"status": "error", "message": str(e)}
+
+def send_generic_webhook(webhook_url, video_url=None, custom_payload=None):
+    payload = custom_payload if custom_payload is not None else {}
+    if not payload and video_url:
+        payload["content"] = video_url
+    try:
+        response = requests.post(webhook_url, json=payload)     
+        response.raise_for_status()
+        return {"status": "success", "code": response.status_code}  
+    except requests.exceptions.RequestException as e:
+        return {"status": "error", "message": str(e)}
 
 def get_public_watch_url(video_id, config, host):
     shareable_link_domain = config.get("ui_config", {}).get("shareable_link_domain", "")
@@ -195,6 +207,8 @@ def scan_videos(root):
         config = json.load(config_file)
         video_config = config["app_config"]["video_defaults"]
         discord_webhook_url = config["integrations"]["discord_webhook_url"]
+        generic_webhook_url = config["integrations"]["generic_webhook_url"]
+        generic_webhook_payload = config["integrations"]["generic_webhook_payload"]
         config_file.close()
         
         if not video_links.is_dir():
@@ -282,6 +296,20 @@ def scan_videos(root):
                 logger.info(f"Posting to Discord webhook")
                 video_url = get_public_watch_url(nv.video_id, config, domain)
                 send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
+        if generic_webhook_url:
+            for nv in new_videos:
+                logger.info(f"Posting to Generic webhook")
+                video_url = get_public_watch_url(nv.video_id, config, domain)
+                payload_str = json.dumps(generic_webhook_payload)
+                #Replaces plain text json [[video_url]] with the real video_url python var
+                processed_payload_str = payload_str.replace("[[video_url]]", video_url)
+                final_payload = json.loads(processed_payload_str)
+                send_generic_webhook(
+                    webhook_url=generic_webhook_url, 
+                    video_url=video_url, 
+                    custom_payload=final_payload
+                )
+
 
         # Auto-tag new videos based on folder rules
         auto_tagged = set()
@@ -360,6 +388,8 @@ def scan_video(ctx, path, tag_ids, game_id, title):
         config = json.load(config_file)
         video_config = config["app_config"]["video_defaults"]
         discord_webhook_url = config["integrations"]["discord_webhook_url"]
+        generic_webhook_url = config["integrations"]["generic_webhook_url"]
+        generic_webhook_payload = config["integrations"]["generic_webhook_payload"]
 
         config_file.close()
         
@@ -488,6 +518,19 @@ def scan_video(ctx, path, tag_ids, game_id, title):
                         logger.info(f"Posting to Discord webhook")
                         video_url = get_public_watch_url(video_id, config, domain)
                         send_discord_webhook(webhook_url=discord_webhook_url, video_url=video_url)
+                    
+                    if generic_webhook_url:
+                        logger.info(f"Posting to Generic webhook")
+                        video_url = get_public_watch_url(video_id, config, domain)
+                        payload_str = json.dumps(generic_webhook_payload)
+                        #Replaces plain text json [[video_url]] with the real video_url python var
+                        processed_payload_str = payload_str.replace("[[video_url]]", video_url)
+                        final_payload = json.loads(processed_payload_str)
+                        send_generic_webhook(
+                            webhook_url=generic_webhook_url, 
+                            video_url=video_url, 
+                            custom_payload=final_payload
+                        )
 
                     if current_app.config.get('ENABLE_TRANSCODING'):
                         auto_transcode = config.get('transcoding', {}).get('auto_transcode', True)
