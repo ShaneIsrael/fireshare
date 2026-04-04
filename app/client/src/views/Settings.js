@@ -35,6 +35,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import { ConfigService, VideoService, GameService } from '../services'
+import BulkFileManager from '../components/admin/BulkFileManager'
 import { setSetting } from '../common/utils'
 import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
@@ -420,6 +421,7 @@ const handleTestDiscordWebhook = async () => {
           <Tab label="Integrations" />
           <Tab label="Transcoding" />
           <Tab label="Folders" />
+          <Tab label="File Manager" />
           <Tab label="Actions" />
         </Tabs>
 
@@ -1142,8 +1144,15 @@ const handleTestDiscordWebhook = async () => {
               </Stack>
             )}
 
-            {/* Actions */}
+            {/* File Manager */}
             {activeTab === 5 && (
+              <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', pt: 2 }}>
+                <BulkFileManager setAlert={setAlert} />
+              </Box>
+            )}
+
+            {/* Actions */}
+            {activeTab === 6 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Button
                   variant="contained"
