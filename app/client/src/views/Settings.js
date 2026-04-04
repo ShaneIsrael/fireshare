@@ -24,7 +24,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import SaveIcon from '@mui/icons-material/Save'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import RssFeedIcon from '@mui/icons-material/RssFeed'
-import SendIcon from '@mui/icons-material/Send';
+import SendIcon from '@mui/icons-material/Send'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -49,24 +49,23 @@ const isValidDiscordWebhook = (url) => {
   return regex.test(url)
 }
 const isValidGenericWebhook = (url) => {
-  const regex = /^https?:\/\/[^\s\/$.?#].[^\s]*$/;
+  const regex = /^https?:\/\/[^\s\/$.?#].[^\s]*$/
   return regex.test(url)
 }
 const isValidJson = (str) => {
   try {
-    JSON.parse(str);
-    return true;
+    JSON.parse(str)
+    return true
   } catch (e) {
-    return false;
+    return false
   }
-};
-const jsonPlaceholder = 
-`#Example JSON Data:
+}
+const jsonPlaceholder = `#Example JSON Data:
 {
   "title": "Fireshare",
   "body": "New Fireshare Video Uploaded!",
   "type": "info" 
-}`;
+}`
 
 const Settings = () => {
   const [alert, setAlert] = React.useState({ open: false })
@@ -75,7 +74,7 @@ const Settings = () => {
   const [updateable, setUpdateable] = React.useState(false)
   const [discordUrl, setDiscordUrl] = React.useState('')
   const [webhookUrl, setWebhookUrl] = React.useState('')
-  const [webhookJson, setWebhookJson] = React.useState('')//needed?
+  const [webhookJson, setWebhookJson] = React.useState('') //needed?
   const [showSteamGridKey, setShowSteamGridKey] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState(0)
   const [transcodingStatus, setTranscodingStatus] = React.useState({
@@ -90,51 +89,51 @@ const Settings = () => {
   const isDiscordUsed = discordUrl.trim() !== ''
   const isWebhookUsed = webhookUrl.trim() !== ''
 
-const handleTestDiscordWebhook = async () => {
-  const urlToTest = discordUrl || updatedConfig.integrations?.discord_webhook_url;
-  if (!urlToTest) {
-    setAlert({ open: true, message: 'Please enter a Discord Webhook URL first', type: 'error' });
-    return;
-  }
-  try {
-    const response = await fetch('/api/test-discord-webhook', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        webhook_url: urlToTest,
-        video_url: "https://fireshare.test.worked"
-      }),
-    });
-    const result = await response.json();
-    if (response.ok) {
-      setAlert({ open: true, message: 'Discord Test Sent!', type: 'success' });
-    } else {
-      setAlert({ open: true, message: result.error || 'Discord test failed', type: 'error' });
+  const handleTestDiscordWebhook = async () => {
+    const urlToTest = discordUrl || updatedConfig.integrations?.discord_webhook_url
+    if (!urlToTest) {
+      setAlert({ open: true, message: 'Please enter a Discord Webhook URL first', type: 'error' })
+      return
     }
-  } catch (err) {
-    console.error("Connection failed:", err);
-    setAlert({ open: true, message: 'Network error connecting to server', type: 'error' });
-  }
-};
-
- const handleTestWebhook = async () => {
-    let payloadToTest = {};
     try {
-      payloadToTest = webhookJson ? JSON.parse(webhookJson) : (updatedConfig.integrations?.generic_webhook_payload || {});
+      const response = await fetch('/api/test-discord-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          webhook_url: urlToTest,
+          video_url: 'https://fireshare.test.worked',
+        }),
+      })
+      const result = await response.json()
+      if (response.ok) {
+        setAlert({ open: true, message: 'Discord Test Sent!', type: 'success' })
+      } else {
+        setAlert({ open: true, message: result.error || 'Discord test failed', type: 'error' })
+      }
+    } catch (err) {
+      console.error('Connection failed:', err)
+      setAlert({ open: true, message: 'Network error connecting to server', type: 'error' })
+    }
+  }
+
+  const handleTestWebhook = async () => {
+    let payloadToTest = {}
+    try {
+      payloadToTest = webhookJson ? JSON.parse(webhookJson) : updatedConfig.integrations?.generic_webhook_payload || {}
     } catch (e) {
-      setAlert({ open: true, message: 'Invalid JSON in payload field', type: 'error' });
-      return;
+      setAlert({ open: true, message: 'Invalid JSON in payload field', type: 'error' })
+      return
     }
     const testData = {
-      webhook_url: webhookUrl, 
-      video_url: "https://fireshare.test.worked",
-      payload: payloadToTest 
-    };
+      webhook_url: webhookUrl,
+      video_url: 'https://fireshare.test.worked',
+      payload: payloadToTest,
+    }
     if (!webhookUrl) {
-      setAlert({ open: true, message: 'Please enter a Webhook URL first', type: 'error' });
-      return;
+      setAlert({ open: true, message: 'Please enter a Webhook URL first', type: 'error' })
+      return
     }
     try {
       const response = await fetch('/api/test-webhook', {
@@ -143,19 +142,19 @@ const handleTestDiscordWebhook = async () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(testData),
-      });
+      })
 
-      const result = await response.json();
+      const result = await response.json()
       if (response.ok) {
-        setAlert({ open: true, message: 'Test Webhook Sent!', type: 'success' });
+        setAlert({ open: true, message: 'Test Webhook Sent!', type: 'success' })
       } else {
-        setAlert({ open: true, message: result.error || 'Failed to send test', type: 'error' });
+        setAlert({ open: true, message: result.error || 'Failed to send test', type: 'error' })
       }
     } catch (err) {
-      console.error("Connection failed:", err);
-      setAlert({ open: true, message: 'Network error connecting to server', type: 'error' });
+      console.error('Connection failed:', err)
+      setAlert({ open: true, message: 'Network error connecting to server', type: 'error' })
     }
-  };
+  }
 
   React.useEffect(() => {
     async function fetch() {
@@ -213,15 +212,15 @@ const handleTestDiscordWebhook = async () => {
   React.useEffect(() => {
     if (updatedConfig.integrations) {
       if (updatedConfig.integrations.generic_webhook_url) {
-        setWebhookUrl(updatedConfig.integrations.generic_webhook_url);
+        setWebhookUrl(updatedConfig.integrations.generic_webhook_url)
       }
 
       if (updatedConfig.integrations.generic_webhook_payload) {
-        const jsonString = JSON.stringify(updatedConfig.integrations.generic_webhook_payload, null, 2);
-        setWebhookJson(jsonString);
+        const jsonString = JSON.stringify(updatedConfig.integrations.generic_webhook_payload, null, 2)
+        setWebhookJson(jsonString)
       }
     }
-  }, [updatedConfig]);
+  }, [updatedConfig])
 
   const handleSave = async () => {
     try {
@@ -671,20 +670,21 @@ const handleTestDiscordWebhook = async () => {
                   value={discordUrl}
                   error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
                   helperText={
-                    discordUrl !== '' && !isValidDiscordWebhook(discordUrl)
-                      ? 'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
-                      : 
+                    discordUrl !== '' && !isValidDiscordWebhook(discordUrl) ? (
+                      'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
+                    ) : (
                       <span>
-                      Get Discord Webhook for you Server Channel - {' '}
-                      <a
-                        href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#2684FF', textDecoration: 'none' }}
-                      >
-                        Docs
-                      </a>
-                    </span>
+                        Get Discord Webhook for you Server Channel -{' '}
+                        <a
+                          href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#2684FF', textDecoration: 'none' }}
+                        >
+                          Docs
+                        </a>
+                      </span>
+                    )
                   }
                   onChange={(e) => {
                     const url = e.target.value
@@ -703,13 +703,13 @@ const handleTestDiscordWebhook = async () => {
                   startIcon={<SendIcon />}
                   // Change this from handleCopyRssFeedUrl to your new function
                   onClick={handleTestDiscordWebhook}
-                  sx={{ 
-                    borderColor: 'rgba(255, 255, 255, 0.23)', 
+                  sx={{
+                    borderColor: 'rgba(255, 255, 255, 0.23)',
                     color: '#fff',
                     '&:hover': {
                       borderColor: '#fff',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)'
-                    }
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    },
                   }}
                 >
                   Test Discord
@@ -724,7 +724,7 @@ const handleTestDiscordWebhook = async () => {
                   error={webhookUrl !== '' && !isValidGenericWebhook(webhookUrl)}
                   helperText={
                     <span>
-                      Used for API POST to Generic Webhook Endpoint - {' '}
+                      Used for API POST to Generic Webhook Endpoint -{' '}
                       <a
                         href="https://zapier.com/blog/what-are-webhooks/"
                         target="_blank"
@@ -757,13 +757,13 @@ const handleTestDiscordWebhook = async () => {
                   placeholder={jsonPlaceholder}
                   error={webhookJson !== '' && !isValidJson(webhookJson)}
                   helperText={
-                    webhookJson !== '' && !isValidJson(webhookJson) 
-                      ? "Invalid JSON format" 
-                      : "Add Valid JSON, with data from the docs of your webhook provider"
+                    webhookJson !== '' && !isValidJson(webhookJson)
+                      ? 'Invalid JSON format'
+                      : 'Add Valid JSON, with data from the docs of your webhook provider'
                   }
                   onChange={(e) => {
-                    const val = e.target.value;
-                    setWebhookJson(val);
+                    const val = e.target.value
+                    setWebhookJson(val)
                     if (isValidJson(val)) {
                       setUpdatedConfig((prev) => ({
                         ...prev,
@@ -771,7 +771,7 @@ const handleTestDiscordWebhook = async () => {
                           ...prev.integrations,
                           generic_webhook_payload: JSON.parse(val),
                         },
-                      }));
+                      }))
                     }
                   }}
                 />
@@ -779,13 +779,13 @@ const handleTestDiscordWebhook = async () => {
                   variant="outlined"
                   startIcon={<SendIcon />}
                   onClick={handleTestWebhook}
-                  sx={{ 
-                    borderColor: 'rgba(255, 255, 255, 0.23)', 
+                  sx={{
+                    borderColor: 'rgba(255, 255, 255, 0.23)',
                     color: '#fff',
                     '&:hover': {
                       borderColor: '#fff',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)'
-                    }
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    },
                   }}
                 >
                   Test Webhook
@@ -1013,7 +1013,6 @@ const handleTestDiscordWebhook = async () => {
               </Stack>
             )}
 
-
             {/* Folders */}
             {activeTab === 4 && (
               <Stack spacing={2} sx={{ maxWidth: 500 }}>
@@ -1146,7 +1145,7 @@ const handleTestDiscordWebhook = async () => {
 
             {/* File Manager */}
             {activeTab === 5 && (
-              <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', pt: 2 }}>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <BulkFileManager setAlert={setAlert} />
               </Box>
             )}

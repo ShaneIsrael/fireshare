@@ -42,8 +42,6 @@ import selectFolderTheme from '../../common/reactSelectFolderTheme'
 import { dialogPaperSx, labelSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
 
-// ─── Formatters ────────────────────────────────────────────────────────────────
-
 function formatSize(bytes) {
   if (bytes == null || bytes === 0) return '—'
   if (bytes < 1024) return `${bytes} B`
@@ -88,8 +86,6 @@ function formatResolution(width, height) {
   return `${width}×${height}`
 }
 
-// ─── Sort helpers ───────────────────────────────────────────────────────────────
-
 function sortFiles(files, column, dir) {
   const sorted = [...files]
   const mul = dir === 'asc' ? 1 : -1
@@ -106,8 +102,6 @@ function sortFiles(files, column, dir) {
       return sorted
   }
 }
-
-// ─── Shared cell styles ─────────────────────────────────────────────────────────
 
 const headCellSx = {
   color: '#FFFFFF99',
@@ -133,8 +127,6 @@ const folderRowSx = {
   borderTop: '2px solid #FFFFFF12',
   '&:first-of-type': { borderTop: 'none' },
 }
-
-// ─── Component ──────────────────────────────────────────────────────────────────
 
 export default function BulkFileManager({ setAlert }) {
   const [files, setFiles] = useState([])
@@ -169,8 +161,6 @@ export default function BulkFileManager({ setAlert }) {
   const [newFolderName, setNewFolderName] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  // ── Data fetching ─────────────────────────────────────────────────────────────
-
   const fetchFiles = useCallback(async () => {
     setLoading(true)
     try {
@@ -188,8 +178,6 @@ export default function BulkFileManager({ setAlert }) {
   useEffect(() => {
     fetchFiles()
   }, [fetchFiles])
-
-  // ── Derived / filtered list ───────────────────────────────────────────────────
 
   const filteredFiles = useMemo(() => {
     let result = files
@@ -255,8 +243,6 @@ export default function BulkFileManager({ setAlert }) {
     return pairs
   }, [filteredFiles, folders, folderFilter, sortColumn, sortDir])
 
-  // ── Selection helpers ─────────────────────────────────────────────────────────
-
   const filteredIds = useMemo(() => new Set(filteredFiles.map((f) => f.video_id)), [filteredFiles])
 
   const allFilteredSelected = filteredFiles.length > 0 && filteredFiles.every((f) => selected.has(f.video_id))
@@ -298,8 +284,6 @@ export default function BulkFileManager({ setAlert }) {
     }
   }
 
-  // ── Move dialog folder options ────────────────────────────────────────────────
-
   const selectedFiles = useMemo(() => files.filter((f) => selected.has(f.video_id)), [files, selected])
 
   const uniqueCurrentFolders = useMemo(
@@ -315,8 +299,6 @@ export default function BulkFileManager({ setAlert }) {
     }
     return opts.map((f) => ({ value: f, label: `/videos/${f}/` }))
   }, [folders, uniqueCurrentFolders])
-
-  // ── Generic action runner ─────────────────────────────────────────────────────
 
   const runBulkAction = useCallback(
     async (endpoint, body, successMsg) => {
@@ -347,8 +329,6 @@ export default function BulkFileManager({ setAlert }) {
     },
     [fetchFiles, setAlert],
   )
-
-  // ── Actions ───────────────────────────────────────────────────────────────────
 
   const handleDelete = async () => {
     const ok = await runBulkAction('/api/admin/files/bulk-delete', { video_ids: [...selected] }, 'Deleted files')
@@ -427,8 +407,6 @@ export default function BulkFileManager({ setAlert }) {
       setActionLoading(false)
     }
   }
-
-  // ── Render ────────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
