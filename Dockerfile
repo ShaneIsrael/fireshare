@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libx265-dev \
     libvpx-dev \
     libaom-dev \
+    libdav1d-dev \
     libopus-dev \
     libvorbis-dev \
     libass-dev \
@@ -63,6 +64,7 @@ RUN cd ffmpeg-6.1 && \
         --enable-libx265 \
         --enable-libvpx \
         --enable-libaom \
+        --enable-libdav1d \
         --enable-libopus \
         --enable-libvorbis \
         --enable-libmp3lame \
@@ -106,7 +108,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     gosu \
     wget curl ca-certificates \
     tzdata \
-    libx264-163 libx265-199 libvpx7 libaom3 \
+    libx264-163 libx265-199 libvpx7 libaom3 libdav1d6 \
     libopus0 libvorbis0a libvorbisenc2 \
     libass9 libfreetype6 libmp3lame0 \
     && python3.14 -m ensurepip --upgrade \

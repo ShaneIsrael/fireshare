@@ -218,16 +218,17 @@ def validate_video_file(path, timeout=30):
         timeout: Maximum time in seconds to wait for validation (default: 30)
     
     Returns:
-        tuple: (is_valid: bool, error_message: str or None)
-            - (True, None) if the video is valid
-            - (False, error_message) if the video is corrupt or unreadable
+        tuple: (is_valid: bool, error_message: str or None, preferred_decoder: str or None)
+            - (True, None, None) if the video is valid with the default decoder
+            - (True, None, 'libdav1d') if valid only with the dav1d fallback decoder
+            - (False, error_message, None) if the video is corrupt or unreadable
     """
     # Check if ffprobe and ffmpeg are available using shutil.which
     if not shutil.which('ffprobe'):
-        return False, "ffprobe command not found - ensure ffmpeg is installed"
+        return False, "ffprobe command not found - ensure ffmpeg is installed", None
     if not shutil.which('ffmpeg'):
-        return False, "ffmpeg command not found - ensure ffmpeg is installed"
-    
+        return False, "ffmpeg command not found - ensure ffmpeg is installed", None
+
     try:
         # First, check if ffprobe can read the stream information
         probe_cmd = [
@@ -236,47 +237,48 @@ def validate_video_file(path, timeout=30):
             '-of', 'json', str(path)
         ]
         logger.debug(f"Validating video file: {' '.join(probe_cmd)}")
-        
+
         probe_result = sp.run(probe_cmd, capture_output=True, text=True, timeout=timeout)
-        
+
         if probe_result.returncode != 0:
             error_msg = probe_result.stderr.strip() if probe_result.stderr else "Unknown error reading video metadata"
-            return False, f"ffprobe failed: {error_msg}"
-        
+            return False, f"ffprobe failed: {error_msg}", None
+
         # Check if we got valid stream data
         # Note: -select_streams v:0 in probe_cmd ensures only video streams are returned
         try:
             probe_data = json.loads(probe_result.stdout)
             streams = probe_data.get('streams', [])
             if not streams:
-                return False, "No video streams found in file"
+                return False, "No video streams found in file", None
         except json.JSONDecodeError:
-            return False, "Failed to parse video metadata"
-        
+            return False, "Failed to parse video metadata", None
+
         # Get the codec name from the video stream
         # Safe to access streams[0] because we checked for empty streams above
         video_stream = streams[0]
         codec_name = video_stream.get('codec_name', '').lower()
-        
+
         # Detect if the source file is AV1-encoded
         # AV1 files may produce false positive corruption warnings during initial frame decoding
         is_av1_source = codec_name in AV1_CODEC_NAMES
-        
-        # Now perform a quick decode test by decoding the first 2 seconds
-        # This catches issues like "No sequence header" or "Corrupt frame detected"
-        decode_cmd = [
-            'ffmpeg', '-v', 'error', '-t', '2',
-            '-i', str(path), '-f', 'null', '-'
-        ]
-        logger.debug(f"Decode test: {' '.join(decode_cmd)}")
-        
-        decode_result = sp.run(decode_cmd, capture_output=True, text=True, timeout=timeout)
-        
+
+        def _run_decode_test(decoder=None):
+            """Run the 2-second decode test, optionally with an explicit input decoder."""
+            cmd = ['ffmpeg', '-v', 'error', '-t', '2']
+            if decoder:
+                cmd.extend(['-c:v', decoder])
+            cmd.extend(['-i', str(path), '-f', 'null', '-'])
+            logger.debug(f"Decode test: {' '.join(cmd)}")
+            return sp.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+        decode_result = _run_decode_test()
+
         # Check for decode errors - only treat as error if return code is non-zero
         # or if stderr contains known corruption indicators
         stderr = decode_result.stderr.strip() if decode_result.stderr else ""
         stderr_lower = stderr.lower()
-        
+
         # For AV1 files, be more lenient about certain error messages
         # Some AV1 encoders produce files that generate warnings/errors during initial
         # frame decoding (e.g., "Corrupt frame detected", "No sequence header") but
@@ -286,7 +288,8 @@ def validate_video_file(path, timeout=30):
             # Check if the only errors are known false positives for AV1
             found_real_error = False
             found_false_positive = False
-            
+            libaom_unsupported = False
+
             for indicator in VIDEO_CORRUPTION_INDICATORS:
                 indicator_lower = indicator.lower()
                 if indicator_lower in stderr_lower:
@@ -294,45 +297,59 @@ def validate_video_file(path, timeout=30):
                         found_false_positive = True
                     else:
                         found_real_error = True
-                        # Found a real error, fail immediately
-                        return False, f"Video file appears to be corrupt: {indicator}"
-            
+                        if indicator_lower == "invalid data found when processing input":
+                            libaom_unsupported = True
+                        else:
+                            return False, f"Video file appears to be corrupt: {indicator}", None
+
+            # If libaom can't handle this bitstream, try dav1d as a fallback
+            if libaom_unsupported:
+                if check_dav1d_available():
+                    logger.info("libaom cannot decode this AV1 bitstream, retrying with dav1d...")
+                    dav1d_result = _run_decode_test(decoder='libdav1d')
+                    if dav1d_result.returncode == 0:
+                        logger.info("AV1 file validated successfully with dav1d decoder")
+                        return True, None, 'libdav1d'
+                    dav1d_stderr = dav1d_result.stderr.strip() if dav1d_result.stderr else ""
+                    return False, f"AV1 decode failed with both libaom and dav1d: {dav1d_stderr[:200]}", None
+                return False, "AV1 file uses features unsupported by the libaom decoder (dav1d not available)", None
+
             # If we only found false positives (no real errors), the file is valid
             if found_false_positive and not found_real_error:
                 logger.debug(f"AV1 file had known false positive warnings during validation (ignoring): {stderr[:200]}")
-                return True, None
-            
+                return True, None, None
+
             # If returncode is non-zero, fail (either with stderr message or generic failure)
             if decode_result.returncode != 0:
                 if stderr:
-                    return False, f"Decode test failed: {stderr[:200]}"
+                    return False, f"Decode test failed: {stderr[:200]}", None
                 else:
-                    return False, "Decode test failed with no error message"
-            
-            return True, None
+                    return False, "Decode test failed with no error message", None
+
+            return True, None, None
         else:
             # For non-AV1 files, use strict validation
             if decode_result.returncode != 0:
                 # Decode failed - check for specific corruption indicators
                 for indicator in VIDEO_CORRUPTION_INDICATORS:
                     if indicator.lower() in stderr_lower:
-                        return False, f"Video file appears to be corrupt: {indicator}"
+                        return False, f"Video file appears to be corrupt: {indicator}", None
                 # Generic decode failure
-                return False, f"Decode test failed: {stderr[:200] if stderr else 'Unknown error'}"
-            
+                return False, f"Decode test failed: {stderr[:200] if stderr else 'Unknown error'}", None
+
             # Return code is 0 (success), but check for corruption indicators in warnings
             for indicator in VIDEO_CORRUPTION_INDICATORS:
                 if indicator.lower() in stderr_lower:
-                    return False, f"Video file appears to be corrupt: {indicator}"
-        
-        return True, None
-        
+                    return False, f"Video file appears to be corrupt: {indicator}", None
+
+        return True, None, None
+
     except sp.TimeoutExpired:
-        return False, f"Validation timed out after {timeout} seconds"
+        return False, f"Validation timed out after {timeout} seconds", None
     except FileNotFoundError:
-        return False, "Video file not found"
+        return False, "Video file not found", None
     except Exception as ex:
-        return False, f"Validation error: {str(ex)}"
+        return False, f"Validation error: {str(ex)}", None
 
 
 def calculate_transcode_timeout(video_path, base_timeout=7200):
@@ -421,6 +438,24 @@ def create_poster(video_path, out_path, second=0):
 
 # Cache for NVENC availability check to avoid repeated subprocess calls
 _nvenc_availability_cache = {}
+
+# Cache for dav1d decoder availability (None = unchecked, True/False = result)
+_dav1d_available_cache = None
+
+def check_dav1d_available():
+    """Check if the libdav1d AV1 decoder is available in ffmpeg. Result is cached."""
+    global _dav1d_available_cache
+    if _dav1d_available_cache is not None:
+        return _dav1d_available_cache
+    try:
+        result = sp.run(
+            ['ffmpeg', '-hide_banner', '-decoders'],
+            capture_output=True, text=True, timeout=10
+        )
+        _dav1d_available_cache = 'libdav1d' in result.stdout
+    except Exception:
+        _dav1d_available_cache = False
+    return _dav1d_available_cache
 
 # Cache for the working encoder to avoid trying failed encoders repeatedly
 # Format: {'gpu': encoder_dict, 'cpu': encoder_dict}
@@ -710,9 +745,13 @@ def run_ffmpeg_with_progress(cmd, total_duration, timeout_seconds=None, data_pat
     return process
 
 
-def _build_transcode_command(video_path, out_path, height, encoder):
+def _build_transcode_command(video_path, out_path, height, encoder, input_decoder=None):
     """Build an ffmpeg command for transcoding with the given encoder."""
-    cmd = ['ffmpeg', '-v', 'warning', '-stats', '-y', '-i', str(video_path)]
+    cmd = ['ffmpeg', '-v', 'warning', '-stats', '-y']
+    if input_decoder:
+        cmd.extend(['-c:v', input_decoder])
+    cmd.append('-i')
+    cmd.append(str(video_path))
     cmd.extend(['-c:v', encoder['video_codec']])
     
     if 'extra_args' in encoder:
@@ -755,11 +794,13 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
     
     # Validate the source video file before attempting transcoding
     # This catches corrupt files early instead of trying all encoders
-    is_valid, error_msg = validate_video_file(video_path)
+    is_valid, error_msg, preferred_decoder = validate_video_file(video_path)
     if not is_valid:
         logger.error(f"Source video validation failed: {error_msg}")
         logger.warning("Skipping transcoding for this video due to file corruption or read errors")
         return (False, 'corruption')
+    if preferred_decoder:
+        logger.info(f"Using {preferred_decoder} as input decoder for this source file")
 
     # Get video duration for progress logging
     total_duration = get_video_duration(video_path) or 0
@@ -794,7 +835,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
 
         # Build ffmpeg command using the cached encoder
         logger.info(f"Transcoding video to {height}p using {encoder['name']}")
-        cmd = _build_transcode_command(video_path, tmp_path, height, encoder)
+        cmd = _build_transcode_command(video_path, tmp_path, height, encoder, input_decoder=preferred_decoder)
 
         logger.debug(f"$: {' '.join(cmd)}")
 
@@ -932,7 +973,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
         logger.info(f"Trying {encoder['name']}...")
 
         # Build ffmpeg command targeting the temp path
-        cmd = _build_transcode_command(video_path, tmp_path, height, encoder)
+        cmd = _build_transcode_command(video_path, tmp_path, height, encoder, input_decoder=preferred_decoder)
 
         logger.debug(f"$: {' '.join(cmd)}")
 
