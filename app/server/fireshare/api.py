@@ -1365,6 +1365,336 @@ def move_video(id):
         logging.error(f"Error moving video {id}: {e}")
         return Response(status=500, response=str(e))
 
+
+@api.route('/api/admin/files', methods=['GET'])
+@login_required
+def get_admin_files():
+    """Get all videos with file metadata for the bulk file manager (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
+
+    videos = Video.query.join(VideoInfo).all()
+    files = []
+    for v in videos:
+        file_path = video_path / v.path
+        size = None
+        try:
+            if file_path.exists():
+                size = file_path.stat().st_size
+        except Exception:
+            pass
+
+        parts = v.path.replace('\\', '/').split('/')
+        folder = parts[0] if len(parts) > 1 else ''
+        filename = parts[-1]
+
+        game_link = VideoGameLink.query.filter_by(video_id=v.video_id).first()
+        game_name = game_link.game.name if game_link and game_link.game else None
+
+        files.append({
+            'video_id': v.video_id,
+            'filename': filename,
+            'folder': folder,
+            'path': v.path,
+            'extension': v.extension,
+            'size': size,
+            'title': v.info.title if v.info else None,
+            'duration': round(v.info._cropped_duration()) if v.info and v.info.duration else 0,
+            'width': v.info.width if v.info else None,
+            'height': v.info.height if v.info else None,
+            'private': v.info.private if v.info else True,
+            'has_480p': v.info.has_480p if v.info else False,
+            'has_720p': v.info.has_720p if v.info else False,
+            'has_1080p': v.info.has_1080p if v.info else False,
+            'has_crop': v.info.has_crop if v.info else False,
+            'available': v.available,
+            'created_at': v.created_at.isoformat() if v.created_at else None,
+            'recorded_at': v.recorded_at.isoformat() if v.recorded_at else None,
+            'game': game_name,
+        })
+
+    folders = []
+    try:
+        for entry in os.scandir(video_path):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                folders.append(entry.name)
+        folders.sort()
+    except Exception:
+        pass
+
+    return jsonify({'files': files, 'folders': folders})
+
+
+@api.route('/api/admin/files/bulk-delete', methods=['POST'])
+@login_required
+def bulk_delete_files():
+    """Delete multiple videos by ID (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    video_ids = data.get('video_ids', [])
+    if not video_ids:
+        return Response(status=400, response='No video IDs provided.')
+
+    paths = current_app.config['PATHS']
+    results = {'deleted': [], 'errors': []}
+
+    for vid_id in video_ids:
+        video = Video.query.filter_by(video_id=vid_id).first()
+        if not video:
+            results['errors'].append({'video_id': vid_id, 'error': 'Not found'})
+            continue
+
+        file_path = paths['video'] / video.path
+        link_path = paths['processed'] / 'video_links' / f"{vid_id}{video.extension}"
+        derived_path = paths['processed'] / 'derived' / vid_id
+
+        try:
+            VideoInfo.query.filter_by(video_id=vid_id).delete()
+            VideoGameLink.query.filter_by(video_id=vid_id).delete()
+            VideoTagLink.query.filter_by(video_id=vid_id).delete()
+            VideoView.query.filter_by(video_id=vid_id).delete()
+            Video.query.filter_by(video_id=vid_id).delete()
+            db.session.commit()
+
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                if link_path.exists() or link_path.is_symlink():
+                    link_path.unlink()
+                if derived_path.exists():
+                    shutil.rmtree(derived_path)
+            except OSError as e:
+                logging.error(f"Error deleting files for video {vid_id}: {e}")
+
+            results['deleted'].append(vid_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'video_id': vid_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/files/bulk-move', methods=['POST'])
+@login_required
+def bulk_move_files():
+    """Move multiple videos to a target folder (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    video_ids = data.get('video_ids', [])
+    target_folder = (data.get('folder') or '').strip()
+
+    if not video_ids:
+        return Response(status=400, response='No video IDs provided.')
+    if not target_folder:
+        return Response(status=400, response='A target folder must be provided.')
+
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
+    target_folder_path = video_path / target_folder
+
+    if not target_folder_path.is_dir():
+        return Response(status=400, response=f"Folder '{target_folder}' does not exist.")
+
+    results = {'moved': [], 'errors': []}
+
+    for vid_id in video_ids:
+        video = Video.query.filter_by(video_id=vid_id).first()
+        if not video:
+            results['errors'].append({'video_id': vid_id, 'error': 'Not found'})
+            continue
+
+        old_file_path = video_path / video.path
+        filename = Path(video.path).name
+        new_path = f"{target_folder}/{filename}"
+        new_file_path = video_path / new_path
+
+        if old_file_path.resolve() == new_file_path.resolve():
+            results['errors'].append({'video_id': vid_id, 'error': 'Already in that folder'})
+            continue
+
+        if new_file_path.exists():
+            results['errors'].append({'video_id': vid_id, 'error': f"File '{filename}' already exists in '{target_folder}'"})
+            continue
+
+        try:
+            shutil.move(str(old_file_path), str(new_file_path))
+
+            link_path = paths['processed'] / 'video_links' / f"{vid_id}{video.extension}"
+            if link_path.exists() or link_path.is_symlink():
+                link_path.unlink()
+            os.symlink(new_file_path.absolute(), link_path)
+
+            video.path = new_path
+
+            folder_rule = FolderRule.query.filter_by(folder_path=target_folder).first()
+            if folder_rule:
+                existing_link = VideoGameLink.query.filter_by(video_id=vid_id).first()
+                if existing_link:
+                    existing_link.game_id = folder_rule.game_id
+                else:
+                    db.session.add(VideoGameLink(video_id=vid_id, game_id=folder_rule.game_id, created_at=datetime.utcnow()))
+
+            db.session.commit()
+            results['moved'].append(vid_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'video_id': vid_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/folders/create', methods=['POST'])
+@login_required
+def create_video_folder():
+    """Create a new folder in the /videos root directory (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    folder_name = (data.get('name') or '').strip()
+
+    if not folder_name:
+        return Response(status=400, response='A folder name must be provided.')
+
+    if '/' in folder_name or '\\' in folder_name or folder_name.startswith('.'):
+        return Response(status=400, response='Invalid folder name.')
+
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
+    new_folder_path = video_path / folder_name
+
+    if new_folder_path.exists():
+        return Response(status=409, response=f"A folder named '{folder_name}' already exists.")
+
+    try:
+        new_folder_path.mkdir()
+        logging.info(f"Created folder: {new_folder_path}")
+        return Response(status=201)
+    except Exception as e:
+        logging.error(f"Error creating folder {folder_name}: {e}")
+        return Response(status=500, response=str(e))
+
+
+@api.route('/api/admin/files/bulk-remove-transcodes', methods=['POST'])
+@login_required
+def bulk_remove_transcodes():
+    """Remove transcoded files for multiple videos (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    video_ids = data.get('video_ids', [])
+    if not video_ids:
+        return Response(status=400, response='No video IDs provided.')
+
+    paths = current_app.config['PATHS']
+    results = {'updated': [], 'errors': []}
+
+    for vid_id in video_ids:
+        video_info = VideoInfo.query.filter_by(video_id=vid_id).first()
+        if not video_info:
+            results['errors'].append({'video_id': vid_id, 'error': 'Not found'})
+            continue
+        try:
+            derived_dir = paths['processed'] / 'derived' / vid_id
+            for res in ['480p', '720p', '1080p']:
+                f = derived_dir / f'{vid_id}-{res}.mp4'
+                if f.exists():
+                    f.unlink()
+            video_info.has_480p = False
+            video_info.has_720p = False
+            video_info.has_1080p = False
+            db.session.commit()
+            results['updated'].append(vid_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'video_id': vid_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/files/bulk-remove-crop', methods=['POST'])
+@login_required
+def bulk_remove_crop():
+    """Remove crop settings for multiple videos (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    video_ids = data.get('video_ids', [])
+    if not video_ids:
+        return Response(status=400, response='No video IDs provided.')
+
+    paths = current_app.config['PATHS']
+    results = {'updated': [], 'errors': []}
+
+    for vid_id in video_ids:
+        video = Video.query.filter_by(video_id=vid_id).first()
+        video_info = VideoInfo.query.filter_by(video_id=vid_id).first()
+        if not video or not video_info:
+            results['errors'].append({'video_id': vid_id, 'error': 'Not found'})
+            continue
+        try:
+            derived_dir = paths['processed'] / 'derived' / vid_id
+            for fname in [f'{vid_id}-cropped.mp4', f'{vid_id}-480p.mp4', f'{vid_id}-720p.mp4', f'{vid_id}-1080p.mp4']:
+                f = derived_dir / fname
+                if f.exists():
+                    f.unlink()
+            video_info.has_crop = False
+            video_info.start_time = None
+            video_info.end_time = None
+            video_info.has_480p = False
+            video_info.has_720p = False
+            video_info.has_1080p = False
+            db.session.commit()
+            results['updated'].append(vid_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'video_id': vid_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/files/bulk-set-privacy', methods=['POST'])
+@login_required
+def bulk_set_privacy():
+    """Set privacy for multiple videos (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    video_ids = data.get('video_ids', [])
+    private = data.get('private')
+    if not video_ids:
+        return Response(status=400, response='No video IDs provided.')
+    if private is None:
+        return Response(status=400, response='A privacy value (private: true/false) must be provided.')
+
+    results = {'updated': [], 'errors': []}
+
+    for vid_id in video_ids:
+        video_info = VideoInfo.query.filter_by(video_id=vid_id).first()
+        if not video_info:
+            results['errors'].append({'video_id': vid_id, 'error': 'Not found'})
+            continue
+        try:
+            video_info.private = bool(private)
+            db.session.commit()
+            results['updated'].append(vid_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'video_id': vid_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
     if request.method == 'GET':

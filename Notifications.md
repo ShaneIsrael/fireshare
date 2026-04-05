@@ -1,58 +1,78 @@
 ## Notifications
-Firesahre has a limited setup for notifications when a new video is uploaded. Primarily Discord and a Generic Webhook. Since Gaming and Discord is so ubiquitous it makes sense to have a dedicated Discord channel just for clip highlights to share with your friends. For this reason there is the Discord integration, to notify a channel when a new video has been uploaded. A similar premise has been made for the Generic Webhook. There are many notification systems, and to program them all would be an undertaking, so with the Generic Webhook, this allows what should be a means to still notify any system that can take a HTTP-POST and a JSON payload for webhooks.
+
+Fireshare supports notifications when a new video is uploaded, with two integration options: **Discord** and a **Generic Webhook**.
+
+---
+
 ### Discord
-The Discord Notification integration is very simple, you just add the webhook URL to the channel you want it to be send to. You can learn how to generate a webhook URL for your Discord server and channel here: [Discord - Webhook Documentation](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
 
-Docker ENV example:
+Since gaming and Discord go hand-in-hand, Fireshare includes a dedicated Discord integration. When a new video is uploaded, it will automatically send a notification to the Discord channel of your choice.
 
-`DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz'`
+**Setup:** Add the webhook URL for the Discord channel you want notifications sent to.
+
+> Don't have a webhook URL yet? Learn how to create one here: [Discord — Intro to Webhooks](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
+
+**Docker ENV example:**
+```
+DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/123456789/abcdefghijklmnopqrstuvwxyz'
+```
+
+---
 
 ### Generic Webhook
-For any other service you would want to send a notification to, that also supports a generic JSON payload-based webhook. Please note, you will have to set not only the POST URL but also the JSON Payload. If you do not know what this is you can learn more here:
 
-Basically, you will need to enter valid JSON data into the "Generic Webhook JSON Payload" box on the integrations page, with the JSON payload that will work for your specific app or service. Please consult the webhook documentation for the service you are wanting to use, if they offer webhook support. For instance, the JSON data could look something like the following:
+For any notification service that supports HTTP POST requests with a JSON payload, you can use the Generic Webhook integration. This allows Fireshare to send notifications to virtually any platform that supports webhooks.
 
-```
+**Setup:** You will need to provide two things:
+1. The **POST URL** for your service's webhook endpoint
+2. A **JSON payload** formatted for your specific service
+
+Enter valid JSON into the "Generic Webhook JSON Payload" field on the Integrations page. Consult your service's webhook documentation to find the correct payload format.
+
+**Example payload:**
+```json
 {
     "Title": "Fireshare",
-    "message": "New Video Uploaded to Fireshare",
+    "message": "New Video Uploaded to Fireshare"
 }
 ```
 
-There is one variable avaliable that can be used in the JSON payload that can inject the video perma link. This could be useful that when you see the notification on your service you have a direct link to this new video. This can be achived using this exact format anywhere it makes sense: `[video_url]` 
+#### Including a Link to the Video
 
-Example:
-```
+You can include a direct link to the newly uploaded video in your notification by using the `[video_url]` placeholder anywhere in your JSON payload.
+
+**Example payload with video link:**
+```json
 {
     "Title": "Fireshare",
-    "message": "New Video Uploaded to Fireshare [video_url]",
-}
-```
-What this will look like send to your service as a json payload:
-
-```
-{
-    "Title": "Fireshare",
-    "message": "New Video Uploaded to Fireshare https://yourdomain.com/w/c415d34530d15b2892fa4a4e037b6c05",
+    "message": "New Video Uploaded to Fireshare [video_url]"
 }
 ```
 
-**Syntax Note**
+**What Fireshare will send to your service:**
+```json
+{
+    "Title": "Fireshare",
+    "message": "New Video Uploaded to Fireshare https://yourdomain.com/w/c415d34530d15b2892fa4a4e037b6c05"
+}
+```
 
-Please keep in mind that the json payload is not a simple string, it has key/value pairs that have string in it. This means these strings are usually wrapped in either single quotes `'` or double `"`. Meaning if you are just pasting your json via the gui, just pick one and fireshare will take care of the rest. However for Docker ENVs you need to make sure you are choosing one for the total encapuslation of the json, and then another for the actual internal json strings. 
+#### A Note on Quote Syntax
 
-Example:
+JSON payloads use key/value pairs where strings are wrapped in quotes. Keep the following in mind:
 
+- **GUI:** If you are pasting the payload through the Fireshare UI, just choose either single `'` or double `"` quotes for your strings — Fireshare will handle the rest.
+- **Docker ENV:** You must use one type of quote to wrap the entire value, and the other type for the internal JSON strings.
+
+**Docker ENV example:**
 ```
 GENERIC_WEBHOOK_PAYLOAD='{"Title": "Fireshare", "message": "New Video Uploaded to Fireshare [video_url]"}'
-#Notice this is a sinlge line ^
+# Note: this must be a single line
 ```
 
-
 **Full Docker ENV example:**
-
 ```
 GENERIC_WEBHOOK_URL='https://webhook.com/at/endpoint12345'
 GENERIC_WEBHOOK_PAYLOAD='{"Title": "Fireshare", "message": "New Video Uploaded to Fireshare [video_url]"}'
-# You must have both ENVs filled in for Generic Webhook to work
+# Both ENV variables must be set for the Generic Webhook to work
 ```
