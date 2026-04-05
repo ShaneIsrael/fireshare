@@ -108,7 +108,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     gosu \
     wget curl ca-certificates \
     tzdata \
-    libx264-163 libx265-199 libvpx7 libaom3 libdav1d6 \
+    libx264-163 libx265-199 libvpx7 libaom3 libdav1d5 \
     libopus0 libvorbis0a libvorbisenc2 \
     libass9 libfreetype6 libmp3lame0 \
     && python3.14 -m ensurepip --upgrade \
