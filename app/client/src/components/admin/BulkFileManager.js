@@ -849,17 +849,19 @@ export default function BulkFileManager({ setAlert }) {
 
                             {/* Resolution */}
                             <TableCell sx={{ ...bodyCellSx }}>
-                              <Chip
-                                label={formatResolution(file.width, file.height)}
-                                size="small"
-                                sx={{
-                                  height: 17,
-                                  fontSize: 10,
-                                  bgcolor: '#FFFFFF12',
-                                  color: '#FFFFFF66',
-                                  '& .MuiChip-label': { px: 0.75 },
-                                }}
-                              />
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Chip
+                                  label={formatResolution(file.width, file.height)}
+                                  size="small"
+                                  sx={{
+                                    height: 17,
+                                    fontSize: 10,
+                                    bgcolor: '#FFFFFF12',
+                                    color: '#FFFFFF66',
+                                    '& .MuiChip-label': { px: 0.75 },
+                                  }}
+                                />
+                              </Box>
                             </TableCell>
 
                             {/* Transcodes */}
@@ -914,18 +916,20 @@ export default function BulkFileManager({ setAlert }) {
                             {/* Cropped */}
                             <TableCell sx={{ ...bodyCellSx }}>
                               {file.has_crop ? (
-                                <Chip
-                                  label="Cropped"
-                                  size="small"
-                                  sx={{
-                                    height: 17,
-                                    fontSize: 10,
-                                    bgcolor: '#FF990018',
-                                    color: '#FF9900BB',
-                                    border: '1px solid #FF990033',
-                                    '& .MuiChip-label': { px: 0.75 },
-                                  }}
-                                />
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <Chip
+                                    label="Cropped"
+                                    size="small"
+                                    sx={{
+                                      height: 17,
+                                      fontSize: 10,
+                                      bgcolor: '#FF990018',
+                                      color: '#FF9900BB',
+                                      border: '1px solid #FF990033',
+                                      '& .MuiChip-label': { px: 0.75 },
+                                    }}
+                                  />
+                                </Box>
                               ) : (
                                 <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>—</Typography>
                               )}
@@ -933,19 +937,21 @@ export default function BulkFileManager({ setAlert }) {
 
                             {/* Privacy */}
                             <TableCell sx={{ ...bodyCellSx }}>
-                              <Chip
-                                label={file.private ? 'Private' : 'Public'}
-                                size="small"
-                                sx={{
-                                  height: 17,
-                                  fontSize: 10,
-                                  bgcolor: file.private ? '#FFFFFF12' : '#1DB95418',
-                                  color: file.private ? '#FFFFFF66' : '#1DB954',
-                                  border: '1px solid',
-                                  borderColor: file.private ? '#FFFFFF22' : '#1DB95433',
-                                  '& .MuiChip-label': { px: 0.75 },
-                                }}
-                              />
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Chip
+                                  label={file.private ? 'Private' : 'Public'}
+                                  size="small"
+                                  sx={{
+                                    height: 17,
+                                    fontSize: 10,
+                                    bgcolor: file.private ? '#FFFFFF12' : '#1DB95418',
+                                    color: file.private ? '#FFFFFF66' : '#1DB954',
+                                    border: '1px solid',
+                                    borderColor: file.private ? '#FFFFFF22' : '#1DB95433',
+                                    '& .MuiChip-label': { px: 0.75 },
+                                  }}
+                                />
+                              </Box>
                             </TableCell>
 
                             {/* Date */}
