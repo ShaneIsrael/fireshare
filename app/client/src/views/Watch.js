@@ -199,7 +199,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:video:height" value={details?.info?.height} />
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
-      <div style={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
         <Box
           style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}
           sx={{

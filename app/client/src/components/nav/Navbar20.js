@@ -150,6 +150,7 @@ function Navbar20({
   mainPadding = 3,
   children,
 }) {
+  const [logoHovered, setLogoHovered] = React.useState(false)
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false)
   const [mobileSearchKey, setMobileSearchKey] = React.useState(0)
@@ -247,13 +248,6 @@ function Navbar20({
     setSetting('cardSize', newSize)
   }
 
-  const DrawerControl = styled('div')(({ theme }) => ({
-    zIndex: 1000,
-    position: 'absolute',
-    left: 0,
-    top: 13,
-  }))
-
   const memoizedHandleAlert = React.useCallback((alert) => {
     setAlert(alert)
   }, [])
@@ -333,8 +327,11 @@ function Navbar20({
         sx={{
           '&.MuiToolbar-root': {
             pl: '13px',
+            pr: '8px',
           },
         }}
+        onMouseEnter={() => setLogoHovered(true)}
+        onMouseLeave={() => setLogoHovered(false)}
       >
         <Box
           alt="fireshare logo"
@@ -342,22 +339,58 @@ function Navbar20({
           src={logo}
           height={42}
           onClick={() => navigate(authenticated ? '/' : '/feed')}
-          sx={{ pr: 2, cursor: 'pointer' }}
+          sx={{ pr: open ? 2 : 0, cursor: 'pointer', flexShrink: 0, opacity: (!open && logoHovered) ? 0 : 1, transition: 'opacity 0.15s' }}
         />
-        <Typography
-          variant="div"
-          noWrap
-          onClick={() => navigate(authenticated ? '/' : '/feed')}
-          sx={{
-            cursor: 'pointer',
-            fontWeight: 700,
-            fontSize: 26,
-            color: 'inherit',
-            textDecoration: 'none',
-          }}
-        >
-          Fireshare
-        </Typography>
+        {open && (
+          <>
+            <Typography
+              variant="div"
+              noWrap
+              onClick={() => navigate(authenticated ? '/' : '/feed')}
+              sx={{
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: 26,
+                color: 'inherit',
+                textDecoration: 'none',
+                flex: 1,
+              }}
+            >
+              Fireshare
+            </Typography>
+            <IconButton
+              onClick={handleDrawerCollapse}
+              sx={{
+                flexShrink: 0,
+                opacity: logoHovered ? 1 : 0,
+                transition: 'opacity 0.15s',
+                display: { xs: 'none', sm: 'inline-flex' },
+              }}
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+          </>
+        )}
+        {!open && logoHovered && (
+          <IconButton
+            onClick={handleDrawerCollapse}
+            sx={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: '100%',
+              borderRadius: 0,
+              display: { xs: 'none', sm: 'flex' },
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: 'rgba(0,0,0,0.45)',
+            }}
+          >
+            <ChevronRightIcon />
+          </IconButton>
+        )}
       </Toolbar>
       <Divider />
       <List sx={{ p: 1 }}>
@@ -598,7 +631,7 @@ function Navbar20({
   )
   return (
     <Box sx={{ display: 'flex' }}>
-      {page !== '/login' && (
+      {page !== '/login' && page !== '/w' && (
         <AppBar
           position="fixed"
           open={open}
@@ -606,13 +639,6 @@ function Navbar20({
             backgroundColor: '#0A1929D0',
           }}
         >
-          <DrawerControl
-            sx={{
-              display: { xs: 'none', sm: 'block' },
-            }}
-          >
-            <IconButton onClick={handleDrawerCollapse}>{open ? <ChevronLeftIcon /> : <ChevronRightIcon />}</IconButton>
-          </DrawerControl>
           <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
             <IconButton
               color="inherit"
@@ -732,9 +758,13 @@ function Navbar20({
           p: page !== '/w' ? mainPadding : 0,
           width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` },
           overflowX: 'hidden',
+          ...(page === '/w' && {
+            height: '100vh',
+            overflow: 'hidden',
+          }),
         }}
       >
-        {toolbar && <Toolbar />}
+        {toolbar && page !== '/w' && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
