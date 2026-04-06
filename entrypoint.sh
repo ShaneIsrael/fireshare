@@ -42,14 +42,19 @@ rm -f $DATA_DIRECTORY/jobs.sqlite 2>/dev/null || true
 
 
 # Inject analytics tracking script into index.html if set
-PLACEHOLDER='<!-- ANALYTICS_PLACEHOLDER -->'
 if [ -n "$ANALYTICS_TRACKING_SCRIPT" ]; then
     echo "Injecting analytics tracking script into index.html..."
-    ESCAPED_SCRIPT=$(printf '%s' "$ANALYTICS_TRACKING_SCRIPT" | sed 's/&/\\\&/g')
-    sed -i "s|${PLACEHOLDER}|${ESCAPED_SCRIPT}|g" /app/build/index.html
-    echo "Analytics tracking script injected."
-else
-    sed -i "s|${PLACEHOLDER}||g" /app/build/index.html
+    python3 - "$ANALYTICS_TRACKING_SCRIPT" <<'EOF'
+import sys
+script = sys.argv[1]
+path = '/app/build/index.html'
+with open(path, 'r') as f:
+    content = f.read()
+content = content.replace('</head>', script + '</head>', 1)
+with open(path, 'w') as f:
+    f.write(content)
+print("Analytics tracking script injected.")
+EOF
 fi
 
 # Start nginx as ROOT (it will drop to nginx user automatically)
