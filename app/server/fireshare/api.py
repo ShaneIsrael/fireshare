@@ -1732,6 +1732,89 @@ def bulk_set_privacy():
     return jsonify(results)
 
 
+@api.route('/api/admin/files/bulk-rename', methods=['POST'])
+@login_required
+def bulk_rename_files():
+    """Bulk update titles for multiple videos (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+    data = request.json
+    renames = data.get('renames', [])
+    if not renames:
+        return Response(status=400, response='No renames provided.')
+    results = {'updated': [], 'errors': []}
+    for item in renames:
+        vid_id = item.get('video_id')
+        new_title = (item.get('title') or '').strip()
+        if not vid_id:
+            continue
+        video_info = VideoInfo.query.filter_by(video_id=vid_id).first()
+        if not video_info:
+            results['errors'].append({'video_id': vid_id, 'error': 'Not found'})
+            continue
+        try:
+            video_info.title = new_title or None
+            db.session.commit()
+            results['updated'].append(vid_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'video_id': vid_id, 'error': str(e)})
+    return jsonify(results)
+
+
+@api.route('/api/admin/files/orphaned-derived', methods=['GET'])
+@login_required
+def get_orphaned_derived():
+    """Find derived folders with no matching video in the DB (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+    paths = current_app.config['PATHS']
+    derived_root = paths['processed'] / 'derived'
+    known_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    orphans = []
+    try:
+        for entry in os.scandir(derived_root):
+            if entry.is_dir() and entry.name not in known_ids:
+                size = 0
+                try:
+                    for f in os.scandir(entry.path):
+                        if f.is_file():
+                            try:
+                                size += f.stat(follow_symlinks=False).st_size
+                            except OSError:
+                                pass
+                except OSError:
+                    pass
+                orphans.append({'video_id': entry.name, 'size': size})
+    except OSError:
+        pass
+    return jsonify({'orphans': orphans})
+
+
+@api.route('/api/admin/files/cleanup-orphaned-derived', methods=['POST'])
+@login_required
+def cleanup_orphaned_derived():
+    """Delete orphaned derived folders (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+    paths = current_app.config['PATHS']
+    derived_root = paths['processed'] / 'derived'
+    known_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    deleted = []
+    errors = []
+    try:
+        for entry in os.scandir(derived_root):
+            if entry.is_dir() and entry.name not in known_ids:
+                try:
+                    shutil.rmtree(entry.path)
+                    deleted.append(entry.name)
+                except OSError as e:
+                    errors.append({'video_id': entry.name, 'error': str(e)})
+    except OSError as e:
+        return Response(status=500, response=str(e))
+    return jsonify({'deleted': deleted, 'errors': errors})
+
+
 @api.route('/api/video/details/<id>', methods=["GET", "PUT"])
 def handle_video_details(id):
     if request.method == 'GET':

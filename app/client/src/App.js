@@ -12,6 +12,7 @@ import Games from './views/Games'
 import GameVideos from './views/GameVideos'
 import Tags from './views/Tags'
 import TagVideos from './views/TagVideos'
+import FileManager from './views/FileManager'
 import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
 import { getSetting, setSetting } from './common/utils'
@@ -127,6 +128,16 @@ export default function App() {
                   <Watch />
                 </AuthWrapper>
               </Navbar20>
+            }
+          />
+          <Route
+            path="/files"
+            element={
+              <AuthWrapper redirect={'/login'}>
+                <Navbar20 page="/files" collapsed={!drawerOpen}>
+                  <FileManager />
+                </Navbar20>
+              </AuthWrapper>
             }
           />
           <Route

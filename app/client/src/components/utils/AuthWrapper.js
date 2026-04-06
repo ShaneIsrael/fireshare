@@ -8,6 +8,7 @@ let lastCheckTime = 0
 const AuthWrapper = ({ children, redirect }) => {
   const [authed, setAuthed] = React.useState(true)
   const [checkingAuth, setCheckingAuth] = React.useState(true)
+  const [isAdmin, setIsAdmin] = React.useState(false)
   const [showReleaseNotes, setShowReleaseNotes] = React.useState(false)
   const [releaseNotes, setReleaseNotes] = React.useState(null)
 
@@ -16,6 +17,7 @@ const AuthWrapper = ({ children, redirect }) => {
       const response = (await AuthService.isLoggedIn()).data
       if (typeof response === 'object') {
         setAuthed(response.authenticated)
+        setIsAdmin(response.admin || false)
         setShowReleaseNotes(response.show_release_notes || false)
         setReleaseNotes(response.release_notes || null)
       } else {
@@ -50,6 +52,7 @@ const AuthWrapper = ({ children, redirect }) => {
 
   const childProps = {
     authenticated: authed,
+    isAdmin,
     showReleaseNotes,
     releaseNotes,
     setShowReleaseNotes,

@@ -35,7 +35,6 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import { ConfigService, VideoService, GameService } from '../services'
-import BulkFileManager from '../components/admin/BulkFileManager'
 import { setSetting } from '../common/utils'
 import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
@@ -420,7 +419,6 @@ const Settings = () => {
           <Tab label="Integrations" />
           <Tab label="Transcoding" />
           <Tab label="Folders" />
-          <Tab label="File Manager" />
           <Tab label="Actions" />
         </Tabs>
 
@@ -1143,15 +1141,8 @@ const Settings = () => {
               </Stack>
             )}
 
-            {/* File Manager */}
-            {activeTab === 5 && (
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <BulkFileManager setAlert={setAlert} />
-              </Box>
-            )}
-
             {/* Actions */}
-            {activeTab === 6 && (
+            {activeTab === 5 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                 <Button
                   variant="contained"
@@ -1185,7 +1176,7 @@ const Settings = () => {
           </Box>
 
           {/* Save button pinned to bottom */}
-          {activeTab !== 4 && activeTab !== 5 && activeTab !== 6 && (
+          {activeTab !== 4 && activeTab !== 5 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
               <Button
