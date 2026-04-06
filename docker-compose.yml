@@ -28,6 +28,8 @@ services:
       - TRANSCODE_GPU=false
       # Required for GPU transcoding - enables NVIDIA driver capabilities
       # - NVIDIA_DRIVER_CAPABILITIES=all
+      # Optional: inject an analytics tracking script into the frontend. Paste the full <script> tag from your analytics provider (e.g. Umami, Plausible, GoatCounter).
+      # - ANALYTICS_TRACKING_SCRIPT=<script defer src="https://your-analytics-instance/script.js" data-website-id="your-id"></script>
 
     # Uncomment the following lines to enable GPU passthrough for transcoding
     # runtime: nvidia

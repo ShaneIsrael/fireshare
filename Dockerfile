@@ -148,6 +148,7 @@ ENV VIDEO_DIRECTORY /videos
 ENV PROCESSED_DIRECTORY /processed
 ENV TEMPLATE_PATH=/app/server/fireshare/templates
 ENV ADMIN_PASSWORD admin
+ENV ANALYTICS_TRACKING_SCRIPT ""
 ENV TZ=UTC
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 ENV PATH /usr/local/bin:$PATH
