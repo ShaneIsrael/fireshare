@@ -837,7 +837,20 @@ export default function BulkFileManager({ setAlert }) {
 
                             {/* Size */}
                             <TableCell sx={{ ...bodyCellSx }}>
-                              <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
+                              <Tooltip
+                                arrow
+                                placement="top"
+                                title={
+                                  file.derived_size > 0 ? (
+                                    <Box>
+                                      <Typography sx={{ fontSize: 12 }}>Derived: {formatSize(file.derived_size)}</Typography>
+                                      <Typography sx={{ fontSize: 12 }}>Total: {formatSize((file.size || 0) + (file.derived_size || 0))}</Typography>
+                                    </Box>
+                                  ) : ''
+                                }
+                              >
+                                <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
+                              </Tooltip>
                             </TableCell>
 
                             {/* Duration */}

@@ -1390,7 +1390,7 @@ def get_admin_files():
     ).all()
     game_map = {gl.video_id: gl.game.name for gl in game_links if gl.game}
 
-    # Collect file sizes in one scandir pass per folder
+    # Collect video file sizes in one scandir pass per folder
     size_map = {}
     folders = []
     try:
@@ -1412,6 +1412,26 @@ def get_admin_files():
     except Exception:
         pass
 
+    # Collect derived folder sizes in one pass over /processed/derived/{video_id}/
+    derived_size_map = {}
+    derived_root = paths['processed'] / 'derived'
+    try:
+        for entry in os.scandir(derived_root):
+            if entry.is_dir():
+                folder_total = 0
+                try:
+                    for f in os.scandir(entry.path):
+                        if f.is_file():
+                            try:
+                                folder_total += f.stat(follow_symlinks=False).st_size
+                            except OSError:
+                                pass
+                except OSError:
+                    pass
+                derived_size_map[entry.name] = folder_total
+    except OSError:
+        pass
+
     files = []
     for v in videos:
         parts = v.path.replace('\\', '/').split('/')
@@ -1426,6 +1446,7 @@ def get_admin_files():
             'path': v.path,
             'extension': v.extension,
             'size': size_map.get(normalized_path),
+            'derived_size': derived_size_map.get(v.video_id, 0),
             'title': v.info.title if v.info else None,
             'duration': round(v.info._cropped_duration()) if v.info and v.info.duration else 0,
             'width': v.info.width if v.info else None,
