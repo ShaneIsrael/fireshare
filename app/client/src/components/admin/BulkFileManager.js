@@ -625,7 +625,7 @@ export default function BulkFileManager({ setAlert }) {
                 startIcon={<DriveFileRenameOutlineIcon />}
                 onClick={() => {
                   setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
-                  setRenameFind('')
+                  setRenameFind(selectedFiles.length === 1 ? (selectedFiles[0].title || selectedFiles[0].filename || '') : '')
                   setRenameReplace('')
                   setRenamePrefix('')
                   setRenameSuffix('')
@@ -1770,7 +1770,7 @@ export default function BulkFileManager({ setAlert }) {
           <Button
             variant="contained"
             onClick={handleBulkRename}
-            disabled={actionLoading}
+            disabled={actionLoading || selectedFiles.some((f) => !applyRenameOperation(f.title || f.filename || '', renameOp.value, renameFind, renameReplace, renamePrefix, renameSuffix).trim())}
             startIcon={actionLoading ? <CircularProgress size={14} color="inherit" /> : <DriveFileRenameOutlineIcon />}
             sx={{ textTransform: 'none' }}
           >
