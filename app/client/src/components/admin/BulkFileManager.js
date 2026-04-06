@@ -649,7 +649,7 @@ export default function BulkFileManager({ setAlert }) {
                 { col: 'size', label: 'Size', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
                 { col: 'duration', label: 'Duration', sx: { width: 85, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Resolution', sx: { width: 80, whiteSpace: 'nowrap' } },
-                { col: null, label: 'Transcodes', sx: { width: 155, whiteSpace: 'nowrap' } },
+                { col: null, label: 'Transcodes', sx: { width: 160, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Cropped', sx: { width: 80, whiteSpace: 'nowrap' } },
                 { col: null, label: 'Privacy', sx: { width: 75, whiteSpace: 'nowrap' } },
                 { col: 'date', label: 'Date', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
@@ -843,13 +843,21 @@ export default function BulkFileManager({ setAlert }) {
                                 title={
                                   file.derived_size > 0 ? (
                                     <Box>
-                                      <Typography sx={{ fontSize: 12 }}>Derived: {formatSize(file.derived_size)}</Typography>
-                                      <Typography sx={{ fontSize: 12 }}>Total: {formatSize((file.size || 0) + (file.derived_size || 0))}</Typography>
+                                      <Typography sx={{ fontSize: 12 }}>
+                                        Derived: {formatSize(file.derived_size)}
+                                      </Typography>
+                                      <Typography sx={{ fontSize: 12 }}>
+                                        Total: {formatSize((file.size || 0) + (file.derived_size || 0))}
+                                      </Typography>
                                     </Box>
-                                  ) : ''
+                                  ) : (
+                                    ''
+                                  )
                                 }
                               >
-                                <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
+                                <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
+                                  {formatSize(file.size)}
+                                </Typography>
                               </Tooltip>
                             </TableCell>
 
