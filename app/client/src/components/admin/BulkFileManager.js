@@ -99,7 +99,9 @@ function sortFiles(files, column, dir) {
     case 'size':
       return sorted.sort((a, b) => mul * ((a.size || 0) - (b.size || 0)))
     case 'total_size':
-      return sorted.sort((a, b) => mul * (((a.size || 0) + (a.derived_size || 0)) - ((b.size || 0) + (b.derived_size || 0))))
+      return sorted.sort(
+        (a, b) => mul * ((a.size || 0) + (a.derived_size || 0) - ((b.size || 0) + (b.derived_size || 0))),
+      )
     case 'duration':
       return sorted.sort((a, b) => mul * ((a.duration || 0) - (b.duration || 0)))
     case 'date':
@@ -130,7 +132,7 @@ const bodyCellSx = {
 
 const folderRowSx = {
   bgcolor: '#FFFFFF06',
-  borderTop: '2px solid #FFFFFF12',
+  borderTop: '2px solid #FFFFFF1E',
   '&:first-of-type': { borderTop: 'none' },
 }
 
@@ -299,7 +301,7 @@ export default function BulkFileManager({ setAlert }) {
         case 'size':
           return mul * ((a.size || 0) - (b.size || 0))
         case 'total_size':
-          return mul * (((a.size || 0) + (a.derived_size || 0)) - ((b.size || 0) + (b.derived_size || 0)))
+          return mul * ((a.size || 0) + (a.derived_size || 0) - ((b.size || 0) + (b.derived_size || 0)))
         case 'duration':
           return mul * ((a.duration || 0) - (b.duration || 0))
         case 'date':
@@ -524,7 +526,11 @@ export default function BulkFileManager({ setAlert }) {
           type: 'warning',
         })
       } else {
-        setAlert({ open: true, message: `Cleaned up ${deletedCount} orphaned derived folder${deletedCount !== 1 ? 's' : ''}`, type: 'success' })
+        setAlert({
+          open: true,
+          message: `Cleaned up ${deletedCount} orphaned derived folder${deletedCount !== 1 ? 's' : ''}`,
+          type: 'success',
+        })
       }
       setOrphanDialogOpen(false)
       await fetchFiles()
@@ -574,142 +580,167 @@ export default function BulkFileManager({ setAlert }) {
     <Box>
       {/* ── Selected actions row (only when items are selected) ── */}
       {selectedCount > 0 && (
-        <Stack
-          direction="row"
-          alignItems="center"
-          flexWrap="wrap"
-          sx={{ mb: 1, px: 1, py: 0.75, borderRadius: '8px', bgcolor: '#FFFFFF0D', gap: 2 }}
+        <Box
+          sx={{
+            mb: 1,
+            px: 2,
+            py: 1.25,
+            borderRadius: '8px',
+            bgcolor: '#1A3A5C',
+            border: '1px solid #3399FF33',
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
         >
-          <Typography variant="body2" sx={{ color: '#FFFFFFCC', mr: 0.5, whiteSpace: 'nowrap' }}>
+          <Typography variant="body2" sx={{ color: '#FFFFFFCC', whiteSpace: 'nowrap', mr: 2 }}>
             {selectedCount} selected
           </Typography>
 
-          <Tooltip title="Move selected to another folder">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<DriveFileMoveIcon />}
-              onClick={() => {
-                setMoveTargetFolder(null)
-                setMoveModalOpen(true)
-              }}
-              sx={{
-                textTransform: 'none',
-                borderColor: '#FFFFFF33',
-                color: '#FFFFFFCC',
-                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-              }}
-            >
-              Move
-            </Button>
-          </Tooltip>
+          {/* Group 1: Organize */}
+          <Box sx={{ display: 'flex', gap: '12px' }}>
+            <Tooltip title="Move selected to another folder">
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<DriveFileMoveIcon />}
+                onClick={() => {
+                  setMoveTargetFolder(null)
+                  setMoveModalOpen(true)
+                }}
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#3399FF44',
+                  color: '#7FBFFF',
+                  '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
+                }}
+              >
+                Move
+              </Button>
+            </Tooltip>
+            <Tooltip title="Rename selected files">
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<DriveFileRenameOutlineIcon />}
+                onClick={() => {
+                  setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
+                  setRenameFind('')
+                  setRenameReplace('')
+                  setRenamePrefix('')
+                  setRenameSuffix('')
+                  setRenameDialogOpen(true)
+                }}
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#3399FF44',
+                  color: '#7FBFFF',
+                  '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
+                }}
+              >
+                Rename
+              </Button>
+            </Tooltip>
+          </Box>
 
-          <Tooltip title="Rename selected files">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<DriveFileRenameOutlineIcon />}
-              onClick={() => {
-                setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
-                setRenameFind('')
-                setRenameReplace('')
-                setRenamePrefix('')
-                setRenameSuffix('')
-                setRenameDialogOpen(true)
-              }}
-              sx={{
-                textTransform: 'none',
-                borderColor: '#FFFFFF33',
-                color: '#FFFFFFCC',
-                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-              }}
-            >
-              Rename
-            </Button>
-          </Tooltip>
+          <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0, mr: 2, ml: 1 }} />
 
-          <Tooltip title="Remove transcoded versions (480p / 720p / 1080p)">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<VideoSettingsIcon />}
-              onClick={() => setRemoveTranscodesDialogOpen(true)}
-              sx={{
-                textTransform: 'none',
-                borderColor: '#FFFFFF33',
-                color: '#FFFFFFCC',
-                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-              }}
-            >
-              Remove Transcodes
-            </Button>
-          </Tooltip>
+          {/* Group 2: Cleanup */}
+          <Box sx={{ display: 'flex', gap: '12px' }}>
+            <Tooltip title="Remove transcoded versions (480p / 720p / 1080p)">
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<VideoSettingsIcon />}
+                onClick={() => setRemoveTranscodesDialogOpen(true)}
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#FF990044',
+                  color: '#FFBB66',
+                  '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' },
+                }}
+              >
+                Remove Transcodes
+              </Button>
+            </Tooltip>
+            <Tooltip title="Remove crop settings from selected files">
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<ContentCutIcon />}
+                onClick={() => setRemoveCropDialogOpen(true)}
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#FF990044',
+                  color: '#FFBB66',
+                  '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' },
+                }}
+              >
+                Remove Crop
+              </Button>
+            </Tooltip>
+          </Box>
 
-          <Tooltip title="Remove crop settings from selected files">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<ContentCutIcon />}
-              onClick={() => setRemoveCropDialogOpen(true)}
-              sx={{
-                textTransform: 'none',
-                borderColor: '#FFFFFF33',
-                color: '#FFFFFFCC',
-                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-              }}
-            >
-              Remove Crop
-            </Button>
-          </Tooltip>
+          <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0, mr: 2, ml: 1 }} />
 
-          <Tooltip title="Make selected files public">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<LockOpenIcon />}
-              onClick={() => handleSetPrivacy(false)}
-              disabled={actionLoading}
-              sx={{
-                textTransform: 'none',
-                borderColor: '#1DB95444',
-                color: '#1DB954',
-                '&:hover': { borderColor: '#1DB954', bgcolor: '#1DB95412' },
-              }}
-            >
-              Set Public
-            </Button>
-          </Tooltip>
+          {/* Group 3: Privacy */}
+          <Box sx={{ display: 'flex', gap: '12px' }}>
+            <Tooltip title="Make selected files public">
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<LockOpenIcon />}
+                onClick={() => handleSetPrivacy(false)}
+                disabled={actionLoading}
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#1DB95444',
+                  color: '#1DB954',
+                  '&:hover': { borderColor: '#1DB954', bgcolor: '#1DB95412' },
+                }}
+              >
+                Set Public
+              </Button>
+            </Tooltip>
+            <Tooltip title="Make selected files private">
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<LockIcon />}
+                onClick={() => handleSetPrivacy(true)}
+                disabled={actionLoading}
+                sx={{
+                  textTransform: 'none',
+                  borderColor: '#FFFFFF33',
+                  color: '#FFFFFFCC',
+                  '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+                }}
+              >
+                Set Private
+              </Button>
+            </Tooltip>
+          </Box>
 
-          <Tooltip title="Make selected files private">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<LockIcon />}
-              onClick={() => handleSetPrivacy(true)}
-              disabled={actionLoading}
-              sx={{
-                textTransform: 'none',
-                borderColor: '#FFFFFF33',
-                color: '#FFFFFFCC',
-                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-              }}
-            >
-              Set Private
-            </Button>
-          </Tooltip>
+          <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0, mr: 2, ml: 1 }} />
+
+          {/* Group 4: Destructive */}
           <Tooltip title="Delete selected files">
             <Button
               size="small"
-              variant="contained"
-              color="error"
+              variant="outlined"
               startIcon={<DeleteIcon />}
               onClick={() => setDeleteDialogOpen(true)}
-              sx={{ textTransform: 'none' }}
+              sx={{
+                textTransform: 'none',
+                borderColor: '#f4433644',
+                color: '#f44336',
+                '&:hover': { borderColor: '#f44336', bgcolor: '#f4433612' },
+              }}
             >
               Delete
             </Button>
           </Tooltip>
-        </Stack>
+        </Box>
       )}
 
       {/* ── Search / folder filter / game filter / create folder ── */}
@@ -760,10 +791,7 @@ export default function BulkFileManager({ setAlert }) {
         {uniqueGames.length > 0 && (
           <Box sx={{ minWidth: 160 }}>
             <Select
-              options={[
-                { value: '__all__', label: 'All Games' },
-                ...uniqueGames.map((g) => ({ value: g, label: g })),
-              ]}
+              options={[{ value: '__all__', label: 'All Games' }, ...uniqueGames.map((g) => ({ value: g, label: g }))]}
               value={
                 gameFilter === '__all__'
                   ? { value: '__all__', label: 'All Games' }
@@ -851,7 +879,16 @@ export default function BulkFileManager({ setAlert }) {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{ paper: { sx: { bgcolor: '#0e233a', border: '1px solid #FFFFFF18', p: 1.5, minWidth: 180 } } }}
       >
-        <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF66', mb: 1, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: '#FFFFFF66',
+            mb: 1,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}
+        >
           Columns
         </Typography>
         {TOGGLEABLE_COLUMNS.map((col) => (
@@ -899,45 +936,75 @@ export default function BulkFileManager({ setAlert }) {
                   sx: { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
                 },
                 { col: 'size', label: 'Size', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
-                !hiddenColumns.has('Total Size') && { col: 'total_size', label: 'Total Size', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
-                !hiddenColumns.has('Duration') && { col: 'duration', label: 'Duration', sx: { width: 85, whiteSpace: 'nowrap' } },
-                !hiddenColumns.has('Resolution') && { col: null, label: 'Resolution', sx: { width: 80, whiteSpace: 'nowrap' } },
-                !hiddenColumns.has('Transcodes') && { col: null, label: 'Transcodes', sx: { width: 155, minWidth: 155, whiteSpace: 'nowrap' } },
-                !hiddenColumns.has('Cropped') && { col: null, label: 'Cropped', sx: { width: 80, whiteSpace: 'nowrap' } },
-                !hiddenColumns.has('Privacy') && { col: null, label: 'Privacy', sx: { width: 75, whiteSpace: 'nowrap' } },
-                !hiddenColumns.has('Date') && { col: 'date', label: 'Date', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
-              ].filter(Boolean).map(({ col, label, sx }) => (
-                <TableCell
-                  key={label}
-                  onClick={col ? () => handleSort(col) : undefined}
-                  sx={{
-                    ...headCellSx,
-                    ...sx,
-                    ...(col && {
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      '&:hover': { color: '#FFFFFFCC', bgcolor: '#FFFFFF10' },
-                    }),
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {label}
-                    {col && (
-                      <Box
-                        component="span"
-                        sx={{
-                          fontSize: 12,
-                          lineHeight: 1,
-                          opacity: sortColumn === col ? 1 : 0.25,
-                          color: sortColumn === col ? '#3399FF' : 'inherit',
-                        }}
-                      >
-                        {sortColumn === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-                      </Box>
-                    )}
-                  </Box>
-                </TableCell>
-              ))}
+                !hiddenColumns.has('Total Size') && {
+                  col: 'total_size',
+                  label: 'Total Size',
+                  sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Duration') && {
+                  col: 'duration',
+                  label: 'Duration',
+                  sx: { width: 85, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Resolution') && {
+                  col: null,
+                  label: 'Resolution',
+                  sx: { width: 80, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Transcodes') && {
+                  col: null,
+                  label: 'Transcodes',
+                  sx: { width: 155, minWidth: 155, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Cropped') && {
+                  col: null,
+                  label: 'Cropped',
+                  sx: { width: 80, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Privacy') && {
+                  col: null,
+                  label: 'Privacy',
+                  sx: { width: 75, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Date') && {
+                  col: 'date',
+                  label: 'Date',
+                  sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' },
+                },
+              ]
+                .filter(Boolean)
+                .map(({ col, label, sx }) => (
+                  <TableCell
+                    key={label}
+                    onClick={col ? () => handleSort(col) : undefined}
+                    sx={{
+                      ...headCellSx,
+                      ...sx,
+                      ...(col && {
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { color: '#FFFFFFCC', bgcolor: '#FFFFFF10' },
+                      }),
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {label}
+                      {col && (
+                        <Box
+                          component="span"
+                          sx={{
+                            fontSize: 12,
+                            lineHeight: 1,
+                            opacity: sortColumn === col ? 1 : 0.25,
+                            color: sortColumn === col ? '#3399FF' : 'inherit',
+                          }}
+                        >
+                          {sortColumn === col ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+                        </Box>
+                      )}
+                    </Box>
+                  </TableCell>
+                ))}
             </TableRow>
           </TableHead>
 
@@ -1015,13 +1082,14 @@ export default function BulkFileManager({ setAlert }) {
                           )}
                           <FolderIcon sx={{ fontSize: 14, color: '#FFFFFF55' }} />
                           <Typography
-                            sx={{ fontSize: 12, fontWeight: 700, color: '#FFFFFF77', letterSpacing: '0.04em' }}
+                            sx={{ fontSize: 12, fontWeight: 700, color: '#FFFFFFAA', letterSpacing: '0.04em' }}
                           >
                             {folder || '(root)'}
                           </Typography>
                           {groupItems.length > 0 && (
                             <Typography sx={{ fontSize: 11, fontWeight: 400, color: '#FFFFFF44', ml: 0.5 }}>
-                              {formatSize(folderTotalSize)} · {groupItems.length} file{groupItems.length !== 1 ? 's' : ''}
+                              {formatSize(folderTotalSize)} · {groupItems.length} file
+                              {groupItems.length !== 1 ? 's' : ''}
                             </Typography>
                           )}
                         </Box>
@@ -1030,7 +1098,7 @@ export default function BulkFileManager({ setAlert }) {
 
                     {/* File rows */}
                     {!isCollapsed &&
-                      groupItems.map((file, idx) => {
+                      groupItems.map((file) => {
                         const isSelected = selected.has(file.video_id)
                         const displayName = file.title || file.filename
                         const hasTranscodes = file.has_480p || file.has_720p || file.has_1080p
@@ -1039,10 +1107,12 @@ export default function BulkFileManager({ setAlert }) {
                             key={file.video_id}
                             hover
                             selected={isSelected}
-                            onClick={() => { window.location.href = `/#/w/${file.video_id}` }}
+                            onClick={() => {
+                              window.location.href = `/#/w/${file.video_id}`
+                            }}
                             sx={{
                               cursor: 'pointer',
-                              bgcolor: isSelected ? '#3399FF14' : idx % 2 === 0 ? 'transparent' : '#FFFFFF03',
+                              bgcolor: isSelected ? '#3399FF14' : 'transparent',
                               '&:hover': { bgcolor: isSelected ? '#3399FF1E' : '#FFFFFF08' },
                               '&.Mui-selected': { bgcolor: '#3399FF14' },
                               '&.Mui-selected:hover': { bgcolor: '#3399FF1E' },
@@ -1052,7 +1122,10 @@ export default function BulkFileManager({ setAlert }) {
                             <TableCell
                               padding="checkbox"
                               sx={{ borderBottom: '1px solid #FFFFFF0D' }}
-                              onClick={(e) => { e.stopPropagation(); toggleSelect(file.video_id) }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleSelect(file.video_id)
+                              }}
                             >
                               <Checkbox
                                 size="small"
@@ -1082,7 +1155,10 @@ export default function BulkFileManager({ setAlert }) {
                                 <Tooltip title="Open in new tab">
                                   <IconButton
                                     size="small"
-                                    onClick={(e) => { e.stopPropagation(); window.open(`/#/w/${file.video_id}`, '_blank') }}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      window.open(`/#/w/${file.video_id}`, '_blank')
+                                    }}
                                     sx={{
                                       color: '#FFFFFF33',
                                       p: 0.25,
@@ -1623,25 +1699,58 @@ export default function BulkFileManager({ setAlert }) {
           {renameOp.value === 'smart_clean' && (
             <Box sx={{ mb: 2, bgcolor: '#FFFFFF06', borderRadius: '6px', p: 1.5, border: '1px solid #FFFFFF12' }}>
               <Typography sx={{ fontSize: 12, color: '#FFFFFF88', lineHeight: 1.6 }}>
-                Removes non-alphanumeric characters, strips standalone leading/trailing numbers, and capitalizes the first letter of each word.
+                Removes non-alphanumeric characters, strips standalone leading/trailing numbers, and capitalizes the
+                first letter of each word.
               </Typography>
             </Box>
           )}
 
           {renamePreviewFiles.length > 0 && (
             <Box sx={{ bgcolor: '#FFFFFF06', borderRadius: '6px', p: 1.5, border: '1px solid #FFFFFF12' }}>
-              <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF55', mb: 1, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <Typography
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#FFFFFF55',
+                  mb: 1,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
                 Preview
               </Typography>
               {renamePreviewFiles.map((f) => {
                 const before = f.title || f.filename || ''
-                const after = applyRenameOperation(before, renameOp.value, renameFind, renameReplace, renamePrefix, renameSuffix)
+                const after = applyRenameOperation(
+                  before,
+                  renameOp.value,
+                  renameFind,
+                  renameReplace,
+                  renamePrefix,
+                  renameSuffix,
+                )
                 return (
                   <Box key={f.video_id} sx={{ mb: 0.75 }}>
-                    <Typography sx={{ fontSize: 11, color: '#FFFFFF55', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: '#FFFFFF55',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       {before}
                     </Typography>
-                    <Typography sx={{ fontSize: 11, color: '#3399FF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Typography
+                      sx={{
+                        fontSize: 11,
+                        color: '#3399FF',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
                       → {after || '(empty)'}
                     </Typography>
                   </Box>
