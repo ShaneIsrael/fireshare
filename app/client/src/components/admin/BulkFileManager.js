@@ -277,8 +277,11 @@ export default function BulkFileManager({ setAlert }) {
       return [[folderFilter, filesByFolder.get(folderFilter) || []]]
     }
 
-    // Union all known folders (including empty ones from the API)
-    const allFolders = [...new Set([...folders, ...filesByFolder.keys()])]
+    // Include empty folders only when no filters are active (search/game filter would hide them anyway)
+    const includeEmpty = !search.trim() && gameFilter === '__all__'
+    const allFolders = includeEmpty
+      ? [...new Set([...folders, ...filesByFolder.keys()])]
+      : [...filesByFolder.keys()]
 
     // Build [folder, files] pairs then sort folder groups by the "best" file
     // in each group according to the active sort, so that folder order reflects
@@ -311,7 +314,7 @@ export default function BulkFileManager({ setAlert }) {
       }
     })
     return pairs
-  }, [filteredFiles, folders, folderFilter, sortColumn, sortDir])
+  }, [filteredFiles, folders, folderFilter, sortColumn, sortDir, search, gameFilter])
 
   const filteredIds = useMemo(() => new Set(filteredFiles.map((f) => f.video_id)), [filteredFiles])
 
