@@ -171,7 +171,12 @@ const UploadCard = React.forwardRef(function UploadCard(
     setTitleInput('')
     setEditingTitle(false)
     setTitleDraft('')
-    Promise.all([GameService.getGames(), TagService.getTags(), VideoService.getUploadFolders()])
+    const foldersFetch = authenticated
+      ? VideoService.getUploadFolders()
+      : uiConfig?.allow_public_folder_selection
+        ? VideoService.getPublicUploadFolders()
+        : Promise.resolve({ data: { folders: [], default_folder: '' } })
+    Promise.all([GameService.getGames(), TagService.getTags(), foldersFetch])
       .then(([gRes, tRes, fRes]) => {
         const games = gRes.data || []
         setAllGames(games)

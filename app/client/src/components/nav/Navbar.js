@@ -290,7 +290,7 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
                 aria-label="paypal-link"
                 size="medium"
                 sx={{ p: 0.5, pointerEvents: 'all' }}
-                onClick={() => window.open('https://www.paypal.com/paypalme/shaneisrael', '_blank')}
+                onClick={() => window.open('https://buymeacoffee.com/shaneisrael', '_blank')}
               >
                 <VolunteerActivismIcon fontSize="inherit" />
               </IconButton>

@@ -73,7 +73,6 @@ const Games = ({ authenticated, searchText }) => {
     }
   }, [editMode, isMdDown])
 
-
   const handleEditModeToggle = () => {
     setEditMode(!editMode)
     if (editMode) {
@@ -164,51 +163,54 @@ const Games = ({ authenticated, searchText }) => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {toolbarTarget &&
-        ReactDOM.createPortal(
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {authenticated && (
+      <>
+        {toolbarTarget
+          ? ReactDOM.createPortal(
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                {editMode && (
-                  <ButtonGroup
-                    variant="contained"
-                    sx={{
-                      height: 38,
-                      minWidth: 'fit-content',
-                    }}
-                  >
-                    <Button color="primary" onClick={handleSelectAllToggle}>
-                      {allSelected ? 'Select None' : 'Select All'}
-                    </Button>
-                    <Button
-                      color="error"
-                      startIcon={<DeleteIcon />}
-                      onClick={handleDeleteClick}
-                      disabled={selectedGames.size === 0}
+                {authenticated ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {editMode ? (
+                      <ButtonGroup
+                        variant="contained"
+                        sx={{
+                          height: 38,
+                          minWidth: 'fit-content',
+                        }}
+                      >
+                        <Button color="primary" onClick={handleSelectAllToggle}>
+                          {allSelected ? 'Select None' : 'Select All'}
+                        </Button>
+                        <Button
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={handleDeleteClick}
+                          disabled={selectedGames.size === 0}
+                        >
+                          Delete {selectedGames.size > 0 && !isMdDown ? `(${selectedGames.size})` : null}
+                        </Button>
+                      </ButtonGroup>
+                    ) : null}
+                    <IconButton
+                      onClick={handleEditModeToggle}
+                      sx={{
+                        bgcolor: editMode ? 'primary.main' : '#001E3C',
+                        borderRadius: '8px',
+                        height: '38px',
+                        border: !editMode ? '1px solid #2684FF' : 'none',
+                        '&:hover': {
+                          bgcolor: editMode ? 'primary.dark' : '#FFFFFF33',
+                        },
+                      }}
                     >
-                      Delete {selectedGames.size > 0 && !isMdDown && `(${selectedGames.size})`}
-                    </Button>
-                  </ButtonGroup>
-                )}
-                <IconButton
-                  onClick={handleEditModeToggle}
-                  sx={{
-                    bgcolor: editMode ? 'primary.main' : '#001E3C',
-                    borderRadius: '8px',
-                    height: '38px',
-                    border: !editMode ? '1px solid #2684FF' : 'none',
-                    '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : '#FFFFFF33',
-                    },
-                  }}
-                >
-                  {editMode ? <CheckIcon /> : <EditIcon />}
-                </IconButton>
-              </Box>
-            )}
-          </Box>,
-          toolbarTarget,
-        )}
+                      {editMode ? <CheckIcon /> : <EditIcon />}
+                    </IconButton>
+                  </Box>
+                ) : null}
+              </Box>,
+              toolbarTarget,
+            )
+          : null}
+      </>
 
       <Grid container spacing={2}>
         {[...filteredGames]
@@ -223,117 +225,121 @@ const Games = ({ authenticated, searchText }) => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                 >
-                <Box
-                  onClick={() => handleGameClick(game.steamgriddb_id)}
-                  sx={{
-                    position: 'relative',
-                    height: 170,
-                    borderRadius: 2,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease',
-                    border: isSelected ? '3px solid' : '3px solid transparent',
-                    borderColor: isSelected ? 'primary.main' : 'transparent',
-                    '&:hover': {
-                      transform: 'scale(1.04)',
-                      boxShadow: '0 8px 24px #00000080',
-                    },
-                  }}
-                >
-                  {/* Checkbox for edit mode */}
-                  {editMode && (
-                    <Checkbox
-                      checked={isSelected}
-                      onChange={(e) => {
-                        e.stopPropagation()
-                        handleGameSelect(game.steamgriddb_id)
-                      }}
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        left: 8,
-                        zIndex: 2,
-                        color: 'white',
-                        bgcolor: '#00000080',
-                        borderRadius: '4px',
-                        '&.Mui-checked': {
-                          color: 'primary.main',
-                        },
-                      }}
-                    />
-                  )}
-
-                  {/* Edit assets button (edit mode only) */}
-                  {editMode && (
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingGame(game)
-                      }}
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        zIndex: 2,
-                        bgcolor: '#00000099',
-                        color: 'white',
-                        '&:hover': { bgcolor: '#000000D9' },
-                      }}
-                    >
-                      <ImageIcon fontSize="small" />
-                    </IconButton>
-                  )}
-
-                  {game.hero_url && (
-                    <>
-                      <Skeleton
-                        variant="rectangular"
-                        animation="wave"
+                  <Box
+                    onClick={() => handleGameClick(game.steamgriddb_id)}
+                    sx={{
+                      position: 'relative',
+                      height: 170,
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease, border 0.2s ease',
+                      border: isSelected ? '3px solid' : '3px solid transparent',
+                      borderColor: isSelected ? 'primary.main' : 'transparent',
+                      '&:hover': {
+                        transform: 'scale(1.04)',
+                        boxShadow: '0 8px 24px #00000080',
+                      },
+                    }}
+                  >
+                    {/* Checkbox for edit mode */}
+                    {editMode ? (
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation()
+                          handleGameSelect(game.steamgriddb_id)
+                        }}
                         sx={{
                           position: 'absolute',
-                          inset: 0,
-                          width: '100%',
-                          height: '100%',
-                          opacity: loadedHeroes.has(game.id) ? 0 : 1,
-                          transition: 'opacity 0.3s ease',
+                          top: 8,
+                          left: 8,
+                          zIndex: 2,
+                          color: 'white',
+                          bgcolor: '#00000080',
+                          borderRadius: '4px',
+                          '&.Mui-checked': {
+                            color: 'primary.main',
+                          },
                         }}
                       />
+                    ) : null}
+
+                    {/* Edit assets button (edit mode only) */}
+                    {editMode ? (
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingGame(game)
+                        }}
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          zIndex: 2,
+                          bgcolor: '#00000099',
+                          color: 'white',
+                          '&:hover': { bgcolor: '#000000D9' },
+                        }}
+                      >
+                        <ImageIcon fontSize="small" />
+                      </IconButton>
+                    ) : null}
+
+                    {game.hero_url && (
+                      <>
+                        <Skeleton
+                          variant="rectangular"
+                          animation="wave"
+                          sx={{
+                            position: 'absolute',
+                            inset: 0,
+                            width: '100%',
+                            height: '100%',
+                            opacity: loadedHeroes.has(game.id) ? 0 : 1,
+                            transition: 'opacity 0.3s ease',
+                          }}
+                        />
+                        <Box
+                          component="img"
+                          src={game.hero_url}
+                          onLoad={() => setLoadedHeroes((prev) => new Set([...prev, game.id]))}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                          sx={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            position: 'absolute',
+                            filter: 'brightness(0.7)',
+                            opacity: loadedHeroes.has(game.id) ? 1 : 0,
+                            transition: 'opacity 0.3s ease',
+                          }}
+                        />
+                      </>
+                    )}
+                    {game.logo_url && (
                       <Box
                         component="img"
-                        src={game.hero_url}
-                        onLoad={() => setLoadedHeroes((prev) => new Set([...prev, game.id]))}
-                        onError={(e) => { e.currentTarget.style.display = 'none' }}
+                        src={game.logo_url}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
                         sx={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
                           position: 'absolute',
-                          filter: 'brightness(0.7)',
-                          opacity: loadedHeroes.has(game.id) ? 1 : 0,
-                          transition: 'opacity 0.3s ease',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          maxWidth: '65%',
+                          maxHeight: '65%',
+                          objectFit: 'contain',
+                          zIndex: 1,
                         }}
                       />
-                    </>
-                  )}
-                  {game.logo_url && (
-                    <Box
-                      component="img"
-                      src={game.logo_url}
-                      onError={(e) => { e.currentTarget.style.display = 'none' }}
-                      sx={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        maxWidth: '65%',
-                        maxHeight: '65%',
-                        objectFit: 'contain',
-                        zIndex: 1,
-                      }}
-                    />
-                  )}
-                </Box>
+                    )}
+                  </Box>
                 </motion.div>
               </Grid>
             )
@@ -369,7 +375,10 @@ const Games = ({ authenticated, searchText }) => {
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, pt: 1 }}>
-          <Button onClick={handleDeleteCancel} sx={{ color: '#FFFFFF80', '&:hover': { color: 'white', bgcolor: '#FFFFFF0F' } }}>
+          <Button
+            onClick={handleDeleteCancel}
+            sx={{ color: '#FFFFFF80', '&:hover': { color: 'white', bgcolor: '#FFFFFF0F' } }}
+          >
             Cancel
           </Button>
           <Button onClick={handleDeleteConfirm} variant="contained" color="error" sx={{ fontWeight: 600, px: 3 }}>

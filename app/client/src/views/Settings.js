@@ -24,6 +24,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import SaveIcon from '@mui/icons-material/Save'
 import SensorsIcon from '@mui/icons-material/Sensors'
 import RssFeedIcon from '@mui/icons-material/RssFeed'
+import SendIcon from '@mui/icons-material/Send'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
@@ -46,6 +47,24 @@ const isValidDiscordWebhook = (url) => {
   const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/
   return regex.test(url)
 }
+const isValidGenericWebhook = (url) => {
+  const regex = /^https?:\/\/[^\s\/$.?#].[^\s]*$/
+  return regex.test(url)
+}
+const isValidJson = (str) => {
+  try {
+    JSON.parse(str)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+const jsonPlaceholder = `#Example JSON Data:
+{
+  "title": "Fireshare",
+  "body": "New Fireshare Video Uploaded!",
+  "type": "info" 
+}`
 
 const Settings = () => {
   const [alert, setAlert] = React.useState({ open: false })
@@ -53,6 +72,8 @@ const Settings = () => {
   const [updatedConfig, setUpdatedConfig] = React.useState({})
   const [updateable, setUpdateable] = React.useState(false)
   const [discordUrl, setDiscordUrl] = React.useState('')
+  const [webhookUrl, setWebhookUrl] = React.useState('')
+  const [webhookJson, setWebhookJson] = React.useState('') //needed?
   const [showSteamGridKey, setShowSteamGridKey] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState(0)
   const [transcodingStatus, setTranscodingStatus] = React.useState({
@@ -65,6 +86,74 @@ const Settings = () => {
   const [deleteMenuRuleId, setDeleteMenuRuleId] = React.useState(null)
   const [editingFolder, setEditingFolder] = React.useState(null)
   const isDiscordUsed = discordUrl.trim() !== ''
+  const isWebhookUsed = webhookUrl.trim() !== ''
+
+  const handleTestDiscordWebhook = async () => {
+    const urlToTest = discordUrl || updatedConfig.integrations?.discord_webhook_url
+    if (!urlToTest) {
+      setAlert({ open: true, message: 'Please enter a Discord Webhook URL first', type: 'error' })
+      return
+    }
+    try {
+      const response = await fetch('/api/test-discord-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          webhook_url: urlToTest,
+          video_url: 'https://fireshare.test.worked',
+        }),
+      })
+      const result = await response.json()
+      if (response.ok) {
+        setAlert({ open: true, message: 'Discord Test Sent!', type: 'success' })
+      } else {
+        setAlert({ open: true, message: result.error || 'Discord test failed', type: 'error' })
+      }
+    } catch (err) {
+      console.error('Connection failed:', err)
+      setAlert({ open: true, message: 'Network error connecting to server', type: 'error' })
+    }
+  }
+
+  const handleTestWebhook = async () => {
+    let payloadToTest = {}
+    try {
+      payloadToTest = webhookJson ? JSON.parse(webhookJson) : updatedConfig.integrations?.generic_webhook_payload || {}
+    } catch (e) {
+      setAlert({ open: true, message: 'Invalid JSON in payload field', type: 'error' })
+      return
+    }
+    const testData = {
+      webhook_url: webhookUrl,
+      video_url: 'https://fireshare.test.worked',
+      payload: payloadToTest,
+    }
+    if (!webhookUrl) {
+      setAlert({ open: true, message: 'Please enter a Webhook URL first', type: 'error' })
+      return
+    }
+    try {
+      const response = await fetch('/api/test-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testData),
+      })
+
+      const result = await response.json()
+      if (response.ok) {
+        setAlert({ open: true, message: 'Test Webhook Sent!', type: 'success' })
+      } else {
+        setAlert({ open: true, message: result.error || 'Failed to send test', type: 'error' })
+      }
+    } catch (err) {
+      console.error('Connection failed:', err)
+      setAlert({ open: true, message: 'Network error connecting to server', type: 'error' })
+    }
+  }
 
   React.useEffect(() => {
     async function fetch() {
@@ -116,6 +205,19 @@ const Settings = () => {
   React.useEffect(() => {
     if (updatedConfig.integrations?.discord_webhook_url) {
       setDiscordUrl(updatedConfig.integrations.discord_webhook_url)
+    }
+  }, [updatedConfig])
+
+  React.useEffect(() => {
+    if (updatedConfig.integrations) {
+      if (updatedConfig.integrations.generic_webhook_url) {
+        setWebhookUrl(updatedConfig.integrations.generic_webhook_url)
+      }
+
+      if (updatedConfig.integrations.generic_webhook_payload) {
+        const jsonString = JSON.stringify(updatedConfig.integrations.generic_webhook_payload, null, 2)
+        setWebhookJson(jsonString)
+      }
     }
   }, [updatedConfig])
 
@@ -386,6 +488,21 @@ const Settings = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
+                      checked={updatedConfig.app_config?.allow_public_folder_selection || false}
+                      disabled={!updatedConfig.app_config?.allow_public_upload}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          app_config: { ...prev.app_config, allow_public_folder_selection: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Allow Public Upload Folder Selection"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
                       checked={updatedConfig.ui_config?.show_admin_upload || false}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
@@ -544,15 +661,28 @@ const Settings = () => {
             {/* Integrations */}
             {activeTab === 2 && (
               <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                <header>Notifications</header>
                 <TextField
                   size="small"
                   label="Discord Webhook URL"
                   value={discordUrl}
                   error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
                   helperText={
-                    discordUrl !== '' && !isValidDiscordWebhook(discordUrl)
-                      ? 'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
-                      : ' '
+                    discordUrl !== '' && !isValidDiscordWebhook(discordUrl) ? (
+                      'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
+                    ) : (
+                      <span>
+                        Get Discord Webhook for you Server Channel -{' '}
+                        <a
+                          href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#2684FF', textDecoration: 'none' }}
+                        >
+                          Docs
+                        </a>
+                      </span>
+                    )
                   }
                   onChange={(e) => {
                     const url = e.target.value
@@ -566,6 +696,102 @@ const Settings = () => {
                     }))
                   }}
                 />
+                <Button
+                  variant="outlined"
+                  startIcon={<SendIcon />}
+                  // Change this from handleCopyRssFeedUrl to your new function
+                  onClick={handleTestDiscordWebhook}
+                  sx={{
+                    borderColor: 'rgba(255, 255, 255, 0.23)',
+                    color: '#fff',
+                    '&:hover': {
+                      borderColor: '#fff',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    },
+                  }}
+                >
+                  Test Discord
+                </Button>
+
+                <Divider />
+
+                <TextField
+                  size="small"
+                  label="Generic Webhook URL"
+                  value={webhookUrl}
+                  error={webhookUrl !== '' && !isValidGenericWebhook(webhookUrl)}
+                  helperText={
+                    <span>
+                      Used for API POST to Generic Webhook Endpoint -{' '}
+                      <a
+                        href="https://zapier.com/blog/what-are-webhooks/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: '#2684FF', textDecoration: 'none' }}
+                      >
+                        Example
+                      </a>
+                    </span>
+                  }
+                  onChange={(e) => {
+                    const url = e.target.value
+                    setWebhookUrl(url)
+                    setUpdatedConfig((prev) => ({
+                      ...prev,
+                      integrations: {
+                        ...prev.integrations,
+                        generic_webhook_url: url,
+                      },
+                    }))
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={6}
+                  size="small"
+                  label="Generic Webhook JSON Payload"
+                  value={webhookJson}
+                  placeholder={jsonPlaceholder}
+                  error={webhookJson !== '' && !isValidJson(webhookJson)}
+                  helperText={
+                    webhookJson !== '' && !isValidJson(webhookJson)
+                      ? 'Invalid JSON format'
+                      : 'Add Valid JSON, with data from the docs of your webhook provider'
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setWebhookJson(val)
+                    if (isValidJson(val)) {
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        integrations: {
+                          ...prev.integrations,
+                          generic_webhook_payload: JSON.parse(val),
+                        },
+                      }))
+                    }
+                  }}
+                />
+                <Button
+                  variant="outlined"
+                  startIcon={<SendIcon />}
+                  onClick={handleTestWebhook}
+                  sx={{
+                    borderColor: 'rgba(255, 255, 255, 0.23)',
+                    color: '#fff',
+                    '&:hover': {
+                      borderColor: '#fff',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    },
+                  }}
+                >
+                  Test Webhook
+                </Button>
+
+                <Divider />
+
+                <header>Game Tagging</header>
                 <TextField
                   id="steamgrid-api-key-field"
                   size="small"
@@ -606,6 +832,7 @@ const Settings = () => {
                   }}
                 />
                 <Divider />
+                <header>RSS</header>
                 <TextField
                   size="small"
                   label="RSS Feed Title"
@@ -784,7 +1011,6 @@ const Settings = () => {
               </Stack>
             )}
 
-
             {/* Folders */}
             {activeTab === 4 && (
               <Stack spacing={2} sx={{ maxWidth: 500 }}>
@@ -950,7 +1176,7 @@ const Settings = () => {
           </Box>
 
           {/* Save button pinned to bottom */}
-          {activeTab !== 4 && activeTab !== 5 && activeTab !== 6 && (
+          {activeTab !== 4 && activeTab !== 5 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
               <Button

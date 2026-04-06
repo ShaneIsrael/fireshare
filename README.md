@@ -24,14 +24,15 @@
       <img alt="GitHub stars" src="https://img.shields.io/github/stars/shaneisrael/fireshare">
     </a>
     <br />
-    <br />
-    <a href="https://v.fireshare.net">Live Demo</a>
-    ·
-    <a href="https://github.com/ShaneIsrael/fireshare/issues">Report a Bug</a>
-    ·
-    <a href="https://www.paypal.com/paypalme/shaneisrael">Buy us a Coffee!</a>
+    <p align="center">
+      <a href="https://www.buymeacoffee.com/shaneisrael"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="41" width="174" /></a>
+    </p>
+    <p align="center">
+      <a href="https://v.fireshare.net">Live Demo</a>
+      ·
+      <a href="https://github.com/ShaneIsrael/fireshare/issues">Report a Bug</a>
+    </p>
   </p>
-</p>
 
 ## Key Features
 
@@ -44,17 +45,25 @@
 - Video Cropping
 - Video Tags for improved search and categorization
 - Open Graph metadata for rich link previews
+- [Notifications to Discord and others](./Notifications.md)
 - RSS feed for new public videos
-- LDAP support
-- Optional video transcoding with CPU or NVIDIA GPU
+- [LDAP support](./LDAP.md)
+- Optional [video transcoding with CPU or GPU](#transcoding-optional)
 
-<h3 align="center">Dashboard</h3>
+# Navigation
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Demo](#demo)
+- [Contributing](#contributing)
+
+<h4 align="center">Dashboard</h4>
 
 ---
 
 ![card-view][card-view]
 
-<h3 align="center">Automatic Game Organization</h3>
+<h4 align="center">Automatic Game Organization</h3h4>
 
 ---
 
@@ -62,17 +71,17 @@
 
 ![folders-game][folders-game]
 
-<h3 align="center">Video Details</h3>
+<h4 align="center">Video Details</h4>
 
 ---
 
 ![edit][edit]
 
-<h3 align="center">Open Graph Support</h3>
+<h4 align="center">Public / Private Uploading</h4>
 
 ---
 
-<center><img src=".github/images/ogg-data.png" alt="Open graph preview" /></center>
+![uploading][uploading]
 
 ## Installation
 
@@ -100,8 +109,8 @@ Then open `http://localhost:8080`.
 
 ```sh
 docker run --name fireshare \
-  -v $(pwd)/fireshare:/data:rw \
-  -v $(pwd)/fireshare_processed:/processed:rw \
+  -v $(pwd)/fireshare/data:/data:rw \
+  -v $(pwd)/fireshare/processed:/processed:rw \
   -v /path/to/my_game_clips:/videos:rw \
   -p 8080:80 \
   -e ADMIN_PASSWORD=your-admin-password \
@@ -111,6 +120,12 @@ docker run --name fireshare \
 Open `http://localhost:8080`.
 
 ## Configuration
+
+- [LDAP](#ldap)
+- [Transcoding](#transcoding-optional)
+- [Docker ENV Variables](#docker-environment-variables)
+
+### LDAP
 
 - LDAP setup: [LDAP.md](./LDAP.md)
 
@@ -156,6 +171,27 @@ When GPU mode is enabled, Fireshare selects the best available encoder:
 
 - H.264 with CPU — Most compatible, faster encoding
 - AV1 with CPU — Best compression, slower
+
+### Docker Environment Variables
+
+| Environment Variable       | Description                                                                                                                                                     | Default                          | Required |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------- |
+| **App Configuration**      |                                                                                                                                                                 |                                  |
+| `DOMAIN`                   | The base URL or domain name where the instance is hosted. This is needed for things like link sharing, and notifications to work properly                       |                                  |
+| `STEAMGRIDDB_API_KEY`      | API key for SteamGridDB integration to fetch game metadata and assets.                                                                                          |                                  |
+| **Storage**                |                                                                                                                                                                 |                                  |
+| `DATA_DIRECTORY`           | Absolute path to the directory where application database and metadata are stored.                                                                              | `$(pwd)/dev_root/dev_data/`      | Yes      |
+| `VIDEO_DIRECTORY`          | Absolute path to the source directory containing raw video files.                                                                                               | `$(pwd)/dev_root/dev_videos/`    | Yes      |
+| `PROCESSED_DIRECTORY`      | Absolute path to the directory where optimized/transcoded videos are stored.                                                                                    | `$(pwd)/dev_root/dev_processed/` | Yes      |
+| `THUMBNAIL_VIDEO_LOCATION` | The timestamp (in seconds) used to capture the video thumbnail preview.                                                                                         | `50`                             |
+| **Security**               |                                                                                                                                                                 |                                  |
+| `ADMIN_USERNAME`           | The username for the initial administrative account.                                                                                                            | `admin`                          | Yes      |
+| `ADMIN_PASSWORD`           | The password for the initial administrative account.                                                                                                            | `admin`                          | Yes      |
+| LDAP                       | See [LDAP.md](./LDAP.md) for full LDAP configuration instructions                                                                                               |
+| **Integrations**           |                                                                                                                                                                 |                                  |
+| `DISCORD_WEBHOOK_URL`      | Discord Server/Channel webhook URL used to send a notification of a new fireshare upload. [See Docs](./Notifications.md#discord)                                |                                  |
+| `GENERIC_WEBHOOK_URL`      | Notification Integration, to send a generic webhook POST. Has to be used with `GENERIC_WEBHOOK_PAYLOAD` to work. [See Docs](./Notifications.md#generic-webhook) |                                  |
+| `GENERIC_WEBHOOK_PAYLOAD`  | JSON Based payload that will be POSTed to webhook url. Please [See Docs](./Notifications.md#generic-webhook) for full example and payload options               |                                  |
 
 ## Local Development
 
@@ -222,3 +258,4 @@ If you use a different proxy, apply equivalent upload size and timeout settings 
 [folders]: .github/images/folders.png
 [folders-game]: .github/images/folders-game.png
 [edit]: .github/images/edit-details.png
+[uploading]: .github/images/uploading.png

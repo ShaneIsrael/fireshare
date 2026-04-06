@@ -1,3 +1,5 @@
+import zIndex from '@mui/material/styles/zIndex'
+
 const selectTheme = {
   control: (styles) => ({
     ...styles,
@@ -19,6 +21,7 @@ const selectTheme = {
     backgroundColor: '#0b132b',
     border: '1px solid #FFFFFF1A',
     boxShadow: '0 8px 24px #00000066',
+    zIndex: zIndex.modal + 1,
   }),
   menuList: (styles) => ({
     ...styles,

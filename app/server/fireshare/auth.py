@@ -152,6 +152,7 @@ def loggedin():
 
     return jsonify({
         'authenticated': True,
+        'admin': current_user.admin,
         'show_release_notes': show_release_notes,
         'release_notes': release_notes
     })

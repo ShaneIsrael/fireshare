@@ -30,6 +30,9 @@ const service = {
   getUploadFolders() {
     return Api().get('/api/upload-folders')
   },
+  getPublicUploadFolders() {
+    return Api().get('/api/upload-folders/public')
+  },
   updateTitle(id, title) {
     return Api().put(`/api/video/details/${id}`, {
       title,
@@ -52,6 +55,9 @@ const service = {
   },
   delete(id) {
     return Api().delete(`/api/video/delete/${id}`)
+  },
+  move(id, folder) {
+    return Api().post(`/api/video/move/${id}`, { folder })
   },
   upload(formData, uploadProgress) {
     return Api().post('/api/upload', formData, {
@@ -130,6 +136,14 @@ const service = {
   },
   rejectGameSuggestion(videoId) {
     return Api().delete(`/api/videos/${videoId}/game/suggestion`)
+  },
+  uploadCustomPoster(id, formData) {
+    return Api().post(`/api/video/${id}/poster/custom`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  deleteCustomPoster(id) {
+    return Api().delete(`/api/video/${id}/poster/custom`)
   },
 }
 

@@ -4,6 +4,7 @@ DEFAULT_CONFIG = {
       "private": True
     },
     "allow_public_upload": False,
+    "allow_public_folder_selection": False,
     "allow_public_game_tag": False,
     "public_upload_folder_name": "public uploads",
     "admin_upload_folder_name": "uploads"
@@ -14,6 +15,8 @@ DEFAULT_CONFIG = {
   },
   "integrations": {
     "discord_webhook_url": "",
+    "generic_webhook_url": "",
+    "generic_webhook_payload": {},
     "steamgriddb_api_key": "",
   },
   "rss_config": {

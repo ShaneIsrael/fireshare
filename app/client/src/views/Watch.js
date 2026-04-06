@@ -166,7 +166,7 @@ const Watch = ({ authenticated }) => {
 
   const getPosterUrl = () => {
     if (SERVED_BY === 'nginx') {
-      return `${URL}/_content/derived/${id}/poster.jpg`
+      return `${URL}/_content/derived/${id}/thumbnail`
     }
     return `${URL}/api/video/poster?id=${id}`
   }
@@ -186,12 +186,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:url" value={window.location.href} />
         <meta property="og:title" value={details?.info?.title} />
         {details?.info?.description && <meta property="og:description" value={details?.info?.description} />}
-        <meta
-          property="og:image"
-          value={
-            SERVED_BY === 'nginx' ? `${URL}/_content/derived/${id}/poster.jpg` : `${URL}/api/video/poster?id=${id}`
-          }
-        />
+        <meta property="og:image" value={`${URL}/api/video/poster?id=${id}`} />
         <meta
           property="og:video"
           value={
@@ -204,7 +199,7 @@ const Watch = ({ authenticated }) => {
         <meta property="og:video:height" value={details?.info?.height} />
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
-      <div style={{ display: 'flex', height: 'calc(100vh - 64px)', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
         <Box
           style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}
           sx={{

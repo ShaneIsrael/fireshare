@@ -41,6 +41,28 @@ rm -f $DATA_DIRECTORY/*.lock 2>/dev/null || true
 rm -f $DATA_DIRECTORY/jobs.sqlite 2>/dev/null || true
 
 
+# Inject analytics tracking script into index.html if set
+if [ -n "$ANALYTICS_TRACKING_SCRIPT" ]; then
+    echo "Injecting analytics tracking script into index.html..."
+    python3 - "$ANALYTICS_TRACKING_SCRIPT" <<'EOF'
+import sys, re
+script = sys.argv[1].strip()
+# Normalize: some environments (e.g. Unraid) strip angle brackets from env values
+if not script.startswith('<'):
+    script = '<' + script
+# Remove any mangled closing tag remnant (e.g. /script, /script>, /Script)
+script = re.sub(r'/?script>?$', '', script, flags=re.IGNORECASE).rstrip('/')
+script = script.rstrip() + '></script>'
+path = '/app/build/index.html'
+with open(path, 'r') as f:
+    content = f.read()
+content = content.replace('</head>', script + '</head>', 1)
+with open(path, 'w') as f:
+    f.write(content)
+print("Analytics tracking script injected: " + script)
+EOF
+fi
+
 # Start nginx as ROOT (it will drop to nginx user automatically)
 echo "Starting nginx..."
 nginx -g 'daemon on;'
