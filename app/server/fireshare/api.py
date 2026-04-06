@@ -594,31 +594,37 @@ def cancel_transcoding():
     return jsonify({"status": "cancelled"})
 
 
-def get_folder_size(folder_path):
-    def _folder_size(directory):
-        total = 0
-        for entry in os.scandir(directory):
-            if entry.is_dir():
-                _folder_size(entry.path)
-                total += parent_size[entry.path]
-            else:
-                size = entry.stat().st_size
-                total += size
-                file_size[entry.path] = size
-        parent_size[directory] = total
-
-    file_size = {}
-    parent_size = {}
-    _folder_size(folder_path)
-    return parent_size.get(folder_path, 0)
+def get_folder_size(*folder_paths):
+    """Return combined byte size of one or more folders using a fast iterative scandir walk."""
+    total = 0
+    for folder_path in folder_paths:
+        try:
+            stack = [folder_path]
+            while stack:
+                directory = stack.pop()
+                try:
+                    with os.scandir(directory) as it:
+                        for entry in it:
+                            try:
+                                if entry.is_dir(follow_symlinks=False):
+                                    stack.append(entry.path)
+                                else:
+                                    total += entry.stat(follow_symlinks=False).st_size
+                            except OSError:
+                                pass
+                except OSError:
+                    pass
+        except OSError:
+            pass
+    return total
 
 @api.route('/api/folder-size', methods=['GET'])
 @login_required
 def folder_size():
     paths = current_app.config['PATHS']
     video_path = str(paths['video'])
-    path = request.args.get('path', default=video_path, type=str)
-    size_bytes = get_folder_size(path)
+    derived_path = str(paths['processed'] / 'derived')
+    size_bytes = get_folder_size(video_path, derived_path)
     size_mb = size_bytes / (1024 * 1024)
 
     if size_mb < 1024:
@@ -632,7 +638,7 @@ def folder_size():
         size_pretty = f"{round(size_tb, 1)} TB"
 
     return jsonify({
-        "folder": path,
+        "folders": [video_path, derived_path],
         "size_bytes": size_bytes,
         "size_pretty": size_pretty
     })
