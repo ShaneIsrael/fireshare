@@ -94,6 +94,9 @@ COPY --from=ffmpeg-builder /usr/local/bin/ffprobe /usr/local/bin/ffprobe
 COPY --from=ffmpeg-builder /usr/local/lib/lib* /usr/local/lib/
 
 # Install runtime dependencies
+# Split into two stages within one RUN to avoid committing build-time layers:
+# 1) Add deadsnakes PPA and install build-time deps alongside runtime deps
+# 2) Install Python packages, then purge everything build-only
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     software-properties-common \
@@ -106,16 +109,17 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     libffi-dev libc-dev \
     build-essential \
     gosu \
-    wget curl ca-certificates \
+    ca-certificates \
     tzdata \
     libx264-163 libx265-199 libvpx7 libaom3 libdav1d5 \
     libopus0 libvorbis0a libvorbisenc2 \
     libass9 libfreetype6 libmp3lame0 \
+    libldap-2.5-0 libsasl2-2 \
     && python3.14 -m ensurepip --upgrade \
     && python3.14 -m pip install --upgrade --break-system-packages pip \
     && ln -sf /usr/bin/python3.14 /usr/bin/python3 \
     && ln -sf /usr/bin/python3.14 /usr/bin/python \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/*
 
 # Create symlinks and configure library path
 RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
@@ -139,7 +143,15 @@ COPY app/server/ /app/server
 COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
 COPY --from=client /app/package.json /app
-RUN python3.14 -m pip install --no-cache-dir --break-system-packages --ignore-installed /app/server
+RUN python3.14 -m pip install --no-cache-dir --break-system-packages --ignore-installed /app/server \
+    && apt-get purge -y --auto-remove \
+        python3.14-dev \
+        libldap2-dev libsasl2-dev libssl-dev \
+        libffi-dev libc-dev \
+        build-essential \
+        software-properties-common \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/*
 
 ENV FLASK_APP /app/server/fireshare:create_app()
 ENV ENVIRONMENT production
