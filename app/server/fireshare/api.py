@@ -1377,22 +1377,41 @@ def get_admin_files():
     video_path = paths['video']
 
     videos = Video.query.join(VideoInfo).all()
+
+    # Single query for all game links instead of one per video
+    game_links = VideoGameLink.query.join(VideoGameLink.game).filter(
+        VideoGameLink.video_id.in_([v.video_id for v in videos])
+    ).all()
+    game_map = {gl.video_id: gl.game.name for gl in game_links if gl.game}
+
+    # Collect file sizes in one scandir pass per folder
+    size_map = {}
+    folders = []
+    try:
+        for entry in os.scandir(video_path):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                folders.append(entry.name)
+                try:
+                    for f in os.scandir(entry.path):
+                        if f.is_file():
+                            size_map[entry.name + '/' + f.name] = f.stat().st_size
+                except Exception:
+                    pass
+            elif entry.is_file():
+                try:
+                    size_map[entry.name] = entry.stat().st_size
+                except Exception:
+                    pass
+        folders.sort()
+    except Exception:
+        pass
+
     files = []
     for v in videos:
-        file_path = video_path / v.path
-        size = None
-        try:
-            if file_path.exists():
-                size = file_path.stat().st_size
-        except Exception:
-            pass
-
         parts = v.path.replace('\\', '/').split('/')
         folder = parts[0] if len(parts) > 1 else ''
         filename = parts[-1]
-
-        game_link = VideoGameLink.query.filter_by(video_id=v.video_id).first()
-        game_name = game_link.game.name if game_link and game_link.game else None
+        normalized_path = '/'.join(parts)
 
         files.append({
             'video_id': v.video_id,
@@ -1400,7 +1419,7 @@ def get_admin_files():
             'folder': folder,
             'path': v.path,
             'extension': v.extension,
-            'size': size,
+            'size': size_map.get(normalized_path),
             'title': v.info.title if v.info else None,
             'duration': round(v.info._cropped_duration()) if v.info and v.info.duration else 0,
             'width': v.info.width if v.info else None,
@@ -1413,17 +1432,8 @@ def get_admin_files():
             'available': v.available,
             'created_at': v.created_at.isoformat() if v.created_at else None,
             'recorded_at': v.recorded_at.isoformat() if v.recorded_at else None,
-            'game': game_name,
+            'game': game_map.get(v.video_id),
         })
-
-    folders = []
-    try:
-        for entry in os.scandir(video_path):
-            if entry.is_dir() and not entry.name.startswith('.'):
-                folders.append(entry.name)
-        folders.sort()
-    except Exception:
-        pass
 
     return jsonify({'files': files, 'folders': folders})
 
