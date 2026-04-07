@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libass-dev \
     libfreetype6-dev \
     libmp3lame-dev \
+    libwebp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Build SVT-AV1 from source, V1.8.0 for FFmpeg 6.1
@@ -71,6 +72,7 @@ RUN cd ffmpeg-6.1 && \
         --enable-libass \
         --enable-libfreetype \
         --enable-libsvtav1 \
+        --enable-libwebp \
         --disable-debug \
         --disable-doc
 
@@ -113,7 +115,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     tzdata \
     libx264-163 libx265-199 libvpx7 libaom3 libdav1d5 \
     libopus0 libvorbis0a libvorbisenc2 \
-    libass9 libfreetype6 libmp3lame0 \
+    libass9 libfreetype6 libmp3lame0 libwebp7 \
     libldap-2.5-0 libsasl2-2 \
     && python3.14 -m ensurepip --upgrade \
     && python3.14 -m pip install --upgrade --break-system-packages pip \

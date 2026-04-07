@@ -1946,8 +1946,10 @@ def upload_custom_poster(video_id):
     try:
         file.save(tmp_path)
         custom_poster_path = derived_dir / "custom_poster.webp"
-        cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', tmp_path, str(custom_poster_path)]
-        subprocess.call(cmd)
+        cmd = ['ffmpeg', '-y', '-i', tmp_path, str(custom_poster_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            current_app.logger.error("ffmpeg failed for custom poster: %s", result.stderr)
     finally:
         os.unlink(tmp_path)
 
