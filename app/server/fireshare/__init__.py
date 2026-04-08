@@ -275,20 +275,21 @@ def create_app(init_schedule=False):
     if 'integrations' not in DEFAULT_CONFIG:
         DEFAULT_CONFIG['integrations'] = {}
 
-    DEFAULT_CONFIG['integrations']['discord_webhook_url'] = app.config.get('DISCORD_WEBHOOK_URL', '')
-    DEFAULT_CONFIG['integrations']['generic_webhook_url'] = app.config.get('GENERIC_WEBHOOK_URL', '')
-    DEFAULT_CONFIG['integrations']['generic_webhook_payload'] = app.config.get('GENERIC_WEBHOOK_PAYLOAD', {})
-
     update_config(paths['data'] / 'config.json')
 
+    # Only overwrite integration settings in config.json if the env vars are explicitly set.
+    # This preserves values the user may have configured via the UI or directly in config.json.
     config_path = paths['data'] / 'config.json'
     with open(config_path, 'r+') as f:
         data = json.load(f)
-        
-        data['integrations']['discord_webhook_url'] = app.config.get('DISCORD_WEBHOOK_URL', '')
-        data['integrations']['generic_webhook_url'] = app.config.get('GENERIC_WEBHOOK_URL', '')
-        data['integrations']['generic_webhook_payload'] = app.config.get('GENERIC_WEBHOOK_PAYLOAD', {})
-        
+
+        if app.config.get('DISCORD_WEBHOOK_URL'):
+            data['integrations']['discord_webhook_url'] = app.config['DISCORD_WEBHOOK_URL']
+        if app.config.get('GENERIC_WEBHOOK_URL'):
+            data['integrations']['generic_webhook_url'] = app.config['GENERIC_WEBHOOK_URL']
+        if app.config.get('GENERIC_WEBHOOK_PAYLOAD'):
+            data['integrations']['generic_webhook_payload'] = app.config['GENERIC_WEBHOOK_PAYLOAD']
+
         f.seek(0)
         json.dump(data, f, indent=2)
         f.truncate()
