@@ -307,17 +307,18 @@ def create_app(init_schedule=False):
                 db.session.add(admin_user)
                 db.session.commit()
             if admin:
-                try:
-                    password_mismatch = not check_password_hash(admin.password, app.config['ADMIN_PASSWORD'])
-                except ValueError:
-                    password_mismatch = True  # old hash format (sha256), force reset to pbkdf2:sha256
-                if password_mismatch:
-                    row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
-                    row.password = generate_password_hash(app.config['ADMIN_PASSWORD'], method='pbkdf2:sha256')
-                    db.session.commit()
+                if app.config['ADMIN_PASSWORD']:
+                    try:
+                        password_mismatch = not check_password_hash(admin.password, app.config['ADMIN_PASSWORD'])
+                    except ValueError:
+                        password_mismatch = True  # old hash format (sha256), force reset to pbkdf2:sha256
+                    if password_mismatch:
+                        row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
+                        row.password = generate_password_hash(app.config['ADMIN_PASSWORD'], method='pbkdf2:sha256')
+                        db.session.commit()
                 if app.config['ADMIN_USERNAME'] and admin.username != app.config['ADMIN_USERNAME']:
                     row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
-                    row.username = app.config['ADMIN_USERNAME'] or admin.username
+                    row.username = app.config['ADMIN_USERNAME']
                     db.session.commit()
         except OperationalError:
             pass  # tables don't exist yet (e.g. during flask db upgrade), skip init
