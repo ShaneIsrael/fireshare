@@ -174,24 +174,7 @@ When GPU mode is enabled, Fireshare selects the best available encoder:
 
 ### Docker Environment Variables
 
-| Environment Variable       | Description                                                                                                                                                     | Default                          | Required |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | -------- |
-| **App Configuration**      |                                                                                                                                                                 |                                  |
-| `DOMAIN`                   | The base URL or domain name where the instance is hosted. This is needed for things like link sharing, and notifications to work properly                       |                                  |
-| `STEAMGRIDDB_API_KEY`      | API key for SteamGridDB integration to fetch game metadata and assets.                                                                                          |                                  |
-| **Storage**                |                                                                                                                                                                 |                                  |
-| `DATA_DIRECTORY`           | Absolute path to the directory where application database and metadata are stored.                                                                              | `$(pwd)/dev_root/dev_data/`      | Yes      |
-| `VIDEO_DIRECTORY`          | Absolute path to the source directory containing raw video files.                                                                                               | `$(pwd)/dev_root/dev_videos/`    | Yes      |
-| `PROCESSED_DIRECTORY`      | Absolute path to the directory where optimized/transcoded videos are stored.                                                                                    | `$(pwd)/dev_root/dev_processed/` | Yes      |
-| `THUMBNAIL_VIDEO_LOCATION` | The timestamp (in seconds) used to capture the video thumbnail preview.                                                                                         | `50`                             |
-| **Security**               |                                                                                                                                                                 |                                  |
-| `ADMIN_USERNAME`           | The username for the initial administrative account.                                                                                                            | `admin`                          | Yes      |
-| `ADMIN_PASSWORD`           | The password for the initial administrative account.                                                                                                            | `admin`                          | Yes      |
-| LDAP                       | See [LDAP.md](./LDAP.md) for full LDAP configuration instructions                                                                                               |
-| **Integrations**           |                                                                                                                                                                 |                                  |
-| `DISCORD_WEBHOOK_URL`      | Discord Server/Channel webhook URL used to send a notification of a new fireshare upload. [See Docs](./Notifications.md#discord)                                |                                  |
-| `GENERIC_WEBHOOK_URL`      | Notification Integration, to send a generic webhook POST. Has to be used with `GENERIC_WEBHOOK_PAYLOAD` to work. [See Docs](./Notifications.md#generic-webhook) |                                  |
-| `GENERIC_WEBHOOK_PAYLOAD`  | JSON Based payload that will be POSTed to webhook url. Please [See Docs](./Notifications.md#generic-webhook) for full example and payload options               |                                  |
+See [EnvironmentVariables.md](./EnvironmentVariables.md) for the full list of available environment variables.
 
 ## Local Development
 
