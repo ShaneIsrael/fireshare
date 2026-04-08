@@ -25,8 +25,6 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import CheckIcon from '@mui/icons-material/Check'
 import AddIcon from '@mui/icons-material/Add'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
-import PaletteIcon from '@mui/icons-material/Palette'
-import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import { useNavigate } from 'react-router-dom'
 import { SketchPicker } from 'react-color'
 import { TagService } from '../services'
@@ -90,8 +88,6 @@ const Tags = ({ authenticated, searchText }) => {
   const [newTagColor, setNewTagColor] = React.useState('#1a3a5c')
   const [colorPickerAnchorEl, setColorPickerAnchorEl] = React.useState(null)
   const [editingTag, setEditingTag] = React.useState(null)
-  const [editTagColor, setEditTagColor] = React.useState(DEFAULT_TAG_COLOR)
-  const [editColorPickerAnchorEl, setEditColorPickerAnchorEl] = React.useState(null)
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
   const navigate = useNavigate()
   const theme = useTheme()
@@ -181,6 +177,7 @@ const Tags = ({ authenticated, searchText }) => {
       await TagService.createTag({ name: newTagName.trim(), color: newTagColor })
       loadTags()
       setNewTagDialogOpen(false)
+      setEditingTag(null)
       setNewTagName('')
       setNewTagColor(DEFAULT_TAG_COLOR)
       setColorPickerAnchorEl(null)
@@ -189,21 +186,30 @@ const Tags = ({ authenticated, searchText }) => {
     }
   }
 
-  const handleOpenColorEdit = (e, tag) => {
+  const handleOpenEditTag = (e, tag) => {
     e.stopPropagation()
     setEditingTag(tag)
-    setEditTagColor(tag.color || DEFAULT_TAG_COLOR)
+    setNewTagName(tag.name || '')
+    setNewTagColor(tag.color || DEFAULT_TAG_COLOR)
+    setNewTagDialogOpen(true)
   }
 
-  const handleSaveTagColor = async () => {
-    if (!editingTag) return
-    try {
-      await TagService.updateTag(editingTag.id, { color: editTagColor })
-      loadTags()
-      setEditingTag(null)
-      setEditColorPickerAnchorEl(null)
-    } catch (err) {
-      console.error('Error updating tag color:', err)
+  const handleSaveTag = async () => {
+    if (editingTag) {
+      if (!newTagName.trim()) return
+      try {
+        await TagService.updateTag(editingTag.id, { name: newTagName.trim(), color: newTagColor })
+        loadTags()
+        setNewTagDialogOpen(false)
+        setEditingTag(null)
+        setNewTagName('')
+        setNewTagColor(DEFAULT_TAG_COLOR)
+        setColorPickerAnchorEl(null)
+      } catch (err) {
+        console.error('Error updating tag:', err)
+      }
+    } else {
+      handleCreateTag()
     }
   }
 
@@ -330,6 +336,7 @@ const Tags = ({ authenticated, searchText }) => {
                         '&:hover': {
                           transform: 'scale(1.03)',
                           boxShadow: `inset 0 0 0 1px ${cardBorderColor(color)}, 0 8px 32px #00000088, 0 4px 20px ${color}44`,
+                          '& .tag-edit-btn': { opacity: 1 },
                         },
                         boxShadow: `inset 0 0 0 1px ${cardBorderColor(color)}, 0 4px 16px #00000066`,
                       }}
@@ -384,6 +391,26 @@ const Tags = ({ authenticated, searchText }) => {
                             '&.Mui-checked': { color: 'primary.main' },
                           }}
                         />
+                      )}
+                      {!editMode && (
+                        <IconButton
+                          className="tag-edit-btn"
+                          onClick={(e) => handleOpenEditTag(e, tag)}
+                          size="small"
+                          sx={{
+                            position: 'absolute',
+                            top: 6,
+                            right: 6,
+                            zIndex: 2,
+                            opacity: 0,
+                            transition: 'opacity 0.2s ease',
+                            bgcolor: '#00000080',
+                            color: 'white',
+                            '&:hover': { bgcolor: '#000000BB' },
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
                       )}
                       <Box
                         sx={{
@@ -475,113 +502,17 @@ const Tags = ({ authenticated, searchText }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Edit Tag Color Dialog */}
-      <Dialog
-        open={!!editingTag}
-        onClose={() => {
-          setEditingTag(null)
-          setEditColorPickerAnchorEl(null)
-        }}
-      >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PaletteIcon sx={{ color: editTagColor }} />
-          Edit Tag Color
-        </DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important', minWidth: 300 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography sx={{ color: '#FFFFFFB3', fontSize: 14, flex: 1 }}>
-              {editingTag?.name?.replace(/_/g, ' ')}
-            </Typography>
-            <Box
-              onClick={(e) => setEditColorPickerAnchorEl(e.currentTarget)}
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 1,
-                bgcolor: editTagColor,
-                cursor: 'pointer',
-                border: '2px solid rgba(255,255,255,0.3)',
-                flexShrink: 0,
-                boxShadow: `0 0 10px ${editTagColor}66`,
-                transition: 'box-shadow 0.2s ease',
-              }}
-            />
-            <Button
-              size="small"
-              startIcon={<RestartAltIcon />}
-              onClick={() => setEditTagColor(DEFAULT_TAG_COLOR)}
-              sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, flexShrink: 0 }}
-            >
-              Reset
-            </Button>
-          </Box>
-          {/* Preview */}
-          <Box
-            sx={{
-              height: 60,
-              borderRadius: 1.5,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
-              px: 2,
-              background: `linear-gradient(100deg, ${editTagColor}22 0%, ${editTagColor}0D 35%, #0A1929 70%)`,
-              boxShadow: `inset 4px 0 0 ${editTagColor}`,
-              border: '1px solid rgba(255,255,255,0.06)',
-            }}
-          >
-            <LocalOfferIcon
-              sx={{ color: editTagColor, fontSize: 18, filter: `drop-shadow(0 0 6px ${editTagColor}88)` }}
-            />
-            <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'white' }}>
-              {editingTag?.name?.replace(/_/g, ' ')}
-            </Typography>
-          </Box>
-          <Popover
-            open={Boolean(editColorPickerAnchorEl)}
-            anchorEl={editColorPickerAnchorEl}
-            onClose={() => setEditColorPickerAnchorEl(null)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-          >
-            <SketchPicker
-              color={editTagColor}
-              onChangeComplete={(color) => setEditTagColor(color.hex)}
-              styles={{
-                default: {
-                  picker: { background: '#1e1e2e', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' },
-                  label: { color: '#FFFFFFB3' },
-                  hash: { color: '#FFFFFFB3', background: '#2a2a3e' },
-                  input: { color: '#fff', background: '#2a2a3e', border: '1px solid #444', boxShadow: 'none' },
-                },
-              }}
-            />
-          </Popover>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setEditingTag(null)
-              setEditColorPickerAnchorEl(null)
-            }}
-          >
-            Cancel
-          </Button>
-          <Button onClick={handleSaveTagColor} variant="contained">
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* New Tag Dialog */}
+      {/* Create / Edit Tag Dialog */}
       <Dialog
         open={newTagDialogOpen}
         onClose={() => {
           setNewTagDialogOpen(false)
+          setEditingTag(null)
           setColorPickerAnchorEl(null)
         }}
         PaperProps={{ sx: dialogPaperSx }}
       >
-        <DialogTitle sx={dialogTitleSx}>Create New Tag</DialogTitle>
+        <DialogTitle sx={dialogTitleSx}>{editingTag ? 'Edit Tag' : 'Create New Tag'}</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '20px !important', minWidth: 300 }}>
           <Box>
             <Typography sx={labelSx}>Tag Name</Typography>
@@ -589,7 +520,7 @@ const Tags = ({ authenticated, searchText }) => {
               autoFocus
               value={newTagName}
               onChange={(e) => setNewTagName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveTag()}
               fullWidth
               sx={inputSx}
               inputProps={{ maxLength: 12 }}
@@ -635,6 +566,7 @@ const Tags = ({ authenticated, searchText }) => {
           <Button
             onClick={() => {
               setNewTagDialogOpen(false)
+              setEditingTag(null)
               setColorPickerAnchorEl(null)
             }}
             sx={{ borderRadius: '8px', color: 'white', borderColor: 'white' }}
@@ -642,12 +574,12 @@ const Tags = ({ authenticated, searchText }) => {
             Cancel
           </Button>
           <Button
-            onClick={handleCreateTag}
+            onClick={handleSaveTag}
             variant="contained"
             disabled={!newTagName.trim()}
             sx={{ borderRadius: '8px', bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}
           >
-            Create
+            {editingTag ? 'Save' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>

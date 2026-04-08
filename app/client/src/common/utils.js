@@ -24,7 +24,7 @@ export const getPublicWatchUrl = () => {
   }
   const portWithColon = window.location.port ? `:${window.location.port}` : ''
   return isLocalhost
-    ? `http://${window.location.hostname}:${import.meta.env.VITE_SERVER_PORT || window.location.port}/#/w/`
+    ? `http://${window.location.hostname}:${import.meta.env.VITE_SERVER_PORT || window.location.port}/w/`
     : `${window.location.protocol}//${window.location.hostname}${portWithColon}/w/`
 }
 

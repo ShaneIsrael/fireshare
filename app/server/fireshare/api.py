@@ -135,7 +135,7 @@ def video_metadata(video_id):
         poster_file = "custom_poster.webp" if (derived_dir / "custom_poster.webp").exists() else "poster.jpg"
         return render_template('metadata.html', video=video.json(), domain=domain, poster_file=poster_file)
     else:
-        return redirect('{}/#/w/{}'.format(domain, video_id), code=302)
+        return redirect('{}/watch/{}'.format(domain, video_id), code=302)
 
 @api.route('/api/config')
 def config():

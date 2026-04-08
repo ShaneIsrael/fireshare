@@ -17,7 +17,7 @@
     <link rel="apple-touch-icon" href="/logo192.png">
     <link rel="manifest" href="/manifest.json">
     <meta property="og:type" content="video" data-react-helmet="true">
-    <meta property="og:url" content="{{ domain }}/#/w/{{ video.video_id }}" data-react-helmet="true">
+    <meta property="og:url" content="{{ domain }}/w/{{ video.video_id }}" data-react-helmet="true">
     <meta property="og:image" content="{{ domain }}/_content/derived/{{ video.video_id }}/{{ poster_file }}" data-react-helmet="true">
     <meta property="og:video" content="{{ domain }}/_content/video/{{ video.video_id }}{{ video.extension }}" data-react-helmet="true">
     <meta property="og:video:secure_url" content="{{ domain }}/_content/video/{{ video.video_id }}{{ video.extension }}" data-react-helmet="true">
@@ -32,7 +32,7 @@
 
 <body>
     <script>
-        window.location.href = "/#/w/{{ video.video_id }}" + window.location.search;
+        window.location.href = "/watch/{{ video.video_id }}" + window.location.search;
     </script>
 </body>
 

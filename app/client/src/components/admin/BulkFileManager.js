@@ -1111,7 +1111,7 @@ export default function BulkFileManager({ setAlert }) {
                             hover
                             selected={isSelected}
                             onClick={() => {
-                              window.location.href = `/#/w/${file.video_id}`
+                              window.location.href = `/watch/${file.video_id}`
                             }}
                             sx={{
                               cursor: 'pointer',
