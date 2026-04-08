@@ -635,7 +635,7 @@ function Navbar20({
   )
   return (
     <Box sx={{ display: 'flex' }}>
-      {page !== '/login' && page !== '/w' && (
+      {page !== '/login' && page !== '/watch' && (
         <AppBar
           position="fixed"
           open={open}
@@ -759,7 +759,7 @@ function Navbar20({
         component="main"
         sx={{
           flexGrow: 1,
-          p: page !== '/w' ? mainPadding : 0,
+          p: page !== '/watch' ? mainPadding : 0,
           width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` },
           overflowX: 'hidden',
           ...(page === '/w' && {
@@ -768,7 +768,7 @@ function Navbar20({
           }),
         }}
       >
-        {toolbar && page !== '/w' && <Toolbar />}
+        {toolbar && page !== '/watch' && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
