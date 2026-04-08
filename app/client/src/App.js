@@ -1,5 +1,5 @@
 import React from 'react'
-import { Route, HashRouter as Router, Routes } from 'react-router-dom'
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 import { createTheme, ThemeProvider } from '@mui/material/styles'
 import { CssBaseline } from '@mui/material'
 import Login from './views/Login'
@@ -121,9 +121,9 @@ export default function App() {
             }
           />
           <Route
-            path="/w/:id"
+            path="/watch/:id"
             element={
-              <Navbar20 collapsed={true} page="/w">
+              <Navbar20 collapsed={true} page="/watch">
                 <AuthWrapper>
                   <Watch />
                 </AuthWrapper>
