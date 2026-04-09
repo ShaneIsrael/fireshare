@@ -395,7 +395,7 @@ const Settings = () => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Box sx={{ display: 'flex', height: 'calc(100vh - 112px)' }}>
+      <Box sx={{ display: 'flex', maxHeight: 'calc(100vh - 50px)' }}>
         {/* Vertical Tabs */}
         <Tabs
           orientation="vertical"

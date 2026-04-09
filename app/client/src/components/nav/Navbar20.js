@@ -343,7 +343,13 @@ function Navbar20({
           src={logo}
           height={42}
           onClick={() => navigate(authenticated ? '/' : '/feed')}
-          sx={{ pr: open ? 2 : 0, cursor: 'pointer', flexShrink: 0, opacity: (!open && logoHovered) ? 0 : 1, transition: 'opacity 0.15s' }}
+          sx={{
+            pr: open ? 2 : 0,
+            cursor: 'pointer',
+            flexShrink: 0,
+            opacity: !open && logoHovered ? 0 : 1,
+            transition: 'opacity 0.15s',
+          }}
         />
         {open && (
           <>
@@ -423,53 +429,53 @@ function Navbar20({
       !isMobile &&
       folders.length > 1 &&
       uiConfig.show_folder_dropdown === true ? (
-          <>
-            <Divider />
-            <Box sx={{ p: open ? 1.5 : 0.75 }}>
-              {open ? (
-                <Select
-                  value={selectedFolder}
-                  options={createSelectFolders(folders)}
-                  onChange={handleFolderChange}
-                  styles={selectFolderTheme}
-                  blurInputOnSelect
-                  isSearchable={false}
-                  menuPlacement="auto"
-                />
-              ) : (
-                <LightTooltip title={selectedFolder.label} placement="right" arrow>
-                  <Box
-                    sx={{
-                      width: 42,
-                      height: 38,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid #FFFFFF26',
-                      borderRadius: '8px',
-                      backgroundColor: '#FFFFFF0D',
-                      cursor: 'pointer',
-                      color: '#fff',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                    onClick={() => {
-                      // Cycle through folders
-                      const idx = folders.indexOf(selectedFolder.value)
-                      const next = folders[(idx + 1) % folders.length]
-                      handleFolderChange({ value: next, label: next })
-                    }}
-                  >
-                    {selectedFolder.label.substring(0, 3)}
-                  </Box>
-                </LightTooltip>
-              )}
-            </Box>
-          </>
-        ) : null}
+        <>
+          <Divider />
+          <Box sx={{ p: open ? 1.5 : 0.75 }}>
+            {open ? (
+              <Select
+                value={selectedFolder}
+                options={createSelectFolders(folders)}
+                onChange={handleFolderChange}
+                styles={selectFolderTheme}
+                blurInputOnSelect
+                isSearchable={false}
+                menuPlacement="auto"
+              />
+            ) : (
+              <LightTooltip title={selectedFolder.label} placement="right" arrow>
+                <Box
+                  sx={{
+                    width: 42,
+                    height: 38,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid #FFFFFF26',
+                    borderRadius: '8px',
+                    backgroundColor: '#FFFFFF0D',
+                    cursor: 'pointer',
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onClick={() => {
+                    // Cycle through folders
+                    const idx = folders.indexOf(selectedFolder.value)
+                    const next = folders[(idx + 1) % folders.length]
+                    handleFolderChange({ value: next, label: next })
+                  }}
+                >
+                  {selectedFolder.label.substring(0, 3)}
+                </Box>
+              </LightTooltip>
+            )}
+          </Box>
+        </>
+      ) : null}
       {cardSlider && open && !isMobile ? (
         <>
           <Divider />
@@ -635,7 +641,7 @@ function Navbar20({
   )
   return (
     <Box sx={{ display: 'flex' }}>
-      {page !== '/login' && page !== '/watch' && (
+      {page !== '/login' && page !== '/watch' && page !== '/files' && page !== '/settings' && (
         <AppBar
           position="fixed"
           open={open}
@@ -768,7 +774,7 @@ function Navbar20({
           }),
         }}
       >
-        {toolbar && page !== '/watch' && <Toolbar />}
+        {toolbar && page !== '/watch' && page !== '/files' && page !== '/settings' && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>

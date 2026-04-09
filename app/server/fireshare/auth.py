@@ -4,7 +4,7 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
-from .api import _get_local_version, _fetch_release_notes
+from .api.misc import _get_local_version, _fetch_release_notes
 from datetime import datetime, timezone
 try:
     import ldap
