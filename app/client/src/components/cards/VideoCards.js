@@ -176,6 +176,7 @@ const VideoCards = ({
           const i = vids.findIndex((v) => v.video_id === videoModal.id)
           if (i > 0) setVideoModal({ open: true, id: vids[i - 1].video_id })
         }}
+        onSuggestionSelect={(id) => setVideoModal({ open: true, id })}
       />
       <SnackbarAlert
         severity={alert.type}

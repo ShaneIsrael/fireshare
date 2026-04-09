@@ -39,6 +39,7 @@ import { ConfigService, VideoService, GameService, TagService } from '../../serv
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../misc/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
+import SuggestionCard from '../cards/SuggestionCard'
 import WaveformCropper from './WaveformCropper'
 
 const URL = getUrl()
@@ -172,7 +173,17 @@ const DateField = ({ selectedDate, selectedTime, onDateChange, onTimeChange }) =
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCallback, onNext, onPrev }) => {
+const VideoModal = ({
+  open,
+  onClose,
+  videoId,
+  feedView,
+  authenticated,
+  updateCallback,
+  onNext,
+  onPrev,
+  onSuggestionSelect,
+}) => {
   const [title, setTitle] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [updateable, setUpdatable] = React.useState(false)
@@ -197,6 +208,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [pendingThumbnailFile, setPendingThumbnailFile] = React.useState(null)
   const [pendingThumbnailPreview, setPendingThumbnailPreview] = React.useState(null)
   const [thumbnailLoaded, setThumbnailLoaded] = React.useState(false)
+  const [suggestions, setSuggestions] = React.useState([])
 
   const playerRef = React.useRef()
   const waveformRef = React.useRef(null)
@@ -348,6 +360,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       setSelectedTime('')
       setEditMode(false)
       setVideoTags([])
+      setSuggestions([])
       setCropStart(null)
       setCropEnd(null)
       setHasCustomPoster(false)
@@ -361,6 +374,29 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       cancelled = true
     }
   }, [videoId])
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    if (!open || !videoId) {
+      setSuggestions([])
+      return () => {
+        cancelled = true
+      }
+    }
+
+    VideoService.getSuggestions(videoId)
+      .then((res) => {
+        if (!cancelled) setSuggestions(res.data || [])
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, videoId])
 
   const handleGameLinked = async (game, warning) => {
     try {
@@ -1188,8 +1224,20 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       </Box>
                     </Box>
 
-                    {/* Spacer — future "Related Videos" will live here */}
-                    <Box sx={{ flex: 1 }} />
+                    {suggestions.length > 0 && (
+                      <Box>
+                        <Typography sx={labelSx}>Up Next</Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                          {suggestions.map((suggestion) => (
+                            <SuggestionCard
+                              key={suggestion.video_id}
+                              video={suggestion}
+                              onSelect={onSuggestionSelect}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
                   </Box>
 
                   <Divider sx={{ borderColor: '#FFFFFF14', flexShrink: 0 }} />
