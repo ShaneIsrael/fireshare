@@ -507,9 +507,9 @@ const Tags = ({ authenticated, searchText }) => {
         open={newTagDialogOpen}
         onClose={() => {
           setNewTagDialogOpen(false)
-          setEditingTag(null)
           setColorPickerAnchorEl(null)
         }}
+        TransitionProps={{ onExited: () => setEditingTag(null) }}
         PaperProps={{ sx: dialogPaperSx }}
       >
         <DialogTitle sx={dialogTitleSx}>{editingTag ? 'Edit Tag' : 'Create New Tag'}</DialogTitle>
@@ -566,7 +566,6 @@ const Tags = ({ authenticated, searchText }) => {
           <Button
             onClick={() => {
               setNewTagDialogOpen(false)
-              setEditingTag(null)
               setColorPickerAnchorEl(null)
             }}
             sx={{ borderRadius: '8px', color: 'white', borderColor: 'white' }}
