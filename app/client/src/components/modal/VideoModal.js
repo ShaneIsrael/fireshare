@@ -44,6 +44,7 @@ import WaveformCropper from './WaveformCropper'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
+const APP_ORIGIN = window.location.origin
 
 // ─── Shared style constants (matching UpdateDetailsModal / CompactVideoCard) ──
 
@@ -861,7 +862,7 @@ const VideoModal = ({
                           {selectedGame && (
                             <Box
                               component={selectedGame.steamgriddb_id ? 'a' : 'div'}
-                              href={selectedGame.steamgriddb_id ? `games/${selectedGame.steamgriddb_id}` : undefined}
+                              href={selectedGame.steamgriddb_id ? `${APP_ORIGIN}/games/${selectedGame.steamgriddb_id}` : undefined}
                               onClick={selectedGame.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
                               sx={{
                                 display: 'flex',
@@ -919,7 +920,7 @@ const VideoModal = ({
                                   key={tag.id}
                                   name={tag.name}
                                   color={tag.color}
-                                  href={`tags/${tag.id}`}
+                                  href={`${APP_ORIGIN}/tags/${tag.id}`}
                                   size="small"
                                 />
                               ))}

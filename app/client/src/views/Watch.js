@@ -13,6 +13,7 @@ import VideoJSPlayer from '../components/misc/VideoJSPlayer'
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
+const APP_ORIGIN = window.location.origin
 
 const actionBtnSx = {
   color: '#FFFFFFB3',
@@ -287,7 +288,7 @@ const Watch = ({ authenticated }) => {
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
                 <Box
                   component={selectedGame.steamgriddb_id ? 'a' : 'div'}
-                  href={selectedGame.steamgriddb_id ? `games/${selectedGame.steamgriddb_id}` : undefined}
+                  href={selectedGame.steamgriddb_id ? `${APP_ORIGIN}/games/${selectedGame.steamgriddb_id}` : undefined}
                   sx={{
                     display: 'inline-flex',
                     alignItems: 'center',

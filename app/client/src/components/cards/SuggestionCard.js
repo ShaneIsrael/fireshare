@@ -97,9 +97,8 @@ const SuggestionCard = ({ video, onSelect }) => {
             color: 'white',
             lineHeight: 1.35,
             overflow: 'hidden',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
             mb: 0.5,
           }}
         >
