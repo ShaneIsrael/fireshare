@@ -24,6 +24,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DriveFileMoveIcon from '@mui/icons-material/DriveFileMove'
@@ -43,7 +45,7 @@ import TuneIcon from '@mui/icons-material/Tune'
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
-import { dialogPaperSx, labelSx } from '../../common/modalStyles'
+import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, rowBoxSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
 
 function formatSize(bytes) {
@@ -172,6 +174,9 @@ function applyRenameOperation(title, op, find, replace, prefix, suffix) {
 }
 
 export default function BulkFileManager({ setAlert }) {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+
   const [files, setFiles] = useState([])
   const [folders, setFolders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -552,7 +557,7 @@ export default function BulkFileManager({ setAlert }) {
     })
   }
 
-  if (loading) {
+  if (loading && files.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
         <CircularProgress size={36} />
@@ -591,288 +596,400 @@ export default function BulkFileManager({ setAlert }) {
             borderRadius: '8px',
             bgcolor: '#1A3A5C',
             border: '1px solid #3399FF33',
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
           }}
         >
-          <Typography variant="body2" sx={{ color: '#FFFFFFCC', whiteSpace: 'nowrap', mr: 2 }}>
+          <Typography variant="body2" sx={{ color: '#FFFFFFCC', whiteSpace: 'nowrap', mb: isMobile ? 1 : 0 }}>
             {selectedCount} selected
           </Typography>
 
-          {/* Group 1: Organize */}
-          <Box sx={{ display: 'flex', gap: '12px' }}>
-            <Tooltip title="Move selected to another folder">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<DriveFileMoveIcon />}
-                onClick={() => {
-                  setMoveTargetFolder(null)
-                  setMoveModalOpen(true)
-                }}
-                sx={{
-                  textTransform: 'none',
-                  borderColor: '#3399FF44',
-                  color: '#7FBFFF',
-                  '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
-                }}
-              >
-                Move
-              </Button>
-            </Tooltip>
-            <Tooltip title="Rename selected files">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<DriveFileRenameOutlineIcon />}
-                onClick={() => {
-                  setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
-                  setRenameFind(selectedFiles.length === 1 ? (selectedFiles[0].title || selectedFiles[0].filename || '') : '')
-                  setRenameReplace('')
-                  setRenamePrefix('')
-                  setRenameSuffix('')
-                  setRenameDialogOpen(true)
-                }}
-                sx={{
-                  textTransform: 'none',
-                  borderColor: '#3399FF44',
-                  color: '#7FBFFF',
-                  '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
-                }}
-              >
-                Rename
-              </Button>
-            </Tooltip>
+          {isMobile ? (
+            /* Mobile: icon-only buttons in a compact wrap row */
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Tooltip title="Move to folder">
+                <IconButton
+                  size="small"
+                  onClick={() => { setMoveTargetFolder(null); setMoveModalOpen(true) }}
+                  sx={{ border: '1px solid #3399FF44', borderRadius: 1, color: '#7FBFFF', '&:hover': { bgcolor: '#3399FF12' } }}
+                >
+                  <DriveFileMoveIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Rename">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
+                    setRenameFind(selectedFiles.length === 1 ? (selectedFiles[0].title || selectedFiles[0].filename || '') : '')
+                    setRenameReplace('')
+                    setRenamePrefix('')
+                    setRenameSuffix('')
+                    setRenameDialogOpen(true)
+                  }}
+                  sx={{ border: '1px solid #3399FF44', borderRadius: 1, color: '#7FBFFF', '&:hover': { bgcolor: '#3399FF12' } }}
+                >
+                  <DriveFileRenameOutlineIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Remove transcodes">
+                <IconButton
+                  size="small"
+                  onClick={() => setRemoveTranscodesDialogOpen(true)}
+                  sx={{ border: '1px solid #FF990044', borderRadius: 1, color: '#FFBB66', '&:hover': { bgcolor: '#FF990012' } }}
+                >
+                  <VideoSettingsIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Remove crop">
+                <IconButton
+                  size="small"
+                  onClick={() => setRemoveCropDialogOpen(true)}
+                  sx={{ border: '1px solid #FF990044', borderRadius: 1, color: '#FFBB66', '&:hover': { bgcolor: '#FF990012' } }}
+                >
+                  <ContentCutIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Set public">
+                <IconButton
+                  size="small"
+                  onClick={() => handleSetPrivacy(false)}
+                  disabled={actionLoading}
+                  sx={{ border: '1px solid #1DB95444', borderRadius: 1, color: '#1DB954', '&:hover': { bgcolor: '#1DB95412' } }}
+                >
+                  <LockOpenIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Set private">
+                <IconButton
+                  size="small"
+                  onClick={() => handleSetPrivacy(true)}
+                  disabled={actionLoading}
+                  sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { bgcolor: '#FFFFFF0D' } }}
+                >
+                  <LockIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Delete selected">
+                <IconButton
+                  size="small"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  sx={{ border: '1px solid #f4433644', borderRadius: 1, color: '#f44336', '&:hover': { bgcolor: '#f4433612' } }}
+                >
+                  <DeleteIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          ) : (
+            /* Desktop: labelled buttons with dividers */
+            <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', mt: 0.5 }}>
+              {/* Group 1: Organize */}
+              <Box sx={{ display: 'flex', gap: '12px' }}>
+                <Tooltip title="Move selected to another folder">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<DriveFileMoveIcon />}
+                    onClick={() => { setMoveTargetFolder(null); setMoveModalOpen(true) }}
+                    sx={{ textTransform: 'none', borderColor: '#3399FF44', color: '#7FBFFF', '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' } }}
+                  >
+                    Move
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Rename selected files">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<DriveFileRenameOutlineIcon />}
+                    onClick={() => {
+                      setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
+                      setRenameFind(selectedFiles.length === 1 ? (selectedFiles[0].title || selectedFiles[0].filename || '') : '')
+                      setRenameReplace('')
+                      setRenamePrefix('')
+                      setRenameSuffix('')
+                      setRenameDialogOpen(true)
+                    }}
+                    sx={{ textTransform: 'none', borderColor: '#3399FF44', color: '#7FBFFF', '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' } }}
+                  >
+                    Rename
+                  </Button>
+                </Tooltip>
+              </Box>
+
+              <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0 }} />
+
+              {/* Group 2: Cleanup */}
+              <Box sx={{ display: 'flex', gap: '12px' }}>
+                <Tooltip title="Remove transcoded versions (480p / 720p / 1080p)">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<VideoSettingsIcon />}
+                    onClick={() => setRemoveTranscodesDialogOpen(true)}
+                    sx={{ textTransform: 'none', borderColor: '#FF990044', color: '#FFBB66', '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' } }}
+                  >
+                    Remove Transcodes
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Remove crop settings from selected files">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ContentCutIcon />}
+                    onClick={() => setRemoveCropDialogOpen(true)}
+                    sx={{ textTransform: 'none', borderColor: '#FF990044', color: '#FFBB66', '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' } }}
+                  >
+                    Remove Crop
+                  </Button>
+                </Tooltip>
+              </Box>
+
+              <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0 }} />
+
+              {/* Group 3: Privacy */}
+              <Box sx={{ display: 'flex', gap: '12px' }}>
+                <Tooltip title="Make selected files public">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<LockOpenIcon />}
+                    onClick={() => handleSetPrivacy(false)}
+                    disabled={actionLoading}
+                    sx={{ textTransform: 'none', borderColor: '#1DB95444', color: '#1DB954', '&:hover': { borderColor: '#1DB954', bgcolor: '#1DB95412' } }}
+                  >
+                    Set Public
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Make selected files private">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<LockIcon />}
+                    onClick={() => handleSetPrivacy(true)}
+                    disabled={actionLoading}
+                    sx={{ textTransform: 'none', borderColor: '#FFFFFF33', color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+                  >
+                    Set Private
+                  </Button>
+                </Tooltip>
+              </Box>
+
+              <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0 }} />
+
+              {/* Group 4: Destructive */}
+              <Tooltip title="Delete selected files">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => setDeleteDialogOpen(true)}
+                  sx={{ textTransform: 'none', borderColor: '#f4433644', color: '#f44336', '&:hover': { borderColor: '#f44336', bgcolor: '#f4433612' } }}
+                >
+                  Delete
+                </Button>
+              </Tooltip>
+            </Box>
+          )}
+        </Box>
+      )}
+
+      {/* ── Search / folder filter / game filter / utility buttons ── */}
+      {isMobile ? (
+        <Box sx={{ mb: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {/* Row 1: search full width */}
+          <TextField
+            size="small"
+            placeholder="Search by name or title…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            fullWidth
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: '#FFFFFF55', fontSize: 18 }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ ...inputSx, '& .MuiInputBase-input::placeholder': { color: '#FFFFFF55' } }}
+          />
+          {/* Row 2: filters */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Select
+                options={[
+                  { value: '__all__', label: 'All Folders' },
+                  ...folders.sort((a, b) => a.localeCompare(b)).map((f) => ({ value: f, label: f })),
+                ]}
+                value={
+                  folderFilter === '__all__'
+                    ? { value: '__all__', label: 'All Folders' }
+                    : { value: folderFilter, label: folderFilter }
+                }
+                onChange={(opt) => setFolderFilter(opt.value)}
+                styles={selectFolderTheme}
+                isSearchable={false}
+              />
+            </Box>
+            {uniqueGames.length > 0 && (
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Select
+                  options={[{ value: '__all__', label: 'All Games' }, ...uniqueGames.map((g) => ({ value: g, label: g }))]}
+                  value={
+                    gameFilter === '__all__'
+                      ? { value: '__all__', label: 'All Games' }
+                      : { value: gameFilter, label: gameFilter }
+                  }
+                  onChange={(opt) => setGameFilter(opt.value)}
+                  styles={selectFolderTheme}
+                  isSearchable={false}
+                />
+              </Box>
+            )}
           </Box>
-
-          <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0, mr: 2, ml: 1 }} />
-
-          {/* Group 2: Cleanup */}
-          <Box sx={{ display: 'flex', gap: '12px' }}>
-            <Tooltip title="Remove transcoded versions (480p / 720p / 1080p)">
+          {/* Row 3: utility buttons */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Create a new empty folder in /videos">
               <Button
                 size="small"
                 variant="outlined"
-                startIcon={<VideoSettingsIcon />}
-                onClick={() => setRemoveTranscodesDialogOpen(true)}
+                startIcon={<CreateNewFolderIcon />}
+                onClick={() => { setNewFolderName(''); setCreateFolderDialogOpen(true) }}
                 sx={{
-                  textTransform: 'none',
-                  borderColor: '#FF990044',
-                  color: '#FFBB66',
-                  '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' },
-                }}
-              >
-                Remove Transcodes
-              </Button>
-            </Tooltip>
-            <Tooltip title="Remove crop settings from selected files">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<ContentCutIcon />}
-                onClick={() => setRemoveCropDialogOpen(true)}
-                sx={{
-                  textTransform: 'none',
-                  borderColor: '#FF990044',
-                  color: '#FFBB66',
-                  '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' },
-                }}
-              >
-                Remove Crop
-              </Button>
-            </Tooltip>
-          </Box>
-
-          <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0, mr: 2, ml: 1 }} />
-
-          {/* Group 3: Privacy */}
-          <Box sx={{ display: 'flex', gap: '12px' }}>
-            <Tooltip title="Make selected files public">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<LockOpenIcon />}
-                onClick={() => handleSetPrivacy(false)}
-                disabled={actionLoading}
-                sx={{
-                  textTransform: 'none',
-                  borderColor: '#1DB95444',
-                  color: '#1DB954',
-                  '&:hover': { borderColor: '#1DB954', bgcolor: '#1DB95412' },
-                }}
-              >
-                Set Public
-              </Button>
-            </Tooltip>
-            <Tooltip title="Make selected files private">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<LockIcon />}
-                onClick={() => handleSetPrivacy(true)}
-                disabled={actionLoading}
-                sx={{
+                  flex: 1,
                   textTransform: 'none',
                   borderColor: '#FFFFFF33',
                   color: '#FFFFFFCC',
                   '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
                 }}
               >
-                Set Private
+                New Folder
               </Button>
             </Tooltip>
+            <Tooltip title="Toggle column visibility">
+              <IconButton
+                onClick={(e) => setColVisAnchor(e.currentTarget)}
+                sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+              >
+                <TuneIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Clean up orphaned derived folders">
+              <IconButton
+                onClick={handleCheckOrphans}
+                disabled={orphanLoading}
+                sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+              >
+                {orphanLoading ? <CircularProgress size={20} color="inherit" /> : <DeleteSweepIcon sx={{ fontSize: 20 }} />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Refresh file list">
+              <IconButton
+                onClick={fetchFiles}
+                disabled={loading}
+                sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+              >
+                <RefreshIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
           </Box>
-
-          <Box sx={{ width: '1px', height: '24px', bgcolor: '#FFFFFF22', flexShrink: 0, mr: 2, ml: 1 }} />
-
-          {/* Group 4: Destructive */}
-          <Tooltip title="Delete selected files">
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<DeleteIcon />}
-              onClick={() => setDeleteDialogOpen(true)}
-              sx={{
-                textTransform: 'none',
-                borderColor: '#f4433644',
-                color: '#f44336',
-                '&:hover': { borderColor: '#f44336', bgcolor: '#f4433612' },
-              }}
-            >
-              Delete
-            </Button>
-          </Tooltip>
         </Box>
-      )}
-
-      {/* ── Search / folder filter / game filter / create folder ── */}
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
-        <TextField
-          size="small"
-          placeholder="Search by name or title…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: '#FFFFFF55', fontSize: 18 }} />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            flex: 1,
-            minWidth: 140,
-            height: 38,
-            '& .MuiOutlinedInput-root': {
-              '& fieldset': { borderColor: '#FFFFFF22' },
-              '&:hover fieldset': { borderColor: '#FFFFFF44' },
-              '&.Mui-focused fieldset': { borderColor: '#FFFFFF66' },
-            },
-            '& input': { color: '#FFFFFFCC' },
-            '& .MuiInputBase-input::placeholder': { color: '#FFFFFF55' },
-          }}
-        />
-
-        <Box sx={{ minWidth: 160 }}>
-          <Select
-            options={[
-              { value: '__all__', label: 'All Folders' },
-              ...folders.sort((a, b) => a.localeCompare(b)).map((f) => ({ value: f, label: f })),
-            ]}
-            value={
-              folderFilter === '__all__'
-                ? { value: '__all__', label: 'All Folders' }
-                : { value: folderFilter, label: folderFilter }
-            }
-            onChange={(opt) => setFolderFilter(opt.value)}
-            styles={selectFolderTheme}
-            isSearchable={false}
+      ) : (
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
+          <TextField
+            size="small"
+            placeholder="Search by name or title…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: '#FFFFFF55', fontSize: 18 }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ ...inputSx, flex: 1, minWidth: 140, height: 38, '& .MuiInputBase-input::placeholder': { color: '#FFFFFF55' } }}
           />
-        </Box>
 
-        {uniqueGames.length > 0 && (
           <Box sx={{ minWidth: 160 }}>
             <Select
-              options={[{ value: '__all__', label: 'All Games' }, ...uniqueGames.map((g) => ({ value: g, label: g }))]}
+              options={[
+                { value: '__all__', label: 'All Folders' },
+                ...folders.sort((a, b) => a.localeCompare(b)).map((f) => ({ value: f, label: f })),
+              ]}
               value={
-                gameFilter === '__all__'
-                  ? { value: '__all__', label: 'All Games' }
-                  : { value: gameFilter, label: gameFilter }
+                folderFilter === '__all__'
+                  ? { value: '__all__', label: 'All Folders' }
+                  : { value: folderFilter, label: folderFilter }
               }
-              onChange={(opt) => setGameFilter(opt.value)}
+              onChange={(opt) => setFolderFilter(opt.value)}
               styles={selectFolderTheme}
               isSearchable={false}
             />
           </Box>
-        )}
 
-        <Tooltip title="Create a new empty folder in /videos">
-          <Button
-            size="medium"
-            variant="outlined"
-            startIcon={<CreateNewFolderIcon />}
-            onClick={() => {
-              setNewFolderName('')
-              setCreateFolderDialogOpen(true)
-            }}
-            sx={{
-              height: 38,
-              textTransform: 'none',
-              whiteSpace: 'nowrap',
-              borderColor: '#FFFFFF33',
-              color: '#FFFFFFCC',
-              '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-            }}
-          >
-            Create Folder
-          </Button>
-        </Tooltip>
+          {uniqueGames.length > 0 && (
+            <Box sx={{ minWidth: 160 }}>
+              <Select
+                options={[{ value: '__all__', label: 'All Games' }, ...uniqueGames.map((g) => ({ value: g, label: g }))]}
+                value={
+                  gameFilter === '__all__'
+                    ? { value: '__all__', label: 'All Games' }
+                    : { value: gameFilter, label: gameFilter }
+                }
+                onChange={(opt) => setGameFilter(opt.value)}
+                styles={selectFolderTheme}
+                isSearchable={false}
+              />
+            </Box>
+          )}
 
-        <Tooltip title="Toggle column visibility">
-          <IconButton
-            onClick={(e) => setColVisAnchor(e.currentTarget)}
-            sx={{
-              border: '1px solid #FFFFFF33',
-              borderRadius: 1,
-              color: '#FFFFFFCC',
-              '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-            }}
-          >
-            <TuneIcon sx={{ fontSize: 20 }} />
-          </IconButton>
-        </Tooltip>
+          <Tooltip title="Create a new empty folder in /videos">
+            <Button
+              size="medium"
+              variant="outlined"
+              startIcon={<CreateNewFolderIcon />}
+              onClick={() => { setNewFolderName(''); setCreateFolderDialogOpen(true) }}
+              sx={{
+                height: 38,
+                textTransform: 'none',
+                whiteSpace: 'nowrap',
+                borderColor: '#FFFFFF33',
+                color: '#FFFFFFCC',
+                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+              }}
+            >
+              Create Folder
+            </Button>
+          </Tooltip>
 
-        <Tooltip title="Clean up orphaned derived folders">
-          <IconButton
-            onClick={handleCheckOrphans}
-            disabled={orphanLoading}
-            sx={{
-              border: '1px solid #FFFFFF33',
-              borderRadius: 1,
-              color: '#FFFFFFCC',
-              '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-            }}
-          >
-            {orphanLoading ? <CircularProgress size={20} color="inherit" /> : <DeleteSweepIcon sx={{ fontSize: 20 }} />}
-          </IconButton>
-        </Tooltip>
+          <Tooltip title="Toggle column visibility">
+            <IconButton
+              onClick={(e) => setColVisAnchor(e.currentTarget)}
+              sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+            >
+              <TuneIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
 
-        <Tooltip title="Refresh file list">
-          <IconButton
-            onClick={fetchFiles}
-            disabled={loading}
-            sx={{
-              border: '1px solid #FFFFFF33',
-              borderRadius: 1,
-              color: '#FFFFFFCC',
-              '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-            }}
-          >
-            <RefreshIcon sx={{ fontSize: 20 }} />
-          </IconButton>
-        </Tooltip>
-      </Stack>
+          <Tooltip title="Clean up orphaned derived folders">
+            <IconButton
+              onClick={handleCheckOrphans}
+              disabled={orphanLoading}
+              sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+            >
+              {orphanLoading ? <CircularProgress size={20} color="inherit" /> : <DeleteSweepIcon sx={{ fontSize: 20 }} />}
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Refresh file list">
+            <IconButton
+              onClick={fetchFiles}
+              disabled={loading}
+              sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+            >
+              <RefreshIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      )}
 
       {/* ── Column visibility popover ── */}
       <Popover
@@ -916,7 +1033,7 @@ export default function BulkFileManager({ setAlert }) {
           borderRadius: '8px',
           border: '1px solid #FFFFFF14',
           bgcolor: '#FFFFFF05',
-          maxHeight: 'calc(100vh - 280px)',
+          maxHeight: isMobile ? 'calc(100vh - 340px)' : 'calc(100vh - 280px)',
           overflow: 'auto',
         }}
       >
@@ -1378,20 +1495,7 @@ export default function BulkFileManager({ setAlert }) {
           {uniqueCurrentFolders.size === 1 && (
             <Box sx={{ mb: 2 }}>
               <Typography sx={labelSx}>Current location</Typography>
-              <Box
-                sx={{
-                  bgcolor: '#FFFFFF0D',
-                  border: '1px solid #FFFFFF26',
-                  borderRadius: '8px',
-                  px: 1.5,
-                  height: 38,
-                  display: 'flex',
-                  alignItems: 'center',
-                  fontSize: 14,
-                  fontFamily: 'Inter, sans-serif',
-                  color: '#FFFFFFCC',
-                }}
-              >
+              <Box sx={{ ...rowBoxSx, fontSize: 14, fontFamily: 'Inter, sans-serif', color: '#FFFFFFCC' }}>
                 {`/videos/${[...uniqueCurrentFolders][0]}/`}
               </Box>
             </Box>
@@ -1448,7 +1552,7 @@ export default function BulkFileManager({ setAlert }) {
         onClose={() => !actionLoading && setDeleteDialogOpen(false)}
         slotProps={{ paper: { sx: { ...dialogPaperSx, minWidth: 380 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, color: 'white' }}>
+        <DialogTitle sx={dialogTitleSx}>
           Delete {selectedCount} file{selectedCount !== 1 ? 's' : ''}?
         </DialogTitle>
         <DialogContent>
@@ -1484,7 +1588,7 @@ export default function BulkFileManager({ setAlert }) {
         onClose={() => !actionLoading && setRemoveTranscodesDialogOpen(false)}
         slotProps={{ paper: { sx: { ...dialogPaperSx, minWidth: 380 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, color: 'white' }}>Remove Transcodes?</DialogTitle>
+        <DialogTitle sx={dialogTitleSx}>Remove Transcodes?</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ color: '#FFFFFFAA' }}>
             This will delete the 480p, 720p, and 1080p transcoded files for {selectedCount} selected file
@@ -1517,7 +1621,7 @@ export default function BulkFileManager({ setAlert }) {
         onClose={() => !actionLoading && setRemoveCropDialogOpen(false)}
         slotProps={{ paper: { sx: { ...dialogPaperSx, minWidth: 380 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, color: 'white' }}>Remove Crop?</DialogTitle>
+        <DialogTitle sx={dialogTitleSx}>Remove Crop?</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ color: '#FFFFFFAA' }}>
             This will clear the crop settings and remove associated transcoded files for {selectedCount} selected file
@@ -1550,7 +1654,7 @@ export default function BulkFileManager({ setAlert }) {
         onClose={() => !actionLoading && setCreateFolderDialogOpen(false)}
         slotProps={{ paper: { sx: { ...dialogPaperSx, minWidth: 360 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, color: 'white' }}>Create New Folder</DialogTitle>
+        <DialogTitle sx={dialogTitleSx}>Create New Folder</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ color: '#FFFFFFAA', mb: 2 }}>
             Enter a name for the new folder. It will be created in the root of your videos directory.
@@ -1566,14 +1670,7 @@ export default function BulkFileManager({ setAlert }) {
               if (e.key === 'Enter' && newFolderName.trim() && !actionLoading) handleCreateFolder()
             }}
             InputLabelProps={{ sx: { color: '#FFFFFF66' } }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': { borderColor: '#FFFFFF22' },
-                '&:hover fieldset': { borderColor: '#FFFFFF44' },
-                '&.Mui-focused fieldset': { borderColor: '#FFFFFF66' },
-              },
-              '& input': { color: '#FFFFFFCC' },
-            }}
+            sx={inputSx}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
@@ -1602,7 +1699,7 @@ export default function BulkFileManager({ setAlert }) {
         onClose={() => !actionLoading && setRenameDialogOpen(false)}
         slotProps={{ paper: { sx: { ...dialogPaperSx, width: 440, minWidth: 440, minHeight: 420 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, color: 'white' }}>
+        <DialogTitle sx={dialogTitleSx}>
           Rename {selectedCount} file{selectedCount !== 1 ? 's' : ''}
         </DialogTitle>
         <DialogContent>
@@ -1627,14 +1724,7 @@ export default function BulkFileManager({ setAlert }) {
                 onChange={(e) => setRenameFind(e.target.value)}
                 disabled={actionLoading}
                 InputLabelProps={{ sx: { color: '#FFFFFF66' } }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: '#FFFFFF22' },
-                    '&:hover fieldset': { borderColor: '#FFFFFF44' },
-                    '&.Mui-focused fieldset': { borderColor: '#FFFFFF66' },
-                  },
-                  '& input': { color: '#FFFFFFCC' },
-                }}
+                sx={inputSx}
               />
               <TextField
                 size="small"
@@ -1643,14 +1733,7 @@ export default function BulkFileManager({ setAlert }) {
                 onChange={(e) => setRenameReplace(e.target.value)}
                 disabled={actionLoading}
                 InputLabelProps={{ sx: { color: '#FFFFFF66' } }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: '#FFFFFF22' },
-                    '&:hover fieldset': { borderColor: '#FFFFFF44' },
-                    '&.Mui-focused fieldset': { borderColor: '#FFFFFF66' },
-                  },
-                  '& input': { color: '#FFFFFFCC' },
-                }}
+                sx={inputSx}
               />
             </Stack>
           )}
@@ -1665,14 +1748,7 @@ export default function BulkFileManager({ setAlert }) {
                 onChange={(e) => setRenamePrefix(e.target.value)}
                 disabled={actionLoading}
                 InputLabelProps={{ sx: { color: '#FFFFFF66' } }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: '#FFFFFF22' },
-                    '&:hover fieldset': { borderColor: '#FFFFFF44' },
-                    '&.Mui-focused fieldset': { borderColor: '#FFFFFF66' },
-                  },
-                  '& input': { color: '#FFFFFFCC' },
-                }}
+                sx={inputSx}
               />
             </Box>
           )}
@@ -1687,14 +1763,7 @@ export default function BulkFileManager({ setAlert }) {
                 onChange={(e) => setRenameSuffix(e.target.value)}
                 disabled={actionLoading}
                 InputLabelProps={{ sx: { color: '#FFFFFF66' } }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '& fieldset': { borderColor: '#FFFFFF22' },
-                    '&:hover fieldset': { borderColor: '#FFFFFF44' },
-                    '&.Mui-focused fieldset': { borderColor: '#FFFFFF66' },
-                  },
-                  '& input': { color: '#FFFFFFCC' },
-                }}
+                sx={inputSx}
               />
             </Box>
           )}
@@ -1788,7 +1857,7 @@ export default function BulkFileManager({ setAlert }) {
         onClose={() => !orphanLoading && setOrphanDialogOpen(false)}
         slotProps={{ paper: { sx: { ...dialogPaperSx, minWidth: 380 } } }}
       >
-        <DialogTitle sx={{ fontWeight: 700, color: 'white' }}>Clean Up Orphaned Derived Folders?</DialogTitle>
+        <DialogTitle sx={dialogTitleSx}>Clean Up Orphaned Derived Folders?</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ color: '#FFFFFFAA' }}>
             Found {orphans.length} orphaned derived folder{orphans.length !== 1 ? 's' : ''} totalling{' '}
