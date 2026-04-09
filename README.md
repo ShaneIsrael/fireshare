@@ -214,26 +214,7 @@ If you update models, create a migration and review it before opening a pull req
 
 ## Troubleshooting
 
-### Playback Problems
-
-If playback is unstable:
-
-- Reduce source file size/bitrate
-- Verify upload bandwidth on the host
-- Prefer browser-friendly formats (MP4/H.264 is safest)
-- Consider enabling transcoding for better compatibility
-- Test in another browser to rule out codec/browser limitations
-
-### Upload Fails Behind Nginx
-
-Increase proxy limits/timeouts, for example:
-
-```nginx
-client_max_body_size 0;
-proxy_read_timeout 999999s;
-```
-
-If you use a different proxy, apply equivalent upload size and timeout settings there.
+See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for a full guide covering installation issues, playback problems, permission errors, transcoding, LDAP, and more.
 
 ---
 
