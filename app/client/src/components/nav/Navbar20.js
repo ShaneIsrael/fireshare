@@ -641,7 +641,7 @@ function Navbar20({
   )
   return (
     <Box sx={{ display: 'flex' }}>
-      {page !== '/login' && page !== '/watch' && page !== '/files' && page !== '/settings' && (
+      {page !== '/login' && page !== '/watch' && (isMobile || (page !== '/files' && page !== '/settings')) && (
         <AppBar
           position="fixed"
           open={open}
@@ -774,7 +774,7 @@ function Navbar20({
           }),
         }}
       >
-        {toolbar && page !== '/watch' && page !== '/files' && page !== '/settings' && <Toolbar />}
+        {toolbar && page !== '/watch' && (isMobile || (page !== '/files' && page !== '/settings')) && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
