@@ -270,6 +270,24 @@ def get_video_suggestions():
             )
             add_candidates(candidates, 3)
 
+    tag_ids = [link.tag_id for link in VideoTagLink.query.filter_by(video_id=video_id).all()]
+    if tag_ids and len(pool) < count:
+        same_tag_ids = list(set(
+            link.video_id
+            for link in VideoTagLink.query
+            .filter(VideoTagLink.tag_id.in_(tag_ids), VideoTagLink.video_id != video_id)
+            .all()
+        ))
+        if same_tag_ids:
+            candidates = (
+                with_unseen(base_query())
+                .filter(Video.video_id.in_(same_tag_ids))
+                .order_by(func.random())
+                .limit(3)
+                .all()
+            )
+            add_candidates(candidates, 3)
+
     if current_video.source_folder and len(pool) < count:
         candidates = (
             with_unseen(base_query())

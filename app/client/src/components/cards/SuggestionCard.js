@@ -35,7 +35,7 @@ const SuggestionCard = ({ video, onSelect }) => {
         sx={{
           position: 'relative',
           flexShrink: 0,
-          width: 96,
+          width: 120,
           borderRadius: '6px',
           overflow: 'hidden',
           aspectRatio: '16 / 9',
@@ -82,7 +82,7 @@ const SuggestionCard = ({ video, onSelect }) => {
               lineHeight: 1,
             }}
           >
-            <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'white' }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: 'white', fontFamily: 'monospace' }}>
               {toHHMMSS(duration)}
             </Typography>
           </Box>
