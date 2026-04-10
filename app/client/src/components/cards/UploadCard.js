@@ -86,7 +86,6 @@ function LogoProgress({ progress, size = 44 }) {
   )
 }
 
-
 const UploadCard = React.forwardRef(function UploadCard(
   { authenticated, handleAlert, mini, onUploadComplete, onProgress, dropOnly = false },
   ref,
@@ -120,6 +119,7 @@ const UploadCard = React.forwardRef(function UploadCard(
   const [selectedFolder, setSelectedFolder] = React.useState('')
   // Stored metadata to attach on next upload
   const pendingMetadata = React.useRef({ tag_ids: null, game_id: null, folder: null })
+  const imageThumbnailUrlRef = React.useRef(null)
 
   React.useImperativeHandle(ref, () => ({
     openFile(file) {
@@ -161,7 +161,6 @@ const UploadCard = React.forwardRef(function UploadCard(
 
   const openMetadataDialog = (file) => {
     setPendingFile(file)
-    extractThumbnail(file)
     setSelectedGame(null)
     setSelectedTags([])
     setTagInput('')
@@ -171,6 +170,8 @@ const UploadCard = React.forwardRef(function UploadCard(
     setTitleInput('')
     setEditingTitle(false)
     setTitleDraft('')
+
+    extractThumbnail(file)
     const foldersFetch = authenticated
       ? VideoService.getUploadFolders()
       : uiConfig?.allow_public_folder_selection
@@ -235,6 +236,10 @@ const UploadCard = React.forwardRef(function UploadCard(
     setPendingFile(null)
     setThumbnail(null)
     setThumbnailReady(false)
+    if (imageThumbnailUrlRef.current) {
+      URL.revokeObjectURL(imageThumbnailUrlRef.current)
+      imageThumbnailUrlRef.current = null
+    }
   }
 
   const handleDialogCancel = () => {
@@ -250,6 +255,10 @@ const UploadCard = React.forwardRef(function UploadCard(
     setEditingTitle(false)
     setThumbnail(null)
     setThumbnailReady(false)
+    if (imageThumbnailUrlRef.current) {
+      URL.revokeObjectURL(imageThumbnailUrlRef.current)
+      imageThumbnailUrlRef.current = null
+    }
   }
 
   const handleGameInputChange = async (_, value) => {
@@ -506,7 +515,10 @@ const UploadCard = React.forwardRef(function UploadCard(
         />
       ) : (
         <Box
-          onClick={() => { setTitleDraft(titleInput); setEditingTitle(true) }}
+          onClick={() => {
+            setTitleDraft(titleInput)
+            setEditingTitle(true)
+          }}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -523,7 +535,7 @@ const UploadCard = React.forwardRef(function UploadCard(
               fontWeight: 800,
               fontSize: 22,
               lineHeight: 1.3,
-              color: (titleInput || filenameStem) ? 'white' : '#FFFFFF55',
+              color: titleInput || filenameStem ? 'white' : '#FFFFFF55',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -542,13 +554,7 @@ const UploadCard = React.forwardRef(function UploadCard(
 
   if (dropOnly) {
     return (
-      <Dialog
-        open={dialogOpen}
-        onClose={handleDialogCancel}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ sx: dialogPaperSx }}
-      >
+      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="md" fullWidth PaperProps={{ sx: dialogPaperSx }}>
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#2684FF', fontSize: 24, flexShrink: 0 }} />
@@ -572,7 +578,18 @@ const UploadCard = React.forwardRef(function UploadCard(
                 }}
               >
                 {thumbnailReady && thumbnail && (
-                  <Box component="img" src={thumbnail} alt="thumbnail" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', animation: `${fadeIn} 0.6s ease` }} />
+                  <Box
+                    component="img"
+                    src={thumbnail}
+                    alt="thumbnail"
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      animation: `${fadeIn} 0.6s ease`,
+                    }}
+                  />
                 )}
                 {!thumbnailReady && (
                   <Box
@@ -633,10 +650,33 @@ const UploadCard = React.forwardRef(function UploadCard(
                       sx={inputSx}
                       InputProps={{
                         ...params.InputProps,
-                        startAdornment: selectedGame?.icon_url
-                          ? <><InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}><img src={selectedGame.icon_url} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} style={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 3 }} /></InputAdornment>{params.InputProps.startAdornment}</>
-                          : params.InputProps.startAdornment,
-                        endAdornment: <>{(gameSearchLoading || gameCreating) && <InputAdornment position="end"><CircularProgress size={16} sx={{ mr: 1 }} /></InputAdornment>}{params.InputProps.endAdornment}</>,
+                        startAdornment: selectedGame?.icon_url ? (
+                          <>
+                            <InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}>
+                              <img
+                                src={selectedGame.icon_url}
+                                alt=""
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
+                                style={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 3 }}
+                              />
+                            </InputAdornment>
+                            {params.InputProps.startAdornment}
+                          </>
+                        ) : (
+                          params.InputProps.startAdornment
+                        ),
+                        endAdornment: (
+                          <>
+                            {(gameSearchLoading || gameCreating) && (
+                              <InputAdornment position="end">
+                                <CircularProgress size={16} sx={{ mr: 1 }} />
+                              </InputAdornment>
+                            )}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
                       }}
                     />
                   )}
@@ -666,7 +706,14 @@ const UploadCard = React.forwardRef(function UploadCard(
                 />
                 {selectedGame && (
                   <FormControlLabel
-                    control={<Checkbox checked={uploadToGameFolder} onChange={(e) => setUploadToGameFolder(e.target.checked)} size="small" sx={checkboxSx} />}
+                    control={
+                      <Checkbox
+                        checked={uploadToGameFolder}
+                        onChange={(e) => setUploadToGameFolder(e.target.checked)}
+                        size="small"
+                        sx={checkboxSx}
+                      />
+                    }
                     label={<Typography sx={helperTextSx}>Auto-sort into game folder</Typography>}
                     sx={{ mt: 0.5, ml: 0 }}
                   />
@@ -677,7 +724,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                   <Typography sx={labelSx}>Upload Folder</Typography>
                   <Autocomplete
                     options={availableFolders}
-                    value={uploadToGameFolder && selectedGame ? selectedGame.name : (selectedFolder || null)}
+                    value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
                     onChange={(_, value) => setSelectedFolder(value || '')}
                     disableClearable={uploadToGameFolder ? true : !!selectedFolder}
                     disabled={uploadToGameFolder && !!selectedGame}
@@ -874,13 +921,7 @@ const UploadCard = React.forwardRef(function UploadCard(
       </Grid>
 
       {/* Pre-upload metadata dialog */}
-      <Dialog
-        open={dialogOpen}
-        onClose={handleDialogCancel}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{ sx: dialogPaperSx }}
-      >
+      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="md" fullWidth PaperProps={{ sx: dialogPaperSx }}>
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#fff', fontSize: 24, flexShrink: 0 }} />
@@ -904,7 +945,18 @@ const UploadCard = React.forwardRef(function UploadCard(
                 }}
               >
                 {thumbnailReady && thumbnail && (
-                  <Box component="img" src={thumbnail} alt="thumbnail" sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', animation: `${fadeIn} 0.6s ease` }} />
+                  <Box
+                    component="img"
+                    src={thumbnail}
+                    alt="thumbnail"
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                      animation: `${fadeIn} 0.6s ease`,
+                    }}
+                  />
                 )}
                 {!thumbnailReady && (
                   <Box
@@ -965,10 +1017,33 @@ const UploadCard = React.forwardRef(function UploadCard(
                       sx={inputSx}
                       InputProps={{
                         ...params.InputProps,
-                        startAdornment: selectedGame?.icon_url
-                          ? <><InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}><img src={selectedGame.icon_url} alt="" onError={(e) => { e.currentTarget.style.display = 'none' }} style={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 3 }} /></InputAdornment>{params.InputProps.startAdornment}</>
-                          : params.InputProps.startAdornment,
-                        endAdornment: <>{(gameSearchLoading || gameCreating) && <InputAdornment position="end"><CircularProgress size={16} sx={{ mr: 1 }} /></InputAdornment>}{params.InputProps.endAdornment}</>,
+                        startAdornment: selectedGame?.icon_url ? (
+                          <>
+                            <InputAdornment position="start" sx={{ ml: 0.5, mr: 0 }}>
+                              <img
+                                src={selectedGame.icon_url}
+                                alt=""
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none'
+                                }}
+                                style={{ width: 18, height: 18, objectFit: 'contain', borderRadius: 3 }}
+                              />
+                            </InputAdornment>
+                            {params.InputProps.startAdornment}
+                          </>
+                        ) : (
+                          params.InputProps.startAdornment
+                        ),
+                        endAdornment: (
+                          <>
+                            {(gameSearchLoading || gameCreating) && (
+                              <InputAdornment position="end">
+                                <CircularProgress size={16} sx={{ mr: 1 }} />
+                              </InputAdornment>
+                            )}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
                       }}
                     />
                   )}
@@ -998,7 +1073,14 @@ const UploadCard = React.forwardRef(function UploadCard(
                 />
                 {selectedGame && (
                   <FormControlLabel
-                    control={<Checkbox checked={uploadToGameFolder} onChange={(e) => setUploadToGameFolder(e.target.checked)} size="small" sx={checkboxSx} />}
+                    control={
+                      <Checkbox
+                        checked={uploadToGameFolder}
+                        onChange={(e) => setUploadToGameFolder(e.target.checked)}
+                        size="small"
+                        sx={checkboxSx}
+                      />
+                    }
                     label={<Typography sx={helperTextSx}>Auto-sort into game folder</Typography>}
                     sx={{ mt: 0.5, ml: 0 }}
                   />
@@ -1011,7 +1093,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                   <Typography sx={labelSx}>Upload Folder</Typography>
                   <Autocomplete
                     options={availableFolders}
-                    value={uploadToGameFolder && selectedGame ? selectedGame.name : (selectedFolder || null)}
+                    value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
                     onChange={(_, value) => setSelectedFolder(value || '')}
                     disableClearable={uploadToGameFolder ? true : !!selectedFolder}
                     disabled={uploadToGameFolder && !!selectedGame}

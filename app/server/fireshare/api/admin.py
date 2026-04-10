@@ -12,7 +12,7 @@ from flask import current_app, jsonify, request, Response
 from flask_login import login_required, current_user
 
 from .. import db, logger, util
-from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink
+from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink, Image
 from . import api
 from . import transcoding as _transcoding_mod
 from .transcoding import _is_pid_running
@@ -665,12 +665,14 @@ def bulk_rename_files():
 @api.route('/api/admin/files/orphaned-derived', methods=['GET'])
 @login_required
 def get_orphaned_derived():
-    """Find derived folders with no matching video in the DB (admin only)"""
+    """Find derived folders with no matching video or image in the DB (admin only)"""
     if not current_user.admin:
         return Response(status=403, response='Admin access required.')
     paths = current_app.config['PATHS']
     derived_root = paths['processed'] / 'derived'
-    known_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    known_video_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    known_image_ids = {i[0] for i in db.session.query(Image.image_id).all()}
+    known_ids = known_video_ids | known_image_ids
     orphans = []
     try:
         for entry in os.scandir(derived_root):
@@ -699,7 +701,9 @@ def cleanup_orphaned_derived():
         return Response(status=403, response='Admin access required.')
     paths = current_app.config['PATHS']
     derived_root = paths['processed'] / 'derived'
-    known_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    known_video_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    known_image_ids = {i[0] for i in db.session.query(Image.image_id).all()}
+    known_ids = known_video_ids | known_image_ids
     deleted = []
     errors = []
     try:

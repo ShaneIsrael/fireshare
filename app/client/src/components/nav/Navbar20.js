@@ -31,6 +31,7 @@ import BugReportIcon from '@mui/icons-material/BugReport'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 
 import { Grid, useMediaQuery, useTheme } from '@mui/material'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -48,7 +49,8 @@ import FolderSuggestionInline from './FolderSuggestionInline'
 import DiskSpaceIndicator from './DiskSpaceIndicator'
 import { GameService } from '../../services'
 import UploadCard from '../cards/UploadCard'
-import { RegisterUploadCardContext } from '../utils/GlobalDragDropOverlay'
+import ImageUploadCard from '../cards/ImageUploadCard'
+import { RegisterUploadCardContext, RegisterImageUploadCardContext } from '../utils/GlobalDragDropOverlay'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
 
@@ -60,6 +62,7 @@ const CARD_SIZE_MULTIPLIER = 2
 const allPages = [
   { title: 'My Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
   { title: 'Public Videos', icon: <PublicIcon />, href: '/feed', private: false },
+  { title: 'Screenshots', icon: <PhotoLibraryIcon />, href: '/images', private: false },
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
   { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
   { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, adminOnly: true },
@@ -164,6 +167,7 @@ function Navbar20({
   const [alert, setAlert] = React.useState({ open: false })
   const [uploadTick, setUploadTick] = React.useState(0)
   const registerUploadCard = React.useContext(RegisterUploadCardContext)
+  const registerImageUploadCard = React.useContext(RegisterImageUploadCardContext)
   const [folderSuggestions, setFolderSuggestions] = React.useState({})
   const [currentSuggestionFolder, setCurrentSuggestionFolder] = React.useState(null)
   const navigate = useNavigate()
@@ -500,7 +504,13 @@ function Navbar20({
         mini={!effectiveOpen}
         onUploadComplete={() => setUploadTick((t) => t + 1)}
       />
-
+      <ImageUploadCard
+        ref={registerImageUploadCard}
+        authenticated={authenticated}
+        handleAlert={memoizedHandleAlert}
+        mini={!effectiveOpen}
+        onUploadComplete={() => setUploadTick((t) => t + 1)}
+      />
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
         <GameScanStatus open={effectiveOpen} onComplete={handleGameScanComplete} authenticated={authenticated} />
         <TranscodingStatus open={effectiveOpen} authenticated={authenticated} />
@@ -641,92 +651,94 @@ function Navbar20({
   )
   return (
     <Box sx={{ display: 'flex' }}>
-      {page !== '/login' && page !== '/watch' && (isMobile || (page !== '/files' && page !== '/settings')) && (
-        <AppBar
-          position="fixed"
-          open={open}
-          sx={{
-            backgroundColor: '#0A1929D0',
-          }}
-        >
-          <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Box sx={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-              {/* Mobile: expanded search */}
-              {isMobile && mobileSearchOpen && searchable && (
-                <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
-                  <Search
-                    key={mobileSearchKey}
-                    placeholder={searchPlaceholder}
-                    searchHandler={(value) => setSearchText(value)}
-                    autoFocus
-                  />
-                </Box>
-              )}
-              {isMobile && mobileSearchOpen && (
-                <IconButton
-                  color="inherit"
-                  size="small"
-                  onClick={() => {
-                    setMobileSearchOpen(false)
-                    setSearchText('')
-                    setMobileSearchKey((k) => k + 1)
-                  }}
-                  sx={{ flexShrink: 0 }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              )}
-
-              {/* Desktop: left spacer + centered search */}
-              {!isMobile && <Box sx={{ flex: 1 }} />}
-              {searchable && !isMobile && (
-                <Box id="navbar-search-container" sx={{ width: 520, flexShrink: 1, minWidth: 0, mr: 1, ml: 2 }}>
-                  <Search placeholder={searchPlaceholder} searchHandler={(value) => setSearchText(value)} />
-                </Box>
-              )}
-
-              {/* Right controls — always in DOM so portal target stays valid */}
-              <Box
-                sx={{
-                  flex: 1,
-                  display: isMobile && mobileSearchOpen ? 'none' : 'flex',
-                  justifyContent: 'flex-end',
-                  alignItems: 'center',
-                  gap: 1,
-                }}
+      {page !== '/login' &&
+        page !== '/watch' &&
+        (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && (
+          <AppBar
+            position="fixed"
+            open={open}
+            sx={{
+              backgroundColor: '#0A1929D0',
+            }}
+          >
+            <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                edge="start"
+                onClick={handleDrawerToggle}
+                sx={{ mr: 2, display: { sm: 'none' } }}
               >
-                <Box id="navbar-toolbar-extra" />
-                {searchable && isMobile && (
+                <MenuIcon />
+              </IconButton>
+              <Box sx={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+                {/* Mobile: expanded search */}
+                {isMobile && mobileSearchOpen && searchable && (
+                  <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
+                    <Search
+                      key={mobileSearchKey}
+                      placeholder={searchPlaceholder}
+                      searchHandler={(value) => setSearchText(value)}
+                      autoFocus
+                    />
+                  </Box>
+                )}
+                {isMobile && mobileSearchOpen && (
                   <IconButton
                     color="inherit"
                     size="small"
-                    onClick={() => setMobileSearchOpen(true)}
-                    sx={{
-                      borderRadius: '8px',
-                      height: '38px',
-                      width: '38px',
-                      border: '1px solid #2684FF',
-                      bgcolor: '#001E3C',
-                      '&:hover': { bgcolor: '#FFFFFF33' },
+                    onClick={() => {
+                      setMobileSearchOpen(false)
+                      setSearchText('')
+                      setMobileSearchKey((k) => k + 1)
                     }}
+                    sx={{ flexShrink: 0 }}
                   >
-                    <SearchIcon fontSize="small" />
+                    <CloseIcon />
                   </IconButton>
                 )}
+
+                {/* Desktop: left spacer + centered search */}
+                {!isMobile && <Box sx={{ flex: 1 }} />}
+                {searchable && !isMobile && (
+                  <Box id="navbar-search-container" sx={{ width: 520, flexShrink: 1, minWidth: 0, mr: 1, ml: 2 }}>
+                    <Search placeholder={searchPlaceholder} searchHandler={(value) => setSearchText(value)} />
+                  </Box>
+                )}
+
+                {/* Right controls — always in DOM so portal target stays valid */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: isMobile && mobileSearchOpen ? 'none' : 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <Box id="navbar-toolbar-extra" />
+                  {searchable && isMobile && (
+                    <IconButton
+                      color="inherit"
+                      size="small"
+                      onClick={() => setMobileSearchOpen(true)}
+                      sx={{
+                        borderRadius: '8px',
+                        height: '38px',
+                        width: '38px',
+                        border: '1px solid #2684FF',
+                        bgcolor: '#001E3C',
+                        '&:hover': { bgcolor: '#FFFFFF33' },
+                      }}
+                    >
+                      <SearchIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
               </Box>
-            </Box>
-          </Toolbar>
-        </AppBar>
-      )}
+            </Toolbar>
+          </AppBar>
+        )}
       {page !== '/login' && (
         <Box
           component="nav"
@@ -765,7 +777,7 @@ function Navbar20({
         component="main"
         sx={{
           flexGrow: 1,
-          p: page !== '/watch' ? mainPadding : 0,
+          p: page !== '/watch' && page !== '/image' ? mainPadding : 0,
           width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` },
           overflowX: 'hidden',
           ...(page === '/w' && {
@@ -774,7 +786,9 @@ function Navbar20({
           }),
         }}
       >
-        {toolbar && page !== '/watch' && (isMobile || (page !== '/files' && page !== '/settings')) && <Toolbar />}
+        {toolbar &&
+          page !== '/watch' &&
+          (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>

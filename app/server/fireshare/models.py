@@ -271,4 +271,142 @@ class VideoView(db.Model):
 
     def __repr__(self):
         return "<VideoViews {} {}>".format(self.video_id, self.ip_address)
-    
+
+
+# ---------------------------------------------------------------------------
+# Image models
+# ---------------------------------------------------------------------------
+
+class Image(db.Model):
+    __tablename__ = "image"
+
+    id            = db.Column(db.Integer, primary_key=True)
+    image_id      = db.Column(db.String(32), index=True, nullable=False)
+    extension     = db.Column(db.String(8), nullable=False)
+    path          = db.Column(db.String(2048), index=True, nullable=False)
+    available     = db.Column(db.Boolean, default=True)
+    created_at    = db.Column(db.DateTime())
+    updated_at    = db.Column(db.DateTime())
+    source_folder = db.Column(db.String(256), nullable=True)
+
+    info          = db.relationship("ImageInfo", back_populates="image", uselist=False, lazy="joined")
+
+    def json(self):
+        return {
+            "image_id": self.image_id,
+            "extension": self.extension,
+            "path": self.path,
+            "available": self.available,
+            "info": self.info.json() if self.info else {},
+        }
+
+    def __repr__(self):
+        return "<Image {}>".format(self.image_id)
+
+
+class ImageInfo(db.Model):
+    __tablename__ = "image_info"
+
+    id            = db.Column(db.Integer, primary_key=True)
+    image_id      = db.Column(db.String(32), db.ForeignKey("image.image_id"), nullable=False)
+    title         = db.Column(db.String(256), index=True)
+    description   = db.Column(db.String(2048))
+    width         = db.Column(db.Integer)
+    height        = db.Column(db.Integer)
+    file_size     = db.Column(db.Integer)
+    private       = db.Column(db.Boolean, default=True)
+    has_webp      = db.Column(db.Boolean, default=False)
+    has_thumbnail = db.Column(db.Boolean, default=False)
+
+    image         = db.relationship("Image", back_populates="info", uselist=False, lazy="joined")
+
+    def json(self):
+        return {
+            "title": self.title,
+            "description": self.description,
+            "private": self.private,
+            "width": self.width,
+            "height": self.height,
+            "file_size": self.file_size,
+            "has_webp": self.has_webp,
+            "has_thumbnail": self.has_thumbnail,
+        }
+
+    def __repr__(self):
+        return "<ImageInfo {} {}>".format(self.image_id, self.title)
+
+
+class ImageGameLink(db.Model):
+    __tablename__ = "image_game_link"
+    __table_args__ = (db.UniqueConstraint("image_id", "game_id"),)
+
+    id         = db.Column(db.Integer, primary_key=True)
+    image_id   = db.Column(db.String(32), db.ForeignKey("image.image_id"), nullable=False)
+    game_id    = db.Column(db.Integer, db.ForeignKey("game_metadata.id"), nullable=False)
+    created_at = db.Column(db.DateTime())
+
+    image      = db.relationship("Image")
+    game       = db.relationship("GameMetadata")
+
+    def json(self):
+        return {
+            "image_id": self.image_id,
+            "game_id": self.game_id,
+            "game": self.game.json() if self.game else None,
+        }
+
+    def __repr__(self):
+        return "<ImageGameLink image:{} game:{}>".format(self.image_id, self.game_id)
+
+
+class ImageTagLink(db.Model):
+    __tablename__ = "image_tag_link"
+    __table_args__ = (db.UniqueConstraint("image_id", "tag_id"),)
+
+    id         = db.Column(db.Integer, primary_key=True)
+    image_id   = db.Column(db.String(32), db.ForeignKey("image.image_id"), nullable=False)
+    tag_id     = db.Column(db.Integer, db.ForeignKey("custom_tag.id"), nullable=False)
+    created_at = db.Column(db.DateTime())
+
+    image      = db.relationship("Image")
+    tag        = db.relationship("CustomTag")
+
+    def json(self):
+        return {
+            "image_id": self.image_id,
+            "tag_id": self.tag_id,
+            "tag": self.tag.json() if self.tag else None,
+        }
+
+    def __repr__(self):
+        return "<ImageTagLink image:{} tag:{}>".format(self.image_id, self.tag_id)
+
+
+class ImageView(db.Model):
+    __tablename__ = "image_view"
+    __table_args__ = (db.UniqueConstraint("image_id", "ip_address"),)
+
+    id         = db.Column(db.Integer, primary_key=True)
+    image_id   = db.Column(db.String(32), db.ForeignKey("image.image_id"), nullable=False)
+    ip_address = db.Column(db.String(256), nullable=False)
+
+    def json(self):
+        return {
+            "image_id": self.image_id,
+            "ip_address": self.ip_address,
+        }
+
+    @classmethod
+    def count(cls, image_id):
+        return cls.query.filter_by(image_id=image_id).count()
+
+    @classmethod
+    def add_view(cls, image_id, ip_address):
+        exists = cls.query.filter_by(image_id=image_id, ip_address=ip_address).first()
+        if not exists:
+            db.session.add(cls(image_id=image_id, ip_address=ip_address))
+            db.session.commit()
+
+    def __repr__(self):
+        return "<ImageView {} {}>".format(self.image_id, self.ip_address)
+

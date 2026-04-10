@@ -7,10 +7,10 @@ import { AuthService } from '../../services'
 import { getSetting } from '../../common/utils'
 
 const DISABLED_PATHS = ['/login']
-const VIDEO_EXTENSIONS = ['mp4', 'webm', 'mov']
 
 export const DragDropDisabledContext = React.createContext(null)
 export const RegisterUploadCardContext = React.createContext(null)
+export const RegisterImageUploadCardContext = React.createContext(null)
 
 export const DisableDragDrop = ({ children }) => {
   const setDisabled = React.useContext(DragDropDisabledContext)
@@ -27,6 +27,7 @@ export default function GlobalDragDropOverlay({ children }) {
   const [authenticated, setAuthenticated] = React.useState(false)
   const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config'))
   const registeredCardRef = React.useRef(null)
+  const registeredImageCardRef = React.useRef(null)
   const dragCounter = React.useRef(0)
   const activeRef = React.useRef(false)
   const location = useLocation()
@@ -68,11 +69,16 @@ export default function GlobalDragDropOverlay({ children }) {
       dragCounter.current = 0
       setDragActive(false)
       if (!activeRef.current) return
-      const file = e.dataTransfer?.files?.[0]
-      if (!file) return
-      const ext = file.name.split('.').pop().toLowerCase()
-      if (file.type.startsWith('video/') || VIDEO_EXTENSIONS.includes(ext)) {
-        registeredCardRef.current?.openFile(file)
+      const files = Array.from(e.dataTransfer?.files || [])
+      if (files.length === 0) return
+      const imageFiles = files.filter((f) => f.type.startsWith('image/'))
+      const videoFiles = files.filter((f) => f.type.startsWith('video/'))
+      if (imageFiles.length > 0 && registeredImageCardRef.current) {
+        registeredImageCardRef.current.openFiles(imageFiles)
+      } else if (videoFiles.length > 0 && registeredCardRef.current) {
+        registeredCardRef.current.openFile(videoFiles[0])
+      } else if (files.length > 0 && registeredCardRef.current) {
+        registeredCardRef.current.openFile(files[0])
       }
     }
 
@@ -92,43 +98,45 @@ export default function GlobalDragDropOverlay({ children }) {
   return (
     <DragDropDisabledContext.Provider value={setDisabled}>
       <RegisterUploadCardContext.Provider value={registeredCardRef}>
-        {children}
-        {dragActive &&
-          active &&
-          createPortal(
-            <Box
-              sx={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 9999,
-                bgcolor: 'rgba(0, 0, 0, 0.75)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                pointerEvents: 'none',
-              }}
-            >
+        <RegisterImageUploadCardContext.Provider value={registeredImageCardRef}>
+          {children}
+          {dragActive &&
+            active &&
+            createPortal(
               <Box
                 sx={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 9999,
+                  bgcolor: 'rgba(0, 0, 0, 0.75)',
                   display: 'flex',
-                  flexDirection: 'column',
                   alignItems: 'center',
-                  border: '2px dashed #2684FF',
-                  borderRadius: 4,
-                  px: 8,
-                  py: 6,
-                  bgcolor: 'rgba(38, 132, 255, 0.08)',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
                 }}
               >
-                <CloudUploadIcon sx={{ fontSize: 72, color: '#fff', mb: 2 }} />
-                <Typography variant="h5" sx={{ color: 'white', fontWeight: 700 }}>
-                  Drop to Upload
-                </Typography>
-                <Typography sx={{ color: '#FFFFFF99', mt: 1 }}>Release to start uploading your video</Typography>
-              </Box>
-            </Box>,
-            document.body,
-          )}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    border: '2px dashed #2684FF',
+                    borderRadius: 4,
+                    px: 8,
+                    py: 6,
+                    bgcolor: 'rgba(38, 132, 255, 0.08)',
+                  }}
+                >
+                  <CloudUploadIcon sx={{ fontSize: 72, color: '#fff', mb: 2 }} />
+                  <Typography variant="h5" sx={{ color: 'white', fontWeight: 700 }}>
+                    Drop to Upload
+                  </Typography>
+                  <Typography sx={{ color: '#FFFFFF99', mt: 1 }}>Release to start uploading</Typography>
+                </Box>
+              </Box>,
+              document.body,
+            )}
+        </RegisterImageUploadCardContext.Provider>
       </RegisterUploadCardContext.Provider>
     </DragDropDisabledContext.Provider>
   )
