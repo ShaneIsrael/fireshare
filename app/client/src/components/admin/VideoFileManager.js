@@ -173,7 +173,7 @@ function applyRenameOperation(title, op, find, replace, prefix, suffix) {
   return result
 }
 
-export default function BulkFileManager({ setAlert }) {
+export default function VideoFileManager({ setAlert }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
@@ -284,9 +284,7 @@ export default function BulkFileManager({ setAlert }) {
 
     // Include empty folders only when no filters are active (search/game filter would hide them anyway)
     const includeEmpty = !search.trim() && gameFilter === '__all__'
-    const allFolders = includeEmpty
-      ? [...new Set([...folders, ...filesByFolder.keys()])]
-      : [...filesByFolder.keys()]
+    const allFolders = includeEmpty ? [...new Set([...folders, ...filesByFolder.keys()])] : [...filesByFolder.keys()]
 
     // Build [folder, files] pairs then sort folder groups by the "best" file
     // in each group according to the active sort, so that folder order reflects
@@ -608,8 +606,16 @@ export default function BulkFileManager({ setAlert }) {
               <Tooltip title="Move to folder">
                 <IconButton
                   size="small"
-                  onClick={() => { setMoveTargetFolder(null); setMoveModalOpen(true) }}
-                  sx={{ border: '1px solid #3399FF44', borderRadius: 1, color: '#7FBFFF', '&:hover': { bgcolor: '#3399FF12' } }}
+                  onClick={() => {
+                    setMoveTargetFolder(null)
+                    setMoveModalOpen(true)
+                  }}
+                  sx={{
+                    border: '1px solid #3399FF44',
+                    borderRadius: 1,
+                    color: '#7FBFFF',
+                    '&:hover': { bgcolor: '#3399FF12' },
+                  }}
                 >
                   <DriveFileMoveIcon sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -619,13 +625,20 @@ export default function BulkFileManager({ setAlert }) {
                   size="small"
                   onClick={() => {
                     setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
-                    setRenameFind(selectedFiles.length === 1 ? (selectedFiles[0].title || selectedFiles[0].filename || '') : '')
+                    setRenameFind(
+                      selectedFiles.length === 1 ? selectedFiles[0].title || selectedFiles[0].filename || '' : '',
+                    )
                     setRenameReplace('')
                     setRenamePrefix('')
                     setRenameSuffix('')
                     setRenameDialogOpen(true)
                   }}
-                  sx={{ border: '1px solid #3399FF44', borderRadius: 1, color: '#7FBFFF', '&:hover': { bgcolor: '#3399FF12' } }}
+                  sx={{
+                    border: '1px solid #3399FF44',
+                    borderRadius: 1,
+                    color: '#7FBFFF',
+                    '&:hover': { bgcolor: '#3399FF12' },
+                  }}
                 >
                   <DriveFileRenameOutlineIcon sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -634,7 +647,12 @@ export default function BulkFileManager({ setAlert }) {
                 <IconButton
                   size="small"
                   onClick={() => setRemoveTranscodesDialogOpen(true)}
-                  sx={{ border: '1px solid #FF990044', borderRadius: 1, color: '#FFBB66', '&:hover': { bgcolor: '#FF990012' } }}
+                  sx={{
+                    border: '1px solid #FF990044',
+                    borderRadius: 1,
+                    color: '#FFBB66',
+                    '&:hover': { bgcolor: '#FF990012' },
+                  }}
                 >
                   <VideoSettingsIcon sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -643,7 +661,12 @@ export default function BulkFileManager({ setAlert }) {
                 <IconButton
                   size="small"
                   onClick={() => setRemoveCropDialogOpen(true)}
-                  sx={{ border: '1px solid #FF990044', borderRadius: 1, color: '#FFBB66', '&:hover': { bgcolor: '#FF990012' } }}
+                  sx={{
+                    border: '1px solid #FF990044',
+                    borderRadius: 1,
+                    color: '#FFBB66',
+                    '&:hover': { bgcolor: '#FF990012' },
+                  }}
                 >
                   <ContentCutIcon sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -653,7 +676,12 @@ export default function BulkFileManager({ setAlert }) {
                   size="small"
                   onClick={() => handleSetPrivacy(false)}
                   disabled={actionLoading}
-                  sx={{ border: '1px solid #1DB95444', borderRadius: 1, color: '#1DB954', '&:hover': { bgcolor: '#1DB95412' } }}
+                  sx={{
+                    border: '1px solid #1DB95444',
+                    borderRadius: 1,
+                    color: '#1DB954',
+                    '&:hover': { bgcolor: '#1DB95412' },
+                  }}
                 >
                   <LockOpenIcon sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -663,7 +691,12 @@ export default function BulkFileManager({ setAlert }) {
                   size="small"
                   onClick={() => handleSetPrivacy(true)}
                   disabled={actionLoading}
-                  sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { bgcolor: '#FFFFFF0D' } }}
+                  sx={{
+                    border: '1px solid #FFFFFF33',
+                    borderRadius: 1,
+                    color: '#FFFFFFCC',
+                    '&:hover': { bgcolor: '#FFFFFF0D' },
+                  }}
                 >
                   <LockIcon sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -672,7 +705,12 @@ export default function BulkFileManager({ setAlert }) {
                 <IconButton
                   size="small"
                   onClick={() => setDeleteDialogOpen(true)}
-                  sx={{ border: '1px solid #f4433644', borderRadius: 1, color: '#f44336', '&:hover': { bgcolor: '#f4433612' } }}
+                  sx={{
+                    border: '1px solid #f4433644',
+                    borderRadius: 1,
+                    color: '#f44336',
+                    '&:hover': { bgcolor: '#f4433612' },
+                  }}
                 >
                   <DeleteIcon sx={{ fontSize: 20 }} />
                 </IconButton>
@@ -688,8 +726,16 @@ export default function BulkFileManager({ setAlert }) {
                     size="small"
                     variant="outlined"
                     startIcon={<DriveFileMoveIcon />}
-                    onClick={() => { setMoveTargetFolder(null); setMoveModalOpen(true) }}
-                    sx={{ textTransform: 'none', borderColor: '#3399FF44', color: '#7FBFFF', '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' } }}
+                    onClick={() => {
+                      setMoveTargetFolder(null)
+                      setMoveModalOpen(true)
+                    }}
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: '#3399FF44',
+                      color: '#7FBFFF',
+                      '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
+                    }}
                   >
                     Move
                   </Button>
@@ -701,13 +747,20 @@ export default function BulkFileManager({ setAlert }) {
                     startIcon={<DriveFileRenameOutlineIcon />}
                     onClick={() => {
                       setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
-                      setRenameFind(selectedFiles.length === 1 ? (selectedFiles[0].title || selectedFiles[0].filename || '') : '')
+                      setRenameFind(
+                        selectedFiles.length === 1 ? selectedFiles[0].title || selectedFiles[0].filename || '' : '',
+                      )
                       setRenameReplace('')
                       setRenamePrefix('')
                       setRenameSuffix('')
                       setRenameDialogOpen(true)
                     }}
-                    sx={{ textTransform: 'none', borderColor: '#3399FF44', color: '#7FBFFF', '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' } }}
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: '#3399FF44',
+                      color: '#7FBFFF',
+                      '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
+                    }}
                   >
                     Rename
                   </Button>
@@ -724,7 +777,12 @@ export default function BulkFileManager({ setAlert }) {
                     variant="outlined"
                     startIcon={<VideoSettingsIcon />}
                     onClick={() => setRemoveTranscodesDialogOpen(true)}
-                    sx={{ textTransform: 'none', borderColor: '#FF990044', color: '#FFBB66', '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' } }}
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: '#FF990044',
+                      color: '#FFBB66',
+                      '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' },
+                    }}
                   >
                     Remove Transcodes
                   </Button>
@@ -735,7 +793,12 @@ export default function BulkFileManager({ setAlert }) {
                     variant="outlined"
                     startIcon={<ContentCutIcon />}
                     onClick={() => setRemoveCropDialogOpen(true)}
-                    sx={{ textTransform: 'none', borderColor: '#FF990044', color: '#FFBB66', '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' } }}
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: '#FF990044',
+                      color: '#FFBB66',
+                      '&:hover': { borderColor: '#FF990099', bgcolor: '#FF990012' },
+                    }}
                   >
                     Remove Crop
                   </Button>
@@ -753,7 +816,12 @@ export default function BulkFileManager({ setAlert }) {
                     startIcon={<LockOpenIcon />}
                     onClick={() => handleSetPrivacy(false)}
                     disabled={actionLoading}
-                    sx={{ textTransform: 'none', borderColor: '#1DB95444', color: '#1DB954', '&:hover': { borderColor: '#1DB954', bgcolor: '#1DB95412' } }}
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: '#1DB95444',
+                      color: '#1DB954',
+                      '&:hover': { borderColor: '#1DB954', bgcolor: '#1DB95412' },
+                    }}
                   >
                     Set Public
                   </Button>
@@ -765,7 +833,12 @@ export default function BulkFileManager({ setAlert }) {
                     startIcon={<LockIcon />}
                     onClick={() => handleSetPrivacy(true)}
                     disabled={actionLoading}
-                    sx={{ textTransform: 'none', borderColor: '#FFFFFF33', color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: '#FFFFFF33',
+                      color: '#FFFFFFCC',
+                      '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+                    }}
                   >
                     Set Private
                   </Button>
@@ -781,7 +854,12 @@ export default function BulkFileManager({ setAlert }) {
                   variant="outlined"
                   startIcon={<DeleteIcon />}
                   onClick={() => setDeleteDialogOpen(true)}
-                  sx={{ textTransform: 'none', borderColor: '#f4433644', color: '#f44336', '&:hover': { borderColor: '#f44336', bgcolor: '#f4433612' } }}
+                  sx={{
+                    textTransform: 'none',
+                    borderColor: '#f4433644',
+                    color: '#f44336',
+                    '&:hover': { borderColor: '#f44336', bgcolor: '#f4433612' },
+                  }}
                 >
                   Delete
                 </Button>
@@ -831,7 +909,10 @@ export default function BulkFileManager({ setAlert }) {
             {uniqueGames.length > 0 && (
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Select
-                  options={[{ value: '__all__', label: 'All Games' }, ...uniqueGames.map((g) => ({ value: g, label: g }))]}
+                  options={[
+                    { value: '__all__', label: 'All Games' },
+                    ...uniqueGames.map((g) => ({ value: g, label: g })),
+                  ]}
                   value={
                     gameFilter === '__all__'
                       ? { value: '__all__', label: 'All Games' }
@@ -851,7 +932,10 @@ export default function BulkFileManager({ setAlert }) {
                 size="small"
                 variant="outlined"
                 startIcon={<CreateNewFolderIcon />}
-                onClick={() => { setNewFolderName(''); setCreateFolderDialogOpen(true) }}
+                onClick={() => {
+                  setNewFolderName('')
+                  setCreateFolderDialogOpen(true)
+                }}
                 sx={{
                   flex: 1,
                   textTransform: 'none',
@@ -866,7 +950,12 @@ export default function BulkFileManager({ setAlert }) {
             <Tooltip title="Toggle column visibility">
               <IconButton
                 onClick={(e) => setColVisAnchor(e.currentTarget)}
-                sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+                sx={{
+                  border: '1px solid #FFFFFF33',
+                  borderRadius: 1,
+                  color: '#FFFFFFCC',
+                  '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+                }}
               >
                 <TuneIcon sx={{ fontSize: 20 }} />
               </IconButton>
@@ -875,16 +964,30 @@ export default function BulkFileManager({ setAlert }) {
               <IconButton
                 onClick={handleCheckOrphans}
                 disabled={orphanLoading}
-                sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+                sx={{
+                  border: '1px solid #FFFFFF33',
+                  borderRadius: 1,
+                  color: '#FFFFFFCC',
+                  '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+                }}
               >
-                {orphanLoading ? <CircularProgress size={20} color="inherit" /> : <DeleteSweepIcon sx={{ fontSize: 20 }} />}
+                {orphanLoading ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  <DeleteSweepIcon sx={{ fontSize: 20 }} />
+                )}
               </IconButton>
             </Tooltip>
             <Tooltip title="Refresh file list">
               <IconButton
                 onClick={fetchFiles}
                 disabled={loading}
-                sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+                sx={{
+                  border: '1px solid #FFFFFF33',
+                  borderRadius: 1,
+                  color: '#FFFFFFCC',
+                  '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+                }}
               >
                 <RefreshIcon sx={{ fontSize: 20 }} />
               </IconButton>
@@ -905,7 +1008,13 @@ export default function BulkFileManager({ setAlert }) {
                 </InputAdornment>
               ),
             }}
-            sx={{ ...inputSx, flex: 1, minWidth: 140, height: 38, '& .MuiInputBase-input::placeholder': { color: '#FFFFFF55' } }}
+            sx={{
+              ...inputSx,
+              flex: 1,
+              minWidth: 140,
+              height: 38,
+              '& .MuiInputBase-input::placeholder': { color: '#FFFFFF55' },
+            }}
           />
 
           <Box sx={{ minWidth: 160 }}>
@@ -928,7 +1037,10 @@ export default function BulkFileManager({ setAlert }) {
           {uniqueGames.length > 0 && (
             <Box sx={{ minWidth: 160 }}>
               <Select
-                options={[{ value: '__all__', label: 'All Games' }, ...uniqueGames.map((g) => ({ value: g, label: g }))]}
+                options={[
+                  { value: '__all__', label: 'All Games' },
+                  ...uniqueGames.map((g) => ({ value: g, label: g })),
+                ]}
                 value={
                   gameFilter === '__all__'
                     ? { value: '__all__', label: 'All Games' }
@@ -946,7 +1058,10 @@ export default function BulkFileManager({ setAlert }) {
               size="medium"
               variant="outlined"
               startIcon={<CreateNewFolderIcon />}
-              onClick={() => { setNewFolderName(''); setCreateFolderDialogOpen(true) }}
+              onClick={() => {
+                setNewFolderName('')
+                setCreateFolderDialogOpen(true)
+              }}
               sx={{
                 height: 38,
                 textTransform: 'none',
@@ -963,7 +1078,12 @@ export default function BulkFileManager({ setAlert }) {
           <Tooltip title="Toggle column visibility">
             <IconButton
               onClick={(e) => setColVisAnchor(e.currentTarget)}
-              sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+              sx={{
+                border: '1px solid #FFFFFF33',
+                borderRadius: 1,
+                color: '#FFFFFFCC',
+                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+              }}
             >
               <TuneIcon sx={{ fontSize: 20 }} />
             </IconButton>
@@ -973,9 +1093,18 @@ export default function BulkFileManager({ setAlert }) {
             <IconButton
               onClick={handleCheckOrphans}
               disabled={orphanLoading}
-              sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+              sx={{
+                border: '1px solid #FFFFFF33',
+                borderRadius: 1,
+                color: '#FFFFFFCC',
+                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+              }}
             >
-              {orphanLoading ? <CircularProgress size={20} color="inherit" /> : <DeleteSweepIcon sx={{ fontSize: 20 }} />}
+              {orphanLoading ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <DeleteSweepIcon sx={{ fontSize: 20 }} />
+              )}
             </IconButton>
           </Tooltip>
 
@@ -983,7 +1112,12 @@ export default function BulkFileManager({ setAlert }) {
             <IconButton
               onClick={fetchFiles}
               disabled={loading}
-              sx={{ border: '1px solid #FFFFFF33', borderRadius: 1, color: '#FFFFFFCC', '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' } }}
+              sx={{
+                border: '1px solid #FFFFFF33',
+                borderRadius: 1,
+                color: '#FFFFFFCC',
+                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+              }}
             >
               <RefreshIcon sx={{ fontSize: 20 }} />
             </IconButton>
@@ -1842,7 +1976,20 @@ export default function BulkFileManager({ setAlert }) {
           <Button
             variant="contained"
             onClick={handleBulkRename}
-            disabled={actionLoading || selectedFiles.some((f) => !applyRenameOperation(f.title || f.filename || '', renameOp.value, renameFind, renameReplace, renamePrefix, renameSuffix).trim())}
+            disabled={
+              actionLoading ||
+              selectedFiles.some(
+                (f) =>
+                  !applyRenameOperation(
+                    f.title || f.filename || '',
+                    renameOp.value,
+                    renameFind,
+                    renameReplace,
+                    renamePrefix,
+                    renameSuffix,
+                  ).trim(),
+              )
+            }
             startIcon={actionLoading ? <CircularProgress size={14} color="inherit" /> : <DriveFileRenameOutlineIcon />}
             sx={{ textTransform: 'none' }}
           >

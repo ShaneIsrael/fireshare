@@ -106,127 +106,206 @@ const CompactImageCard = ({
         width: '100%',
         height: '100%',
         bgcolor: '#00000066',
-        borderRadius: { xs: 0, sm: '12px' },
+        // borderRadius: { xs: 0, sm: '8px' },
         overflow: 'hidden',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
+        border: '3px solid #000000ff',
       }}
     >
       {/* Thumbnail */}
-      <Box sx={{ aspectRatio: '16 / 9', overflow: 'hidden', position: 'relative' }}>
-        <Skeleton
-          variant="rectangular"
-          animation="wave"
-          width="100%"
-          height="100%"
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            opacity: imgLoaded ? 0 : 1,
-            transition: 'opacity 0.8s ease',
-            bgcolor: 'rgba(30, 60, 130, 0.4)',
-          }}
-        />
-        <Box
-          sx={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
-          onClick={() => openImageHandler?.(image)}
-          onMouseEnter={() => setThumbnailHover(true)}
-          onMouseLeave={() => setThumbnailHover(false)}
-        >
-          <img
-            key={imgRetryKey}
-            src={thumbnailUrl}
-            alt={title}
-            onLoad={() => setImgLoaded(true)}
-            onError={handleImgError}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              display: 'block',
-              opacity: imgLoaded ? 1 : 0,
-              transition: 'opacity 0.8s ease',
+      <Box
+        sx={{ overflow: 'hidden', position: 'relative', lineHeight: 0, cursor: 'pointer' }}
+        onClick={() => openImageHandler?.(image)}
+        onMouseEnter={() => setThumbnailHover(true)}
+        onMouseLeave={() => setThumbnailHover(false)}
+      >
+        {!imgLoaded && (
+          <Skeleton
+            variant="rectangular"
+            animation="wave"
+            width="100%"
+            sx={{
+              aspectRatio: '16 / 9',
+              bgcolor: 'rgba(30, 60, 130, 0.4)',
             }}
           />
+        )}
+        <img
+          key={imgRetryKey}
+          src={thumbnailUrl}
+          alt={title}
+          onLoad={() => setImgLoaded(true)}
+          onError={handleImgError}
+          style={{
+            width: '100%',
+            display: imgLoaded ? 'block' : 'none',
+          }}
+        />
 
-          {/* Views badge - bottom left, hides on hover */}
+        {/* Top-left: view count (always) + visibility toggle (hover) */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            zIndex: 2,
+            opacity: thumbnailHover ? 1 : 0,
+            transition: 'opacity 0.2s ease-in-out',
+          }}
+        >
           <Box
             sx={{
-              position: 'absolute',
-              bottom: 8,
-              left: 8,
               bgcolor: '#000000BF',
               borderRadius: '4px',
               px: 0.75,
               py: 0.25,
-              opacity: thumbnailHover ? 0 : 1,
-              transition: 'opacity 0.2s ease-in-out',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
             }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'white', fontFamily: 'monospace' }}>
-                {viewCount}
-              </Typography>
-              <VisibilityIcon sx={{ fontSize: 18, color: 'white' }} />
-            </Box>
+            <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'white', fontFamily: 'monospace' }}>
+              {viewCount}
+            </Typography>
+            <VisibilityIcon sx={{ fontSize: 18, color: 'white' }} />
           </Box>
 
-          {/* Copy link button - shows on hover */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              opacity: thumbnailHover ? 1 : 0,
-              transition: 'opacity 0.2s ease-in-out',
-            }}
-          >
-            <CopyToClipboard text={`${PURL}${image.image_id}`}>
-              <IconButton
-                sx={{
-                  bgcolor: '#000000BF',
-                  '&:hover': { background: '#2684FF88' },
-                }}
-                aria-label="copy link"
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true })
-                }}
-              >
-                <LinkIcon sx={{ color: 'white', fontSize: 24 }} />
-              </IconButton>
-            </CopyToClipboard>
-          </Box>
-
-          {/* Visibility toggle button - shows on hover when authenticated */}
+          {/* Visibility toggle - shows on hover */}
           {authenticated && (
-            <Box
+            <IconButton
               sx={{
-                position: 'absolute',
-                bottom: 8,
-                left: 8,
+                bgcolor: '#000000BF',
+                '&:hover': { background: privateView ? '#FF232360' : '#2684FF88' },
                 opacity: thumbnailHover ? 1 : 0,
                 transition: 'opacity 0.2s ease-in-out',
               }}
+              aria-label="toggle visibility"
+              size="small"
+              onClick={handlePrivacyChange}
             >
-              <IconButton
+              {privateView ? (
+                <VisibilityOffIcon sx={{ color: '#FF6B6B', fontSize: 20 }} />
+              ) : (
+                <VisibilityIcon sx={{ color: 'white', fontSize: 20 }} />
+              )}
+            </IconButton>
+          )}
+        </Box>
+
+        {/* Top-right buttons - show on hover */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            opacity: thumbnailHover ? 1 : 0,
+            transition: 'opacity 0.2s ease-in-out',
+          }}
+        >
+          <CopyToClipboard text={`${PURL}${image.image_id}`}>
+            <IconButton
+              sx={{
+                bgcolor: '#000000BF',
+                '&:hover': { background: '#2684FF88' },
+              }}
+              aria-label="copy link"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation()
+                alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true })
+              }}
+            >
+              <LinkIcon sx={{ color: 'white', fontSize: 24 }} />
+            </IconButton>
+          </CopyToClipboard>
+          {authenticated && (
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation()
+                setMenuAnchorEl(e.currentTarget)
+              }}
+              sx={{
+                bgcolor: '#000000BF',
+                '&:hover': { background: '#2684FF88' },
+              }}
+            >
+              <MoreVertIcon sx={{ color: 'white', fontSize: 24 }} />
+            </IconButton>
+          )}
+        </Box>
+
+        {/* Info overlay - bottom, shows on hover */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 70%, transparent 100%)',
+            px: 1.5,
+            pb: 1.25,
+            pt: 4,
+            opacity: thumbnailHover ? 1 : 0,
+            transition: 'opacity 0.2s ease-in-out',
+            pointerEvents: 'none',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {image.game?.icon_url && (
+              <Box sx={{ flexShrink: 0, lineHeight: 0 }}>
+                <img
+                  src={image.game.icon_url}
+                  alt={image.game.name}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                  }}
+                  style={{ width: 28, height: 28, objectFit: 'contain', display: 'block' }}
+                />
+              </Box>
+            )}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
                 sx={{
-                  bgcolor: '#000000BF',
-                  '&:hover': { background: privateView ? '#FF232360' : '#2684FF88' },
+                  fontWeight: 700,
+                  fontSize: 14,
+                  lineHeight: 1.3,
+                  color: 'white',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
-                aria-label="toggle visibility"
-                size="small"
-                onClick={handlePrivacyChange}
               >
-                {privateView ? (
-                  <VisibilityOffIcon sx={{ color: '#FF6B6B', fontSize: 24 }} />
-                ) : (
-                  <VisibilityIcon sx={{ color: 'white', fontSize: 24 }} />
-                )}
-              </IconButton>
+                {title}
+              </Typography>
+              {image.game?.name && (
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    color: '#FFFFFFB3',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {image.game.name}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+          {localTags.length > 0 && (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+              {localTags.map((tag) => (
+                <TagChip key={tag.id} tag={tag} size="small" />
+              ))}
             </Box>
           )}
         </Box>
@@ -253,94 +332,6 @@ const CompactImageCard = ({
           >
             {selected && <CheckIcon sx={{ fontSize: 20, color: 'white' }} />}
           </Box>
-        )}
-      </Box>
-
-      {/* Info section below thumbnail */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'stretch',
-          flex: 1,
-          mt: 1.5,
-          px: 1.5,
-          pb: 1.5,
-          gap: 1.5,
-        }}
-      >
-        {/* Game icon */}
-        {image.game?.icon_url && (
-          <Box sx={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}>
-            <img
-              src={image.game.icon_url}
-              alt={image.game.name}
-              onError={(e) => {
-                e.currentTarget.parentElement.style.display = 'none'
-              }}
-              style={{ width: 40, height: 40, objectFit: 'contain', display: 'block' }}
-            />
-          </Box>
-        )}
-
-        {/* Text info */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <Typography
-            sx={{
-              fontWeight: 700,
-              fontSize: 16,
-              lineHeight: 1.3,
-              color: 'white',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {title}
-          </Typography>
-
-          {image.game?.name && (
-            <Typography
-              sx={{
-                fontSize: 14,
-                color: '#FFFFFFB3',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                mt: 0.25,
-              }}
-            >
-              {image.game.name}
-            </Typography>
-          )}
-
-          {/* Tag chips */}
-          {localTags.length > 0 && (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-              {localTags.map((tag) => (
-                <TagChip key={tag.id} tag={tag} size="small" />
-              ))}
-            </Box>
-          )}
-        </Box>
-
-        {/* 3-dot menu */}
-        {authenticated && (
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation()
-              setMenuAnchorEl(e.currentTarget)
-            }}
-            sx={{
-              alignSelf: 'flex-start',
-              color: menuOpen ? 'primary.main' : '#FFFFFF59',
-              transition: 'color 0.2s',
-              p: 0.5,
-              mt: 0.25,
-            }}
-          >
-            <MoreVertIcon sx={{ fontSize: 24 }} />
-          </IconButton>
         )}
       </Box>
 

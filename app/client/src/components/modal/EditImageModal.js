@@ -9,10 +9,12 @@ import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { ImageService } from '../../services'
 import { getPublicImageUrl, getImageUrl } from '../../common/utils'
 import { labelSx, inputSx, dialogPaperSx } from '../../common/modalStyles'
+import GameSearch from '../game/GameSearch'
 
 const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onNext, onPrev }) => {
   const [title, setTitle] = React.useState('')
   const [privateView, setPrivateView] = React.useState(false)
+  const [selectedGame, setSelectedGame] = React.useState(null)
   const saveTimerRef = React.useRef(null)
   const latestTitleRef = React.useRef('')
 
@@ -34,6 +36,10 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     latestTitleRef.current = t
     setPrivateView(image.info?.private || false)
     ImageService.addView(image.image_id).catch(() => {})
+    // Fetch linked game
+    ImageService.getGame(image.image_id)
+      .then((res) => setSelectedGame(res.data || null))
+      .catch(() => setSelectedGame(null))
   }, [open, image])
 
   // Flush any pending save on unmount / close
@@ -81,6 +87,30 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       ImageService.updateDetails(imageId, { title: latestTitleRef.current }).catch(() => {})
     }
     onClose({ title: latestTitleRef.current, private: privateView })
+  }
+
+  const handleGameLinked = async (game, warning) => {
+    try {
+      await ImageService.linkGame(imageId, game.id)
+      setSelectedGame(game)
+      alertHandler?.({
+        open: true,
+        type: warning ? 'warning' : 'success',
+        message: warning ? `Linked to ${game.name}. ${warning}` : `Linked to ${game.name}`,
+      })
+    } catch (err) {
+      alertHandler?.({ open: true, type: 'error', message: 'Failed to link game' })
+    }
+  }
+
+  const handleUnlinkGame = async () => {
+    try {
+      await ImageService.unlinkGame(imageId)
+      setSelectedGame(null)
+      alertHandler?.({ open: true, type: 'info', message: 'Game link removed' })
+    } catch (err) {
+      alertHandler?.({ open: true, type: 'error', message: 'Failed to unlink game' })
+    }
   }
 
   const handlePrivacyToggle = async () => {
@@ -250,6 +280,84 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
                     {privateView ? 'Private' : 'Public'}
                   </Typography>
                 </Box>
+              </Box>
+            )}
+
+            {/* Game */}
+            {authenticated && (
+              <Box>
+                <Typography sx={labelSx}>Game</Typography>
+                {selectedGame ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      bgcolor: '#FFFFFF0D',
+                      border: '1px solid #FFFFFF26',
+                      borderRadius: '8px',
+                      px: 1.5,
+                      py: 1,
+                    }}
+                  >
+                    {selectedGame.icon_url && (
+                      <img
+                        src={selectedGame.icon_url}
+                        alt=""
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
+                        style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
+                      />
+                    )}
+                    <Typography
+                      sx={{
+                        fontSize: 13,
+                        color: '#FFFFFFB3',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {selectedGame.name}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleUnlinkGame}
+                      sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.25 }}
+                    >
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      bgcolor: '#FFFFFF0D',
+                      border: '1px solid #FFFFFF26',
+                      borderRadius: '8px',
+                      py: 0,
+                      overflow: 'hidden',
+                      '& .MuiInputBase-root': { color: 'white', px: 0.5 },
+                      '& input::placeholder': { color: '#FFFFFF66', opacity: 1 },
+                      '& .MuiSvgIcon-root': { color: '#FFFFFF66' },
+                    }}
+                  >
+                    <GameSearch
+                      onGameLinked={handleGameLinked}
+                      onError={(err) =>
+                        alertHandler?.({
+                          open: true,
+                          type: 'error',
+                          message: err.response?.data || 'Error linking game',
+                        })
+                      }
+                      placeholder="Search for a game..."
+                    />
+                  </Box>
+                )}
               </Box>
             )}
 

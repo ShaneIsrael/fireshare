@@ -21,7 +21,7 @@ const ImageCards = ({
   const [imgs, setImages] = React.useState(images || [])
   const [alert, setAlert] = React.useState({ open: false })
   const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
-  const [isSingleColumn, setIsSingleColumn] = React.useState(false)
+  const [columnCount, setColumnCount] = React.useState(3)
   const containerRef = React.useRef()
   const sentinelRef = React.useRef()
 
@@ -32,7 +32,7 @@ const ImageCards = ({
 
   React.useEffect(() => {
     if (!imgs || imgs.length === 0) {
-      setIsSingleColumn(false)
+      setColumnCount(3)
       return
     }
 
@@ -42,8 +42,9 @@ const ImageCards = ({
     const observer = new ResizeObserver(([entry]) => {
       const width = entry?.contentRect?.width || 0
       if (!width) return
-      const single = width < (size || 300) * 2 + 24
-      setIsSingleColumn(single)
+      const colWidth = size || 300
+      const cols = Math.max(1, Math.floor((width + 16) / (colWidth + 16)))
+      setColumnCount(cols)
     })
 
     observer.observe(el)
@@ -124,11 +125,8 @@ const ImageCards = ({
           <Box
             ref={containerRef}
             sx={{
-              display: 'grid',
-              width: isSingleColumn ? 'calc(100% + 48px)' : '100%',
-              mx: isSingleColumn ? '-24px' : 0,
-              gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size || 300}px), 1fr))`,
-              gap: '24px',
+              columnCount: columnCount,
+              columnGap: '8px',
             }}
           >
             {imgs.slice(0, visibleCount).map((img, index) => (
@@ -137,6 +135,7 @@ const ImageCards = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: Math.min(index % PAGE_SIZE, 12) * 0.04 }}
+                style={{ breakInside: 'avoid', marginBottom: 8 }}
               >
                 <CompactImageCard
                   image={img}
