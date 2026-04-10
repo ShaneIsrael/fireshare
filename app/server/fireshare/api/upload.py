@@ -132,13 +132,14 @@ def public_upload_videoChunked():
     upload_folder = config['app_config']['public_upload_folder_name']
 
     required_files = ['blob']
-    required_form_fields = ['chunkPart', 'totalChunks', 'checkSum']
+    required_form_fields = ['chunkPart', 'totalChunks', 'checkSum', 'fileSize']
     if not all(key in request.files for key in required_files) or not all(key in request.form for key in required_form_fields):
         return Response(status=400)
     blob = request.files.get('blob')
     chunkPart = int(request.form.get('chunkPart'))
     totalChunks = int(request.form.get('totalChunks'))
     checkSum = re.sub(r'[^a-zA-Z0-9_-]', '', request.form.get('checkSum'))
+    fileSize = int(request.form.get('fileSize'))
     if not checkSum:
         return Response(status=400)
     if not blob.filename or blob.filename.strip() == '' or blob.filename == 'blob':
@@ -158,23 +159,52 @@ def public_upload_videoChunked():
     upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
-    tempPath = os.path.join(upload_directory, f"{checkSum}.{filetype}")
+
+    tempPath = os.path.join(upload_directory, f"{checkSum}.part{chunkPart:04d}")
     # Guard against path traversal: ensure the resolved path stays within upload_directory
     if not os.path.realpath(tempPath).startswith(os.path.realpath(upload_directory) + os.sep):
         return Response(status=400)
-    with open(tempPath, 'ab') as f:
+
+    with open(tempPath, 'wb') as f:
         f.write(blob.read())
-    if chunkPart < totalChunks:
+
+    # Check if we have all chunks
+    chunk_files = []
+    for i in range(1, totalChunks + 1):
+        chunk_path = os.path.join(upload_directory, f"{checkSum}.part{i:04d}")
+        if os.path.exists(chunk_path):
+            chunk_files.append(chunk_path)
+
+    if len(chunk_files) != totalChunks:
         return Response(status=202)
 
     save_path = os.path.join(upload_directory, filename)
 
-    if (os.path.exists(save_path)):
+    if os.path.exists(save_path):
         name_no_type = ".".join(filename.split('.')[0:-1])
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
 
-    os.rename(tempPath, save_path)
+    try:
+        with open(save_path, 'wb') as output_file:
+            for i in range(1, totalChunks + 1):
+                chunk_path = os.path.join(upload_directory, f"{checkSum}.part{i:04d}")
+                with open(chunk_path, 'rb') as chunk_file:
+                    output_file.write(chunk_file.read())
+                os.remove(chunk_path)
+
+        if os.path.getsize(save_path) != fileSize:
+            os.remove(save_path)
+            return Response(status=500, response="File size mismatch after reassembly")
+
+    except Exception:
+        for chunk_path in chunk_files:
+            if os.path.exists(chunk_path):
+                os.remove(chunk_path)
+        if os.path.exists(save_path):
+            os.remove(save_path)
+        return Response(status=500, response="Error reassembling file")
+
     _launch_scan_video(save_path, config, *_parse_upload_metadata())
     return Response(status=201)
 
