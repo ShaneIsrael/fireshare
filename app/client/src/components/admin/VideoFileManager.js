@@ -231,6 +231,12 @@ export default function VideoFileManager({ setAlert }) {
       const { data } = await Api().get('/api/admin/files')
       setFiles(data.files || [])
       setFolders(data.folders || [])
+      setCollapsedFolders((prev) => {
+        if (prev.size > 0) return prev
+        const allFolderKeys = new Set((data.files || []).map((f) => f.folder || ''))
+        ;(data.folders || []).forEach((f) => allFolderKeys.add(f))
+        return allFolderKeys
+      })
     } catch (err) {
       console.error(err)
       setAlert({ open: true, message: err.response?.data || 'Failed to load files', type: 'error' })
