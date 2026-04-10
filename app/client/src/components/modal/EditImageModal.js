@@ -19,6 +19,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { ImageService } from '../../services'
 import { getPublicImageUrl, getImageUrl } from '../../common/utils'
@@ -32,14 +33,13 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   const [privateView, setPrivateView] = React.useState(false)
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [imgLoaded, setImgLoaded] = React.useState(false)
-  const [imgScale, setImgScale] = React.useState(1)
   const [showSwipeHint, setShowSwipeHint] = React.useState(false)
   const wasOpenRef = React.useRef(false)
   const saveTimerRef = React.useRef(null)
   const latestTitleRef = React.useRef('')
-const pinchStartDistRef = React.useRef(null)
-  const pinchStartScaleRef = React.useRef(1)
-  const isPinchingRef = React.useRef(false)
+  const transformRef = React.useRef(null)
+  // Tracks current scale without causing re-renders, used to gate swipe navigation
+  const currentScaleRef = React.useRef(1)
 
   const imageId = image?.image_id
   const shareUrl = `${getPublicImageUrl()}${imageId}`
@@ -103,49 +103,27 @@ const pinchStartDistRef = React.useRef(null)
     return () => clearTimeout(t)
   }, [open, isMobile])
 
-  // Reset zoom when the displayed image changes
+  // Reset zoom + pan whenever the displayed image changes
   React.useEffect(() => {
-    setImgScale(1)
+    transformRef.current?.resetTransform()
+    currentScaleRef.current = 1
   }, [image?.image_id])
 
-  // Swipe navigation + pinch-to-zoom (mobile)
+  // Swipe navigation — only fires when not zoomed in
   const touchStartRef = React.useRef(null)
-  const handleTouchStart = React.useCallback(
-    (e) => {
-      if (e.touches.length === 2) {
-        isPinchingRef.current = true
-        pinchStartDistRef.current = Math.hypot(
-          e.touches[1].clientX - e.touches[0].clientX,
-          e.touches[1].clientY - e.touches[0].clientY,
-        )
-        pinchStartScaleRef.current = imgScale
-      } else {
-        isPinchingRef.current = false
-        touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-      }
-    },
-    [imgScale],
-  )
-  const handleTouchMove = React.useCallback((e) => {
-    if (e.touches.length !== 2 || pinchStartDistRef.current === null) return
-    isPinchingRef.current = true
-    const dist = Math.hypot(
-      e.touches[1].clientX - e.touches[0].clientX,
-      e.touches[1].clientY - e.touches[0].clientY,
-    )
-    const next = Math.max(1, Math.min(5, pinchStartScaleRef.current * (dist / pinchStartDistRef.current)))
-    setImgScale(next)
+  const handleTouchStart = React.useCallback((e) => {
+    if (e.touches.length === 1) {
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+    }
   }, [])
   const handleTouchEnd = React.useCallback(
     (e) => {
-      if (isPinchingRef.current) {
-        if (e.touches.length < 2) {
-          pinchStartDistRef.current = null
-          isPinchingRef.current = false
-        }
+      if (!touchStartRef.current) return
+      // If zoomed in, let the library handle panning — don't navigate
+      if (currentScaleRef.current !== 1) {
+        touchStartRef.current = null
         return
       }
-      if (!touchStartRef.current) return
       const dx = e.changedTouches[0].clientX - touchStartRef.current.x
       const dy = e.changedTouches[0].clientY - touchStartRef.current.y
       touchStartRef.current = null
@@ -250,7 +228,6 @@ const pinchStartDistRef = React.useRef(null)
         {/* Image preview */}
         <Box
           onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           sx={{
             flexShrink: { xs: 1, sm: 0 },
@@ -265,23 +242,38 @@ const pinchStartDistRef = React.useRef(null)
             overflow: 'hidden',
             bgcolor: '#000',
             position: 'relative',
-            touchAction: 'none',
           }}
         >
-          <img
-            src={fullImageUrl}
-            alt={title}
-            onLoad={() => setImgLoaded(true)}
-            style={{
-              maxWidth: '100%',
-              maxHeight: isMobile ? '100%' : '90vh',
-              objectFit: 'contain',
-              display: 'block',
-              transform: `scale(${imgScale})`,
-              transformOrigin: 'center center',
-              transition: imgScale === 1 ? 'transform 0.2s ease' : 'none',
+          <TransformWrapper
+            ref={transformRef}
+            minScale={1}
+            maxScale={5}
+            centerOnInit
+            limitToBounds
+            doubleClick={{ mode: 'toggle' }}
+            panning={{ velocityDisabled: true }}
+            onTransformed={(_, state) => {
+              currentScaleRef.current = state.scale
             }}
-          />
+          >
+            <TransformComponent
+              wrapperStyle={{ width: '100%', height: '100%' }}
+              contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <img
+                src={fullImageUrl}
+                alt={title}
+                onLoad={() => setImgLoaded(true)}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: isMobile ? '100%' : '90vh',
+                  objectFit: 'contain',
+                  display: 'block',
+                  userSelect: 'none',
+                }}
+              />
+            </TransformComponent>
+          </TransformWrapper>
 
           {/* Swipe hint — bouncing chevrons, mobile only */}
           {showSwipeHint && isMobile && (
@@ -292,6 +284,7 @@ const pinchStartDistRef = React.useRef(null)
                   left: 12,
                   top: '50%',
                   pointerEvents: 'none',
+                  zIndex: 10,
                   animation: 'bounceLeft 1s ease-in-out infinite',
                   '@keyframes bounceLeft': {
                     '0%, 100%': { transform: 'translateY(-50%) translateX(0)' },
@@ -307,6 +300,7 @@ const pinchStartDistRef = React.useRef(null)
                   right: 12,
                   top: '50%',
                   pointerEvents: 'none',
+                  zIndex: 10,
                   animation: 'bounceRight 1s ease-in-out infinite',
                   '@keyframes bounceRight': {
                     '0%, 100%': { transform: 'translateY(-50%) translateX(0)' },
