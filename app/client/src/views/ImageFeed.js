@@ -128,16 +128,16 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
       } else if (sortOrder.value === 'least_views') {
         return (a.view_count || 0) - (b.view_count || 0)
       } else {
-        const dateA = a.updated_at ? new Date(a.updated_at) : new Date(0)
-        const dateB = b.updated_at ? new Date(b.updated_at) : new Date(0)
+        const dateA = a.created_at ? new Date(a.created_at) : new Date(0)
+        const dateB = b.created_at ? new Date(b.created_at) : new Date(0)
         return sortOrder.value === 'newest' ? dateB - dateA : dateA - dateB
       }
     })
   }, [displayImages, sortOrder])
 
-  const handleImageOpen = (image) => {
+  const handleImageOpen = React.useCallback((image) => {
     setModalImage(image)
-  }
+  }, [])
 
   // Edit mode handlers
   const handleEditModeToggle = () => {
@@ -145,12 +145,14 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
     if (editMode) setSelectedImages(new Set())
   }
 
-  const handleImageSelect = (imageId) => {
-    const next = new Set(selectedImages)
-    if (next.has(imageId)) next.delete(imageId)
-    else next.add(imageId)
-    setSelectedImages(next)
-  }
+  const handleImageSelect = React.useCallback((imageId) => {
+    setSelectedImages((prev) => {
+      const next = new Set(prev)
+      if (next.has(imageId)) next.delete(imageId)
+      else next.add(imageId)
+      return next
+    })
+  }, [])
 
   const allSelected = sortedImages.length > 0 && selectedImages.size === sortedImages.length
 

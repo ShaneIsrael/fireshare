@@ -193,7 +193,7 @@ const CompactImageCard = ({
             <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'white', fontFamily: 'monospace' }}>
               {viewCount}
             </Typography>
-            <VisibilityIcon sx={{ fontSize: 18, color: 'white' }} />
+            <VisibilityIcon sx={{ fontSize: 20, color: 'white' }} />
           </Box>
 
           {/* Visibility toggle - shows on hover */}
@@ -244,7 +244,7 @@ const CompactImageCard = ({
                 alertHandler?.({ type: 'info', message: 'Link copied to clipboard', open: true })
               }}
             >
-              <LinkIcon sx={{ color: 'white', fontSize: 24 }} />
+              <LinkIcon sx={{ color: 'white', fontSize: 20 }} />
             </IconButton>
           </CopyToClipboard>
           {authenticated && (
@@ -259,7 +259,7 @@ const CompactImageCard = ({
                 '&:hover': { background: '#2684FF88' },
               }}
             >
-              <MoreVertIcon sx={{ color: 'white', fontSize: 24 }} />
+              <MoreVertIcon sx={{ color: 'white', fontSize: 20 }} />
             </IconButton>
           )}
         </Box>

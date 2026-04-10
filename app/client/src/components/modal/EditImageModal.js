@@ -144,6 +144,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       saveTimerRef.current = null
       try {
         await ImageService.updateDetails(imageId, { title: latestTitleRef.current })
+        alertHandler?.({ open: true, type: 'success', message: 'Title updated.' })
       } catch (err) {
         alertHandler?.({ open: true, type: 'error', message: 'Failed to save title.' })
       }

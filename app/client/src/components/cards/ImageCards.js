@@ -86,9 +86,9 @@ const LazyImageCard = ({
     >
       {activated && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: stableDelay(img.image_id) }}
+          initial={{ opacity: 0, filter: 'blur(12px)' }}
+          animate={{ opacity: 1, filter: 'blur(0px)' }}
+          transition={{ duration: 0.5, delay: stableDelay(img.image_id) }}
           style={{ width: '100%', height: '100%' }}
         >
           <CompactImageCard
@@ -107,7 +107,7 @@ const LazyImageCard = ({
   )
 }
 
-const ImageCards = ({
+const ImageCards = React.memo(({
   images,
   loadingIcon = null,
   feedView = false,
@@ -227,6 +227,6 @@ const ImageCards = ({
       )}
     </Box>
   )
-}
+})
 
 export default ImageCards

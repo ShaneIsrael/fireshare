@@ -297,6 +297,8 @@ class Image(db.Model):
             "extension": self.extension,
             "path": self.path,
             "available": self.available,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "info": self.info.json() if self.info else {},
         }
 
