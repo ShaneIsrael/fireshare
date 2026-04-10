@@ -180,7 +180,7 @@ const ImageCards = ({
             <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>No images found</Typography>
             {!feedView && (
               <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>
-                Upload screenshots or scan your image library
+                Upload images or scan your image library
               </Typography>
             )}
           </Box>

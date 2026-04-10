@@ -45,6 +45,27 @@ const CompactImageCard = ({
   const MAX_RETRIES = 20
   const [localTags, setLocalTags] = React.useState(image.tags || [])
 
+  // Re-sync local state when the image prop is updated (e.g. optimistic update from modal)
+  React.useEffect(() => {
+    setTitle(
+      image.info?.title ||
+        (image.path
+          ? image.path
+              .split('/')
+              .pop()
+              .replace(/\.[^/.]+$/, '')
+          : 'Untitled'),
+    )
+  }, [image.info?.title, image.path])
+
+  React.useEffect(() => {
+    setPrivateView(image.info?.private)
+  }, [image.info?.private])
+
+  React.useEffect(() => {
+    setLocalTags(image.tags || [])
+  }, [image.tags])
+
   const menuOpen = Boolean(menuAnchorEl)
   const PURL = getPublicImageUrl()
   const thumbnailUrl = getImageThumbnailUrl(image.image_id, IMAGE_VERSION)

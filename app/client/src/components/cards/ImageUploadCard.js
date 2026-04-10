@@ -10,6 +10,8 @@ import {
   DialogActions,
   Button,
   Autocomplete,
+  Checkbox,
+  FormControlLabel,
   TextField,
   CircularProgress,
   InputAdornment,
@@ -44,6 +46,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
   const [previews, setPreviews] = React.useState([])
   const [availableFolders, setAvailableFolders] = React.useState([])
   const [selectedFolder, setSelectedFolder] = React.useState('')
+  const [uploadToGameFolder, setUploadToGameFolder] = React.useState(false)
 
   React.useImperativeHandle(ref, () => ({
     openFiles(files) {
@@ -62,6 +65,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
     setSelectedGame(null)
     setGameInput('')
     setGameOptions([])
+    setUploadToGameFolder(false)
     Promise.all([GameService.getGames(), ImageService.getUploadFolders()])
       .then(([gRes, fRes]) => {
         const games = gRes.data || []
@@ -69,8 +73,12 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
         setGameOptions(games.map((g) => ({ ...g, _source: 'db' })))
         const folders = fRes.data?.folders || []
         const defaultFolder = fRes.data?.default_folder || ''
-        setAvailableFolders(folders)
-        setSelectedFolder(folders.includes(defaultFolder) ? defaultFolder : folders[0] || '')
+        // Ensure the default (uploads) folder is always in the list
+        const folderSet = new Set(folders)
+        if (defaultFolder && !folderSet.has(defaultFolder)) folderSet.add(defaultFolder)
+        const finalFolders = [...folderSet]
+        setAvailableFolders(finalFolders)
+        setSelectedFolder(finalFolders.includes(defaultFolder) ? defaultFolder : finalFolders[0] || '')
       })
       .catch(() => {
         setAllGames([])
@@ -163,7 +171,8 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
       const formData = new FormData()
       formData.append('file', file)
       if (game_id) formData.append('game_id', game_id)
-      if (selectedFolder) formData.append('folder', selectedFolder)
+      const folder = (uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder) || null
+      if (folder) formData.append('folder', folder)
       try {
         const uploadFn = ImageService.upload
         await uploadFn(formData, (progress) => setUploadProgress(progress))
@@ -200,7 +209,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
           <Paper
             sx={{
               width: '100%',
-              height: mini ? '44px' : '56px',
+              height: mini ? '52px' : '86px',
               cursor: 'pointer',
               background: '#001224',
               overflow: 'hidden',
@@ -213,6 +222,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
                 background: 'rgba(188, 0, 230, 0.1)',
               },
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 1,
@@ -221,7 +231,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
             <ImageIcon sx={{ fontSize: mini ? 18 : 22, color: '#fff' }} />
             {!mini && (
               <Typography sx={{ fontSize: 12, color: '#ffffff77', fontWeight: 500, letterSpacing: 0.2 }}>
-                Upload Screenshots
+                Upload Images
               </Typography>
             )}
           </Paper>
@@ -289,21 +299,6 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
                   bgcolor: '#FFFFFF14',
                   '& .MuiLinearProgress-bar': { bgcolor: '#BC00E6' },
                 }}
-              />
-            </Box>
-          )}
-
-          {/* Folder selector */}
-          {availableFolders.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography sx={labelSx}>Upload Folder</Typography>
-              <Autocomplete
-                options={availableFolders}
-                value={selectedFolder || null}
-                onChange={(_, value) => setSelectedFolder(value || '')}
-                disableClearable={!!selectedFolder}
-                disabled={uploading}
-                renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
               />
             </Box>
           )}
@@ -384,7 +379,36 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
                 </Box>
               )}
             />
+            {selectedGame && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={uploadToGameFolder}
+                    onChange={(e) => setUploadToGameFolder(e.target.checked)}
+                    size="small"
+                    sx={{ color: '#FFFFFF44', '&.Mui-checked': { color: '#BC00E6' } }}
+                  />
+                }
+                label={<Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>Auto-sort into game folder</Typography>}
+                sx={{ mt: 0.5, ml: 0 }}
+              />
+            )}
           </Box>
+
+          {/* Folder selector */}
+          {availableFolders.length > 0 && (
+            <Box sx={{ mb: 2, opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+              <Typography sx={labelSx}>Upload Folder</Typography>
+              <Autocomplete
+                options={availableFolders}
+                value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
+                onChange={(_, value) => setSelectedFolder(value || '')}
+                disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+                disabled={(uploadToGameFolder && !!selectedGame) || uploading}
+                renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+              />
+            </Box>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button onClick={handleCancel} disabled={uploading} sx={{ color: '#FFFFFF77' }}>

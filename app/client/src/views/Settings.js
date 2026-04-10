@@ -19,6 +19,8 @@ import {
   ToggleButton,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import SaveIcon from '@mui/icons-material/Save'
@@ -68,6 +70,8 @@ const jsonPlaceholder = `#Example JSON Data:
 }`
 
 const Settings = () => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [alert, setAlert] = React.useState({ open: false })
   const [config, setConfig] = React.useState()
   const [updatedConfig, setUpdatedConfig] = React.useState({})
@@ -413,32 +417,55 @@ const Settings = () => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Box sx={{ display: 'flex', maxHeight: 'calc(100vh - 50px)' }}>
-        {/* Vertical Tabs */}
-        <Tabs
-          orientation="vertical"
-          value={activeTab}
-          onChange={(_, v) => setActiveTab(v)}
-          sx={{
-            borderRight: 1,
-            borderColor: 'divider',
-            minWidth: 160,
-            flexShrink: 0,
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 600,
-              alignItems: 'flex-start',
-              textAlign: 'left',
-            },
-          }}
-        >
-          <Tab label="Privacy & Upload" />
-          <Tab label="Sidebar" />
-          <Tab label="Integrations" />
-          <Tab label="Transcoding" />
-          <Tab label="Folders" />
-          <Tab label="Actions" />
-        </Tabs>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, maxHeight: 'calc(100vh - 50px)' }}>
+        {/* Mobile: select box at top */}
+        {isMobile ? (
+          <FormControl fullWidth sx={{ px: 2, pt: 2, pb: 1, flexShrink: 0 }}>
+            <NativeSelect
+              value={activeTab}
+              onChange={(e) => setActiveTab(Number(e.target.value))}
+              sx={{
+                color: 'white',
+                fontWeight: 600,
+                '& option': { background: '#0a1929' },
+                '&::before': { borderColor: 'divider' },
+              }}
+            >
+              <option value={0}>Privacy &amp; Upload</option>
+              <option value={1}>Sidebar</option>
+              <option value={2}>Integrations</option>
+              <option value={3}>Transcoding</option>
+              <option value={4}>Folders</option>
+              <option value={5}>Actions</option>
+            </NativeSelect>
+          </FormControl>
+        ) : (
+          /* Desktop: Vertical Tabs */
+          <Tabs
+            orientation="vertical"
+            value={activeTab}
+            onChange={(_, v) => setActiveTab(v)}
+            sx={{
+              borderRight: 1,
+              borderColor: 'divider',
+              minWidth: 160,
+              flexShrink: 0,
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 600,
+                alignItems: 'flex-start',
+                textAlign: 'left',
+              },
+            }}
+          >
+            <Tab label="Privacy & Upload" />
+            <Tab label="Sidebar" />
+            <Tab label="Integrations" />
+            <Tab label="Transcoding" />
+            <Tab label="Folders" />
+            <Tab label="Actions" />
+          </Tabs>
+        )}
 
         {/* Tab Content Panel */}
         <Box
@@ -446,7 +473,7 @@ const Settings = () => {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            px: 4,
+            px: { xs: 2, sm: 4 },
             py: 2,
             minHeight: 0,
             overflow: 'hidden',
@@ -1034,10 +1061,10 @@ const Settings = () => {
               <Stack spacing={2} sx={{ maxWidth: 500 }}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
-                    Folder Rules
+                    Video Folder Rules
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Clips in these folders will be linked to the selected game. Modify these if your setup is not
+                    Videos in these folders will be linked to the selected game. Modify these if your setup is not
                     detected automatically.
                   </Typography>
                 </Box>

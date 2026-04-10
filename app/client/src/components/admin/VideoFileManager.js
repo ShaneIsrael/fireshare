@@ -45,6 +45,7 @@ import TuneIcon from '@mui/icons-material/Tune'
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
+import OutlinedIconButton from '../misc/OutlinedIconButton'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, rowBoxSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
 
@@ -932,26 +933,17 @@ export default function VideoFileManager({ setAlert }) {
             )}
           </Box>
           {/* Row 3: utility buttons */}
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', maxWidth: '100%' }}>
             <Tooltip title="Create a new empty folder in /videos">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<CreateNewFolderIcon />}
+              <OutlinedIconButton
+                icon={<CreateNewFolderIcon sx={{ fontSize: 18 }} />}
                 onClick={() => {
                   setNewFolderName('')
                   setCreateFolderDialogOpen(true)
                 }}
-                sx={{
-                  flex: 1,
-                  textTransform: 'none',
-                  borderColor: '#FFFFFF33',
-                  color: '#FFFFFFCC',
-                  '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-                }}
               >
-                New Folder
-              </Button>
+                Create Folder
+              </OutlinedIconButton>
             </Tooltip>
             <Tooltip title="Toggle column visibility">
               <IconButton
@@ -1060,25 +1052,15 @@ export default function VideoFileManager({ setAlert }) {
           )}
 
           <Tooltip title="Create a new empty folder in /videos">
-            <Button
-              size="medium"
-              variant="outlined"
-              startIcon={<CreateNewFolderIcon />}
+            <OutlinedIconButton
+              icon={<CreateNewFolderIcon sx={{ fontSize: 18 }} />}
               onClick={() => {
                 setNewFolderName('')
                 setCreateFolderDialogOpen(true)
               }}
-              sx={{
-                height: 38,
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-                borderColor: '#FFFFFF33',
-                color: '#FFFFFFCC',
-                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-              }}
             >
               Create Folder
-            </Button>
+            </OutlinedIconButton>
           </Tooltip>
 
           <Tooltip title="Toggle column visibility">

@@ -10,6 +10,8 @@ import {
   Tooltip,
   Divider,
   CircularProgress,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -23,6 +25,8 @@ import { labelSx, inputSx, dialogPaperSx } from '../../common/modalStyles'
 import GameSearch from '../game/GameSearch'
 
 const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onNext, onPrev }) => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [title, setTitle] = React.useState('')
   const [privateView, setPrivateView] = React.useState(false)
   const [selectedGame, setSelectedGame] = React.useState(null)
@@ -85,6 +89,24 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     return () => window.removeEventListener('keydown', handler)
   }, [open, onNext, onPrev])
 
+  // Swipe navigation (mobile)
+  const touchStartRef = React.useRef(null)
+  const handleTouchStart = React.useCallback((e) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }, [])
+  const handleTouchEnd = React.useCallback(
+    (e) => {
+      if (!touchStartRef.current) return
+      const dx = e.changedTouches[0].clientX - touchStartRef.current.x
+      const dy = e.changedTouches[0].clientY - touchStartRef.current.y
+      touchStartRef.current = null
+      if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return
+      if (dx < 0) onNext?.()
+      else onPrev?.()
+    },
+    [onNext, onPrev],
+  )
+
   const handleTitleChange = (e) => {
     const newTitle = e.target.value
     setTitle(newTitle)
@@ -107,7 +129,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       saveTimerRef.current = null
       ImageService.updateDetails(imageId, { title: latestTitleRef.current }).catch(() => {})
     }
-    onClose({ title: latestTitleRef.current, private: privateView })
+    onClose({ title: latestTitleRef.current, private: privateView, game: selectedGame })
   }
 
   const handleGameLinked = async (game, warning) => {
@@ -164,23 +186,31 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       <Box
         sx={{
           display: 'flex',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
+          flexDirection: { xs: 'column', sm: 'row' },
+          maxWidth: { xs: '100vw', sm: '90vw' },
+          maxHeight: { xs: '100vh', sm: '90vh' },
+          width: { xs: '100vw', sm: 'auto' },
+          height: { xs: '100vh', sm: 'auto' },
           outline: 'none',
           opacity: imgLoaded ? 1 : 0,
           transition: 'opacity 0.2s ease-in-out',
+          bgcolor: { xs: '#000', sm: 'transparent' },
         }}
       >
         {/* Image preview */}
         <Box
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
           sx={{
-            flexShrink: 0,
-            maxWidth: '60vw',
-            maxHeight: '90vh',
+            flexShrink: { xs: 1, sm: 0 },
+            flex: { xs: 1, sm: 'none' },
+            minHeight: 0,
+            maxWidth: { xs: '100%', sm: '60vw' },
+            maxHeight: { xs: 'none', sm: '90vh' },
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: '12px 0 0 12px',
+            borderRadius: { xs: 0, sm: '12px 0 0 12px' },
             overflow: 'hidden',
             bgcolor: '#000',
           }}
@@ -191,7 +221,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
             onLoad={() => setImgLoaded(true)}
             style={{
               maxWidth: '100%',
-              maxHeight: '90vh',
+              maxHeight: isMobile ? '100%' : '90vh',
               objectFit: 'contain',
               display: 'block',
             }}
@@ -201,15 +231,17 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
         {/* Side panel */}
         <Box
           sx={{
-            width: 320,
+            width: { xs: '100%', sm: 320 },
             flexShrink: 0,
             alignSelf: 'stretch',
-            p: 3,
+            p: { xs: 2, sm: 3 },
             ...dialogPaperSx,
-            borderRadius: '0 12px 12px 0',
-            borderLeft: 'none',
+            borderRadius: { xs: 0, sm: '0 12px 12px 0' },
+            borderLeft: { xs: 'none', sm: 'none' },
+            borderTop: { xs: '1px solid #FFFFFF26', sm: 'none' },
             display: 'flex',
             flexDirection: 'column',
+            overflow: { xs: 'auto', sm: 'visible' },
           }}
         >
           {/* Header */}

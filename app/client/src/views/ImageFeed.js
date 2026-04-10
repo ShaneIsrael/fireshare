@@ -211,6 +211,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
             ...(update.title !== undefined && { title: update.title }),
             ...(update.private !== undefined && { private: update.private }),
           },
+          ...(update.game !== undefined && { game: update.game }),
         }
       }
       setImages((prev) => prev.map(updateImage))

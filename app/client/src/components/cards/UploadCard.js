@@ -875,7 +875,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                     <>
                       <CloudUploadIcon sx={{ fontSize: 32, color: '#fff' }} />
                       <Typography sx={{ fontSize: 12, color: '#ffffff77', fontWeight: 500, letterSpacing: 0.2 }}>
-                        Click to browse or drag anywhere
+                        Upload Videos
                       </Typography>
                     </>
                   )}

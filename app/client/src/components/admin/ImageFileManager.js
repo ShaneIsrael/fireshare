@@ -42,6 +42,7 @@ import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutli
 import TuneIcon from '@mui/icons-material/Tune'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
+import OutlinedIconButton from '../misc/OutlinedIconButton'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, rowBoxSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
 
@@ -79,6 +80,10 @@ function sortFiles(files, column, dir) {
       return sorted.sort((a, b) => mul * (a.title || a.filename).localeCompare(b.title || b.filename))
     case 'size':
       return sorted.sort((a, b) => mul * ((a.size || 0) - (b.size || 0)))
+    case 'total_size':
+      return sorted.sort(
+        (a, b) => mul * ((a.size || 0) + (a.derived_size || 0) - ((b.size || 0) + (b.derived_size || 0))),
+      )
     case 'date':
       return sorted.sort((a, b) => mul * (new Date(a.created_at || 0) - new Date(b.created_at || 0)))
     default:
@@ -112,7 +117,7 @@ const folderRowSx = {
 }
 
 // Columns that can be toggled visible/hidden
-const TOGGLEABLE_COLUMNS = ['Resolution', 'Privacy', 'Date']
+const TOGGLEABLE_COLUMNS = ['Total Size', 'Resolution', 'Privacy', 'Date']
 
 function smartClean(title) {
   let result = title || ''
@@ -267,6 +272,8 @@ export default function ImageFileManager({ setAlert }) {
         }
         case 'size':
           return mul * ((a.size || 0) - (b.size || 0))
+        case 'total_size':
+          return mul * ((a.size || 0) + (a.derived_size || 0) - ((b.size || 0) + (b.derived_size || 0)))
         case 'date':
           return mul * (new Date(a.created_at || 0) - new Date(b.created_at || 0))
         default:
@@ -461,7 +468,7 @@ export default function ImageFileManager({ setAlert }) {
   }
 
   const visibleDataCols = TOGGLEABLE_COLUMNS.filter((c) => !hiddenColumns.has(c))
-  const COL_SPAN = 3 + visibleDataCols.length // checkbox + name + size + visible toggleable cols
+  const COL_SPAN = 3 + visibleDataCols.length // checkbox + name + size + visible toggleable cols (Total Size, Resolution, Privacy, Date)
 
   const renamePreviewFiles = selectedFiles.slice(0, 3)
 
@@ -745,26 +752,17 @@ export default function ImageFileManager({ setAlert }) {
               </Box>
             )}
           </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', maxWidth: '100%' }}>
             <Tooltip title="Create a new empty folder in /images">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<CreateNewFolderIcon />}
+              <OutlinedIconButton
+                icon={<CreateNewFolderIcon sx={{ fontSize: 18 }} />}
                 onClick={() => {
                   setNewFolderName('')
                   setCreateFolderDialogOpen(true)
                 }}
-                sx={{
-                  flex: 1,
-                  textTransform: 'none',
-                  borderColor: '#FFFFFF33',
-                  color: '#FFFFFFCC',
-                  '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-                }}
               >
-                New Folder
-              </Button>
+                Create Folder
+              </OutlinedIconButton>
             </Tooltip>
             <Tooltip title="Toggle column visibility">
               <IconButton
@@ -855,25 +853,15 @@ export default function ImageFileManager({ setAlert }) {
           )}
 
           <Tooltip title="Create a new empty folder in /images">
-            <Button
-              size="medium"
-              variant="outlined"
-              startIcon={<CreateNewFolderIcon />}
+            <OutlinedIconButton
+              icon={<CreateNewFolderIcon sx={{ fontSize: 18 }} />}
               onClick={() => {
                 setNewFolderName('')
                 setCreateFolderDialogOpen(true)
               }}
-              sx={{
-                height: 38,
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-                borderColor: '#FFFFFF33',
-                color: '#FFFFFFCC',
-                '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-              }}
             >
               Create Folder
-            </Button>
+            </OutlinedIconButton>
           </Tooltip>
 
           <Tooltip title="Toggle column visibility">
@@ -972,6 +960,11 @@ export default function ImageFileManager({ setAlert }) {
                   sx: { maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
                 },
                 { col: 'size', label: 'Size', sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' } },
+                !hiddenColumns.has('Total Size') && {
+                  col: 'total_size',
+                  label: 'Total Size',
+                  sx: { width: 110, minWidth: 110, whiteSpace: 'nowrap' },
+                },
                 !hiddenColumns.has('Resolution') && {
                   col: null,
                   label: 'Resolution',
@@ -1189,8 +1182,35 @@ export default function ImageFileManager({ setAlert }) {
 
                             {/* Size */}
                             <TableCell sx={{ ...bodyCellSx }}>
-                              <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
+                              <Tooltip
+                                arrow
+                                placement="top"
+                                title={
+                                  file.derived_size > 0 ? (
+                                    <Box>
+                                      <Typography sx={{ fontSize: 12 }}>
+                                        Derived: {formatSize(file.derived_size)}
+                                      </Typography>
+                                    </Box>
+                                  ) : (
+                                    ''
+                                  )
+                                }
+                              >
+                                <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
+                                  {formatSize(file.size)}
+                                </Typography>
+                              </Tooltip>
                             </TableCell>
+
+                            {/* Total Size */}
+                            {!hiddenColumns.has('Total Size') && (
+                              <TableCell sx={{ ...bodyCellSx }}>
+                                <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
+                                  {formatSize((file.size || 0) + (file.derived_size || 0))}
+                                </Typography>
+                              </TableCell>
+                            )}
 
                             {/* Resolution */}
                             {!hiddenColumns.has('Resolution') && (
