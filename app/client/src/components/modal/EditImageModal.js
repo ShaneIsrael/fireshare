@@ -37,8 +37,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   const wasOpenRef = React.useRef(false)
   const saveTimerRef = React.useRef(null)
   const latestTitleRef = React.useRef('')
-  const imgContainerRef = React.useRef(null)
-  const pinchStartDistRef = React.useRef(null)
+const pinchStartDistRef = React.useRef(null)
   const pinchStartScaleRef = React.useRef(1)
   const isPinchingRef = React.useRef(false)
 
@@ -109,25 +108,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     setImgScale(1)
   }, [image?.image_id])
 
-  // Non-passive touchmove listener for pinch-to-zoom
-  React.useEffect(() => {
-    const el = imgContainerRef.current
-    if (!el) return
-    const handleMove = (e) => {
-      if (e.touches.length !== 2 || pinchStartDistRef.current === null) return
-      e.preventDefault()
-      const dist = Math.hypot(
-        e.touches[1].clientX - e.touches[0].clientX,
-        e.touches[1].clientY - e.touches[0].clientY,
-      )
-      const next = Math.max(1, Math.min(5, pinchStartScaleRef.current * (dist / pinchStartDistRef.current)))
-      setImgScale(next)
-    }
-    el.addEventListener('touchmove', handleMove, { passive: false })
-    return () => el.removeEventListener('touchmove', handleMove)
-  }, [open])
-
-  // Swipe navigation (mobile)
+  // Swipe navigation + pinch-to-zoom (mobile)
   const touchStartRef = React.useRef(null)
   const handleTouchStart = React.useCallback(
     (e) => {
@@ -145,6 +126,16 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     },
     [imgScale],
   )
+  const handleTouchMove = React.useCallback((e) => {
+    if (e.touches.length !== 2 || pinchStartDistRef.current === null) return
+    isPinchingRef.current = true
+    const dist = Math.hypot(
+      e.touches[1].clientX - e.touches[0].clientX,
+      e.touches[1].clientY - e.touches[0].clientY,
+    )
+    const next = Math.max(1, Math.min(5, pinchStartScaleRef.current * (dist / pinchStartDistRef.current)))
+    setImgScale(next)
+  }, [])
   const handleTouchEnd = React.useCallback(
     (e) => {
       if (isPinchingRef.current) {
@@ -258,8 +249,8 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       >
         {/* Image preview */}
         <Box
-          ref={imgContainerRef}
           onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           sx={{
             flexShrink: { xs: 1, sm: 0 },
@@ -342,7 +333,8 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
             borderTop: { xs: '1px solid #FFFFFF26', sm: 'none' },
             display: 'flex',
             flexDirection: 'column',
-            overflow: { xs: 'auto', sm: 'visible' },
+            overflowX: 'hidden',
+            overflowY: { xs: 'auto', sm: 'visible' },
           }}
         >
           {/* Header */}
