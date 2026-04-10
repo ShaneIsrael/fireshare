@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Modal, Box, Typography, Button, Stack, TextField, IconButton, Tooltip, Divider } from '@mui/material'
+import { Modal, Box, Typography, Button, Stack, TextField, IconButton, Tooltip, Divider, CircularProgress } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DownloadIcon from '@mui/icons-material/Download'
@@ -15,6 +15,8 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   const [title, setTitle] = React.useState('')
   const [privateView, setPrivateView] = React.useState(false)
   const [selectedGame, setSelectedGame] = React.useState(null)
+  const [imgLoaded, setImgLoaded] = React.useState(false)
+  const wasOpenRef = React.useRef(false)
   const saveTimerRef = React.useRef(null)
   const latestTitleRef = React.useRef('')
 
@@ -23,7 +25,15 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   const fullImageUrl = getImageUrl(imageId)
 
   React.useEffect(() => {
-    if (!open || !image) return
+    if (!open || !image) {
+      wasOpenRef.current = false
+      return
+    }
+    // Only hide content when first opening the modal, not when cycling images
+    if (!wasOpenRef.current) {
+      setImgLoaded(false)
+      wasOpenRef.current = true
+    }
     const t =
       image.info?.title ||
       (image.path
@@ -146,6 +156,8 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
           maxWidth: '90vw',
           maxHeight: '90vh',
           outline: 'none',
+          opacity: imgLoaded ? 1 : 0,
+          transition: 'opacity 0.2s ease-in-out',
         }}
       >
         {/* Image preview */}
@@ -165,6 +177,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
           <img
             src={fullImageUrl}
             alt={title}
+            onLoad={() => setImgLoaded(true)}
             style={{
               maxWidth: '100%',
               maxHeight: '90vh',

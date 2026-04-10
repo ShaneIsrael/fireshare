@@ -5,7 +5,107 @@ import SnackbarAlert from '../alert/SnackbarAlert'
 import ImageIcon from '@mui/icons-material/Image'
 import CompactImageCard from './CompactImageCard'
 
-const PAGE_SIZE = 48
+// Stable per-image delay derived from image ID so it doesn't change across re-renders
+function stableDelay(id) {
+  let h = 0
+  for (let i = 0; i < id.length; i++) {
+    h = ((h << 5) - h + id.charCodeAt(i)) | 0
+  }
+  return (Math.abs(h) % 300) / 1000
+}
+
+// Each card is always in the DOM as a placeholder. When it scrolls near the
+// viewport its full content mounts and fades in, keeping the masonry stable.
+const LazyImageCard = ({
+  img,
+  openImageHandler,
+  alertHandler,
+  authenticated,
+  onRemoveFromView,
+  editMode,
+  selected,
+  onSelect,
+}) => {
+  const [activated, setActivated] = React.useState(false)
+  const ref = React.useRef()
+
+  React.useEffect(() => {
+    const el = ref.current
+    if (!el || activated) return
+
+    const observerRef = { current: null }
+
+    // Double-rAF ensures CSS columns layout has fully settled before we
+    // measure positions — a single rAF fires before column reflow finishes.
+    const rafId = requestAnimationFrame(() => {
+      const rafId2 = requestAnimationFrame(() => {
+        if (!el) return
+        const rect = el.getBoundingClientRect()
+        const inView = rect.top < window.innerHeight + 600 && rect.bottom > -600
+        if (inView) {
+          setActivated(true)
+          return
+        }
+        observerRef.current = new IntersectionObserver(
+          ([entry]) => {
+            if (entry.isIntersecting) {
+              setActivated(true)
+              observerRef.current?.disconnect()
+            }
+          },
+          { rootMargin: '600px' },
+        )
+        observerRef.current.observe(el)
+      })
+      rafIds.push(rafId2)
+    })
+    const rafIds = [rafId]
+
+    return () => {
+      rafIds.forEach(cancelAnimationFrame)
+      observerRef.current?.disconnect()
+    }
+  }, [activated])
+
+  const w = img.info?.width
+  const h = img.info?.height
+  const ratio = w && h ? `${w} / ${h}` : '16 / 9'
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        breakInside: 'avoid',
+        marginBottom: 8,
+        borderRadius: { xs: 0, sm: '8px' },
+        width: '100%',
+        aspectRatio: ratio,
+        overflow: 'hidden',
+        backgroundColor: activated ? 'transparent' : 'rgba(30, 60, 130, 0.12)',
+      }}
+    >
+      {activated && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: stableDelay(img.image_id) }}
+          style={{ width: '100%', height: '100%' }}
+        >
+          <CompactImageCard
+            image={img}
+            openImageHandler={openImageHandler}
+            alertHandler={alertHandler}
+            authenticated={authenticated}
+            onRemoveFromView={onRemoveFromView}
+            editMode={editMode}
+            selected={selected}
+            onSelect={onSelect}
+          />
+        </motion.div>
+      )}
+    </div>
+  )
+}
 
 const ImageCards = ({
   images,
@@ -20,14 +120,11 @@ const ImageCards = ({
 }) => {
   const [imgs, setImages] = React.useState(images || [])
   const [alert, setAlert] = React.useState({ open: false })
-  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
   const [columnCount, setColumnCount] = React.useState(3)
   const containerRef = React.useRef()
-  const sentinelRef = React.useRef()
 
   React.useEffect(() => {
     setImages(images || [])
-    setVisibleCount(PAGE_SIZE)
   }, [images])
 
   React.useEffect(() => {
@@ -60,21 +157,6 @@ const ImageCards = ({
   const openImage = (img) => {
     if (onImageOpen) onImageOpen(img)
   }
-
-  React.useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, imgs.length))
-        }
-      },
-      { rootMargin: '400px' },
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [imgs.length])
 
   const EMPTY_STATE = () => (
     <Box
@@ -121,37 +203,27 @@ const ImageCards = ({
 
       {imgs.length === 0 && EMPTY_STATE()}
       {imgs.length > 0 && (
-        <>
-          <Box
-            ref={containerRef}
-            sx={{
-              columnCount: columnCount,
-              columnGap: '8px',
-            }}
-          >
-            {imgs.slice(0, visibleCount).map((img, index) => (
-              <motion.div
-                key={img.image_id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: Math.min(index % PAGE_SIZE, 12) * 0.04 }}
-                style={{ breakInside: 'avoid', marginBottom: 8 }}
-              >
-                <CompactImageCard
-                  image={img}
-                  openImageHandler={() => (editMode ? onImageSelect?.(img.image_id) : openImage(img))}
-                  alertHandler={memoizedHandleAlert}
-                  authenticated={authenticated}
-                  onRemoveFromView={handleDelete}
-                  editMode={editMode}
-                  selected={selectedImages?.has(img.image_id)}
-                  onSelect={onImageSelect}
-                />
-              </motion.div>
-            ))}
-          </Box>
-          <div ref={sentinelRef} style={{ height: 1 }} />
-        </>
+        <Box
+          ref={containerRef}
+          sx={{
+            columnCount: columnCount,
+            columnGap: '8px',
+          }}
+        >
+          {imgs.map((img) => (
+            <LazyImageCard
+              key={img.image_id}
+              img={img}
+              openImageHandler={() => (editMode ? onImageSelect?.(img.image_id) : openImage(img))}
+              alertHandler={memoizedHandleAlert}
+              authenticated={authenticated}
+              onRemoveFromView={handleDelete}
+              editMode={editMode}
+              selected={selectedImages?.has(img.image_id)}
+              onSelect={onImageSelect}
+            />
+          ))}
+        </Box>
       )}
     </Box>
   )

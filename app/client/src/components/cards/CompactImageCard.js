@@ -106,12 +106,12 @@ const CompactImageCard = ({
         width: '100%',
         height: '100%',
         bgcolor: '#00000066',
-        // borderRadius: { xs: 0, sm: '8px' },
+        borderRadius: { xs: 0, sm: '8px' },
         overflow: 'hidden',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        border: '3px solid #000000ff',
+        border: '3px solid #000',
       }}
     >
       {/* Thumbnail */}
