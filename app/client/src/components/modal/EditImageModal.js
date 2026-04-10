@@ -109,18 +109,22 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     currentScaleRef.current = 1
   }, [image?.image_id])
 
-  // Swipe navigation — only fires when not zoomed in
+  // Swipe navigation — only fires when fully zoomed out and no multitouch occurred
   const touchStartRef = React.useRef(null)
+  const wasMultitouchRef = React.useRef(false)
   const handleTouchStart = React.useCallback((e) => {
     if (e.touches.length === 1) {
       touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      wasMultitouchRef.current = false
+    } else {
+      wasMultitouchRef.current = true
     }
   }, [])
   const handleTouchEnd = React.useCallback(
     (e) => {
       if (!touchStartRef.current) return
-      // If zoomed in, let the library handle panning — don't navigate
-      if (currentScaleRef.current !== 1) {
+      // Don't navigate if zoomed in or if a second finger was involved at any point
+      if (currentScaleRef.current !== 1 || wasMultitouchRef.current) {
         touchStartRef.current = null
         return
       }

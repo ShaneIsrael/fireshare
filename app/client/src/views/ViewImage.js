@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { Box, Divider, IconButton, Tooltip, Typography } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DownloadIcon from '@mui/icons-material/Download'
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
@@ -130,21 +131,35 @@ const ViewImage = ({ authenticated }) => {
           {/* Image viewer */}
           <Box
             style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}
-            sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+            sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}
           >
-            <Box
-              component="img"
-              src={getImageUrl(id)}
-              alt={title}
-              onLoad={() => setImgLoaded(true)}
-              sx={{
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain',
-                display: imgLoaded ? 'block' : 'none',
-              }}
-            />
             {!imgLoaded && <LoadingSpinner />}
+            <TransformWrapper
+              minScale={1}
+              maxScale={5}
+              centerOnInit
+              limitToBounds
+              doubleClick={{ mode: 'toggle' }}
+              panning={{ velocityDisabled: true }}
+            >
+              <TransformComponent
+                wrapperStyle={{ width: '100%', height: '100%' }}
+                contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <img
+                  src={getImageUrl(id)}
+                  alt={title}
+                  onLoad={() => setImgLoaded(true)}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    display: imgLoaded ? 'block' : 'none',
+                    userSelect: 'none',
+                  }}
+                />
+              </TransformComponent>
+            </TransformWrapper>
           </Box>
 
           {/* Metadata panel */}

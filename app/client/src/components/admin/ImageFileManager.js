@@ -145,6 +145,108 @@ function applyRenameOperation(title, op, find, replace, prefix, suffix) {
   return result
 }
 
+const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onToggle, hiddenColumns }) {
+  const displayName = file.title || file.filename
+  return (
+    <TableRow
+      hover
+      selected={isSelected}
+      onClick={() => onToggle(file.image_id)}
+      sx={{
+        cursor: 'pointer',
+        bgcolor: isSelected ? '#3399FF14' : 'transparent',
+        '&:hover': { bgcolor: isSelected ? '#3399FF1E' : '#FFFFFF08' },
+        '&.Mui-selected': { bgcolor: '#3399FF14' },
+        '&.Mui-selected:hover': { bgcolor: '#3399FF1E' },
+      }}
+    >
+      {/* Checkbox */}
+      <TableCell
+        padding="checkbox"
+        sx={{ borderBottom: '1px solid #FFFFFF0D' }}
+        onClick={(e) => { e.stopPropagation(); onToggle(file.image_id) }}
+      >
+        <Checkbox
+          size="small"
+          checked={isSelected}
+          onChange={() => {}}
+          sx={{ color: '#FFFFFF44', '&.Mui-checked': { color: '#3399FF' } }}
+        />
+      </TableCell>
+
+      {/* Name */}
+      <TableCell sx={{ ...bodyCellSx, maxWidth: 300, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
+          <Tooltip title={displayName} placement="top" enterDelay={600}>
+            <Typography sx={{ fontSize: 13, color: '#FFFFFFCC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+              {displayName}
+            </Typography>
+          </Tooltip>
+          <Tooltip title="Open in new tab">
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); window.open(`/i/${file.image_id}`, '_blank') }}
+              sx={{ color: '#FFFFFF33', p: 0.25, flexShrink: 0, '&:hover': { color: '#FFFFFF99' } }}
+            >
+              <OpenInNewIcon sx={{ fontSize: 13 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </TableCell>
+
+      {/* Size */}
+      <TableCell sx={{ ...bodyCellSx }}>
+        <Tooltip arrow placement="top" title={file.derived_size > 0 ? <Box><Typography sx={{ fontSize: 12 }}>Derived: {formatSize(file.derived_size)}</Typography></Box> : ''}>
+          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
+        </Tooltip>
+      </TableCell>
+
+      {/* Total Size */}
+      {!hiddenColumns.has('Total Size') && (
+        <TableCell sx={{ ...bodyCellSx }}>
+          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize((file.size || 0) + (file.derived_size || 0))}</Typography>
+        </TableCell>
+      )}
+
+      {/* Resolution */}
+      {!hiddenColumns.has('Resolution') && (
+        <TableCell sx={{ ...bodyCellSx }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Chip label={formatResolution(file.width, file.height)} size="small" sx={{ height: 17, fontSize: 10, bgcolor: '#FFFFFF12', color: '#FFFFFF66', '& .MuiChip-label': { px: 0.75 } }} />
+          </Box>
+        </TableCell>
+      )}
+
+      {/* Privacy */}
+      {!hiddenColumns.has('Privacy') && (
+        <TableCell sx={{ ...bodyCellSx }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Chip
+              label={file.private ? 'Private' : 'Public'}
+              size="small"
+              sx={{
+                height: 17, fontSize: 10,
+                bgcolor: file.private ? '#FFFFFF12' : '#1DB95418',
+                color: file.private ? '#FFFFFF66' : '#1DB954',
+                border: '1px solid',
+                borderColor: file.private ? '#FFFFFF22' : '#1DB95433',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
+          </Box>
+        </TableCell>
+      )}
+
+      {/* Date */}
+      {!hiddenColumns.has('Date') && (
+        <TableCell sx={{ ...bodyCellSx }}>
+          <Typography sx={{ fontSize: 12, color: '#FFFFFF55' }}>{formatDate(file.created_at)}</Typography>
+        </TableCell>
+      )}
+    </TableRow>
+  )
+})
+
 export default function ImageFileManager({ setAlert }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
@@ -305,13 +407,13 @@ export default function ImageFileManager({ setAlert }) {
     }
   }
 
-  const toggleSelect = (id) => {
+  const toggleSelect = useCallback((id) => {
     setSelected((prev) => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-  }
+  }, [])
 
   const selectedCount = selected.size
 
@@ -1107,162 +1209,15 @@ export default function ImageFileManager({ setAlert }) {
 
                     {/* File rows */}
                     {!isCollapsed &&
-                      groupItems.map((file) => {
-                        const isSelected = selected.has(file.image_id)
-                        const displayName = file.title || file.filename
-                        return (
-                          <TableRow
-                            key={file.image_id}
-                            hover
-                            selected={isSelected}
-                            onClick={() => {
-                              window.open(`/i/${file.image_id}`)
-                            }}
-                            sx={{
-                              cursor: 'pointer',
-                              bgcolor: isSelected ? '#3399FF14' : 'transparent',
-                              '&:hover': { bgcolor: isSelected ? '#3399FF1E' : '#FFFFFF08' },
-                              '&.Mui-selected': { bgcolor: '#3399FF14' },
-                              '&.Mui-selected:hover': { bgcolor: '#3399FF1E' },
-                            }}
-                          >
-                            {/* Checkbox */}
-                            <TableCell
-                              padding="checkbox"
-                              sx={{ borderBottom: '1px solid #FFFFFF0D' }}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleSelect(file.image_id)
-                              }}
-                            >
-                              <Checkbox
-                                size="small"
-                                checked={isSelected}
-                                onChange={() => {}}
-                                sx={{ color: '#FFFFFF44', '&.Mui-checked': { color: '#3399FF' } }}
-                              />
-                            </TableCell>
-
-                            {/* Name */}
-                            <TableCell sx={{ ...bodyCellSx, maxWidth: 300, overflow: 'hidden' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
-                                <Tooltip title={displayName} placement="top" enterDelay={600}>
-                                  <Typography
-                                    sx={{
-                                      fontSize: 13,
-                                      color: '#FFFFFFCC',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                      flex: 1,
-                                    }}
-                                  >
-                                    {displayName}
-                                  </Typography>
-                                </Tooltip>
-                                <Tooltip title="Open in new tab">
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      window.open(`/i/${file.image_id}`, '_blank')
-                                    }}
-                                    sx={{
-                                      color: '#FFFFFF33',
-                                      p: 0.25,
-                                      flexShrink: 0,
-                                      '&:hover': { color: '#FFFFFF99' },
-                                    }}
-                                  >
-                                    <OpenInNewIcon sx={{ fontSize: 13 }} />
-                                  </IconButton>
-                                </Tooltip>
-                              </Box>
-                            </TableCell>
-
-                            {/* Size */}
-                            <TableCell sx={{ ...bodyCellSx }}>
-                              <Tooltip
-                                arrow
-                                placement="top"
-                                title={
-                                  file.derived_size > 0 ? (
-                                    <Box>
-                                      <Typography sx={{ fontSize: 12 }}>
-                                        Derived: {formatSize(file.derived_size)}
-                                      </Typography>
-                                    </Box>
-                                  ) : (
-                                    ''
-                                  )
-                                }
-                              >
-                                <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
-                                  {formatSize(file.size)}
-                                </Typography>
-                              </Tooltip>
-                            </TableCell>
-
-                            {/* Total Size */}
-                            {!hiddenColumns.has('Total Size') && (
-                              <TableCell sx={{ ...bodyCellSx }}>
-                                <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
-                                  {formatSize((file.size || 0) + (file.derived_size || 0))}
-                                </Typography>
-                              </TableCell>
-                            )}
-
-                            {/* Resolution */}
-                            {!hiddenColumns.has('Resolution') && (
-                              <TableCell sx={{ ...bodyCellSx }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Chip
-                                    label={formatResolution(file.width, file.height)}
-                                    size="small"
-                                    sx={{
-                                      height: 17,
-                                      fontSize: 10,
-                                      bgcolor: '#FFFFFF12',
-                                      color: '#FFFFFF66',
-                                      '& .MuiChip-label': { px: 0.75 },
-                                    }}
-                                  />
-                                </Box>
-                              </TableCell>
-                            )}
-
-                            {/* Privacy */}
-                            {!hiddenColumns.has('Privacy') && (
-                              <TableCell sx={{ ...bodyCellSx }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Chip
-                                    label={file.private ? 'Private' : 'Public'}
-                                    size="small"
-                                    sx={{
-                                      height: 17,
-                                      fontSize: 10,
-                                      bgcolor: file.private ? '#FFFFFF12' : '#1DB95418',
-                                      color: file.private ? '#FFFFFF66' : '#1DB954',
-                                      border: '1px solid',
-                                      borderColor: file.private ? '#FFFFFF22' : '#1DB95433',
-                                      '& .MuiChip-label': { px: 0.75 },
-                                    }}
-                                  />
-                                </Box>
-                              </TableCell>
-                            )}
-
-                            {/* Date */}
-                            {!hiddenColumns.has('Date') && (
-                              <TableCell sx={{ ...bodyCellSx }}>
-                                <Typography sx={{ fontSize: 12, color: '#FFFFFF55' }}>
-                                  {formatDate(file.created_at)}
-                                </Typography>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        )
-                      })}
+                      groupItems.map((file) => (
+                        <ImageFileRow
+                          key={file.image_id}
+                          file={file}
+                          isSelected={selected.has(file.image_id)}
+                          onToggle={toggleSelect}
+                          hiddenColumns={hiddenColumns}
+                        />
+                      ))}
                   </React.Fragment>
                 )
               })
