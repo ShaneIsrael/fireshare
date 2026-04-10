@@ -34,10 +34,12 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [imgLoaded, setImgLoaded] = React.useState(false)
   const [showSwipeHint, setShowSwipeHint] = React.useState(false)
+  const [panningDisabled, setPanningDisabled] = React.useState(true)
   const wasOpenRef = React.useRef(false)
   const saveTimerRef = React.useRef(null)
   const latestTitleRef = React.useRef('')
   const transformRef = React.useRef(null)
+  const prevZoomedRef = React.useRef(false)
 
   const imageId = image?.image_id
   const shareUrl = `${getPublicImageUrl()}${imageId}`
@@ -104,6 +106,8 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   // Reset zoom + pan whenever the displayed image changes
   React.useEffect(() => {
     transformRef.current?.resetTransform()
+    prevZoomedRef.current = false
+    setPanningDisabled(true)
   }, [image?.image_id])
 
   // Swipe navigation — only fires when fully zoomed out and no multitouch occurred
@@ -121,8 +125,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     (e) => {
       if (!touchStartRef.current) return
       // Don't navigate if zoomed in or if a second finger was involved at any point.
-      // Read scale directly from the transform instance for reliability.
-      const scale = transformRef.current?.instance?.transformState?.scale ?? 1
+      const scale = transformRef.current?.state?.scale ?? 1
       if (scale > 1 || wasMultitouchRef.current) {
         touchStartRef.current = null
         return
@@ -255,7 +258,14 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
             centerOnInit
             limitToBounds
             doubleClick={{ mode: 'toggle' }}
-            panning={{ velocityDisabled: true }}
+            panning={{ disabled: panningDisabled, velocityDisabled: true }}
+            onTransform={(ref) => {
+              const zoomed = ref.state.scale > 1
+              if (zoomed !== prevZoomedRef.current) {
+                prevZoomedRef.current = zoomed
+                setPanningDisabled(!zoomed)
+              }
+            }}
           >
             <TransformComponent
               wrapperStyle={{ width: '100%', height: '100%' }}
