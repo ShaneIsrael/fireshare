@@ -7,7 +7,17 @@ import CompactImageCard from './CompactImageCard'
 
 const PAGE_SIZE = 48
 
-const ImageCards = ({ images, loadingIcon = null, feedView = false, authenticated, size, onImageOpen }) => {
+const ImageCards = ({
+  images,
+  loadingIcon = null,
+  feedView = false,
+  authenticated,
+  size,
+  onImageOpen,
+  editMode = false,
+  selectedImages,
+  onImageSelect,
+}) => {
   const [imgs, setImages] = React.useState(images || [])
   const [alert, setAlert] = React.useState({ open: false })
   const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
@@ -130,10 +140,13 @@ const ImageCards = ({ images, loadingIcon = null, feedView = false, authenticate
               >
                 <CompactImageCard
                   image={img}
-                  openImageHandler={() => openImage(img)}
+                  openImageHandler={() => (editMode ? onImageSelect?.(img.image_id) : openImage(img))}
                   alertHandler={memoizedHandleAlert}
                   authenticated={authenticated}
                   onRemoveFromView={handleDelete}
+                  editMode={editMode}
+                  selected={selectedImages?.has(img.image_id)}
+                  onSelect={onImageSelect}
                 />
               </motion.div>
             ))}

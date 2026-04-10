@@ -9,11 +9,21 @@ import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicImageUrl, getImageThumbnailUrl } from '../../common/utils'
 import { ImageService } from '../../services'
 import DeleteImageModal from '../modal/DeleteImageModal'
+import CheckIcon from '@mui/icons-material/Check'
 import TagChip from '../misc/TagChip'
 
 const IMAGE_VERSION = Date.now()
 
-const CompactImageCard = ({ image, openImageHandler, alertHandler, authenticated, onRemoveFromView }) => {
+const CompactImageCard = ({
+  image,
+  openImageHandler,
+  alertHandler,
+  authenticated,
+  onRemoveFromView,
+  editMode = false,
+  selected = false,
+  onSelect,
+}) => {
   const [hover, setHover] = React.useState(false)
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(image.info?.private)
@@ -220,6 +230,30 @@ const CompactImageCard = ({ image, openImageHandler, alertHandler, authenticated
             </Box>
           )}
         </Box>
+
+        {/* Selection overlay */}
+        {editMode && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              width: 32,
+              height: 32,
+              borderRadius: '8px',
+              bgcolor: selected ? '#1565C0CC' : '#00000055',
+              border: '2px solid',
+              borderColor: selected ? '#90CAF9' : 'rgba(255,255,255,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 3,
+              pointerEvents: 'none',
+            }}
+          >
+            {selected && <CheckIcon sx={{ fontSize: 20, color: 'white' }} />}
+          </Box>
+        )}
       </Box>
 
       {/* Info section below thumbnail */}

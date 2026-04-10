@@ -7,6 +7,12 @@ const service = {
   getPublicImages(sort = 'updated_at desc') {
     return Api().get('/api/images/public', { params: { sort } })
   },
+  scan() {
+    return Api().get('/api/manual/scan-images')
+  },
+  getUploadFolders() {
+    return Api().get('/api/upload/image/folders')
+  },
   getDetails(id) {
     return Api().get(`/api/image/details/${id}`)
   },

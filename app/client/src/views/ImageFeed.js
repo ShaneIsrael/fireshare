@@ -1,6 +1,22 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { Box, Grid } from '@mui/material'
+import {
+  Box,
+  Grid,
+  Button,
+  ButtonGroup,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  useTheme,
+  useMediaQuery,
+} from '@mui/material'
+import EditIcon from '@mui/icons-material/Edit'
+import CheckIcon from '@mui/icons-material/Check'
+import DeleteIcon from '@mui/icons-material/Delete'
 import Select from 'react-select'
 import ImageCards from '../components/cards/ImageCards'
 import EditImageModal from '../components/modal/EditImageModal'
@@ -10,7 +26,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import selectSortTheme from '../common/reactSelectSortTheme'
 import { SORT_OPTIONS } from '../common/constants'
 
-const ImageFeed = ({ authenticated, searchText, cardSize }) => {
+const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded }) => {
   const [images, setImages] = React.useState([])
   const [filteredImages, setFilteredImages] = React.useState([])
   const [loading, setLoading] = React.useState(true)
@@ -19,6 +35,13 @@ const ImageFeed = ({ authenticated, searchText, cardSize }) => {
   const [modalImage, setModalImage] = React.useState(null)
   const [sortOrder, setSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
+
+  // Edit mode state
+  const [editMode, setEditMode] = React.useState(false)
+  const [selectedImages, setSelectedImages] = React.useState(new Set())
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const theme = useTheme()
+  const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
 
   React.useEffect(() => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
@@ -47,12 +70,24 @@ const ImageFeed = ({ authenticated, searchText, cardSize }) => {
     )
   }
 
-  React.useEffect(() => {
+  function fetchImages() {
     const fetchFn = authenticated ? ImageService.getImages : ImageService.getPublicImages
     fetchFn()
       .then((res) => {
         setImages(res.data.images)
         setFilteredImages(res.data.images)
+        const tfolders = []
+        res.data.images.forEach((img) => {
+          const split = img.path
+            .split('/')
+            .slice(0, -1)
+            .filter((f) => f !== '')
+          if (split.length > 0 && !tfolders.includes(split[0])) {
+            tfolders.push(split[0])
+          }
+        })
+        tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Images')
+        if (onImageFoldersLoaded) onImageFoldersLoaded(tfolders)
         setLoading(false)
       })
       .catch((err) => {
@@ -63,11 +98,31 @@ const ImageFeed = ({ authenticated, searchText, cardSize }) => {
           message: typeof err.response?.data === 'string' ? err.response.data : 'Unknown Error',
         })
       })
+  }
+
+  React.useEffect(() => {
+    fetchImages()
+    // eslint-disable-next-line
   }, [authenticated])
 
+  const folder = selectedImageFolder || { value: 'All Images', label: 'All Images' }
+
+  const displayImages = React.useMemo(() => {
+    if (folder.value === 'All Images') {
+      return filteredImages
+    }
+    return filteredImages?.filter(
+      (img) =>
+        img.path
+          .split('/')
+          .slice(0, -1)
+          .filter((f) => f !== '')[0] === folder.value,
+    )
+  }, [filteredImages, folder])
+
   const sortedImages = React.useMemo(() => {
-    if (!filteredImages) return []
-    return [...filteredImages].sort((a, b) => {
+    if (!displayImages) return []
+    return [...displayImages].sort((a, b) => {
       if (sortOrder.value === 'most_views') {
         return (b.view_count || 0) - (a.view_count || 0)
       } else if (sortOrder.value === 'least_views') {
@@ -78,11 +133,71 @@ const ImageFeed = ({ authenticated, searchText, cardSize }) => {
         return sortOrder.value === 'newest' ? dateB - dateA : dateA - dateB
       }
     })
-  }, [filteredImages, sortOrder])
+  }, [displayImages, sortOrder])
 
   const handleImageOpen = (image) => {
     setModalImage(image)
   }
+
+  // Edit mode handlers
+  const handleEditModeToggle = () => {
+    setEditMode(!editMode)
+    if (editMode) setSelectedImages(new Set())
+  }
+
+  const handleImageSelect = (imageId) => {
+    const next = new Set(selectedImages)
+    if (next.has(imageId)) next.delete(imageId)
+    else next.add(imageId)
+    setSelectedImages(next)
+  }
+
+  const allSelected = sortedImages.length > 0 && selectedImages.size === sortedImages.length
+
+  const handleSelectAllToggle = () => {
+    if (allSelected) setSelectedImages(new Set())
+    else setSelectedImages(new Set(sortedImages.map((img) => img.image_id)))
+  }
+
+  const handleDeleteClick = () => setDeleteDialogOpen(true)
+  const handleDeleteCancel = () => setDeleteDialogOpen(false)
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await Promise.all(Array.from(selectedImages).map((id) => ImageService.delete(id)))
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Deleted ${selectedImages.size} image${selectedImages.size > 1 ? 's' : ''}`,
+      })
+      fetchImages()
+      setSelectedImages(new Set())
+      setDeleteDialogOpen(false)
+      setEditMode(false)
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data || 'Error deleting images',
+      })
+    }
+  }
+
+  const handleNext = React.useCallback(() => {
+    setModalImage((cur) => {
+      if (!cur) return cur
+      const idx = sortedImages.findIndex((img) => img.image_id === cur.image_id)
+      return idx >= 0 && idx < sortedImages.length - 1 ? sortedImages[idx + 1] : cur
+    })
+  }, [sortedImages])
+
+  const handlePrev = React.useCallback(() => {
+    setModalImage((cur) => {
+      if (!cur) return cur
+      const idx = sortedImages.findIndex((img) => img.image_id === cur.image_id)
+      return idx > 0 ? sortedImages[idx - 1] : cur
+    })
+  }, [sortedImages])
 
   const handleModalClose = (update) => {
     if (update) {
@@ -111,17 +226,54 @@ const ImageFeed = ({ authenticated, searchText, cardSize }) => {
       </SnackbarAlert>
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
-            <Select
-              value={sortOrder}
-              options={SORT_OPTIONS}
-              onChange={setSortOrder}
-              styles={selectSortTheme}
-              menuPortalTarget={document.body}
-              menuPosition="fixed"
-              blurInputOnSelect
-              isSearchable={false}
-            />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {!(editMode && isMdDown) && (
+              <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                <Select
+                  value={sortOrder}
+                  options={SORT_OPTIONS}
+                  onChange={setSortOrder}
+                  styles={selectSortTheme}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  blurInputOnSelect
+                  isSearchable={false}
+                />
+              </Box>
+            )}
+            {authenticated && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {editMode && (
+                  <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content' }}>
+                    <Button color="primary" onClick={handleSelectAllToggle}>
+                      {allSelected ? 'Select None' : 'Select All'}
+                    </Button>
+                    <Button
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={handleDeleteClick}
+                      disabled={selectedImages.size === 0}
+                    >
+                      Delete{selectedImages.size > 0 && !isMdDown ? ` (${selectedImages.size})` : ''}
+                    </Button>
+                  </ButtonGroup>
+                )}
+                <IconButton
+                  onClick={handleEditModeToggle}
+                  sx={{
+                    bgcolor: editMode ? 'primary.main' : '#001E3C',
+                    borderRadius: '8px',
+                    height: '38px',
+                    border: !editMode ? '1px solid #2684FF' : 'none',
+                    '&:hover': {
+                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                    },
+                  }}
+                >
+                  {editMode ? <CheckIcon /> : <EditIcon />}
+                </IconButton>
+              </Box>
+            )}
           </Box>,
           toolbarTarget,
         )}
@@ -131,6 +283,8 @@ const ImageFeed = ({ authenticated, searchText, cardSize }) => {
         image={modalImage}
         alertHandler={setAlert}
         authenticated={authenticated}
+        onNext={handleNext}
+        onPrev={handlePrev}
       />
       <Box>
         <Grid container item justifyContent="center">
@@ -145,6 +299,9 @@ const ImageFeed = ({ authenticated, searchText, cardSize }) => {
                     feedView={true}
                     size={cardSize}
                     onImageOpen={handleImageOpen}
+                    editMode={editMode}
+                    selectedImages={selectedImages}
+                    onImageSelect={handleImageSelect}
                   />
                 )}
               </Box>
@@ -152,6 +309,25 @@ const ImageFeed = ({ authenticated, searchText, cardSize }) => {
           </Grid>
         </Grid>
       </Box>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
+        <DialogTitle>
+          Delete {selectedImages.size} Image{selectedImages.size > 1 ? 's' : ''}?
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the selected image{selectedImages.size > 1 ? 's' : ''}? This will
+            permanently delete the original file{selectedImages.size > 1 ? 's' : ''}.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   )
 }

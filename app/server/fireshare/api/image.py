@@ -160,6 +160,35 @@ def upload_image_public():
 
 
 # ---------------------------------------------------------------------------
+# Upload folder listing
+# ---------------------------------------------------------------------------
+
+@api.route('/api/upload/image/folders', methods=['GET'])
+@login_required
+def get_image_upload_folders():
+    paths = current_app.config['PATHS']
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    if not image_directory:
+        return jsonify({'folders': [], 'default_folder': None})
+    folders = []
+    try:
+        for entry in os.scandir(image_directory):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                folders.append(entry.name)
+        folders.sort()
+    except Exception:
+        pass
+    default_folder = None
+    try:
+        with open(paths['data'] / 'config.json', 'r') as f:
+            config = json.load(f)
+        default_folder = config['app_config'].get('admin_upload_folder_name', 'uploads')
+    except Exception:
+        pass
+    return jsonify({'folders': folders, 'default_folder': default_folder})
+
+
+# ---------------------------------------------------------------------------
 # List endpoints
 # ---------------------------------------------------------------------------
 

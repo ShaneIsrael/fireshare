@@ -18,7 +18,7 @@ import {
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import ImageIcon from '@mui/icons-material/Image'
 import styled from '@emotion/styled'
-import { ImageService, GameService, TagService } from '../../services'
+import { ImageService, GameService } from '../../services'
 import { getSetting } from '../../common/utils'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx } from '../../common/modalStyles'
 
@@ -33,9 +33,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [pendingFiles, setPendingFiles] = React.useState([])
   const [allGames, setAllGames] = React.useState([])
-  const [allTags, setAllTags] = React.useState([])
   const [selectedGame, setSelectedGame] = React.useState(null)
-  const [selectedTags, setSelectedTags] = React.useState([])
   const [gameOptions, setGameOptions] = React.useState([])
   const [gameInput, setGameInput] = React.useState('')
   const [gameSearchLoading, setGameSearchLoading] = React.useState(false)
@@ -44,6 +42,8 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
   const [uploadIndex, setUploadIndex] = React.useState(0)
   const [uploadProgress, setUploadProgress] = React.useState(0)
   const [previews, setPreviews] = React.useState([])
+  const [availableFolders, setAvailableFolders] = React.useState([])
+  const [selectedFolder, setSelectedFolder] = React.useState('')
 
   React.useImperativeHandle(ref, () => ({
     openFiles(files) {
@@ -60,20 +60,23 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
     const urls = imageFiles.map((f) => URL.createObjectURL(f))
     setPreviews(urls)
     setSelectedGame(null)
-    setSelectedTags([])
     setGameInput('')
     setGameOptions([])
-    Promise.all([GameService.getGames(), TagService.getTags()])
-      .then(([gRes, tRes]) => {
+    Promise.all([GameService.getGames(), ImageService.getUploadFolders()])
+      .then(([gRes, fRes]) => {
         const games = gRes.data || []
         setAllGames(games)
         setGameOptions(games.map((g) => ({ ...g, _source: 'db' })))
-        setAllTags(tRes.data || [])
+        const folders = fRes.data?.folders || []
+        const defaultFolder = fRes.data?.default_folder || ''
+        setAvailableFolders(folders)
+        setSelectedFolder(folders.includes(defaultFolder) ? defaultFolder : folders[0] || '')
       })
       .catch(() => {
         setAllGames([])
         setGameOptions([])
-        setAllTags([])
+        setAvailableFolders([])
+        setSelectedFolder('')
       })
     setDialogOpen(true)
   }
@@ -152,12 +155,6 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
   const handleUpload = async () => {
     setUploading(true)
     const game_id = selectedGame?.id || null
-    const tag_ids = selectedTags.length
-      ? selectedTags
-          .map((t) => t.id)
-          .filter(Boolean)
-          .join(',')
-      : null
 
     for (let i = 0; i < pendingFiles.length; i++) {
       setUploadIndex(i)
@@ -166,9 +163,9 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
       const formData = new FormData()
       formData.append('file', file)
       if (game_id) formData.append('game_id', game_id)
-      if (tag_ids) formData.append('tag_ids', tag_ids)
+      if (selectedFolder) formData.append('folder', selectedFolder)
       try {
-        const uploadFn = authenticated ? ImageService.upload : ImageService.publicUpload
+        const uploadFn = ImageService.upload
         await uploadFn(formData, (progress) => setUploadProgress(progress))
       } catch (err) {
         handleAlert({
@@ -191,7 +188,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
   }
 
   const uiConfig = getSetting('ui_config')
-  const canUpload = authenticated ? !!uiConfig?.show_admin_upload : !!uiConfig?.allow_public_upload
+  const canUpload = authenticated && !!uiConfig?.show_admin_upload
   if (!canUpload) return null
 
   return (
@@ -239,10 +236,15 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
         fullWidth
         PaperProps={{ sx: dialogPaperSx }}
       >
-        <DialogTitle sx={dialogTitleSx}>
-          Upload {pendingFiles.length} Image{pendingFiles.length !== 1 ? 's' : ''}
+        <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <ImageIcon sx={{ color: '#fff', fontSize: 24, flexShrink: 0 }} />
+            <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>
+              Upload {pendingFiles.length} Image{pendingFiles.length !== 1 ? 's' : ''}
+            </Typography>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ pt: 1.5 }}>
+        <DialogContent sx={{ pt: '16px !important' }}>
           {/* Preview grid */}
           {previews.length > 0 && (
             <Box
@@ -287,6 +289,21 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
                   bgcolor: '#FFFFFF14',
                   '& .MuiLinearProgress-bar': { bgcolor: '#BC00E6' },
                 }}
+              />
+            </Box>
+          )}
+
+          {/* Folder selector */}
+          {availableFolders.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography sx={labelSx}>Upload Folder</Typography>
+              <Autocomplete
+                options={availableFolders}
+                value={selectedFolder || null}
+                onChange={(_, value) => setSelectedFolder(value || '')}
+                disableClearable={!!selectedFolder}
+                disabled={uploading}
+                renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
               />
             </Box>
           )}
@@ -366,21 +383,6 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
                   {option.name}
                 </Box>
               )}
-            />
-          </Box>
-
-          {/* Tag selector */}
-          <Box>
-            <Typography sx={labelSx}>Tags (applies to all)</Typography>
-            <Autocomplete
-              multiple
-              freeSolo
-              options={allTags.filter((t) => !selectedTags.find((s) => s.id === t.id))}
-              getOptionLabel={(o) => (typeof o === 'string' ? o : o.name)}
-              value={selectedTags}
-              onChange={(_, values) => setSelectedTags(values.map((v) => (typeof v === 'string' ? { name: v } : v)))}
-              disabled={uploading}
-              renderInput={(params) => <TextField {...params} size="small" placeholder="Add tags…" sx={inputSx} />}
             />
           </Box>
         </DialogContent>

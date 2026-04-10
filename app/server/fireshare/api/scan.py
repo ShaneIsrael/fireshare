@@ -85,6 +85,14 @@ def manual_scan():
     return Response(status=200)
 
 
+@api.route('/api/manual/scan-images')
+@login_required
+def manual_scan_images():
+    current_app.logger.info(f"Executed manual image scan")
+    Popen(["fireshare", "scan-images"], shell=False, start_new_session=True)
+    return Response(status=200)
+
+
 @api.route('/api/manual/scan-dates')
 @login_required
 def manual_scan_dates():

@@ -19,7 +19,6 @@ import MenuIcon from '@mui/icons-material/Menu'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
-import PublicIcon from '@mui/icons-material/Public'
 import SettingsIcon from '@mui/icons-material/Settings'
 import LogoutIcon from '@mui/icons-material/Logout'
 import LoginIcon from '@mui/icons-material/Login'
@@ -60,9 +59,8 @@ const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
 
 const allPages = [
-  { title: 'My Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
-  { title: 'Public Videos', icon: <PublicIcon />, href: '/feed', private: false },
-  { title: 'Screenshots', icon: <PhotoLibraryIcon />, href: '/images', private: false },
+  { title: 'Videos', icon: <VideoLibraryIcon />, href: '/', private: false },
+  { title: 'Images', icon: <PhotoLibraryIcon />, href: '/images', private: false },
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
   { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
   { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, adminOnly: true },
@@ -176,16 +174,14 @@ function Navbar20({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const effectiveOpen = isMobile ? true : open
 
-  // --- Folder selection state (shared with Feed / Dashboard) ---
+  // --- Folder selection state (shared with Dashboard) ---
   const [folders, setFolders] = React.useState(['All Videos'])
 
-  // Initialise selectedFolder from URL ?category= (feed) or localStorage
+  // Initialise selectedFolder from URL ?category= or localStorage
   const initFolder = React.useMemo(() => {
-    if (page === '/feed') {
-      const params = new URLSearchParams(location.search)
-      const cat = params.get('category')
-      if (cat) return { value: cat, label: cat }
-    }
+    const params = new URLSearchParams(location.search)
+    const cat = params.get('category')
+    if (cat) return { value: cat, label: cat }
     return getSetting('folder') || { value: 'All Videos', label: 'All Videos' }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // run once on mount
@@ -195,22 +191,26 @@ function Navbar20({
   // On mobile, force "All Videos"
   const effectiveFolder = isMobile ? { value: 'All Videos', label: 'All Videos' } : selectedFolder
 
-  const handleFolderChange = React.useCallback(
-    (folder) => {
-      setSetting('folder', folder)
-      setSelectedFolder(folder)
-      // Keep URL in sync when on the feed page
-      if (page === '/feed' && 'URLSearchParams' in window) {
-        const searchParams = new URLSearchParams('')
-        searchParams.set('category', folder.value)
-        window.history.replaceState({ category: folder.value }, '', `/#/feed?${searchParams.toString()}`)
-      }
-    },
-    [page],
-  )
+  const handleFolderChange = React.useCallback((folder) => {
+    setSetting('folder', folder)
+    setSelectedFolder(folder)
+  }, [])
 
   const handleFoldersLoaded = React.useCallback((folderList) => {
     setFolders(folderList)
+  }, [])
+
+  // --- Image folder selection state ---
+  const [imageFolders, setImageFolders] = React.useState(['All Images'])
+  const [selectedImageFolder, setSelectedImageFolder] = React.useState({ value: 'All Images', label: 'All Images' })
+  const effectiveImageFolder = isMobile ? { value: 'All Images', label: 'All Images' } : selectedImageFolder
+
+  const handleImageFolderChange = React.useCallback((folder) => {
+    setSelectedImageFolder(folder)
+  }, [])
+
+  const handleImageFoldersLoaded = React.useCallback((folderList) => {
+    setImageFolders(folderList)
   }, [])
 
   const createSelectFolders = (f) => f.map((v) => ({ value: v, label: v }))
@@ -225,8 +225,8 @@ function Navbar20({
 
   const pages = allPages.filter((p) => {
     if (p.adminOnly && !isAdmin) return false
-    if (p.href === '/' && uiConfig.show_my_videos === false) return false
-    if (p.href === '/feed' && uiConfig.show_public_videos === false) return false
+    if (p.href === '/' && uiConfig.show_videos === false) return false
+    if (p.href === '/images' && uiConfig.show_images === false) return false
     if (p.href === '/games' && uiConfig.show_games === false) return false
     if (p.href === '/tags' && uiConfig.show_tags === false) return false
     return true
@@ -346,7 +346,7 @@ function Navbar20({
           component="img"
           src={logo}
           height={42}
-          onClick={() => navigate(authenticated ? '/' : '/feed')}
+          onClick={() => navigate('/')}
           sx={{
             pr: open ? 2 : 0,
             cursor: 'pointer',
@@ -360,7 +360,7 @@ function Navbar20({
             <Typography
               variant="div"
               noWrap
-              onClick={() => navigate(authenticated ? '/' : '/feed')}
+              onClick={() => navigate('/')}
               sx={{
                 cursor: 'pointer',
                 fontWeight: 700,
@@ -428,26 +428,26 @@ function Navbar20({
         })}
       </List>
       {/* Folder selector — hidden on mobile (xs) */}
-      {(page === '/' || page === '/feed') &&
+      {(page === '/' || page === '/images') &&
       open &&
       !isMobile &&
-      folders.length > 1 &&
+      (page === '/' ? folders.length > 1 : imageFolders.length > 1) &&
       uiConfig.show_folder_dropdown === true ? (
         <>
           <Divider />
           <Box sx={{ p: open ? 1.5 : 0.75 }}>
             {open ? (
               <Select
-                value={selectedFolder}
-                options={createSelectFolders(folders)}
-                onChange={handleFolderChange}
+                value={page === '/' ? selectedFolder : selectedImageFolder}
+                options={createSelectFolders(page === '/' ? folders : imageFolders)}
+                onChange={page === '/' ? handleFolderChange : handleImageFolderChange}
                 styles={selectFolderTheme}
                 blurInputOnSelect
                 isSearchable={false}
                 menuPlacement="auto"
               />
             ) : (
-              <LightTooltip title={selectedFolder.label} placement="right" arrow>
+              <LightTooltip title={(page === '/' ? selectedFolder : selectedImageFolder).label} placement="right" arrow>
                 <Box
                   sx={{
                     width: 42,
@@ -467,13 +467,16 @@ function Navbar20({
                     whiteSpace: 'nowrap',
                   }}
                   onClick={() => {
-                    // Cycle through folders
-                    const idx = folders.indexOf(selectedFolder.value)
-                    const next = folders[(idx + 1) % folders.length]
-                    handleFolderChange({ value: next, label: next })
+                    const idx = (page === '/' ? folders : imageFolders).indexOf(
+                      (page === '/' ? selectedFolder : selectedImageFolder).value,
+                    )
+                    const list = page === '/' ? folders : imageFolders
+                    const next = list[(idx + 1) % list.length]
+                    const handler = page === '/' ? handleFolderChange : handleImageFolderChange
+                    handler({ value: next, label: next })
                   }}
                 >
-                  {selectedFolder.label.substring(0, 3)}
+                  {(page === '/' ? selectedFolder : selectedImageFolder).label.substring(0, 3)}
                 </Box>
               </LightTooltip>
             )}
@@ -802,6 +805,9 @@ function Navbar20({
           selectedFolder: effectiveFolder,
           onFolderChange: handleFolderChange,
           onFoldersLoaded: handleFoldersLoaded,
+          selectedImageFolder: effectiveImageFolder,
+          onImageFolderChange: handleImageFolderChange,
+          onImageFoldersLoaded: handleImageFoldersLoaded,
           uploadTick,
         })}
       </Box>

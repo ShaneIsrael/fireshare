@@ -8,7 +8,6 @@ import ViewImage from './views/ViewImage'
 import Dashboard from './views/Dashboard'
 import NotFound from './views/NotFound'
 import Settings from './views/Settings'
-import Feed from './views/Feed'
 import ImageFeed from './views/ImageFeed'
 import Games from './views/Games'
 import GameVideos from './views/GameVideos'
@@ -45,7 +44,7 @@ export default function App() {
             <Route
               path="/"
               element={
-                <AuthWrapper redirect={'/feed'}>
+                <AuthWrapper>
                   <Navbar20
                     page="/"
                     collapsed={!drawerOpen}
@@ -55,23 +54,6 @@ export default function App() {
                     searchPlaceholder="Search title, game, or #tag..."
                   >
                     <Dashboard />
-                  </Navbar20>
-                </AuthWrapper>
-              }
-            />
-            <Route
-              path="/feed"
-              element={
-                <AuthWrapper>
-                  <Navbar20
-                    page="/feed"
-                    collapsed={!drawerOpen}
-                    searchable
-                    styleToggle
-                    cardSlider
-                    searchPlaceholder="Search title, game, or #tag..."
-                  >
-                    <Feed />
                   </Navbar20>
                 </AuthWrapper>
               }

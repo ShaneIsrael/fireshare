@@ -29,12 +29,13 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import FolderIcon from '@mui/icons-material/Folder'
+import ImageIcon from '@mui/icons-material/Image'
 import CloseIcon from '@mui/icons-material/Close'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
-import { ConfigService, VideoService, GameService } from '../services'
+import { ConfigService, VideoService, GameService, ImageService } from '../services'
 import { setSetting } from '../common/utils'
 import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
@@ -252,6 +253,23 @@ const Settings = () => {
         open: true,
         type: 'info',
         message: 'Scan initiated. This could take a few minutes.',
+      })
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data || 'Unknown Error',
+      })
+    }
+  }
+
+  const handleScanImages = async () => {
+    try {
+      await ImageService.scan()
+      setAlert({
+        open: true,
+        type: 'info',
+        message: 'Image scan initiated. This could take a few minutes.',
       })
     } catch (err) {
       setAlert({
@@ -588,30 +606,30 @@ const Settings = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={updatedConfig.ui_config?.show_my_videos !== false}
+                      checked={updatedConfig.ui_config?.show_videos !== false}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
-                          ui_config: { ...prev.ui_config, show_my_videos: e.target.checked },
+                          ui_config: { ...prev.ui_config, show_videos: e.target.checked },
                         }))
                       }
                     />
                   }
-                  label="My Videos"
+                  label="Videos"
                 />
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={updatedConfig.ui_config?.show_public_videos !== false}
+                      checked={updatedConfig.ui_config?.show_images !== false}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
-                          ui_config: { ...prev.ui_config, show_public_videos: e.target.checked },
+                          ui_config: { ...prev.ui_config, show_images: e.target.checked },
                         }))
                       }
                     />
                   }
-                  label="Public Videos"
+                  label="Images"
                 />
                 <FormControlLabel
                   control={
@@ -1152,6 +1170,15 @@ const Settings = () => {
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
                   Scan for New Videos
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<ImageIcon />}
+                  onClick={handleScanImages}
+                  size="large"
+                  sx={{ width: '100%', maxWidth: 400 }}
+                >
+                  Scan for New Images
                 </Button>
                 <Button
                   variant="contained"

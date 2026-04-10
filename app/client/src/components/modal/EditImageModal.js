@@ -10,7 +10,7 @@ import { ImageService } from '../../services'
 import { getPublicImageUrl, getImageUrl } from '../../common/utils'
 import { labelSx, inputSx, dialogPaperSx } from '../../common/modalStyles'
 
-const EditImageModal = ({ open, onClose, image, alertHandler, authenticated }) => {
+const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onNext, onPrev }) => {
   const [title, setTitle] = React.useState('')
   const [privateView, setPrivateView] = React.useState(false)
   const saveTimerRef = React.useRef(null)
@@ -45,6 +45,18 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated }) =
       }
     }
   }, [])
+
+  // Arrow key navigation
+  React.useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      if (e.key === 'ArrowRight') onNext?.()
+      if (e.key === 'ArrowLeft') onPrev?.()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [open, onNext, onPrev])
 
   const handleTitleChange = (e) => {
     const newTitle = e.target.value
