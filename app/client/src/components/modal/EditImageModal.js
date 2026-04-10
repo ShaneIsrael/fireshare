@@ -9,7 +9,6 @@ import {
   IconButton,
   Tooltip,
   Divider,
-  CircularProgress,
   useMediaQuery,
   useTheme,
 } from '@mui/material'
@@ -18,6 +17,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DownloadIcon from '@mui/icons-material/Download'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { ImageService } from '../../services'
 import { getPublicImageUrl, getImageUrl } from '../../common/utils'
@@ -31,9 +32,15 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   const [privateView, setPrivateView] = React.useState(false)
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [imgLoaded, setImgLoaded] = React.useState(false)
+  const [imgScale, setImgScale] = React.useState(1)
+  const [showSwipeHint, setShowSwipeHint] = React.useState(false)
   const wasOpenRef = React.useRef(false)
   const saveTimerRef = React.useRef(null)
   const latestTitleRef = React.useRef('')
+  const imgContainerRef = React.useRef(null)
+  const pinchStartDistRef = React.useRef(null)
+  const pinchStartScaleRef = React.useRef(1)
+  const isPinchingRef = React.useRef(false)
 
   const imageId = image?.image_id
   const shareUrl = `${getPublicImageUrl()}${imageId}`
@@ -89,18 +96,70 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     return () => window.removeEventListener('keydown', handler)
   }, [open, onNext, onPrev])
 
+  // Show swipe hint briefly when modal first opens
+  React.useEffect(() => {
+    if (!open || !isMobile) return
+    setShowSwipeHint(true)
+    const t = setTimeout(() => setShowSwipeHint(false), 3000)
+    return () => clearTimeout(t)
+  }, [open, isMobile])
+
+  // Reset zoom when the displayed image changes
+  React.useEffect(() => {
+    setImgScale(1)
+  }, [image?.image_id])
+
+  // Non-passive touchmove listener for pinch-to-zoom
+  React.useEffect(() => {
+    const el = imgContainerRef.current
+    if (!el) return
+    const handleMove = (e) => {
+      if (e.touches.length !== 2 || pinchStartDistRef.current === null) return
+      e.preventDefault()
+      const dist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY,
+      )
+      const next = Math.max(1, Math.min(5, pinchStartScaleRef.current * (dist / pinchStartDistRef.current)))
+      setImgScale(next)
+    }
+    el.addEventListener('touchmove', handleMove, { passive: false })
+    return () => el.removeEventListener('touchmove', handleMove)
+  }, [open])
+
   // Swipe navigation (mobile)
   const touchStartRef = React.useRef(null)
-  const handleTouchStart = React.useCallback((e) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-  }, [])
+  const handleTouchStart = React.useCallback(
+    (e) => {
+      if (e.touches.length === 2) {
+        isPinchingRef.current = true
+        pinchStartDistRef.current = Math.hypot(
+          e.touches[1].clientX - e.touches[0].clientX,
+          e.touches[1].clientY - e.touches[0].clientY,
+        )
+        pinchStartScaleRef.current = imgScale
+      } else {
+        isPinchingRef.current = false
+        touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      }
+    },
+    [imgScale],
+  )
   const handleTouchEnd = React.useCallback(
     (e) => {
+      if (isPinchingRef.current) {
+        if (e.touches.length < 2) {
+          pinchStartDistRef.current = null
+          isPinchingRef.current = false
+        }
+        return
+      }
       if (!touchStartRef.current) return
       const dx = e.changedTouches[0].clientX - touchStartRef.current.x
       const dy = e.changedTouches[0].clientY - touchStartRef.current.y
       touchStartRef.current = null
       if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return
+      setShowSwipeHint(false)
       if (dx < 0) onNext?.()
       else onPrev?.()
     },
@@ -188,9 +247,9 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
           display: 'flex',
           flexDirection: { xs: 'column', sm: 'row' },
           maxWidth: { xs: '100vw', sm: '90vw' },
-          maxHeight: { xs: '100vh', sm: '90vh' },
+          maxHeight: { xs: '100dvh', sm: '90vh' },
           width: { xs: '100vw', sm: 'auto' },
-          height: { xs: '100vh', sm: 'auto' },
+          height: { xs: '100dvh', sm: 'auto' },
           outline: 'none',
           opacity: imgLoaded ? 1 : 0,
           transition: 'opacity 0.2s ease-in-out',
@@ -199,6 +258,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       >
         {/* Image preview */}
         <Box
+          ref={imgContainerRef}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           sx={{
@@ -213,6 +273,8 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
             borderRadius: { xs: 0, sm: '12px 0 0 12px' },
             overflow: 'hidden',
             bgcolor: '#000',
+            position: 'relative',
+            touchAction: 'none',
           }}
         >
           <img
@@ -224,8 +286,47 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
               maxHeight: isMobile ? '100%' : '90vh',
               objectFit: 'contain',
               display: 'block',
+              transform: `scale(${imgScale})`,
+              transformOrigin: 'center center',
+              transition: imgScale === 1 ? 'transform 0.2s ease' : 'none',
             }}
           />
+
+          {/* Swipe hint — bouncing chevrons, mobile only */}
+          {showSwipeHint && isMobile && (
+            <>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  pointerEvents: 'none',
+                  animation: 'bounceLeft 1s ease-in-out infinite',
+                  '@keyframes bounceLeft': {
+                    '0%, 100%': { transform: 'translateY(-50%) translateX(0)' },
+                    '50%': { transform: 'translateY(-50%) translateX(-8px)' },
+                  },
+                }}
+              >
+                <ChevronLeftIcon sx={{ color: 'white', fontSize: 44, opacity: 0.75, filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))' }} />
+              </Box>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  pointerEvents: 'none',
+                  animation: 'bounceRight 1s ease-in-out infinite',
+                  '@keyframes bounceRight': {
+                    '0%, 100%': { transform: 'translateY(-50%) translateX(0)' },
+                    '50%': { transform: 'translateY(-50%) translateX(8px)' },
+                  },
+                }}
+              >
+                <ChevronRightIcon sx={{ color: 'white', fontSize: 44, opacity: 0.75, filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))' }} />
+              </Box>
+            </>
+          )}
         </Box>
 
         {/* Side panel */}
