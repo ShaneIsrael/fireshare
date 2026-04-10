@@ -34,12 +34,14 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [imgLoaded, setImgLoaded] = React.useState(false)
   const [showSwipeHint, setShowSwipeHint] = React.useState(false)
+  const [panningDisabled, setPanningDisabled] = React.useState(true)
   const wasOpenRef = React.useRef(false)
   const saveTimerRef = React.useRef(null)
   const latestTitleRef = React.useRef('')
   const transformRef = React.useRef(null)
   // Tracks current scale without causing re-renders, used to gate swipe navigation
   const currentScaleRef = React.useRef(1)
+  const prevZoomedRef = React.useRef(false)
 
   const imageId = image?.image_id
   const shareUrl = `${getPublicImageUrl()}${imageId}`
@@ -107,6 +109,8 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   React.useEffect(() => {
     transformRef.current?.resetTransform()
     currentScaleRef.current = 1
+    prevZoomedRef.current = false
+    setPanningDisabled(true)
   }, [image?.image_id])
 
   // Swipe navigation — only fires when fully zoomed out and no multitouch occurred
@@ -256,9 +260,14 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
             centerOnInit
             limitToBounds
             doubleClick={{ mode: 'toggle' }}
-            panning={{ velocityDisabled: true }}
+            panning={{ disabled: panningDisabled, velocityDisabled: true }}
             onTransformed={(_, state) => {
               currentScaleRef.current = state.scale
+              const zoomed = state.scale > 1
+              if (zoomed !== prevZoomedRef.current) {
+                prevZoomedRef.current = zoomed
+                setPanningDisabled(!zoomed)
+              }
             }}
           >
             <TransformComponent
