@@ -166,15 +166,17 @@ const Games = ({ authenticated, searchText }) => {
       <>
         {toolbarTarget
           ? ReactDOM.createPortal(
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {authenticated ? (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                     {editMode ? (
                       <ButtonGroup
                         variant="contained"
                         sx={{
                           height: 38,
-                          minWidth: 'fit-content',
+                          flexShrink: 1,
+                          minWidth: 0,
+                          '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } },
                         }}
                       >
                         <Button color="primary" onClick={handleSelectAllToggle}>
@@ -186,7 +188,7 @@ const Games = ({ authenticated, searchText }) => {
                           onClick={handleDeleteClick}
                           disabled={selectedGames.size === 0}
                         >
-                          Delete {selectedGames.size > 0 && !isMdDown ? `(${selectedGames.size})` : null}
+                          Delete{selectedGames.size > 0 && !isMdDown ? ` (${selectedGames.size})` : null}
                         </Button>
                       </ButtonGroup>
                     ) : null}
@@ -196,6 +198,7 @@ const Games = ({ authenticated, searchText }) => {
                         bgcolor: editMode ? 'primary.main' : '#001E3C',
                         borderRadius: '8px',
                         height: '38px',
+                        flexShrink: 0,
                         border: !editMode ? '1px solid #2684FF' : 'none',
                         '&:hover': {
                           bgcolor: editMode ? 'primary.dark' : '#FFFFFF33',

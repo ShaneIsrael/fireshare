@@ -8,7 +8,7 @@ from flask import current_app, jsonify, request, Response, send_file
 from flask_login import login_required, current_user
 
 from .. import db, logger
-from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink
+from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, Image, ImageInfo, ImageGameLink, ImageView
 from ..steamgrid import SteamGridDBClient
 from . import api
 from .helpers import get_steamgriddb_api_key, login_required_unless_public_game_tag
@@ -135,28 +135,46 @@ def update_game_asset(steamgriddb_id):
 
 @api.route('/api/games', methods=["GET"])
 def get_games():
+    from sqlalchemy import or_, exists
 
-    # If user is authenticated, show games that have at least one linked video
+    # Sub-queries to check for linked videos / images
+    has_video = exists().where(VideoGameLink.game_id == GameMetadata.id).where(
+        VideoGameLink.video_id == Video.video_id
+    )
+    has_image = exists().where(ImageGameLink.game_id == GameMetadata.id).where(
+        ImageGameLink.image_id == Image.image_id
+    )
+
     if current_user.is_authenticated:
+        # Show games that have at least one linked video OR image
         games = (
             db.session.query(GameMetadata)
-            .join(VideoGameLink)
-            .join(Video)
+            .filter(or_(has_video, has_image))
             .distinct()
             .order_by(GameMetadata.name)
             .all()
         )
     else:
-        # For public users, only show games that have at least one public (available) video
+        # For public users, only show games that have at least one public video OR image
+        has_public_video = (
+            exists()
+            .where(VideoGameLink.game_id == GameMetadata.id)
+            .where(VideoGameLink.video_id == Video.video_id)
+            .where(Video.video_id == VideoInfo.video_id)
+            .where(Video.available.is_(True))
+            .where(VideoInfo.private.is_(False))
+        )
+        has_public_image = (
+            exists()
+            .where(ImageGameLink.game_id == GameMetadata.id)
+            .where(ImageGameLink.image_id == Image.image_id)
+            .where(Image.image_id == ImageInfo.image_id)
+            .where(Image.available.is_(True))
+            .where(ImageInfo.private.is_(False))
+        )
         games = (
             db.session.query(GameMetadata)
-            .join(VideoGameLink)
-            .join(Video)
-            .join(VideoInfo)
-            .filter(
-                Video.available.is_(True),
-                VideoInfo.private.is_(False),
-            )
+            .filter(or_(has_public_video, has_public_image))
             .distinct()
             .order_by(GameMetadata.name)
             .all()
@@ -423,6 +441,29 @@ def get_game_videos(steamgriddb_id):
         videos_json.append(vjson)
 
     return jsonify(videos_json)
+
+
+@api.route('/api/games/<int:steamgriddb_id>/images', methods=["GET"])
+def get_game_images(steamgriddb_id):
+    game = GameMetadata.query.filter_by(steamgriddb_id=steamgriddb_id).first()
+    if not game:
+        return Response(status=404, response='Game not found.')
+
+    game_json = game.json()
+    images_json = []
+    for link in ImageGameLink.query.filter_by(game_id=game.id).all():
+        if not link.image:
+            continue
+        if not current_user.is_authenticated:
+            if not link.image.available:
+                continue
+            if not link.image.info or link.image.info.private:
+                continue
+        ijson = link.image.json()
+        ijson["view_count"] = ImageView.count(link.image_id)
+        ijson["game"] = game_json
+        images_json.append(ijson)
+    return jsonify(images_json)
 
 
 @api.route('/api/games/<int:steamgriddb_id>', methods=["DELETE"])

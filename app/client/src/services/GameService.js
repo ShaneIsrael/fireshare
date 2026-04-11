@@ -45,6 +45,9 @@ const service = {
   getGameVideos(gameId) {
     return Api().get(`/api/games/${gameId}/videos`)
   },
+  getGameImages(gameId) {
+    return Api().get(`/api/games/${gameId}/images`)
+  },
   createGame(gameData) {
     return Api().post('/api/games', gameData)
   },
@@ -85,6 +88,22 @@ const service = {
     return Api().delete(`/api/folder-rules/${ruleId}`, {
       params: {
         unlink_videos: unlinkVideos,
+      },
+    })
+  },
+  getImageFolderRules() {
+    return Api().get('/api/image-folder-rules')
+  },
+  createImageFolderRule(folderPath, gameId) {
+    return Api().post('/api/image-folder-rules', {
+      folder_path: folderPath,
+      game_id: gameId,
+    })
+  },
+  deleteImageFolderRule(ruleId, unlinkImages = false) {
+    return Api().delete(`/api/image-folder-rules/${ruleId}`, {
+      params: {
+        unlink_images: unlinkImages,
       },
     })
   },

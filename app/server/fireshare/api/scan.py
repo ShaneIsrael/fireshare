@@ -11,7 +11,7 @@ from flask_login import login_required, current_user
 
 from .. import db, logger, util
 from ..constants import DEFAULT_CONFIG
-from ..models import Video, VideoInfo, VideoGameLink, GameMetadata, FolderRule
+from ..models import Video, VideoInfo, VideoGameLink, GameMetadata, FolderRule, Image, ImageGameLink, ImageFolderRule
 from . import api
 from .helpers import get_steamgriddb_api_key
 
@@ -82,6 +82,14 @@ def folder_size():
 def manual_scan():
     current_app.logger.info(f"Executed manual scan")
     Popen(["fireshare", "bulk-import"], shell=False, start_new_session=True)
+    return Response(status=200)
+
+
+@api.route('/api/manual/scan-images')
+@login_required
+def manual_scan_images():
+    current_app.logger.info(f"Executed manual image scan")
+    Popen(["fireshare", "scan-images"], shell=False, start_new_session=True)
     return Response(status=200)
 
 
@@ -316,6 +324,134 @@ def delete_folder_rule(rule_id):
     db.session.commit()
 
     logger.info(f"Deleted folder rule: {folder_path} (unlinked {unlinked_count} videos)")
+    return jsonify({'deleted': True, 'unlinked_count': unlinked_count})
+
+
+# ── Image Folder Rules ──────────────────────────────────────────────────────
+
+@api.route('/api/image-folder-rules')
+@login_required
+def get_image_folder_rules():
+    """Get all image folders with their rules and suggested games based on linked images"""
+
+    upload_folders = {
+        DEFAULT_CONFIG['app_config']['admin_upload_folder_name'].lower(),
+        DEFAULT_CONFIG['app_config']['public_upload_folder_name'].lower(),
+    }
+
+    rules = {rule.folder_path: rule for rule in ImageFolderRule.query.all()}
+
+    folders = {}
+    image_to_game = {link.image_id: link.game_id for link in ImageGameLink.query.all()}
+    games = {g.id: g for g in GameMetadata.query.all()}
+
+    for image in Image.query.all():
+        parts = image.path.replace('\\', '/').split('/')
+        if len(parts) > 1:
+            folder = parts[0]
+            if folder.lower() in upload_folders:
+                continue
+            if folder not in folders:
+                folders[folder] = []
+            folders[folder].append(image.image_id)
+
+    result = []
+    for folder in sorted(folders.keys()):
+        image_ids = folders[folder]
+        rule = rules.get(folder)
+
+        game_counts = Counter(image_to_game[iid] for iid in image_ids if iid in image_to_game)
+        suggested_game = None
+        if game_counts:
+            top_game = games.get(game_counts.most_common(1)[0][0])
+            if top_game:
+                suggested_game = top_game.json()
+
+        result.append({
+            'folder_path': folder,
+            'rule': rule.json() if rule else None,
+            'suggested_game': suggested_game,
+            'image_count': len(image_ids)
+        })
+
+    return jsonify(result)
+
+
+@api.route('/api/image-folder-rules', methods=['POST'])
+@login_required
+def create_image_folder_rule():
+    """Create an image folder rule and backfill existing untagged images"""
+    data = request.get_json()
+
+    if not data or not data.get('folder_path') or not data.get('game_id'):
+        return jsonify({'error': 'folder_path and game_id are required'}), 400
+
+    folder_path = data['folder_path']
+    game_id = data['game_id']
+
+    existing = ImageFolderRule.query.filter_by(folder_path=folder_path).first()
+    if existing:
+        existing.game_id = game_id
+        db.session.commit()
+        logger.info(f"Updated image folder rule: {folder_path} -> game {game_id}")
+        rule = existing
+        is_new = False
+    else:
+        rule = ImageFolderRule(folder_path=folder_path, game_id=game_id)
+        db.session.add(rule)
+        db.session.commit()
+        logger.info(f"Created image folder rule: {folder_path} -> game {game_id}")
+        is_new = True
+
+    images_in_folder = Image.query.filter(Image.path.like(f"{folder_path}/%")).all()
+    image_ids = [img.image_id for img in images_in_folder]
+    existing_links = {link.image_id: link for link in ImageGameLink.query.filter(ImageGameLink.image_id.in_(image_ids)).all()}
+
+    updated = 0
+    created = 0
+
+    for img in images_in_folder:
+        if img.image_id in existing_links:
+            existing_links[img.image_id].game_id = game_id
+            updated += 1
+        else:
+            link = ImageGameLink(image_id=img.image_id, game_id=game_id, created_at=datetime.utcnow())
+            db.session.add(link)
+            created += 1
+
+    if updated or created:
+        db.session.commit()
+        logger.info(f"Image folder '{folder_path}': updated {updated}, created {created} link(s) to game {game_id}")
+
+    response = rule.json()
+    response['backfilled'] = updated + created
+    return jsonify(response), 201 if is_new else 200
+
+
+@api.route('/api/image-folder-rules/<int:rule_id>', methods=['DELETE'])
+@login_required
+def delete_image_folder_rule(rule_id):
+    """Delete an image folder rule, optionally unlinking images"""
+    rule = db.session.get(ImageFolderRule, rule_id)
+    if not rule:
+        return jsonify({'error': 'Image folder rule not found'}), 404
+
+    unlink_images = request.args.get('unlink_images', 'false').lower() == 'true'
+    unlinked_count = 0
+
+    if unlink_images:
+        image_ids = [i[0] for i in db.session.query(Image.image_id).filter(Image.path.like(f"{rule.folder_path}/%")).all()]
+        if image_ids:
+            unlinked_count = ImageGameLink.query.filter(
+                ImageGameLink.image_id.in_(image_ids),
+                ImageGameLink.game_id == rule.game_id
+            ).delete(synchronize_session=False)
+
+    folder_path = rule.folder_path
+    db.session.delete(rule)
+    db.session.commit()
+
+    logger.info(f"Deleted image folder rule: {folder_path} (unlinked {unlinked_count} images)")
     return jsonify({'deleted': True, 'unlinked_count': unlinked_count})
 
 

@@ -236,7 +236,15 @@ const Watch = ({ authenticated }) => {
             gap: 1.5,
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: 2,
+              flexWrap: 'wrap',
+            }}
+          >
             {/* Left: title + views/date */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1, minWidth: 200 }}>
               <Typography
@@ -279,7 +287,7 @@ const Watch = ({ authenticated }) => {
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
                 <Box
                   component={selectedGame.steamgriddb_id ? 'a' : 'div'}
-                  href={selectedGame.steamgriddb_id ? `#/games/${selectedGame.steamgriddb_id}` : undefined}
+                  href={selectedGame.steamgriddb_id ? `games/${selectedGame.steamgriddb_id}` : undefined}
                   sx={{
                     display: 'inline-flex',
                     alignItems: 'center',

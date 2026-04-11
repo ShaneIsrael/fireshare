@@ -19,7 +19,6 @@ import MenuIcon from '@mui/icons-material/Menu'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
-import PublicIcon from '@mui/icons-material/Public'
 import SettingsIcon from '@mui/icons-material/Settings'
 import LogoutIcon from '@mui/icons-material/Logout'
 import LoginIcon from '@mui/icons-material/Login'
@@ -31,6 +30,7 @@ import BugReportIcon from '@mui/icons-material/BugReport'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 
 import { Grid, useMediaQuery, useTheme } from '@mui/material'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -48,7 +48,8 @@ import FolderSuggestionInline from './FolderSuggestionInline'
 import DiskSpaceIndicator from './DiskSpaceIndicator'
 import { GameService } from '../../services'
 import UploadCard from '../cards/UploadCard'
-import { RegisterUploadCardContext } from '../utils/GlobalDragDropOverlay'
+import ImageUploadCard from '../cards/ImageUploadCard'
+import { RegisterUploadCardContext, RegisterImageUploadCardContext } from '../utils/GlobalDragDropOverlay'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
 
@@ -58,8 +59,8 @@ const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
 
 const allPages = [
-  { title: 'My Videos', icon: <VideoLibraryIcon />, href: '/', private: true },
-  { title: 'Public Videos', icon: <PublicIcon />, href: '/feed', private: false },
+  { title: 'Videos', icon: <VideoLibraryIcon />, href: '/', private: false },
+  { title: 'Images', icon: <PhotoLibraryIcon />, href: '/images', private: false },
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
   { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
   { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, adminOnly: true },
@@ -164,6 +165,7 @@ function Navbar20({
   const [alert, setAlert] = React.useState({ open: false })
   const [uploadTick, setUploadTick] = React.useState(0)
   const registerUploadCard = React.useContext(RegisterUploadCardContext)
+  const registerImageUploadCard = React.useContext(RegisterImageUploadCardContext)
   const [folderSuggestions, setFolderSuggestions] = React.useState({})
   const [currentSuggestionFolder, setCurrentSuggestionFolder] = React.useState(null)
   const navigate = useNavigate()
@@ -172,16 +174,14 @@ function Navbar20({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const effectiveOpen = isMobile ? true : open
 
-  // --- Folder selection state (shared with Feed / Dashboard) ---
+  // --- Folder selection state (shared with Dashboard) ---
   const [folders, setFolders] = React.useState(['All Videos'])
 
-  // Initialise selectedFolder from URL ?category= (feed) or localStorage
+  // Initialise selectedFolder from URL ?category= or localStorage
   const initFolder = React.useMemo(() => {
-    if (page === '/feed') {
-      const params = new URLSearchParams(location.search)
-      const cat = params.get('category')
-      if (cat) return { value: cat, label: cat }
-    }
+    const params = new URLSearchParams(location.search)
+    const cat = params.get('category')
+    if (cat) return { value: cat, label: cat }
     return getSetting('folder') || { value: 'All Videos', label: 'All Videos' }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // run once on mount
@@ -191,22 +191,26 @@ function Navbar20({
   // On mobile, force "All Videos"
   const effectiveFolder = isMobile ? { value: 'All Videos', label: 'All Videos' } : selectedFolder
 
-  const handleFolderChange = React.useCallback(
-    (folder) => {
-      setSetting('folder', folder)
-      setSelectedFolder(folder)
-      // Keep URL in sync when on the feed page
-      if (page === '/feed' && 'URLSearchParams' in window) {
-        const searchParams = new URLSearchParams('')
-        searchParams.set('category', folder.value)
-        window.history.replaceState({ category: folder.value }, '', `/#/feed?${searchParams.toString()}`)
-      }
-    },
-    [page],
-  )
+  const handleFolderChange = React.useCallback((folder) => {
+    setSetting('folder', folder)
+    setSelectedFolder(folder)
+  }, [])
 
   const handleFoldersLoaded = React.useCallback((folderList) => {
     setFolders(folderList)
+  }, [])
+
+  // --- Image folder selection state ---
+  const [imageFolders, setImageFolders] = React.useState(['All Images'])
+  const [selectedImageFolder, setSelectedImageFolder] = React.useState({ value: 'All Images', label: 'All Images' })
+  const effectiveImageFolder = isMobile ? { value: 'All Images', label: 'All Images' } : selectedImageFolder
+
+  const handleImageFolderChange = React.useCallback((folder) => {
+    setSelectedImageFolder(folder)
+  }, [])
+
+  const handleImageFoldersLoaded = React.useCallback((folderList) => {
+    setImageFolders(folderList)
   }, [])
 
   const createSelectFolders = (f) => f.map((v) => ({ value: v, label: v }))
@@ -221,8 +225,8 @@ function Navbar20({
 
   const pages = allPages.filter((p) => {
     if (p.adminOnly && !isAdmin) return false
-    if (p.href === '/' && uiConfig.show_my_videos === false) return false
-    if (p.href === '/feed' && uiConfig.show_public_videos === false) return false
+    if (p.href === '/' && uiConfig.show_videos === false) return false
+    if (p.href === '/images' && uiConfig.show_images === false) return false
     if (p.href === '/games' && uiConfig.show_games === false) return false
     if (p.href === '/tags' && uiConfig.show_tags === false) return false
     return true
@@ -342,7 +346,7 @@ function Navbar20({
           component="img"
           src={logo}
           height={42}
-          onClick={() => navigate(authenticated ? '/' : '/feed')}
+          onClick={() => navigate('/')}
           sx={{
             pr: open ? 2 : 0,
             cursor: 'pointer',
@@ -356,7 +360,7 @@ function Navbar20({
             <Typography
               variant="div"
               noWrap
-              onClick={() => navigate(authenticated ? '/' : '/feed')}
+              onClick={() => navigate('/')}
               sx={{
                 cursor: 'pointer',
                 fontWeight: 700,
@@ -424,26 +428,26 @@ function Navbar20({
         })}
       </List>
       {/* Folder selector — hidden on mobile (xs) */}
-      {(page === '/' || page === '/feed') &&
+      {(page === '/' || page === '/images') &&
       open &&
       !isMobile &&
-      folders.length > 1 &&
+      (page === '/' ? folders.length > 1 : imageFolders.length > 1) &&
       uiConfig.show_folder_dropdown === true ? (
         <>
           <Divider />
           <Box sx={{ p: open ? 1.5 : 0.75 }}>
             {open ? (
               <Select
-                value={selectedFolder}
-                options={createSelectFolders(folders)}
-                onChange={handleFolderChange}
+                value={page === '/' ? selectedFolder : selectedImageFolder}
+                options={createSelectFolders(page === '/' ? folders : imageFolders)}
+                onChange={page === '/' ? handleFolderChange : handleImageFolderChange}
                 styles={selectFolderTheme}
                 blurInputOnSelect
                 isSearchable={false}
                 menuPlacement="auto"
               />
             ) : (
-              <LightTooltip title={selectedFolder.label} placement="right" arrow>
+              <LightTooltip title={(page === '/' ? selectedFolder : selectedImageFolder).label} placement="right" arrow>
                 <Box
                   sx={{
                     width: 42,
@@ -463,13 +467,16 @@ function Navbar20({
                     whiteSpace: 'nowrap',
                   }}
                   onClick={() => {
-                    // Cycle through folders
-                    const idx = folders.indexOf(selectedFolder.value)
-                    const next = folders[(idx + 1) % folders.length]
-                    handleFolderChange({ value: next, label: next })
+                    const idx = (page === '/' ? folders : imageFolders).indexOf(
+                      (page === '/' ? selectedFolder : selectedImageFolder).value,
+                    )
+                    const list = page === '/' ? folders : imageFolders
+                    const next = list[(idx + 1) % list.length]
+                    const handler = page === '/' ? handleFolderChange : handleImageFolderChange
+                    handler({ value: next, label: next })
                   }}
                 >
-                  {selectedFolder.label.substring(0, 3)}
+                  {(page === '/' ? selectedFolder : selectedImageFolder).label.substring(0, 3)}
                 </Box>
               </LightTooltip>
             )}
@@ -500,7 +507,13 @@ function Navbar20({
         mini={!effectiveOpen}
         onUploadComplete={() => setUploadTick((t) => t + 1)}
       />
-
+      <ImageUploadCard
+        ref={registerImageUploadCard}
+        authenticated={authenticated}
+        handleAlert={memoizedHandleAlert}
+        mini={!effectiveOpen}
+        onUploadComplete={() => setUploadTick((t) => t + 1)}
+      />
       <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
         <GameScanStatus open={effectiveOpen} onComplete={handleGameScanComplete} authenticated={authenticated} />
         <TranscodingStatus open={effectiveOpen} authenticated={authenticated} />
@@ -641,92 +654,94 @@ function Navbar20({
   )
   return (
     <Box sx={{ display: 'flex' }}>
-      {page !== '/login' && page !== '/watch' && (isMobile || (page !== '/files' && page !== '/settings')) && (
-        <AppBar
-          position="fixed"
-          open={open}
-          sx={{
-            backgroundColor: '#0A1929D0',
-          }}
-        >
-          <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { sm: 'none' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Box sx={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-              {/* Mobile: expanded search */}
-              {isMobile && mobileSearchOpen && searchable && (
-                <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
-                  <Search
-                    key={mobileSearchKey}
-                    placeholder={searchPlaceholder}
-                    searchHandler={(value) => setSearchText(value)}
-                    autoFocus
-                  />
-                </Box>
-              )}
-              {isMobile && mobileSearchOpen && (
-                <IconButton
-                  color="inherit"
-                  size="small"
-                  onClick={() => {
-                    setMobileSearchOpen(false)
-                    setSearchText('')
-                    setMobileSearchKey((k) => k + 1)
-                  }}
-                  sx={{ flexShrink: 0 }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              )}
-
-              {/* Desktop: left spacer + centered search */}
-              {!isMobile && <Box sx={{ flex: 1 }} />}
-              {searchable && !isMobile && (
-                <Box id="navbar-search-container" sx={{ width: 520, flexShrink: 1, minWidth: 0, mr: 1, ml: 2 }}>
-                  <Search placeholder={searchPlaceholder} searchHandler={(value) => setSearchText(value)} />
-                </Box>
-              )}
-
-              {/* Right controls — always in DOM so portal target stays valid */}
-              <Box
-                sx={{
-                  flex: 1,
-                  display: isMobile && mobileSearchOpen ? 'none' : 'flex',
-                  justifyContent: 'flex-end',
-                  alignItems: 'center',
-                  gap: 1,
-                }}
+      {page !== '/login' &&
+        page !== '/watch' &&
+        (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && (
+          <AppBar
+            position="fixed"
+            open={open}
+            sx={{
+              backgroundColor: '#0A1929D0',
+            }}
+          >
+            <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                edge="start"
+                onClick={handleDrawerToggle}
+                sx={{ mr: 2, display: { sm: 'none' } }}
               >
-                <Box id="navbar-toolbar-extra" />
-                {searchable && isMobile && (
+                <MenuIcon />
+              </IconButton>
+              <Box sx={{ display: 'flex', width: '100%', alignItems: 'center' }}>
+                {/* Mobile: expanded search */}
+                {isMobile && mobileSearchOpen && searchable && (
+                  <Box sx={{ flex: 1, minWidth: 0, mr: 1 }}>
+                    <Search
+                      key={mobileSearchKey}
+                      placeholder={searchPlaceholder}
+                      searchHandler={(value) => setSearchText(value)}
+                      autoFocus
+                    />
+                  </Box>
+                )}
+                {isMobile && mobileSearchOpen && (
                   <IconButton
                     color="inherit"
                     size="small"
-                    onClick={() => setMobileSearchOpen(true)}
-                    sx={{
-                      borderRadius: '8px',
-                      height: '38px',
-                      width: '38px',
-                      border: '1px solid #2684FF',
-                      bgcolor: '#001E3C',
-                      '&:hover': { bgcolor: '#FFFFFF33' },
+                    onClick={() => {
+                      setMobileSearchOpen(false)
+                      setSearchText('')
+                      setMobileSearchKey((k) => k + 1)
                     }}
+                    sx={{ flexShrink: 0 }}
                   >
-                    <SearchIcon fontSize="small" />
+                    <CloseIcon />
                   </IconButton>
                 )}
+
+                {/* Desktop: left spacer + centered search */}
+                {!isMobile && <Box sx={{ flex: 1 }} />}
+                {searchable && !isMobile && (
+                  <Box id="navbar-search-container" sx={{ width: 520, flexShrink: 1, minWidth: 0, mr: 1, ml: 2 }}>
+                    <Search placeholder={searchPlaceholder} searchHandler={(value) => setSearchText(value)} />
+                  </Box>
+                )}
+
+                {/* Right controls — always in DOM so portal target stays valid */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: isMobile && mobileSearchOpen ? 'none' : 'flex',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <Box id="navbar-toolbar-extra" />
+                  {searchable && isMobile && (
+                    <IconButton
+                      color="inherit"
+                      size="small"
+                      onClick={() => setMobileSearchOpen(true)}
+                      sx={{
+                        borderRadius: '8px',
+                        height: '38px',
+                        width: '38px',
+                        border: '1px solid #2684FF',
+                        bgcolor: '#001E3C',
+                        '&:hover': { bgcolor: '#FFFFFF33' },
+                      }}
+                    >
+                      <SearchIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
               </Box>
-            </Box>
-          </Toolbar>
-        </AppBar>
-      )}
+            </Toolbar>
+          </AppBar>
+        )}
       {page !== '/login' && (
         <Box
           component="nav"
@@ -765,7 +780,7 @@ function Navbar20({
         component="main"
         sx={{
           flexGrow: 1,
-          p: page !== '/watch' ? mainPadding : 0,
+          p: page !== '/watch' && page !== '/image' ? mainPadding : 0,
           width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` },
           overflowX: 'hidden',
           ...(page === '/w' && {
@@ -774,7 +789,9 @@ function Navbar20({
           }),
         }}
       >
-        {toolbar && page !== '/watch' && (isMobile || (page !== '/files' && page !== '/settings')) && <Toolbar />}
+        {toolbar &&
+          page !== '/watch' &&
+          (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
@@ -788,6 +805,9 @@ function Navbar20({
           selectedFolder: effectiveFolder,
           onFolderChange: handleFolderChange,
           onFoldersLoaded: handleFoldersLoaded,
+          selectedImageFolder: effectiveImageFolder,
+          onImageFolderChange: handleImageFolderChange,
+          onImageFoldersLoaded: handleImageFoldersLoaded,
           uploadTick,
         })}
       </Box>

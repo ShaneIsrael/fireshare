@@ -159,6 +159,7 @@ ENV FLASK_APP /app/server/fireshare:create_app()
 ENV ENVIRONMENT production
 ENV DATA_DIRECTORY /data
 ENV VIDEO_DIRECTORY /videos
+ENV IMAGE_DIRECTORY /images
 ENV PROCESSED_DIRECTORY /processed
 ENV TEMPLATE_PATH=/app/server/fireshare/templates
 ENV ADMIN_PASSWORD admin

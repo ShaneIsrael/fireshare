@@ -7,7 +7,7 @@ import click
 from datetime import datetime
 from flask import current_app, request
 from fireshare import create_app, db, util, logger
-from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink, VideoTagLink
+from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageFolderRule
 from werkzeug.security import generate_password_hash
 from pathlib import Path
 from sqlalchemy import func
@@ -943,6 +943,283 @@ def bulk_import(ctx, root):
 
         util.clear_transcoding_status(paths['data'])
         util.remove_lock(paths["data"])
+
+@cli.command()
+@click.option("--root", "-r", help="subdirectory of IMAGE_DIRECTORY to scan", required=False)
+def scan_images(root):
+    """Scan IMAGE_DIRECTORY for new image files and index them."""
+    with create_app().app_context():
+        image_directory = current_app.config.get('IMAGE_DIRECTORY')
+        if not image_directory:
+            logger.error("IMAGE_DIRECTORY is not configured. Set the IMAGE_DIRECTORY environment variable.")
+            return
+        images_path = Path(image_directory)
+        if not images_path.is_dir():
+            logger.error(f"IMAGE_DIRECTORY does not exist: {images_path}")
+            return
+
+        paths = current_app.config['PATHS']
+        image_links = paths["processed"] / "image_links"
+        if not image_links.is_dir():
+            image_links.mkdir(parents=True)
+
+        config_file = open(paths["data"] / "config.json")
+        config = json.load(config_file)
+        image_config = config["app_config"].get("image_defaults", {"private": True})
+        config_file.close()
+
+        search_root = images_path / root if root else images_path
+        logger.info(f"Scanning {search_root} for image files")
+
+        image_files = [
+            f for f in search_root.glob('**/*')
+            if f.is_file() and util.is_image_file(f) and not f.name.startswith('._')
+        ]
+        logger.info(f"Found {len(image_files)} image file(s)")
+
+        image_rows = Image.query.all()
+        new_images = []
+        for img_file in image_files:
+            rel_path = str(img_file.relative_to(images_path))
+            iid = util.image_id(img_file)
+            existing = next((ir for ir in image_rows if ir.image_id == iid), None)
+            duplicate = next((ni for ni in new_images if ni.image_id == iid), None)
+            if duplicate:
+                logger.info(f"Found duplicate image {iid} at {rel_path}, skipping...")
+            elif existing:
+                if not existing.available:
+                    db.session.query(Image).filter_by(image_id=iid).update({"available": True})
+                # Regenerate missing WebP/thumbnail for existing images
+                info = ImageInfo.query.filter_by(image_id=iid).first()
+                if info and (not info.has_webp or not info.has_thumbnail):
+                    derived_path = Path(current_app.config['PROCESSED_DIRECTORY']) / "derived" / iid
+                    if not derived_path.exists():
+                        derived_path.mkdir(parents=True)
+                    src = images_path / rel_path
+                    webp_path = derived_path / "image.webp"
+                    thumb_path = derived_path / "thumbnail.webp"
+                    if not webp_path.exists():
+                        ok = util.create_image_webp(src, webp_path)
+                        if ok:
+                            info.has_webp = True
+                    if not thumb_path.exists():
+                        ok = util.create_image_thumbnail(src, thumb_path)
+                        if ok:
+                            info.has_thumbnail = True
+                    if not info.width or not info.height:
+                        w, h = util.get_image_dimensions(src)
+                        info.width = w
+                        info.height = h
+                    if not info.file_size:
+                        info.file_size = src.stat().st_size
+                    db.session.commit()
+                    logger.info(f"Regenerated derived data for existing image {iid}")
+            else:
+                created_at = datetime.fromtimestamp(os.path.getctime(str(img_file)))
+                updated_at = datetime.fromtimestamp(os.path.getmtime(str(img_file)))
+                source_folder = rel_path.split('/')[0] if '/' in rel_path else None
+                img = Image(image_id=iid, extension=img_file.suffix, path=rel_path,
+                            available=True, created_at=created_at, updated_at=updated_at,
+                            source_folder=source_folder)
+                logger.info(f"Adding new Image {iid} at {rel_path}")
+                new_images.append(img)
+
+        if new_images:
+            db.session.add_all(new_images)
+        db.session.commit()
+
+        fd = os.open(str(image_links.absolute()), os.O_DIRECTORY)
+        for ni in new_images:
+            src = Path((images_path / ni.path).absolute())
+            dst = image_links / (ni.image_id + ni.extension)
+            if not dst.exists():
+                logger.info(f"Linking {src} --> {dst}")
+                try:
+                    os.symlink(src, dst, dir_fd=fd)
+                except FileExistsError:
+                    logger.info(f"{dst} exists already")
+            info = ImageInfo(image_id=ni.image_id, title=Path(ni.path).stem,
+                             private=image_config.get("private", True))
+            db.session.add(info)
+        db.session.commit()
+
+        # Auto-tag new images based on image folder rules
+        if new_images:
+            img_folder_rules = {rule.folder_path: rule.game_id for rule in ImageFolderRule.query.all()}
+            if img_folder_rules:
+                logger.info(f"Checking {len(new_images)} new image(s) against {len(img_folder_rules)} image folder rule(s)")
+                auto_tagged = 0
+                for ni in new_images:
+                    parts = ni.path.split('/')
+                    if len(parts) > 1:
+                        folder = parts[0]
+                        if folder in img_folder_rules:
+                            game_id = img_folder_rules[folder]
+                            link = ImageGameLink(image_id=ni.image_id, game_id=game_id, created_at=datetime.utcnow())
+                            db.session.add(link)
+                            auto_tagged += 1
+                            logger.info(f"[Image Folder Rule] Auto-tagged {ni.image_id} to game {game_id} (folder: {folder})")
+                if auto_tagged:
+                    db.session.commit()
+                    logger.info(f"Auto-tagged {auto_tagged} image(s) via image folder rules")
+
+        # Generate derived data (webp + thumbnail) for new images
+        processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+        for ni in new_images:
+            derived_path = processed_root / "derived" / ni.image_id
+            if not derived_path.exists():
+                derived_path.mkdir(parents=True)
+            src = images_path / ni.path
+            webp_path = derived_path / "image.webp"
+            thumb_path = derived_path / "thumbnail.webp"
+            info = ImageInfo.query.filter_by(image_id=ni.image_id).first()
+            if not webp_path.exists():
+                ok = util.create_image_webp(src, webp_path)
+                if ok and info:
+                    info.has_webp = True
+            if not thumb_path.exists():
+                ok = util.create_image_thumbnail(src, thumb_path)
+                if ok and info:
+                    info.has_thumbnail = True
+            if info:
+                w, h = util.get_image_dimensions(src)
+                info.width = w
+                info.height = h
+                info.file_size = src.stat().st_size
+        db.session.commit()
+
+        # Verify existing images still exist
+        for ei in Image.query.filter_by(available=True).all():
+            file_path = images_path / ei.path
+            if not file_path.exists():
+                logger.warning(f"Image {ei.image_id} at {file_path} not found, marking unavailable")
+                db.session.query(Image).filter_by(image_id=ei.image_id).update({"available": False})
+        db.session.commit()
+        logger.info("Image scan complete")
+
+
+@cli.command()
+@click.pass_context
+@click.option("--path", "-p", help="Path to image file (relative to IMAGE_DIRECTORY)", required=True)
+@click.option("--game-id", type=int, help="Game ID to apply", required=False, default=None)
+@click.option("--tag-ids", help="Comma-separated custom tag IDs to apply", required=False, default=None)
+@click.option("--title", help="Initial title for the image", required=False, default=None)
+def scan_image(ctx, path, game_id, tag_ids, title):
+    """Scan a single image file and index it."""
+    with create_app().app_context():
+        image_directory = current_app.config.get('IMAGE_DIRECTORY')
+        if not image_directory:
+            logger.error("IMAGE_DIRECTORY is not configured.")
+            return
+        images_path = Path(image_directory)
+        img_file = images_path / path
+        if not img_file.is_file() or not util.is_image_file(img_file):
+            logger.error(f"Invalid image file: {img_file}")
+            return
+
+        paths = current_app.config['PATHS']
+        image_links = paths["processed"] / "image_links"
+        if not image_links.is_dir():
+            image_links.mkdir(parents=True)
+
+        config_file = open(paths["data"] / "config.json")
+        config = json.load(config_file)
+        image_config = config["app_config"].get("image_defaults", {"private": True})
+        config_file.close()
+
+        rel_path = str(img_file.relative_to(images_path))
+        iid = util.image_id(img_file)
+
+        existing = Image.query.filter_by(image_id=iid).first()
+        if existing:
+            if not existing.available:
+                db.session.query(Image).filter_by(image_id=iid).update({"available": True})
+                db.session.commit()
+            # Regenerate missing WebP/thumbnail for existing images
+            info = ImageInfo.query.filter_by(image_id=iid).first()
+            if info and (not info.has_webp or not info.has_thumbnail):
+                processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+                derived_path = processed_root / "derived" / iid
+                if not derived_path.exists():
+                    derived_path.mkdir(parents=True)
+                src = images_path / rel_path
+                webp_path = derived_path / "image.webp"
+                thumb_path = derived_path / "thumbnail.webp"
+                if not webp_path.exists():
+                    ok = util.create_image_webp(src, webp_path)
+                    if ok:
+                        info.has_webp = True
+                if not thumb_path.exists():
+                    ok = util.create_image_thumbnail(src, thumb_path)
+                    if ok:
+                        info.has_thumbnail = True
+                if not info.width or not info.height:
+                    w, h = util.get_image_dimensions(src)
+                    info.width = w
+                    info.height = h
+                if not info.file_size:
+                    info.file_size = src.stat().st_size
+                db.session.commit()
+                logger.info(f"Regenerated derived data for existing image {iid}")
+            else:
+                logger.info(f"Image {iid} already indexed")
+        else:
+            created_at = datetime.fromtimestamp(os.path.getctime(str(img_file)))
+            updated_at = datetime.fromtimestamp(os.path.getmtime(str(img_file)))
+            source_folder = rel_path.split('/')[0] if '/' in rel_path else None
+            img = Image(image_id=iid, extension=img_file.suffix, path=rel_path,
+                        available=True, created_at=created_at, updated_at=updated_at,
+                        source_folder=source_folder)
+            db.session.add(img)
+            db.session.commit()
+
+            src = images_path / rel_path
+            dst = image_links / (iid + img_file.suffix)
+            if not dst.exists():
+                try:
+                    os.symlink(src.absolute(), dst)
+                except FileExistsError:
+                    pass
+
+            info = ImageInfo(image_id=iid, title=title or Path(rel_path).stem,
+                             private=image_config.get("private", True))
+            db.session.add(info)
+            db.session.commit()
+
+            # Apply tags and game
+            if tag_ids:
+                for tid in [int(t) for t in tag_ids.split(',') if t.strip().isdigit()]:
+                    if not ImageTagLink.query.filter_by(image_id=iid, tag_id=tid).first():
+                        db.session.add(ImageTagLink(image_id=iid, tag_id=tid, created_at=datetime.utcnow()))
+                db.session.commit()
+            if game_id and not ImageGameLink.query.filter_by(image_id=iid).first():
+                db.session.add(ImageGameLink(image_id=iid, game_id=game_id, created_at=datetime.utcnow()))
+                db.session.commit()
+
+            # Generate derived data
+            processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+            derived_path = processed_root / "derived" / iid
+            if not derived_path.exists():
+                derived_path.mkdir(parents=True)
+            webp_path = derived_path / "image.webp"
+            thumb_path = derived_path / "thumbnail.webp"
+            info = ImageInfo.query.filter_by(image_id=iid).first()
+            if not webp_path.exists():
+                ok = util.create_image_webp(src, webp_path)
+                if ok and info:
+                    info.has_webp = True
+            if not thumb_path.exists():
+                ok = util.create_image_thumbnail(src, thumb_path)
+                if ok and info:
+                    info.has_thumbnail = True
+            w, h = util.get_image_dimensions(src)
+            if info:
+                info.width = w
+                info.height = h
+                info.file_size = src.stat().st_size
+            db.session.commit()
+            logger.info(f"Image {iid} indexed successfully")
+
 
 if __name__=="__main__":
     cli()

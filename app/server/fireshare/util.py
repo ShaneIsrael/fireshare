@@ -436,6 +436,77 @@ def create_poster(video_path, out_path, second=0):
     e = time.time()
     logger.info(f'Generated poster {str(out_path)} in {e-s}s')
 
+
+# ---------------------------------------------------------------------------
+# Image utilities
+# ---------------------------------------------------------------------------
+
+SUPPORTED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.gif'}
+
+
+def is_image_file(path: Path) -> bool:
+    return path.suffix.lower() in SUPPORTED_IMAGE_EXTENSIONS
+
+
+def image_id(path: Path, mb: int = 16) -> str:
+    """Calculate a unique ID for an image using xxhash on the first 16 MB."""
+    with path.open('rb', 0) as f:
+        file_header = f.read(int(1024 * 1024 * mb))
+    return xxhash.xxh3_128_hexdigest(file_header)
+
+
+def create_image_webp(src_path: Path, out_path: Path, quality: int = 90) -> bool:
+    """Convert an image to full-quality WebP for the detail/viewer page."""
+    try:
+        from PIL import Image as PILImage
+        s = time.time()
+        with PILImage.open(str(src_path)) as img:
+            # Handle animated GIFs — use first frame only
+            if hasattr(img, 'n_frames') and img.n_frames > 1:
+                img.seek(0)
+            img = img.convert('RGBA') if img.mode in ('RGBA', 'LA', 'P') else img.convert('RGB')
+            img.save(str(out_path), 'WEBP', quality=quality, method=4)
+        e = time.time()
+        logger.info(f'Created full-quality WebP {str(out_path)} in {e - s:.2f}s')
+        return True
+    except Exception as ex:
+        logger.error(f'Failed to create WebP {str(out_path)}: {ex}')
+        return False
+
+
+def create_image_thumbnail(src_path: Path, out_path: Path, max_width: int = 400, quality: int = 75) -> bool:
+    """Create a low-resolution WebP thumbnail for card display."""
+    try:
+        from PIL import Image as PILImage
+        s = time.time()
+        with PILImage.open(str(src_path)) as img:
+            if hasattr(img, 'n_frames') and img.n_frames > 1:
+                img.seek(0)
+            img = img.convert('RGBA') if img.mode in ('RGBA', 'LA', 'P') else img.convert('RGB')
+            if img.width > max_width:
+                ratio = max_width / img.width
+                new_height = int(img.height * ratio)
+                img = img.resize((max_width, new_height))
+            img.save(str(out_path), 'WEBP', quality=quality, method=4)
+        e = time.time()
+        logger.info(f'Created thumbnail {str(out_path)} in {e - s:.2f}s')
+        return True
+    except Exception as ex:
+        logger.error(f'Failed to create thumbnail {str(out_path)}: {ex}')
+        return False
+
+
+def get_image_dimensions(path: Path):
+    """Return (width, height) of an image, or (None, None) on failure."""
+    try:
+        from PIL import Image as PILImage
+        with PILImage.open(str(path)) as img:
+            return img.width, img.height
+    except Exception as ex:
+        logger.warning(f'Could not get image dimensions for {path}: {ex}')
+        return None, None
+
+
 # Cache for NVENC availability check to avoid repeated subprocess calls
 _nvenc_availability_cache = {}
 

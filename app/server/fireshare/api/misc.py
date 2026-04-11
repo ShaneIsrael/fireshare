@@ -182,7 +182,7 @@ def rss_feed():
     rss_items = []
     for video in videos:
         # Construct URLs
-        link = f"{frontend_domain}/#/w/{video.video_id}"
+        link = f"{frontend_domain}/w/{video.video_id}"
         # Point both player link and video stream to the frontend port (3000) as requested
         video_url = f"{frontend_domain}/api/video?id={video.video_id}"
         poster_url = f"{frontend_domain}/api/video/poster?id={video.video_id}"
