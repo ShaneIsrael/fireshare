@@ -19,6 +19,8 @@ import {
   ToggleButton,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import SaveIcon from '@mui/icons-material/Save'
@@ -29,12 +31,13 @@ import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import FolderIcon from '@mui/icons-material/Folder'
+import ImageIcon from '@mui/icons-material/Image'
 import CloseIcon from '@mui/icons-material/Close'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
-import { ConfigService, VideoService, GameService } from '../services'
+import { ConfigService, VideoService, GameService, ImageService } from '../services'
 import { setSetting } from '../common/utils'
 import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
@@ -67,6 +70,8 @@ const jsonPlaceholder = `#Example JSON Data:
 }`
 
 const Settings = () => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [alert, setAlert] = React.useState({ open: false })
   const [config, setConfig] = React.useState()
   const [updatedConfig, setUpdatedConfig] = React.useState({})
@@ -85,6 +90,11 @@ const Settings = () => {
   const [deleteMenuAnchor, setDeleteMenuAnchor] = React.useState(null)
   const [deleteMenuRuleId, setDeleteMenuRuleId] = React.useState(null)
   const [editingFolder, setEditingFolder] = React.useState(null)
+  const [imageFolderRules, setImageFolderRules] = React.useState([])
+  const [deleteImageMenuAnchor, setDeleteImageMenuAnchor] = React.useState(null)
+  const [deleteImageMenuRuleId, setDeleteImageMenuRuleId] = React.useState(null)
+  const [editingImageFolder, setEditingImageFolder] = React.useState(null)
+  const [folderSubTab, setFolderSubTab] = React.useState(0)
   const isDiscordUsed = discordUrl.trim() !== ''
   const isWebhookUsed = webhookUrl.trim() !== ''
 
@@ -159,10 +169,15 @@ const Settings = () => {
     async function fetch() {
       try {
         // Fetch folder rules in parallel with config
-        const [conf, rulesRes] = await Promise.all([ConfigService.getAdminConfig(), GameService.getFolderRules()])
+        const [conf, rulesRes, imageRulesRes] = await Promise.all([
+          ConfigService.getAdminConfig(),
+          GameService.getFolderRules(),
+          GameService.getImageFolderRules(),
+        ])
         setConfig(conf.data)
         setUpdatedConfig(conf.data)
         setFolderRules(rulesRes.data)
+        setImageFolderRules(imageRulesRes.data)
         // Set transcoding enabled/gpu from config (only changes on container restart)
         if (conf.data.transcoding_status) {
           setTranscodingStatus((prev) => ({
@@ -182,8 +197,11 @@ const Settings = () => {
 
   React.useEffect(() => {
     if (activeTab === 4) {
-      GameService.getFolderRules()
-        .then((res) => setFolderRules(res.data))
+      Promise.all([GameService.getFolderRules(), GameService.getImageFolderRules()])
+        .then(([res, imgRes]) => {
+          setFolderRules(res.data)
+          setImageFolderRules(imgRes.data)
+        })
         .catch((err) => console.error(err))
     }
   }, [activeTab])
@@ -252,6 +270,23 @@ const Settings = () => {
         open: true,
         type: 'info',
         message: 'Scan initiated. This could take a few minutes.',
+      })
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data || 'Unknown Error',
+      })
+    }
+  }
+
+  const handleScanImages = async () => {
+    try {
+      await ImageService.scan()
+      setAlert({
+        open: true,
+        type: 'info',
+        message: 'Image scan initiated. This could take a few minutes.',
       })
     } catch (err) {
       setAlert({
@@ -346,6 +381,50 @@ const Settings = () => {
     }
   }
 
+  const handleDeleteImageFolderRule = async (unlinkImages = false) => {
+    const ruleId = deleteImageMenuRuleId
+    setDeleteImageMenuAnchor(null)
+    setDeleteImageMenuRuleId(null)
+    if (!ruleId) return
+
+    try {
+      await GameService.deleteImageFolderRule(ruleId, unlinkImages)
+      const rulesRes = await GameService.getImageFolderRules()
+      setImageFolderRules(rulesRes.data)
+      setAlert({
+        open: true,
+        type: 'success',
+        message: unlinkImages ? 'Folder rule deleted and images unlinked' : 'Folder rule deleted',
+      })
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to delete image folder rule',
+      })
+    }
+  }
+
+  const handleUpdateImageFolderRule = async (folderPath, game) => {
+    try {
+      await GameService.createImageFolderRule(folderPath, game.id)
+      const rulesRes = await GameService.getImageFolderRules()
+      setImageFolderRules(rulesRes.data)
+      setEditingImageFolder(null)
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Updated: ${folderPath} → ${game.name}`,
+      })
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to update image folder rule',
+      })
+    }
+  }
+
   const checkForWarnings = async () => {
     let warnings = await WarningService.getAdminWarnings()
 
@@ -395,32 +474,55 @@ const Settings = () => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <Box sx={{ display: 'flex', maxHeight: 'calc(100vh - 50px)' }}>
-        {/* Vertical Tabs */}
-        <Tabs
-          orientation="vertical"
-          value={activeTab}
-          onChange={(_, v) => setActiveTab(v)}
-          sx={{
-            borderRight: 1,
-            borderColor: 'divider',
-            minWidth: 160,
-            flexShrink: 0,
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 600,
-              alignItems: 'flex-start',
-              textAlign: 'left',
-            },
-          }}
-        >
-          <Tab label="Privacy & Upload" />
-          <Tab label="Sidebar" />
-          <Tab label="Integrations" />
-          <Tab label="Transcoding" />
-          <Tab label="Folders" />
-          <Tab label="Actions" />
-        </Tabs>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, maxHeight: 'calc(100vh - 50px)' }}>
+        {/* Mobile: select box at top */}
+        {isMobile ? (
+          <FormControl fullWidth sx={{ px: 2, pt: 2, pb: 1, flexShrink: 0 }}>
+            <NativeSelect
+              value={activeTab}
+              onChange={(e) => setActiveTab(Number(e.target.value))}
+              sx={{
+                color: 'white',
+                fontWeight: 600,
+                '& option': { background: '#0a1929' },
+                '&::before': { borderColor: 'divider' },
+              }}
+            >
+              <option value={0}>Privacy &amp; Upload</option>
+              <option value={1}>Sidebar</option>
+              <option value={2}>Integrations</option>
+              <option value={3}>Transcoding</option>
+              <option value={4}>Folders</option>
+              <option value={5}>Actions</option>
+            </NativeSelect>
+          </FormControl>
+        ) : (
+          /* Desktop: Vertical Tabs */
+          <Tabs
+            orientation="vertical"
+            value={activeTab}
+            onChange={(_, v) => setActiveTab(v)}
+            sx={{
+              borderRight: 1,
+              borderColor: 'divider',
+              minWidth: 160,
+              flexShrink: 0,
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 600,
+                alignItems: 'flex-start',
+                textAlign: 'left',
+              },
+            }}
+          >
+            <Tab label="Privacy & Upload" />
+            <Tab label="Sidebar" />
+            <Tab label="Integrations" />
+            <Tab label="Transcoding" />
+            <Tab label="Folders" />
+            <Tab label="Actions" />
+          </Tabs>
+        )}
 
         {/* Tab Content Panel */}
         <Box
@@ -428,7 +530,7 @@ const Settings = () => {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            px: 4,
+            px: { xs: 2, sm: 4 },
             py: 2,
             minHeight: 0,
             overflow: 'hidden',
@@ -468,9 +570,23 @@ const Settings = () => {
                   </LightTooltip>
 
                   <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 14 }}>
-                    Default Video Privacy
+                    Default Media Privacy
                   </Typography>
                 </Box>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.show_admin_upload || false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: { ...prev.ui_config, show_admin_upload: e.target.checked },
+                        }))
+                      }
+                    />
+                  }
+                  label="Show Admin Upload Card"
+                />
                 <FormControlLabel
                   control={
                     <Checkbox
@@ -503,21 +619,8 @@ const Settings = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={updatedConfig.ui_config?.show_admin_upload || false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_admin_upload: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Show Admin Upload Card"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
                       checked={updatedConfig.app_config?.allow_public_game_tag || false}
+                      disabled={!updatedConfig.app_config?.allow_public_upload}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
@@ -588,30 +691,30 @@ const Settings = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={updatedConfig.ui_config?.show_my_videos !== false}
+                      checked={updatedConfig.ui_config?.show_videos !== false}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
-                          ui_config: { ...prev.ui_config, show_my_videos: e.target.checked },
+                          ui_config: { ...prev.ui_config, show_videos: e.target.checked },
                         }))
                       }
                     />
                   }
-                  label="My Videos"
+                  label="Videos"
                 />
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={updatedConfig.ui_config?.show_public_videos !== false}
+                      checked={updatedConfig.ui_config?.show_images !== false}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
-                          ui_config: { ...prev.ui_config, show_public_videos: e.target.checked },
+                          ui_config: { ...prev.ui_config, show_images: e.target.checked },
                         }))
                       }
                     />
                   }
-                  label="Public Videos"
+                  label="Images"
                 />
                 <FormControlLabel
                   control={
@@ -1013,131 +1116,271 @@ const Settings = () => {
 
             {/* Folders */}
             {activeTab === 4 && (
-              <Stack spacing={2} sx={{ maxWidth: 500 }}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 18 }}>
-                    Folder Rules
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Clips in these folders will be linked to the selected game. Modify these if your setup is not
-                    detected automatically.
-                  </Typography>
-                </Box>
-                {folderRules.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                    No folders found.
-                  </Typography>
-                ) : (
-                  <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
-                    <Stack spacing={1}>
-                      {folderRules.map((item) => (
-                        <Box
-                          key={item.folder_path}
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            p: 1.5,
-                            borderRadius: '8px',
-                            bgcolor: '#FFFFFF0D',
-                          }}
-                        >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-                            <FolderIcon sx={{ color: '#FFFFFF66' }} />
-                            <Box sx={{ flex: 1 }}>
-                              <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
-                                {item.folder_path}
-                                <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
-                                  ({item.video_count} videos)
-                                </Typography>
-                              </Typography>
-                              {editingFolder === item.folder_path ? (
-                                <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <Box sx={{ flex: 1 }}>
-                                    <GameSearch
-                                      placeholder="Search for a game..."
-                                      onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
-                                      onError={() =>
-                                        setAlert({ open: true, type: 'error', message: 'Failed to search games' })
-                                      }
-                                      onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
-                                    />
-                                  </Box>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => setEditingFolder(null)}
-                                    sx={{ color: '#FFFFFF66' }}
-                                  >
-                                    <CloseIcon fontSize="small" />
-                                  </IconButton>
-                                </Box>
-                              ) : item.rule ? (
-                                <Typography
-                                  sx={{
-                                    fontSize: 12,
-                                    color: '#3399FF',
-                                    cursor: 'pointer',
-                                    '&:hover': { textDecoration: 'underline' },
-                                  }}
-                                  onClick={() => setEditingFolder(item.folder_path)}
-                                >
-                                  → {item.rule.game?.name || 'Unknown game'}
-                                </Typography>
-                              ) : item.suggested_game ? (
-                                <Typography
-                                  sx={{
-                                    fontSize: 12,
-                                    color: '#FFB74D',
-                                    cursor: 'pointer',
-                                    '&:hover': { textDecoration: 'underline' },
-                                  }}
-                                  onClick={() => handleUpdateFolderRule(item.folder_path, item.suggested_game)}
-                                >
-                                  Suggested: {item.suggested_game.name} (click to apply)
-                                </Typography>
-                              ) : (
-                                <Typography
-                                  sx={{
-                                    fontSize: 12,
-                                    color: '#FFFFFF55',
-                                    cursor: 'pointer',
-                                    '&:hover': { textDecoration: 'underline' },
-                                  }}
-                                  onClick={() => setEditingFolder(item.folder_path)}
-                                >
-                                  No game linked - click to add
-                                </Typography>
-                              )}
-                            </Box>
-                          </Box>
-                          {item.rule && (
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                setDeleteMenuAnchor(e.currentTarget)
-                                setDeleteMenuRuleId(item.rule.id)
-                              }}
-                              sx={{ color: '#FFFFFF66' }}
-                            >
-                              <MoreVertIcon fontSize="small" />
-                            </IconButton>
-                          )}
-                        </Box>
-                      ))}
-                    </Stack>
-                  </Box>
-                )}
-                <Menu
-                  anchorEl={deleteMenuAnchor}
-                  open={Boolean(deleteMenuAnchor)}
-                  onClose={() => {
-                    setDeleteMenuAnchor(null)
-                    setDeleteMenuRuleId(null)
+              <Stack spacing={2} sx={{ maxWidth: 500, mt: -1 }}>
+                <Tabs
+                  value={folderSubTab}
+                  onChange={(_, v) => setFolderSubTab(v)}
+                  sx={{
+                    '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
                   }}
                 >
-                  <MenuItem onClick={() => handleDeleteFolderRule(false)}>Delete rule only</MenuItem>
-                  <MenuItem onClick={() => handleDeleteFolderRule(true)}>Delete rule & unlink videos</MenuItem>
-                </Menu>
+                  <Tab label="Video Folder Rules" />
+                  <Tab label="Image Folder Rules" />
+                </Tabs>
+
+                {/* Video Folder Rules */}
+                {folderSubTab === 0 && (
+                  <>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Videos in these folders will be linked to the selected game. Modify these if your setup is not
+                        detected automatically.
+                      </Typography>
+                    </Box>
+                    {folderRules.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                        No folders found.
+                      </Typography>
+                    ) : (
+                      <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
+                        <Stack spacing={1}>
+                          {folderRules.map((item) => (
+                            <Box
+                              key={item.folder_path}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                p: 1.5,
+                                borderRadius: '8px',
+                                bgcolor: '#FFFFFF0D',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+                                <FolderIcon sx={{ color: '#FFFFFF66' }} />
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
+                                    {item.folder_path}
+                                    <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
+                                      ({item.video_count} videos)
+                                    </Typography>
+                                  </Typography>
+                                  {editingFolder === item.folder_path ? (
+                                    <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      <Box sx={{ flex: 1 }}>
+                                        <GameSearch
+                                          placeholder="Search for a game..."
+                                          onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
+                                          onError={() =>
+                                            setAlert({ open: true, type: 'error', message: 'Failed to search games' })
+                                          }
+                                          onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
+                                        />
+                                      </Box>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => setEditingFolder(null)}
+                                        sx={{ color: '#FFFFFF66' }}
+                                      >
+                                        <CloseIcon fontSize="small" />
+                                      </IconButton>
+                                    </Box>
+                                  ) : item.rule ? (
+                                    <Typography
+                                      sx={{
+                                        fontSize: 12,
+                                        color: '#3399FF',
+                                        cursor: 'pointer',
+                                        '&:hover': { textDecoration: 'underline' },
+                                      }}
+                                      onClick={() => setEditingFolder(item.folder_path)}
+                                    >
+                                      → {item.rule.game?.name || 'Unknown game'}
+                                    </Typography>
+                                  ) : item.suggested_game ? (
+                                    <Typography
+                                      sx={{
+                                        fontSize: 12,
+                                        color: '#FFB74D',
+                                        cursor: 'pointer',
+                                        '&:hover': { textDecoration: 'underline' },
+                                      }}
+                                      onClick={() => handleUpdateFolderRule(item.folder_path, item.suggested_game)}
+                                    >
+                                      Suggested: {item.suggested_game.name} (click to apply)
+                                    </Typography>
+                                  ) : (
+                                    <Typography
+                                      sx={{
+                                        fontSize: 12,
+                                        color: '#FFFFFF55',
+                                        cursor: 'pointer',
+                                        '&:hover': { textDecoration: 'underline' },
+                                      }}
+                                      onClick={() => setEditingFolder(item.folder_path)}
+                                    >
+                                      No game linked - click to add
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
+                              {item.rule && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    setDeleteMenuAnchor(e.currentTarget)
+                                    setDeleteMenuRuleId(item.rule.id)
+                                  }}
+                                  sx={{ color: '#FFFFFF66' }}
+                                >
+                                  <MoreVertIcon fontSize="small" />
+                                </IconButton>
+                              )}
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                    <Menu
+                      anchorEl={deleteMenuAnchor}
+                      open={Boolean(deleteMenuAnchor)}
+                      onClose={() => {
+                        setDeleteMenuAnchor(null)
+                        setDeleteMenuRuleId(null)
+                      }}
+                    >
+                      <MenuItem onClick={() => handleDeleteFolderRule(false)}>Delete rule only</MenuItem>
+                      <MenuItem onClick={() => handleDeleteFolderRule(true)}>Delete rule & unlink videos</MenuItem>
+                    </Menu>
+                  </>
+                )}
+
+                {/* Image Folder Rules */}
+                {folderSubTab === 1 && (
+                  <>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Images in these folders will be linked to the selected game. Modify these if your setup is not
+                        detected automatically.
+                      </Typography>
+                    </Box>
+                    {imageFolderRules.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                        No folders found.
+                      </Typography>
+                    ) : (
+                      <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
+                        <Stack spacing={1}>
+                          {imageFolderRules.map((item) => (
+                            <Box
+                              key={item.folder_path}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                p: 1.5,
+                                borderRadius: '8px',
+                                bgcolor: '#FFFFFF0D',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+                                <ImageIcon sx={{ color: '#FFFFFF66' }} />
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
+                                    {item.folder_path}
+                                    <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
+                                      ({item.image_count} images)
+                                    </Typography>
+                                  </Typography>
+                                  {editingImageFolder === item.folder_path ? (
+                                    <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      <Box sx={{ flex: 1 }}>
+                                        <GameSearch
+                                          placeholder="Search for a game..."
+                                          onGameLinked={(game) => handleUpdateImageFolderRule(item.folder_path, game)}
+                                          onError={() =>
+                                            setAlert({ open: true, type: 'error', message: 'Failed to search games' })
+                                          }
+                                          onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
+                                        />
+                                      </Box>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => setEditingImageFolder(null)}
+                                        sx={{ color: '#FFFFFF66' }}
+                                      >
+                                        <CloseIcon fontSize="small" />
+                                      </IconButton>
+                                    </Box>
+                                  ) : item.rule ? (
+                                    <Typography
+                                      sx={{
+                                        fontSize: 12,
+                                        color: '#3399FF',
+                                        cursor: 'pointer',
+                                        '&:hover': { textDecoration: 'underline' },
+                                      }}
+                                      onClick={() => setEditingImageFolder(item.folder_path)}
+                                    >
+                                      → {item.rule.game?.name || 'Unknown game'}
+                                    </Typography>
+                                  ) : item.suggested_game ? (
+                                    <Typography
+                                      sx={{
+                                        fontSize: 12,
+                                        color: '#FFB74D',
+                                        cursor: 'pointer',
+                                        '&:hover': { textDecoration: 'underline' },
+                                      }}
+                                      onClick={() => handleUpdateImageFolderRule(item.folder_path, item.suggested_game)}
+                                    >
+                                      Suggested: {item.suggested_game.name} (click to apply)
+                                    </Typography>
+                                  ) : (
+                                    <Typography
+                                      sx={{
+                                        fontSize: 12,
+                                        color: '#FFFFFF55',
+                                        cursor: 'pointer',
+                                        '&:hover': { textDecoration: 'underline' },
+                                      }}
+                                      onClick={() => setEditingImageFolder(item.folder_path)}
+                                    >
+                                      No game linked - click to add
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </Box>
+                              {item.rule && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    setDeleteImageMenuAnchor(e.currentTarget)
+                                    setDeleteImageMenuRuleId(item.rule.id)
+                                  }}
+                                  sx={{ color: '#FFFFFF66' }}
+                                >
+                                  <MoreVertIcon fontSize="small" />
+                                </IconButton>
+                              )}
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
+                    )}
+                    <Menu
+                      anchorEl={deleteImageMenuAnchor}
+                      open={Boolean(deleteImageMenuAnchor)}
+                      onClose={() => {
+                        setDeleteImageMenuAnchor(null)
+                        setDeleteImageMenuRuleId(null)
+                      }}
+                    >
+                      <MenuItem onClick={() => handleDeleteImageFolderRule(false)}>Delete rule only</MenuItem>
+                      <MenuItem onClick={() => handleDeleteImageFolderRule(true)}>Delete rule & unlink images</MenuItem>
+                    </Menu>
+                  </>
+                )}
               </Stack>
             )}
 
@@ -1152,6 +1395,15 @@ const Settings = () => {
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
                   Scan for New Videos
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<ImageIcon />}
+                  onClick={handleScanImages}
+                  size="large"
+                  sx={{ width: '100%', maxWidth: 400 }}
+                >
+                  Scan for New Images
                 </Button>
                 <Button
                   variant="contained"

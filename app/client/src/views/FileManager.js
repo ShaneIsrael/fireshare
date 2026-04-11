@@ -1,11 +1,15 @@
 import React from 'react'
-import { Box, Typography } from '@mui/material'
+import { Box, Tab, Tabs, Typography } from '@mui/material'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
-import BulkFileManager from '../components/admin/BulkFileManager'
+import VideoFileIcon from '@mui/icons-material/VideoFile'
+import ImageIcon from '@mui/icons-material/Image'
+import VideoFileManager from '../components/admin/VideoFileManager'
+import ImageFileManager from '../components/admin/ImageFileManager'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
 const FileManager = ({ authenticated }) => {
   const [alert, setAlert] = React.useState({ open: false })
+  const [tab, setTab] = React.useState(0)
   if (!authenticated)
     return (
       <Box
@@ -36,7 +40,28 @@ const FileManager = ({ authenticated }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
-      <BulkFileManager setAlert={setAlert} />
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        sx={{
+          mb: 1.5,
+          minHeight: 36,
+          '& .MuiTab-root': {
+            minHeight: 36,
+            textTransform: 'none',
+            color: '#FFFFFF88',
+            fontSize: 13,
+            fontWeight: 600,
+            '&.Mui-selected': { color: '#FFFFFFEE' },
+          },
+          '& .MuiTabs-indicator': { bgcolor: '#3399FF' },
+        }}
+      >
+        <Tab icon={<VideoFileIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Videos" />
+        <Tab icon={<ImageIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Images" />
+      </Tabs>
+      {tab === 0 && <VideoFileManager setAlert={setAlert} />}
+      {tab === 1 && <ImageFileManager setAlert={setAlert} />}
     </Box>
   )
 }

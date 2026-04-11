@@ -105,7 +105,7 @@ const Navbar = ({ children, options = [], pages = [], feedView = false, authenti
           <Typography
             variant="div"
             noWrap
-            onClick={() => navigate(feedView ? '/feed' : '/')}
+            onClick={() => navigate('/')}
             sx={{
               mr: 2,
               cursor: 'pointer',

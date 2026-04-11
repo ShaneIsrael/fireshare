@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+    <meta name="msapplication-TileColor" content="#da532c">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="{{ image.info.description if image.info and image.info.description else 'Self-host your media and share with unique links.' }}">
+    <link rel="apple-touch-icon" href="/logo192.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta property="og:type" content="article" data-react-helmet="true">
+    <meta property="og:url" content="{{ domain }}/i/{{ image.image_id }}" data-react-helmet="true">
+    <meta property="og:image" content="{{ domain }}/_content/derived/{{ image.image_id }}/thumbnail.webp" data-react-helmet="true">
+    <meta property="og:image:secure_url" content="{{ domain }}/_content/derived/{{ image.image_id }}/thumbnail.webp" data-react-helmet="true">
+    <meta property="og:site_name" content="Fireshare" data-react-helmet="true">
+    <meta property="og:title" content="{{ image.info.title if image.info else image.image_id }}" data-react-helmet="true">
+    <meta property="og:description" content="{% if game %}{{ game.name }} — {% endif %}{{ image.info.description if image.info and image.info.description else 'Self-host your media and share with unique links.' }}" data-react-helmet="true">
+    {% if image.info %}
+    <meta property="og:image:width" content="{{ image.info.width }}" data-react-helmet="true">
+    <meta property="og:image:height" content="{{ image.info.height }}" data-react-helmet="true">
+    {% endif %}
+    <meta name="twitter:card" content="summary_large_image" data-react-helmet="true">
+    <meta name="twitter:title" content="{{ image.info.title if image.info else image.image_id }}" data-react-helmet="true">
+    <meta name="twitter:image" content="{{ domain }}/_content/derived/{{ image.image_id }}/thumbnail.webp" data-react-helmet="true">
+    <link itemprop="thumbnailUrl" href="{{ domain }}/_content/derived/{{ image.image_id }}/thumbnail.webp">
+    <title>{{ image.info.title if image.info else image.image_id }}</title>
+</head>
+
+<body>
+    <script>
+        window.location.href = "/image/{{ image.image_id }}" + window.location.search;
+    </script>
+</body>
+
+</html>

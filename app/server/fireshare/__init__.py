@@ -108,6 +108,7 @@ def create_app(init_schedule=False):
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
     app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
+    app.config['IMAGE_DIRECTORY'] = os.getenv('IMAGE_DIRECTORY')
     app.config['ADMIN_USERNAME'] = os.getenv('ADMIN_USERNAME')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
     app.config['DISABLE_ADMINCREATE'] = bool(os.getenv("DISABLE_ADMINCREATE"))
@@ -185,6 +186,7 @@ def create_app(init_schedule=False):
             path.mkdir(parents=True, exist_ok=True)
     subpaths = [
         paths['processed'] / 'video_links',
+        paths['processed'] / 'image_links',
         paths['processed'] / 'derived',
     ]
     for subpath in subpaths:

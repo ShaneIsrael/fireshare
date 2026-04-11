@@ -24,6 +24,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import LinkIcon from '@mui/icons-material/Link'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import VideoCards from '../components/cards/VideoCards'
+import LoadingSpinner from '../components/misc/LoadingSpinner'
 import { VideoService, GameService, ReleaseService, TagService } from '../services'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
@@ -89,11 +90,7 @@ const Dashboard = ({
         const tagMatch = tagNames.every(
           (tagName) =>
             v.tags &&
-            v.tags.some(
-              (t) =>
-                t.name.toLowerCase() === tagName ||
-                t.name.replace(/_/g, ' ').toLowerCase() === tagName,
-            ),
+            v.tags.some((t) => t.name.toLowerCase() === tagName || t.name.replace(/_/g, ' ').toLowerCase() === tagName),
         )
         return titleMatch && tagMatch
       }),
@@ -104,7 +101,8 @@ const Dashboard = ({
   }
 
   function fetchVideos() {
-    VideoService.getVideos()
+    const fetchFn = authenticated ? VideoService.getVideos() : VideoService.getPublicVideos()
+    fetchFn
       .then((res) => {
         setVideos(res.data.videos)
         setFilteredVideos(res.data.videos)
@@ -148,7 +146,8 @@ const Dashboard = ({
     let attempts = 0
     const interval = setInterval(() => {
       attempts++
-      VideoService.getVideos().then((res) => {
+      const fetchFn = authenticated ? VideoService.getVideos() : VideoService.getPublicVideos()
+      fetchFn.then((res) => {
         const fetched = res.data.videos
         if (fetched.length > videoCountRef.current || attempts >= 8) {
           clearInterval(interval)
@@ -156,7 +155,10 @@ const Dashboard = ({
           setFilteredVideos(fetched)
           const tfolders = []
           fetched.forEach((v) => {
-            const split = v.path.split('/').slice(0, -1).filter((f) => f !== '')
+            const split = v.path
+              .split('/')
+              .slice(0, -1)
+              .filter((f) => f !== '')
             if (split.length > 0 && !tfolders.includes(split[0])) tfolders.push(split[0])
           })
           tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
@@ -317,9 +319,7 @@ const Dashboard = ({
         .filter((g) => g.name.toLowerCase().includes(value.toLowerCase()))
         .map((g) => ({ ...g, _source: 'db' }))
       const existingSgdbIds = new Set(allGames.map((g) => g.steamgriddb_id).filter(Boolean))
-      const newFromSgdb = sgdbResults
-        .filter((r) => !existingSgdbIds.has(r.id))
-        .map((r) => ({ ...r, _source: 'sgdb' }))
+      const newFromSgdb = sgdbResults.filter((r) => !existingSgdbIds.has(r.id)).map((r) => ({ ...r, _source: 'sgdb' }))
       setGameOptions([...dbMatches, ...newFromSgdb])
     } catch {
       setGameOptions(allGames.map((g) => ({ ...g, _source: 'db' })))
@@ -343,9 +343,7 @@ const Dashboard = ({
       const gameData = {
         steamgriddb_id: newValue.id,
         name: newValue.name,
-        release_date: newValue.release_date
-          ? new Date(newValue.release_date * 1000).toISOString().split('T')[0]
-          : null,
+        release_date: newValue.release_date ? new Date(newValue.release_date * 1000).toISOString().split('T')[0] : null,
         hero_url: assets.hero_url,
         logo_url: assets.logo_url,
         icon_url: assets.icon_url,
@@ -453,9 +451,9 @@ const Dashboard = ({
       </SnackbarAlert>
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+              <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
                 <Select
                   value={dateSortOrder}
                   options={SORT_OPTIONS}
@@ -469,13 +467,15 @@ const Dashboard = ({
               </Box>
             )}
             {authenticated && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
                   <ButtonGroup
                     variant="contained"
                     sx={{
                       height: 38,
-                      minWidth: 'fit-content',
+                      flexShrink: 1,
+                      minWidth: 0,
+                      '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } },
                     }}
                   >
                     <Button color="primary" onClick={handleSelectAllToggle}>
@@ -487,7 +487,7 @@ const Dashboard = ({
                       onClick={handleLinkGameClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Link to Game {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
+                      Link{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
                     </Button>
                     <Button
                       color="primary"
@@ -495,7 +495,7 @@ const Dashboard = ({
                       onClick={handleTagClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Tag {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
+                      Tag{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
                     </Button>
                     <Button
                       color="error"
@@ -503,7 +503,7 @@ const Dashboard = ({
                       onClick={handleDeleteClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Delete {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
+                      Delete{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
                     </Button>
                   </ButtonGroup>
                 )}
@@ -513,6 +513,7 @@ const Dashboard = ({
                     bgcolor: editMode ? 'primary.main' : '#001E3C',
                     borderRadius: '8px',
                     height: '38px',
+                    flexShrink: 0,
                     border: !editMode ? '1px solid #2684FF' : 'none',
                     '&:hover': {
                       bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
@@ -531,11 +532,13 @@ const Dashboard = ({
           <Grid item xs={12}>
             <Box>
               <Box>
+                {loading && <LoadingSpinner />}
                 {!loading && (
                   <VideoCards
                     key={refreshKey}
                     videos={sortedVideos}
                     authenticated={authenticated}
+                    feedView={!authenticated}
                     size={cardSize}
                     editMode={editMode}
                     selectedVideos={selectedVideos}
@@ -609,17 +612,26 @@ const Dashboard = ({
               />
             )}
             renderOption={(props, option) => (
-              <Box component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }} {...props} key={`${option._source}-${option.id}`}>
+              <Box
+                component="li"
+                sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                {...props}
+                key={`${option._source}-${option.id}`}
+              >
                 {option.icon_url && (
                   <img
                     src={option.icon_url}
                     alt=""
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
                     style={{ width: 20, height: 20, objectFit: 'contain', borderRadius: 3, flexShrink: 0 }}
                   />
                 )}
                 {option.name}
-                {option._source === 'sgdb' && option.release_date && ` (${new Date(option.release_date * 1000).getFullYear()})`}
+                {option._source === 'sgdb' &&
+                  option.release_date &&
+                  ` (${new Date(option.release_date * 1000).getFullYear()})`}
               </Box>
             )}
           />
@@ -666,7 +678,13 @@ const Dashboard = ({
               value.map((tag, idx) => {
                 const { onDelete } = getTagProps({ index: idx })
                 return (
-                  <TagChip key={tag.id ?? `new-${idx}`} name={tag.name} color={tag.color} size="small" onDelete={onDelete} />
+                  <TagChip
+                    key={tag.id ?? `new-${idx}`}
+                    name={tag.name}
+                    color={tag.color}
+                    size="small"
+                    onDelete={onDelete}
+                  />
                 )
               })
             }
@@ -677,7 +695,10 @@ const Dashboard = ({
                 onKeyDown={(e) => {
                   if ((e.key === 'Enter' || e.key === ',') && tagInputValueBulk.trim()) {
                     e.preventDefault()
-                    const parts = tagInputValueBulk.split(',').map((s) => s.trim()).filter(Boolean)
+                    const parts = tagInputValueBulk
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean)
                     setTagInputValueBulk('')
                     setSelectedTagsForBulk((prev) => {
                       const merged = [...prev]
@@ -696,8 +717,15 @@ const Dashboard = ({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleTagCancel} sx={{ borderRadius: '8px', color: 'white' }}>Cancel</Button>
-          <Button onClick={handleTagConfirm} variant="contained" disabled={selectedTagsForBulk.length === 0} sx={{ borderRadius: '8px', bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}>
+          <Button onClick={handleTagCancel} sx={{ borderRadius: '8px', color: 'white' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleTagConfirm}
+            variant="contained"
+            disabled={selectedTagsForBulk.length === 0}
+            sx={{ borderRadius: '8px', bgcolor: '#3399FF', '&:hover': { bgcolor: '#1976D2' } }}
+          >
             Tag
           </Button>
         </DialogActions>

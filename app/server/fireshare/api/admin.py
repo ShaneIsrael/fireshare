@@ -12,7 +12,7 @@ from flask import current_app, jsonify, request, Response
 from flask_login import login_required, current_user
 
 from .. import db, logger, util
-from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink
+from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageView
 from . import api
 from . import transcoding as _transcoding_mod
 from .transcoding import _is_pid_running
@@ -665,12 +665,14 @@ def bulk_rename_files():
 @api.route('/api/admin/files/orphaned-derived', methods=['GET'])
 @login_required
 def get_orphaned_derived():
-    """Find derived folders with no matching video in the DB (admin only)"""
+    """Find derived folders with no matching video or image in the DB (admin only)"""
     if not current_user.admin:
         return Response(status=403, response='Admin access required.')
     paths = current_app.config['PATHS']
     derived_root = paths['processed'] / 'derived'
-    known_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    known_video_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    known_image_ids = {i[0] for i in db.session.query(Image.image_id).all()}
+    known_ids = known_video_ids | known_image_ids
     orphans = []
     try:
         for entry in os.scandir(derived_root):
@@ -699,7 +701,9 @@ def cleanup_orphaned_derived():
         return Response(status=403, response='Admin access required.')
     paths = current_app.config['PATHS']
     derived_root = paths['processed'] / 'derived'
-    known_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    known_video_ids = {v[0] for v in db.session.query(Video.video_id).all()}
+    known_image_ids = {i[0] for i in db.session.query(Image.image_id).all()}
+    known_ids = known_video_ids | known_image_ids
     deleted = []
     errors = []
     try:
@@ -713,3 +717,313 @@ def cleanup_orphaned_derived():
     except OSError as e:
         return Response(status=500, response=str(e))
     return jsonify({'deleted': deleted, 'errors': errors})
+
+
+# ---------------------------------------------------------------------------
+# Image File Manager endpoints
+# ---------------------------------------------------------------------------
+
+@api.route('/api/admin/image-files', methods=['GET'])
+@login_required
+def get_admin_image_files():
+    """Get all images with file metadata for the image file manager (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    if not image_directory:
+        return jsonify({'files': [], 'folders': []})
+
+    image_path = Path(image_directory)
+    paths = current_app.config['PATHS']
+
+    images = Image.query.outerjoin(ImageInfo).all()
+
+    # Single query for all game links
+    game_links = ImageGameLink.query.join(ImageGameLink.game).filter(
+        ImageGameLink.image_id.in_([img.image_id for img in images])
+    ).all()
+    game_map = {gl.image_id: gl.game.name for gl in game_links if gl.game}
+
+    # Collect image file sizes in one scandir pass per folder
+    size_map = {}
+    folders = []
+    try:
+        for entry in os.scandir(image_path):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                folders.append(entry.name)
+                try:
+                    for f in os.scandir(entry.path):
+                        if f.is_file():
+                            size_map[entry.name + '/' + f.name] = f.stat().st_size
+                except Exception:
+                    pass
+            elif entry.is_file():
+                try:
+                    size_map[entry.name] = entry.stat().st_size
+                except Exception:
+                    pass
+        folders.sort()
+    except Exception:
+        pass
+
+    # Collect derived folder sizes
+    derived_size_map = {}
+    derived_root = paths['processed'] / 'derived'
+    try:
+        for entry in os.scandir(derived_root):
+            if entry.is_dir():
+                folder_total = 0
+                try:
+                    for f in os.scandir(entry.path):
+                        if f.is_file():
+                            try:
+                                folder_total += f.stat(follow_symlinks=False).st_size
+                            except OSError:
+                                pass
+                except OSError:
+                    pass
+                derived_size_map[entry.name] = folder_total
+    except OSError:
+        pass
+
+    files = []
+    for img in images:
+        parts = img.path.replace('\\', '/').split('/')
+        folder = parts[0] if len(parts) > 1 else ''
+        filename = parts[-1]
+        normalized_path = '/'.join(parts)
+
+        files.append({
+            'image_id': img.image_id,
+            'filename': filename,
+            'folder': folder,
+            'path': img.path,
+            'extension': img.extension,
+            'size': size_map.get(normalized_path) or (img.info.file_size if img.info else None),
+            'derived_size': derived_size_map.get(img.image_id, 0),
+            'title': img.info.title if img.info else None,
+            'width': img.info.width if img.info else None,
+            'height': img.info.height if img.info else None,
+            'private': img.info.private if img.info else True,
+            'has_webp': img.info.has_webp if img.info else False,
+            'has_thumbnail': img.info.has_thumbnail if img.info else False,
+            'available': img.available,
+            'created_at': img.created_at.isoformat() if img.created_at else None,
+            'game': game_map.get(img.image_id),
+        })
+
+    return jsonify({'files': files, 'folders': folders})
+
+
+@api.route('/api/admin/image-files/bulk-delete', methods=['POST'])
+@login_required
+def bulk_delete_images():
+    """Delete multiple images by ID (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    image_ids = data.get('image_ids', [])
+    if not image_ids:
+        return Response(status=400, response='No image IDs provided.')
+
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    paths = current_app.config['PATHS']
+    results = {'deleted': [], 'errors': []}
+
+    for img_id in image_ids:
+        img = Image.query.filter_by(image_id=img_id).first()
+        if not img:
+            results['errors'].append({'image_id': img_id, 'error': 'Not found'})
+            continue
+
+        try:
+            # Remove files
+            if image_directory:
+                file_path = Path(image_directory) / img.path
+                if file_path.exists():
+                    file_path.unlink()
+            link_path = paths['processed'] / 'image_links' / f"{img_id}{img.extension}"
+            if link_path.exists() or link_path.is_symlink():
+                link_path.unlink()
+            derived_path = paths['processed'] / 'derived' / img_id
+            if derived_path.exists():
+                shutil.rmtree(derived_path)
+
+            # Remove DB records
+            ImageTagLink.query.filter_by(image_id=img_id).delete()
+            ImageGameLink.query.filter_by(image_id=img_id).delete()
+            ImageView.query.filter_by(image_id=img_id).delete()
+            ImageInfo.query.filter_by(image_id=img_id).delete()
+            Image.query.filter_by(image_id=img_id).delete()
+            db.session.commit()
+            results['deleted'].append(img_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'image_id': img_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/image-files/bulk-move', methods=['POST'])
+@login_required
+def bulk_move_images():
+    """Move multiple images to a target folder (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    image_ids = data.get('image_ids', [])
+    target_folder = (data.get('folder') or '').strip()
+
+    if not image_ids:
+        return Response(status=400, response='No image IDs provided.')
+    if not target_folder:
+        return Response(status=400, response='A target folder must be provided.')
+
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    if not image_directory:
+        return Response(status=503, response='IMAGE_DIRECTORY is not configured.')
+
+    image_path = Path(image_directory)
+    target_folder_path = image_path / target_folder
+    paths = current_app.config['PATHS']
+
+    if not target_folder_path.is_dir():
+        return Response(status=400, response=f"Folder '{target_folder}' does not exist.")
+
+    results = {'moved': [], 'errors': []}
+
+    for img_id in image_ids:
+        img = Image.query.filter_by(image_id=img_id).first()
+        if not img:
+            results['errors'].append({'image_id': img_id, 'error': 'Not found'})
+            continue
+
+        old_file_path = image_path / img.path
+        filename = Path(img.path).name
+        new_path = f"{target_folder}/{filename}"
+        new_file_path = image_path / new_path
+
+        if old_file_path.resolve() == new_file_path.resolve():
+            results['errors'].append({'image_id': img_id, 'error': 'Already in that folder'})
+            continue
+
+        if new_file_path.exists():
+            results['errors'].append({'image_id': img_id, 'error': f"File '{filename}' already exists in '{target_folder}'"})
+            continue
+
+        try:
+            shutil.move(str(old_file_path), str(new_file_path))
+
+            link_path = paths['processed'] / 'image_links' / f"{img_id}{img.extension}"
+            if link_path.exists() or link_path.is_symlink():
+                link_path.unlink()
+            os.symlink(new_file_path.absolute(), link_path)
+
+            img.path = new_path
+            db.session.commit()
+            results['moved'].append(img_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'image_id': img_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/image-files/bulk-set-privacy', methods=['POST'])
+@login_required
+def bulk_set_image_privacy():
+    """Set privacy for multiple images (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    image_ids = data.get('image_ids', [])
+    private = data.get('private')
+    if not image_ids:
+        return Response(status=400, response='No image IDs provided.')
+    if private is None:
+        return Response(status=400, response='A privacy value (private: true/false) must be provided.')
+
+    results = {'updated': [], 'errors': []}
+
+    for img_id in image_ids:
+        image_info = ImageInfo.query.filter_by(image_id=img_id).first()
+        if not image_info:
+            results['errors'].append({'image_id': img_id, 'error': 'Not found'})
+            continue
+        try:
+            image_info.private = bool(private)
+            db.session.commit()
+            results['updated'].append(img_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'image_id': img_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/image-files/bulk-rename', methods=['POST'])
+@login_required
+def bulk_rename_images():
+    """Bulk update titles for multiple images (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+    data = request.json
+    renames = data.get('renames', [])
+    if not renames:
+        return Response(status=400, response='No renames provided.')
+    results = {'updated': [], 'errors': []}
+    for item in renames:
+        img_id = item.get('image_id')
+        new_title = (item.get('title') or '').strip()
+        if not img_id:
+            continue
+        image_info = ImageInfo.query.filter_by(image_id=img_id).first()
+        if not image_info:
+            results['errors'].append({'image_id': img_id, 'error': 'Not found'})
+            continue
+        try:
+            image_info.title = new_title or None
+            db.session.commit()
+            results['updated'].append(img_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'image_id': img_id, 'error': str(e)})
+    return jsonify(results)
+
+
+@api.route('/api/admin/image-folders/create', methods=['POST'])
+@login_required
+def create_image_folder():
+    """Create a new folder in the images root directory (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    if not image_directory:
+        return Response(status=503, response='IMAGE_DIRECTORY is not configured.')
+
+    data = request.json
+    folder_name = (data.get('name') or '').strip()
+
+    if not folder_name:
+        return Response(status=400, response='A folder name must be provided.')
+
+    if '/' in folder_name or '\\' in folder_name or folder_name.startswith('.'):
+        return Response(status=400, response='Invalid folder name.')
+
+    new_folder_path = Path(image_directory) / folder_name
+
+    if new_folder_path.exists():
+        return Response(status=409, response=f"A folder named '{folder_name}' already exists.")
+
+    try:
+        new_folder_path.mkdir()
+        logging.info(f"Created image folder: {new_folder_path}")
+        return Response(status=201)
+    except Exception as e:
+        logging.error(f"Error creating image folder {folder_name}: {e}")
+        return Response(status=500, response=str(e))

@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { motion } from 'framer-motion'
 import {
   Box,
   IconButton,
@@ -21,9 +22,12 @@ import EditIcon from '@mui/icons-material/Edit'
 import CheckIcon from '@mui/icons-material/Check'
 import DeleteIcon from '@mui/icons-material/Delete'
 import LinkIcon from '@mui/icons-material/Link'
-import { GameService, VideoService } from '../services'
+import { GameService, VideoService, ImageService } from '../services'
 import { recordAssetBust, applyAssetBusts } from '../services/GameService'
-import VideoCards from '../components/cards/VideoCards'
+import CompactVideoCard from '../components/cards/CompactVideoCard'
+import VideoModal from '../components/modal/VideoModal'
+import CompactImageCard from '../components/cards/CompactImageCard'
+import EditImageModal from '../components/modal/EditImageModal'
 import GameVideosHeader from '../components/game/GameVideosHeader'
 import GameSearch from '../components/game/GameSearch'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
@@ -39,6 +43,10 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
 
   const [videos, setVideos] = React.useState([])
   const [filteredVideos, setFilteredVideos] = React.useState([])
+  const [images, setImages] = React.useState([])
+  const [filteredImages, setFilteredImages] = React.useState([])
+  const [modalImage, setModalImage] = React.useState(null)
+  const [videoModal, setVideoModal] = React.useState({ open: false })
   const [search, setSearch] = React.useState(searchText)
   const [game, setGame] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
@@ -49,6 +57,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
   // Edit mode
   const [editMode, setEditMode] = React.useState(false)
   const [selectedVideos, setSelectedVideos] = React.useState(new Set())
+  const [selectedImages, setSelectedImages] = React.useState(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [linkGameDialogOpen, setLinkGameDialogOpen] = React.useState(false)
   const [games, setGames] = React.useState([])
@@ -60,21 +69,26 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
 
   if (searchText !== search) {
     setSearch(searchText)
-    setFilteredVideos(videos.filter((v) => v.info?.title?.search(new RegExp(searchText, 'i')) >= 0))
+    const re = new RegExp(searchText, 'i')
+    setFilteredVideos(videos.filter((v) => v.info?.title?.search(re) >= 0))
+    setFilteredImages(images.filter((img) => img.info?.title?.search(re) >= 0))
   }
 
   React.useEffect(() => {
-    Promise.all([GameService.getGames(), GameService.getGameVideos(gameId)])
-      .then(([gamesRes, videosRes]) => {
+    Promise.all([GameService.getGames(), GameService.getGameVideos(gameId), GameService.getGameImages(gameId)])
+      .then(([gamesRes, videosRes, imagesRes]) => {
         const foundGame = applyAssetBusts(gamesRes.data).find((g) => g.steamgriddb_id === parseInt(gameId))
         setGame(foundGame)
         const fetchedVideos = videosRes.data || []
         setVideos(fetchedVideos)
         setFilteredVideos(fetchedVideos)
+        const fetchedImages = imagesRes.data || []
+        setImages(fetchedImages)
+        setFilteredImages(fetchedImages)
         setLoading(false)
       })
       .catch((err) => {
-        console.error('Error fetching game videos:', err)
+        console.error('Error fetching game media:', err)
         setLoading(false)
       })
   }, [gameId])
@@ -94,16 +108,9 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
 
   const handleEditModeToggle = () => {
     setEditMode(!editMode)
-    if (editMode) setSelectedVideos(new Set())
-  }
-
-  const allSelected = sortedVideos => sortedVideos.length > 0 && selectedVideos.size === sortedVideos.length
-
-  const handleSelectAllToggle = (sortedVideos) => {
-    if (allSelected(sortedVideos)) {
+    if (editMode) {
       setSelectedVideos(new Set())
-    } else {
-      setSelectedVideos(new Set(sortedVideos.map((v) => v.video_id)))
+      setSelectedImages(new Set())
     }
   }
 
@@ -114,19 +121,38 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     setSelectedVideos(next)
   }
 
+  const handleImageSelect = (imageId) => {
+    const next = new Set(selectedImages)
+    if (next.has(imageId)) next.delete(imageId)
+    else next.add(imageId)
+    setSelectedImages(next)
+  }
+
   const handleDeleteConfirm = async () => {
     try {
-      await Promise.all(Array.from(selectedVideos).map((id) => VideoService.delete(id)))
-      setAlert({ open: true, type: 'success', message: `Deleted ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''}` })
-      const res = await GameService.getGameVideos(gameId)
-      const fetched = res.data || []
-      setVideos(fetched)
-      setFilteredVideos(fetched)
+      const deletions = [
+        ...Array.from(selectedVideos).map((id) => VideoService.delete(id)),
+        ...Array.from(selectedImages).map((id) => ImageService.delete(id)),
+      ]
+      await Promise.all(deletions)
+      const count = selectedVideos.size + selectedImages.size
+      setAlert({ open: true, type: 'success', message: `Deleted ${count} item${count > 1 ? 's' : ''}` })
+      const [videosRes, imagesRes] = await Promise.all([
+        GameService.getGameVideos(gameId),
+        GameService.getGameImages(gameId),
+      ])
+      const fetchedVideos = videosRes.data || []
+      setVideos(fetchedVideos)
+      setFilteredVideos(fetchedVideos)
+      const fetchedImages = imagesRes.data || []
+      setImages(fetchedImages)
+      setFilteredImages(fetchedImages)
       setSelectedVideos(new Set())
+      setSelectedImages(new Set())
       setDeleteDialogOpen(false)
       setEditMode(false)
     } catch (err) {
-      setAlert({ open: true, type: 'error', message: err.response?.data || 'Error deleting videos' })
+      setAlert({ open: true, type: 'error', message: err.response?.data || 'Error deleting items' })
     }
   }
 
@@ -145,27 +171,47 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
   const handleLinkGameConfirm = async () => {
     if (!selectedGame) return
     try {
-      await Promise.all(Array.from(selectedVideos).map((id) => GameService.linkVideoToGame(id, selectedGame.id)))
-      setAlert({ open: true, type: 'success', message: `Linked ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''} to ${selectedGame.name}` })
+      const links = [
+        ...Array.from(selectedVideos).map((id) => GameService.linkVideoToGame(id, selectedGame.id)),
+        ...Array.from(selectedImages).map((id) => ImageService.linkGame(id, selectedGame.id)),
+      ]
+      await Promise.all(links)
+      const count = selectedVideos.size + selectedImages.size
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Linked ${count} item${count > 1 ? 's' : ''} to ${selectedGame.name}`,
+      })
       setSelectedVideos(new Set())
+      setSelectedImages(new Set())
       setLinkGameDialogOpen(false)
       setSelectedGame(null)
       setEditMode(false)
     } catch (err) {
-      setAlert({ open: true, type: 'error', message: err.response?.data || 'Error linking videos' })
+      setAlert({ open: true, type: 'error', message: err.response?.data || 'Error linking items' })
     }
   }
 
   const handleNewGameCreated = async (newGame) => {
     try {
-      await Promise.all(Array.from(selectedVideos).map((id) => GameService.linkVideoToGame(id, newGame.id)))
-      setAlert({ open: true, type: 'success', message: `Linked ${selectedVideos.size} video${selectedVideos.size > 1 ? 's' : ''} to ${newGame.name}` })
+      const links = [
+        ...Array.from(selectedVideos).map((id) => GameService.linkVideoToGame(id, newGame.id)),
+        ...Array.from(selectedImages).map((id) => ImageService.linkGame(id, newGame.id)),
+      ]
+      await Promise.all(links)
+      const count = selectedVideos.size + selectedImages.size
+      setAlert({
+        open: true,
+        type: 'success',
+        message: `Linked ${count} item${count > 1 ? 's' : ''} to ${newGame.name}`,
+      })
       setSelectedVideos(new Set())
+      setSelectedImages(new Set())
       setLinkGameDialogOpen(false)
       setShowAddNewGame(false)
       setEditMode(false)
     } catch (err) {
-      setAlert({ open: true, type: 'error', message: err.response?.data || 'Error linking videos to new game' })
+      setAlert({ open: true, type: 'error', message: err.response?.data || 'Error linking items to new game' })
     }
   }
 
@@ -203,9 +249,100 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     })
   }, [filteredVideos, sortOrder])
 
+  // Mixed sorted list of videos + images for the game page
+  const sortedMedia = React.useMemo(() => {
+    const tagged = [
+      ...sortedVideos.map((v) => ({
+        type: 'video',
+        item: v,
+        date: v.recorded_at ? new Date(v.recorded_at) : new Date(0),
+        views: v.view_count || 0,
+      })),
+      ...(filteredImages || []).map((img) => ({
+        type: 'image',
+        item: img,
+        date: img.created_at ? new Date(img.created_at) : new Date(0),
+        views: img.view_count || 0,
+      })),
+    ]
+    return tagged.sort((a, b) => {
+      if (sortOrder.value === 'most_views') return b.views - a.views
+      if (sortOrder.value === 'least_views') return a.views - b.views
+      return sortOrder.value === 'newest' ? b.date - a.date : a.date - b.date
+    })
+  }, [sortedVideos, filteredImages, sortOrder])
+
+  const totalSelected = selectedVideos.size + selectedImages.size
+
+  const allMediaSelected = sortedMedia.length > 0 && totalSelected === sortedMedia.length
+
+  const handleSelectAllToggle = () => {
+    if (allMediaSelected) {
+      setSelectedVideos(new Set())
+      setSelectedImages(new Set())
+    } else {
+      setSelectedVideos(new Set(sortedMedia.filter((m) => m.type === 'video').map((m) => m.item.video_id)))
+      setSelectedImages(new Set(sortedMedia.filter((m) => m.type === 'image').map((m) => m.item.image_id)))
+    }
+  }
+
+  const handleImageOpen = React.useCallback((image) => setModalImage(image), [])
+
+  const handleImageModalClose = (update) => {
+    if (update) {
+      setImages((prev) =>
+        prev.map((img) => {
+          if (img.image_id !== modalImage?.image_id) return img
+          return {
+            ...img,
+            info: {
+              ...img.info,
+              ...(update.title !== undefined && { title: update.title }),
+              ...(update.private !== undefined && { private: update.private }),
+            },
+            ...(update.game !== undefined && { game: update.game }),
+          }
+        }),
+      )
+      setFilteredImages((prev) =>
+        prev.map((img) => {
+          if (img.image_id !== modalImage?.image_id) return img
+          return {
+            ...img,
+            info: {
+              ...img.info,
+              ...(update.title !== undefined && { title: update.title }),
+              ...(update.private !== undefined && { private: update.private }),
+            },
+            ...(update.game !== undefined && { game: update.game }),
+          }
+        }),
+      )
+    }
+    setModalImage(null)
+  }
+
+  const handleImageModalNext = React.useCallback(() => {
+    setModalImage((cur) => {
+      if (!cur) return cur
+      const imageItems = sortedMedia.filter((m) => m.type === 'image').map((m) => m.item)
+      const idx = imageItems.findIndex((img) => img.image_id === cur.image_id)
+      return idx >= 0 && idx < imageItems.length - 1 ? imageItems[idx + 1] : cur
+    })
+  }, [sortedMedia])
+
+  const handleImageModalPrev = React.useCallback(() => {
+    setModalImage((cur) => {
+      if (!cur) return cur
+      const imageItems = sortedMedia.filter((m) => m.type === 'image').map((m) => m.item)
+      const idx = imageItems.findIndex((img) => img.image_id === cur.image_id)
+      return idx > 0 ? imageItems[idx - 1] : cur
+    })
+  }, [sortedMedia])
+
   if (loading) return <LoadingSpinner />
 
-  const isAllSelected = sortedVideos.length > 0 && selectedVideos.size === sortedVideos.length
+  const isAllSelected = allMediaSelected
 
   return (
     <>
@@ -215,9 +352,9 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
 
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+              <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
                 <Select
                   value={sortOrder}
                   options={SORT_OPTIONS}
@@ -231,27 +368,27 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
               </Box>
             )}
             {authenticated && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
-                  <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content' }}>
-                    <Button color="primary" onClick={() => handleSelectAllToggle(sortedVideos)}>
+                  <ButtonGroup variant="contained" sx={{ height: 38, flexShrink: 1, minWidth: 0, '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } } }}>
+                    <Button color="primary" onClick={handleSelectAllToggle}>
                       {isAllSelected ? 'Select None' : 'Select All'}
                     </Button>
                     <Button
                       color="primary"
                       startIcon={<LinkIcon />}
                       onClick={handleLinkGameClick}
-                      disabled={selectedVideos.size === 0}
+                      disabled={totalSelected === 0}
                     >
-                      Link to Game {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
+                      Link{totalSelected > 0 && !isMdDown ? ` (${totalSelected})` : null}
                     </Button>
                     <Button
                       color="error"
                       startIcon={<DeleteIcon />}
                       onClick={() => setDeleteDialogOpen(true)}
-                      disabled={selectedVideos.size === 0}
+                      disabled={totalSelected === 0}
                     >
-                      Delete {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
+                      Delete{totalSelected > 0 && !isMdDown ? ` (${totalSelected})` : null}
                     </Button>
                   </ButtonGroup>
                 )}
@@ -261,6 +398,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
                     bgcolor: editMode ? 'primary.main' : '#001E3C',
                     borderRadius: '8px',
                     height: '38px',
+                    flexShrink: 0,
                     border: !editMode ? '1px solid #2684FF' : 'none',
                     '&:hover': { bgcolor: editMode ? 'primary.dark' : '#FFFFFF33' },
                   }}
@@ -273,42 +411,135 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
           toolbarTarget,
         )}
 
-      <GameVideosHeader
-        game={game}
-        editMode={editMode}
-        onEditAssets={() => setEditingAssets(true)}
+      <GameVideosHeader game={game} editMode={editMode} onEditAssets={() => setEditingAssets(true)} />
+      <VideoModal
+        open={videoModal.open}
+        onClose={() => setVideoModal({ open: false })}
+        videoId={videoModal.id}
+        feedView={false}
+        authenticated={authenticated}
+        onNext={() => {
+          const videoItems = sortedMedia.filter((m) => m.type === 'video').map((m) => m.item)
+          const i = videoItems.findIndex((v) => v.video_id === videoModal.id)
+          if (i < videoItems.length - 1) setVideoModal({ open: true, id: videoItems[i + 1].video_id })
+        }}
+        onPrev={() => {
+          const videoItems = sortedMedia.filter((m) => m.type === 'video').map((m) => m.item)
+          const i = videoItems.findIndex((v) => v.video_id === videoModal.id)
+          if (i > 0) setVideoModal({ open: true, id: videoItems[i - 1].video_id })
+        }}
       />
+      <EditImageModal
+        open={Boolean(modalImage)}
+        onClose={handleImageModalClose}
+        image={modalImage}
+        alertHandler={setAlert}
+        authenticated={authenticated}
+        onNext={handleImageModalNext}
+        onPrev={handleImageModalPrev}
+      />
+
       <Box sx={{ p: 3 }}>
-        <VideoCards
-          videos={sortedVideos}
-          authenticated={authenticated}
-          size={cardSize}
-          feedView={false}
-          removeOnMove={true}
-          editMode={editMode}
-          selectedVideos={selectedVideos}
-          onVideoSelect={handleVideoSelect}
-        />
+        {sortedMedia.length === 0 ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              py: 8,
+              gap: 2,
+              border: '1px solid #FFFFFF14',
+              borderRadius: '16px',
+              background: '#00000040',
+            }}
+          >
+            <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white' }}>No media found</Typography>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${cardSize}px), 1fr))`,
+              gap: '24px',
+            }}
+          >
+            {sortedMedia.map((media, index) => (
+              <motion.div
+                key={media.type === 'video' ? `v-${media.item.video_id}` : `i-${media.item.image_id}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.04 }}
+              >
+                {media.type === 'video' ? (
+                  <CompactVideoCard
+                    video={media.item}
+                    openVideoHandler={(id) => setVideoModal({ open: true, id })}
+                    alertHandler={setAlert}
+                    authenticated={authenticated}
+                    editMode={editMode}
+                    selected={selectedVideos.has(media.item.video_id)}
+                    onSelect={handleVideoSelect}
+                    onRemoveFromView={(id) => {
+                      setVideos((vs) => vs.filter((v) => v.video_id !== id))
+                      setFilteredVideos((vs) => vs.filter((v) => v.video_id !== id))
+                    }}
+                    removeOnMove={true}
+                    showTypeIndicator={true}
+                  />
+                ) : (
+                  <CompactImageCard
+                    image={media.item}
+                    openImageHandler={handleImageOpen}
+                    alertHandler={setAlert}
+                    authenticated={authenticated}
+                    editMode={editMode}
+                    selected={selectedImages.has(media.item.image_id)}
+                    onSelect={handleImageSelect}
+                    onRemoveFromView={(id) => {
+                      setImages((imgs) => imgs.filter((img) => img.image_id !== id))
+                      setFilteredImages((imgs) => imgs.filter((img) => img.image_id !== id))
+                    }}
+                    showTypeIndicator={true}
+                  />
+                )}
+              </motion.div>
+            ))}
+          </Box>
+        )}
       </Box>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete {selectedVideos.size} Video{selectedVideos.size > 1 ? 's' : ''}?</DialogTitle>
+        <DialogTitle>
+          Delete {totalSelected} Item{totalSelected > 1 ? 's' : ''}?
+        </DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the selected video{selectedVideos.size > 1 ? 's' : ''}? This will
-            permanently delete the video file{selectedVideos.size > 1 ? 's' : ''}.
+            Are you sure you want to delete the selected {totalSelected > 1 ? `${totalSelected} items` : 'item'}? This
+            will permanently delete the file{totalSelected > 1 ? 's' : ''}.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} variant="contained" color="error">Delete</Button>
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Link to Game Dialog */}
-      <Dialog open={linkGameDialogOpen} onClose={() => { setLinkGameDialogOpen(false); setSelectedGame(null) }} maxWidth="sm" fullWidth>
-        <DialogTitle>Link {selectedVideos.size} Clip{selectedVideos.size !== 1 ? 's' : ''} to Game</DialogTitle>
+      <Dialog
+        open={linkGameDialogOpen}
+        onClose={() => {
+          setLinkGameDialogOpen(false)
+          setSelectedGame(null)
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Link {totalSelected} Item{totalSelected !== 1 ? 's' : ''} to Game
+        </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           {!showAddNewGame ? (
             <Autocomplete
@@ -316,13 +547,31 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
               getOptionLabel={(option) => option.name || ''}
               value={selectedGame}
               onChange={(_, newValue) => {
-                if (newValue?.isAddNew) { setShowAddNewGame(true); setSelectedGame(null) }
-                else setSelectedGame(newValue)
+                if (newValue?.isAddNew) {
+                  setShowAddNewGame(true)
+                  setSelectedGame(null)
+                } else setSelectedGame(newValue)
               }}
               renderInput={(params) => <TextField {...params} placeholder="Select a game..." />}
               renderOption={(props, option) => (
-                <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1, fontStyle: option.isAddNew ? 'italic' : 'normal', color: option.isAddNew ? 'primary.main' : 'inherit' }}>
-                  {option.icon_url && <img src={option.icon_url} alt={option.name} style={{ width: 32, height: 32, objectFit: 'contain' }} />}
+                <Box
+                  component="li"
+                  {...props}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    fontStyle: option.isAddNew ? 'italic' : 'normal',
+                    color: option.isAddNew ? 'primary.main' : 'inherit',
+                  }}
+                >
+                  {option.icon_url && (
+                    <img
+                      src={option.icon_url}
+                      alt={option.name}
+                      style={{ width: 32, height: 32, objectFit: 'contain' }}
+                    />
+                  )}
                   <Typography>{option.name}</Typography>
                 </Box>
               )}
@@ -330,16 +579,33 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
           ) : (
             <GameSearch
               onGameLinked={handleNewGameCreated}
-              onError={(err) => setAlert({ open: true, type: 'error', message: err.response?.data || 'Error adding game' })}
+              onError={(err) =>
+                setAlert({ open: true, type: 'error', message: err.response?.data || 'Error adding game' })
+              }
               onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
               placeholder="Search SteamGridDB..."
             />
           )}
         </DialogContent>
         <DialogActions>
-          {showAddNewGame && <Button onClick={() => setShowAddNewGame(false)} sx={{ mr: 'auto' }}>Back to List</Button>}
-          <Button onClick={() => { setLinkGameDialogOpen(false); setSelectedGame(null) }}>Cancel</Button>
-          {!showAddNewGame && <Button onClick={handleLinkGameConfirm} variant="contained" disabled={!selectedGame}>Link</Button>}
+          {showAddNewGame && (
+            <Button onClick={() => setShowAddNewGame(false)} sx={{ mr: 'auto' }}>
+              Back to List
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              setLinkGameDialogOpen(false)
+              setSelectedGame(null)
+            }}
+          >
+            Cancel
+          </Button>
+          {!showAddNewGame && (
+            <Button onClick={handleLinkGameConfirm} variant="contained" disabled={!selectedGame}>
+              Link
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 

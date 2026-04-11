@@ -1,6 +1,7 @@
 export { default as AuthService } from './AuthService'
 export { default as TagService } from './TagService'
 export { default as VideoService } from './VideoService'
+export { default as ImageService } from './ImageService'
 export { default as ConfigService } from './ConfigService'
 export { default as StatsService } from './StatsService'
 export { default as GameService } from './GameService'

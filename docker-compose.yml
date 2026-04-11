@@ -9,6 +9,7 @@ services:
       - ./dev_root/fireshare/data:/data
       - ./dev_root/fireshare/processed:/processed
       - ./dev_root/fireshare/videos:/videos
+      - ./dev_root/fireshare/images:/images
     environment:
       # Credentials for the admin user. Change these before deploying to production!
       # After the first run, you can remove these variables in order to hide your username and password.
