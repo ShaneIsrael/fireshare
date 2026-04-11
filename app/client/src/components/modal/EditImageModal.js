@@ -269,7 +269,13 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
           >
             <TransformComponent
               wrapperStyle={{ width: '100%', height: '100%' }}
-              contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              contentStyle={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
               <img
                 src={fullImageUrl}
@@ -303,7 +309,9 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
                   },
                 }}
               >
-                <ChevronLeftIcon sx={{ color: 'white', fontSize: 44, opacity: 0.75, filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))' }} />
+                <ChevronLeftIcon
+                  sx={{ color: 'white', fontSize: 44, opacity: 0.75, filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))' }}
+                />
               </Box>
               <Box
                 sx={{
@@ -319,7 +327,9 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
                   },
                 }}
               >
-                <ChevronRightIcon sx={{ color: 'white', fontSize: 44, opacity: 0.75, filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))' }} />
+                <ChevronRightIcon
+                  sx={{ color: 'white', fontSize: 44, opacity: 0.75, filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.8))' }}
+                />
               </Box>
             </>
           )}

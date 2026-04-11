@@ -46,7 +46,8 @@ const DeleteVideoModal = ({ open, onClose, videoId, videoIds, alertHandler }) =>
           {isBulk ? `Permanently delete ${count} video${count > 1 ? 's' : ''}?` : 'Permanently delete this video?'}
         </Typography>
         <Typography sx={{ fontSize: 14, color: '#FFFFFFB3', lineHeight: 1.6, mb: 3.5 }}>
-          Deleting this clip will also remove all related data, including thumbnails, transcoded versions, and any edits to its title or date. Are you sure?
+          Deleting this clip will also remove all related data, including thumbnails, transcoded versions, and any edits
+          to its title or date. Are you sure?
         </Typography>
         <Stack direction="row" spacing={1.5}>
           <Button

@@ -247,7 +247,20 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
             {authenticated && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
-                  <ButtonGroup variant="contained" sx={{ height: 38, flexShrink: 1, minWidth: 0, '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } } }}>
+                  <ButtonGroup
+                    variant="contained"
+                    sx={{
+                      height: 38,
+                      flexShrink: 1,
+                      minWidth: 0,
+                      '& .MuiButton-root': {
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        px: { xs: 1, sm: 2 },
+                      },
+                    }}
+                  >
                     <Button color="primary" onClick={handleSelectAllToggle}>
                       {allSelected ? 'Select None' : 'Select All'}
                     </Button>

@@ -20,11 +20,7 @@ const MoveVideoModal = ({ open, onClose, video, alertHandler }) => {
     VideoService.getUploadFolders()
       .then((res) => {
         const all = res.data?.folders || []
-        setFolders(
-          all
-            .filter((f) => f !== currentFolder)
-            .map((f) => ({ value: f, label: `/videos/${f}/` })),
-        )
+        setFolders(all.filter((f) => f !== currentFolder).map((f) => ({ value: f, label: `/videos/${f}/` })))
       })
       .catch(() => setFolders([]))
   }, [open, currentFolder])

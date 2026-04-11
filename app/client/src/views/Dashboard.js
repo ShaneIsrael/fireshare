@@ -475,7 +475,12 @@ const Dashboard = ({
                       height: 38,
                       flexShrink: 1,
                       minWidth: 0,
-                      '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } },
+                      '& .MuiButton-root': {
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        px: { xs: 1, sm: 2 },
+                      },
                     }}
                   >
                     <Button color="primary" onClick={handleSelectAllToggle}>

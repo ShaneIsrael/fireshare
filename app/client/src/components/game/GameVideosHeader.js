@@ -17,7 +17,7 @@ const GameVideosHeader = ({ game, height = 200, editMode, onEditAssets }) => {
         width: '100%',
         height,
         overflow: 'hidden',
-        mb: 3,
+        mb: 2,
       }}
     >
       {bgUrl && (

@@ -69,9 +69,7 @@ const TranscodingStatus = ({ open, authenticated }) => {
       <Box sx={{ ...styles.card, ...styles.cardExpanded }}>
         <Grid container alignItems="center">
           <Grid item>
-            <Typography sx={styles.textPrimary}>
-              {stoppedMessage}
-            </Typography>
+            <Typography sx={styles.textPrimary}>{stoppedMessage}</Typography>
           </Grid>
         </Grid>
       </Box>
@@ -91,15 +89,14 @@ const TranscodingStatus = ({ open, authenticated }) => {
                   <>
                     Transcoding:{' '}
                     <Box component="span" sx={styles.textAccent}>
-                      {status.current + status.completed_tasks}/{status.total + status.completed_tasks + status.queue_tasks}
+                      {status.current + status.completed_tasks}/
+                      {status.total + status.completed_tasks + status.queue_tasks}
                     </Box>
                   </>
                 )}
               </Typography>
               {status.current_video && (
-                <Typography sx={{ ...styles.textSecondary, ...styles.truncate }}>
-                  {status.current_video}
-                </Typography>
+                <Typography sx={{ ...styles.textSecondary, ...styles.truncate }}>{status.current_video}</Typography>
               )}
               {typeof status.percent === 'number' && (
                 <Box sx={{ mt: 1, width: '100%' }}>
@@ -134,22 +131,25 @@ const TranscodingStatus = ({ open, authenticated }) => {
     )
   }
 
-  const tooltipText = status.total === 0
-    ? 'Preparing transcode...'
-    : `Transcoding: ${status.current + status.completed_tasks}/${status.total + status.completed_tasks + status.queue_tasks}${status.current_video ? `\n${status.current_video}` : ''}`
+  const tooltipText =
+    status.total === 0
+      ? 'Preparing transcode...'
+      : `Transcoding: ${status.current + status.completed_tasks}/${status.total + status.completed_tasks + status.queue_tasks}${status.current_video ? `\n${status.current_video}` : ''}`
 
   return (
     <Tooltip title={tooltipText} arrow placement="right">
       <Box sx={{ ...styles.card, ...styles.cardCollapsed }}>
         <IconButton sx={{ p: 0.5, pointerEvents: 'all' }}>
-          <SyncIcon sx={{
-            color: '#EBEBEB',
-            animation: 'spin 1.5s linear infinite',
-            '@keyframes spin': {
-              '0%': { transform: 'rotate(360deg)' },
-              '100%': { transform: 'rotate(0deg)' },
-            },
-          }} />
+          <SyncIcon
+            sx={{
+              color: '#EBEBEB',
+              animation: 'spin 1.5s linear infinite',
+              '@keyframes spin': {
+                '0%': { transform: 'rotate(360deg)' },
+                '100%': { transform: 'rotate(0deg)' },
+              },
+            }}
+          />
         </IconButton>
       </Box>
     </Tooltip>

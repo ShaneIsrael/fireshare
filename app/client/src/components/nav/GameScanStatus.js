@@ -10,7 +10,7 @@ const spinAnimation = {
   '@keyframes spin': {
     '0%': { transform: 'rotate(0deg)' },
     '100%': { transform: 'rotate(360deg)' },
-  }
+  },
 }
 
 const GameScanStatus = ({ open, onComplete, authenticated }) => {
@@ -87,9 +87,8 @@ const GameScanStatus = ({ open, onComplete, authenticated }) => {
     )
   }
 
-  const tooltipText = scanStatus.total === 0
-    ? 'Preparing scan...'
-    : `Scanning: ${scanStatus.current}/${scanStatus.total}`
+  const tooltipText =
+    scanStatus.total === 0 ? 'Preparing scan...' : `Scanning: ${scanStatus.current}/${scanStatus.total}`
 
   return (
     <Tooltip title={tooltipText} arrow placement="right">

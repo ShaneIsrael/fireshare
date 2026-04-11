@@ -52,7 +52,9 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
       paused: () => mediaRef.current?.paused ?? true,
       play: () => store.play?.(),
       pause: () => store.pause?.(),
-      seek: (time) => { if (mediaRef.current) mediaRef.current.currentTime = time },
+      seek: (time) => {
+        if (mediaRef.current) mediaRef.current.currentTime = time
+      },
       el: () => mediaRef.current,
     }),
     [store],
