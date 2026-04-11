@@ -825,7 +825,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                           {selectedGame && (
                             <Box
                               component={selectedGame.steamgriddb_id ? 'a' : 'div'}
-                              href={selectedGame.steamgriddb_id ? `#/games/${selectedGame.steamgriddb_id}` : undefined}
+                              href={selectedGame.steamgriddb_id ? `games/${selectedGame.steamgriddb_id}` : undefined}
                               onClick={selectedGame.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
                               sx={{
                                 display: 'flex',
@@ -883,7 +883,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                                   key={tag.id}
                                   name={tag.name}
                                   color={tag.color}
-                                  href={`#/tags/${tag.id}`}
+                                  href={`tags/${tag.id}`}
                                   size="small"
                                 />
                               ))}
@@ -1037,7 +1037,13 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       <Box>
                         <Typography sx={labelSx}>Thumbnail</Typography>
                         <Box
-                          sx={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', cursor: 'pointer', lineHeight: 0 }}
+                          sx={{
+                            position: 'relative',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            cursor: 'pointer',
+                            lineHeight: 0,
+                          }}
                           onMouseEnter={() => setThumbnailHover(true)}
                           onMouseLeave={() => setThumbnailHover(false)}
                         >
@@ -1083,7 +1089,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                                 </IconButton>
                               </Tooltip>
                               {(hasCustomPoster || pendingThumbnailFile) && (
-                                <Tooltip title={pendingThumbnailFile ? 'Cancel pending upload' : 'Remove custom thumbnail'}>
+                                <Tooltip
+                                  title={pendingThumbnailFile ? 'Cancel pending upload' : 'Remove custom thumbnail'}
+                                >
                                   <IconButton
                                     onClick={handleClearThumbnail}
                                     sx={{ color: '#FF6B6B', bgcolor: '#FFFFFF22', '&:hover': { bgcolor: '#FFFFFF44' } }}

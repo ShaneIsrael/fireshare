@@ -309,7 +309,7 @@ const CompactImageCard = ({
           {/* Game icon */}
           {game?.icon_url && (
             <a
-              href={`#/games/${game.steamgriddb_id}`}
+              href={`games/${game.steamgriddb_id}`}
               onClick={(e) => e.stopPropagation()}
               style={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
             >
@@ -343,7 +343,7 @@ const CompactImageCard = ({
             {game?.name && (
               <Typography
                 component={game.steamgriddb_id ? 'a' : 'span'}
-                href={game.steamgriddb_id ? `#/games/${game.steamgriddb_id}` : undefined}
+                href={game.steamgriddb_id ? `games/${game.steamgriddb_id}` : undefined}
                 onClick={game.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
                 sx={{
                   fontSize: 14,

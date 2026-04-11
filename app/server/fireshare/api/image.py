@@ -516,4 +516,4 @@ def image_metadata(image_id):
             domain=domain,
             game=game.json() if game else None,
         )
-    return redirect(f'{domain}/#/images/{image_id}', code=302)
+    return redirect(f'{domain}/images/{image_id}', code=302)

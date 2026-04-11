@@ -556,7 +556,13 @@ const CompactVideoCard = ({
                   transition: 'opacity 2s ease-in-out',
                 }}
               >
-                <SlowMotionVideoIcon sx={{ fontSize: 40, color: 'rgba(255,255,255,0.75)', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))' }} />
+                <SlowMotionVideoIcon
+                  sx={{
+                    fontSize: 40,
+                    color: 'rgba(255,255,255,0.75)',
+                    filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))',
+                  }}
+                />
               </Box>
             )}
 
@@ -748,7 +754,7 @@ const CompactVideoCard = ({
           {/* Game icon — only shown when a game is linked */}
           {game?.icon_url && (
             <a
-              href={`#/games/${game.steamgriddb_id}`}
+              href={`games/${game.steamgriddb_id}`}
               onClick={(e) => e.stopPropagation()}
               style={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
             >
@@ -833,7 +839,7 @@ const CompactVideoCard = ({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
                 <Typography
                   component={game?.steamgriddb_id ? 'a' : 'span'}
-                  href={game?.steamgriddb_id ? `#/games/${game.steamgriddb_id}` : undefined}
+                  href={game?.steamgriddb_id ? `games/${game.steamgriddb_id}` : undefined}
                   onClick={game?.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
                   sx={{
                     fontSize: 14,

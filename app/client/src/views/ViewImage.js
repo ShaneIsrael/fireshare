@@ -144,7 +144,13 @@ const ViewImage = ({ authenticated }) => {
             >
               <TransformComponent
                 wrapperStyle={{ width: '100%', height: '100%' }}
-                contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                contentStyle={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
                 <img
                   src={getImageUrl(id)}
@@ -226,7 +232,7 @@ const ViewImage = ({ authenticated }) => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
                   <Box
                     component={game.steamgriddb_id ? 'a' : 'div'}
-                    href={game.steamgriddb_id ? `#/games/${game.steamgriddb_id}` : undefined}
+                    href={game.steamgriddb_id ? `games/${game.steamgriddb_id}` : undefined}
                     sx={{
                       display: 'inline-flex',
                       alignItems: 'center',

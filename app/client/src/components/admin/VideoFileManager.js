@@ -194,7 +194,10 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
       <TableCell
         padding="checkbox"
         sx={{ borderBottom: '1px solid #FFFFFF0D' }}
-        onClick={(e) => { e.stopPropagation(); onToggle(file.video_id) }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle(file.video_id)
+        }}
       >
         <Checkbox
           size="small"
@@ -208,14 +211,26 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
       <TableCell sx={{ ...bodyCellSx, maxWidth: 300, overflow: 'hidden' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
           <Tooltip title={displayName} placement="top" enterDelay={600}>
-            <Typography sx={{ fontSize: 13, color: '#FFFFFFCC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            <Typography
+              sx={{
+                fontSize: 13,
+                color: '#FFFFFFCC',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
+              }}
+            >
               {displayName}
             </Typography>
           </Tooltip>
           <Tooltip title="Open in new tab">
             <IconButton
               size="small"
-              onClick={(e) => { e.stopPropagation(); window.open(`/#/w/${file.video_id}`, '_blank') }}
+              onClick={(e) => {
+                e.stopPropagation()
+                window.open(`/w/${file.video_id}`, '_blank')
+              }}
               sx={{ color: '#FFFFFF33', p: 0.25, flexShrink: 0, '&:hover': { color: '#FFFFFF99' } }}
             >
               <OpenInNewIcon sx={{ fontSize: 13 }} />
@@ -226,7 +241,22 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
 
       {/* Size */}
       <TableCell sx={{ ...bodyCellSx }}>
-        <Tooltip arrow placement="top" title={file.derived_size > 0 ? <Box><Typography sx={{ fontSize: 12 }}>Derived: {formatSize(file.derived_size)}</Typography><Typography sx={{ fontSize: 12 }}>Total: {formatSize((file.size || 0) + (file.derived_size || 0))}</Typography></Box> : ''}>
+        <Tooltip
+          arrow
+          placement="top"
+          title={
+            file.derived_size > 0 ? (
+              <Box>
+                <Typography sx={{ fontSize: 12 }}>Derived: {formatSize(file.derived_size)}</Typography>
+                <Typography sx={{ fontSize: 12 }}>
+                  Total: {formatSize((file.size || 0) + (file.derived_size || 0))}
+                </Typography>
+              </Box>
+            ) : (
+              ''
+            )
+          }
+        >
           <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
         </Tooltip>
       </TableCell>
@@ -234,7 +264,9 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
       {/* Total Size */}
       {!hiddenColumns.has('Total Size') && (
         <TableCell sx={{ ...bodyCellSx }}>
-          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize((file.size || 0) + (file.derived_size || 0))}</Typography>
+          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
+            {formatSize((file.size || 0) + (file.derived_size || 0))}
+          </Typography>
         </TableCell>
       )}
 
@@ -249,7 +281,17 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
       {!hiddenColumns.has('Resolution') && (
         <TableCell sx={{ ...bodyCellSx }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Chip label={formatResolution(file.width, file.height)} size="small" sx={{ height: 17, fontSize: 10, bgcolor: '#FFFFFF12', color: '#FFFFFF66', '& .MuiChip-label': { px: 0.75 } }} />
+            <Chip
+              label={formatResolution(file.width, file.height)}
+              size="small"
+              sx={{
+                height: 17,
+                fontSize: 10,
+                bgcolor: '#FFFFFF12',
+                color: '#FFFFFF66',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
           </Box>
         </TableCell>
       )}
@@ -259,9 +301,45 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
         <TableCell sx={{ ...bodyCellSx }}>
           {hasTranscodes ? (
             <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap' }}>
-              {file.has_1080p && <Chip label="1080p" size="small" sx={{ height: 17, fontSize: 10, bgcolor: '#FFFFFF12', color: '#FFFFFF66', '& .MuiChip-label': { px: 0.75 } }} />}
-              {file.has_720p && <Chip label="720p" size="small" sx={{ height: 17, fontSize: 10, bgcolor: '#FFFFFF12', color: '#FFFFFF66', '& .MuiChip-label': { px: 0.75 } }} />}
-              {file.has_480p && <Chip label="480p" size="small" sx={{ height: 17, fontSize: 10, bgcolor: '#FFFFFF12', color: '#FFFFFF66', '& .MuiChip-label': { px: 0.75 } }} />}
+              {file.has_1080p && (
+                <Chip
+                  label="1080p"
+                  size="small"
+                  sx={{
+                    height: 17,
+                    fontSize: 10,
+                    bgcolor: '#FFFFFF12',
+                    color: '#FFFFFF66',
+                    '& .MuiChip-label': { px: 0.75 },
+                  }}
+                />
+              )}
+              {file.has_720p && (
+                <Chip
+                  label="720p"
+                  size="small"
+                  sx={{
+                    height: 17,
+                    fontSize: 10,
+                    bgcolor: '#FFFFFF12',
+                    color: '#FFFFFF66',
+                    '& .MuiChip-label': { px: 0.75 },
+                  }}
+                />
+              )}
+              {file.has_480p && (
+                <Chip
+                  label="480p"
+                  size="small"
+                  sx={{
+                    height: 17,
+                    fontSize: 10,
+                    bgcolor: '#FFFFFF12',
+                    color: '#FFFFFF66',
+                    '& .MuiChip-label': { px: 0.75 },
+                  }}
+                />
+              )}
             </Box>
           ) : (
             <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>—</Typography>
@@ -274,7 +352,18 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
         <TableCell sx={{ ...bodyCellSx }}>
           {file.has_crop ? (
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Chip label="Cropped" size="small" sx={{ height: 17, fontSize: 10, bgcolor: '#FF990018', color: '#FF9900BB', border: '1px solid #FF990033', '& .MuiChip-label': { px: 0.75 } }} />
+              <Chip
+                label="Cropped"
+                size="small"
+                sx={{
+                  height: 17,
+                  fontSize: 10,
+                  bgcolor: '#FF990018',
+                  color: '#FF9900BB',
+                  border: '1px solid #FF990033',
+                  '& .MuiChip-label': { px: 0.75 },
+                }}
+              />
             </Box>
           ) : (
             <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>—</Typography>
@@ -290,7 +379,8 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
               label={file.private ? 'Private' : 'Public'}
               size="small"
               sx={{
-                height: 17, fontSize: 10,
+                height: 17,
+                fontSize: 10,
                 bgcolor: file.private ? '#FFFFFF12' : '#1DB95418',
                 color: file.private ? '#FFFFFF66' : '#1DB954',
                 border: '1px solid',
