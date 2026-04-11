@@ -111,7 +111,8 @@ Then open `http://localhost:8080`.
 docker run --name fireshare \
   -v $(pwd)/fireshare/data:/data:rw \
   -v $(pwd)/fireshare/processed:/processed:rw \
-  -v /path/to/my_game_clips:/videos:rw \
+  -v /path/to/my/videos:/videos:rw \
+  -v /path/to/my/images:/images:rw \
   -p 8080:80 \
   -e ADMIN_PASSWORD=your-admin-password \
   -d shaneisrael/fireshare:latest
