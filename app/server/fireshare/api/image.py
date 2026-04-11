@@ -120,6 +120,10 @@ def upload_image_public():
         return Response(status=401)
 
     upload_folder = config['app_config'].get('public_upload_folder_name', 'public uploads')
+    requested_folder = request.form.get('folder', '').strip()
+    if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
+        if config['app_config'].get('allow_public_folder_selection', False):
+            upload_folder = requested_folder
 
     if 'file' not in request.files:
         return Response(status=400)
@@ -185,6 +189,33 @@ def get_image_upload_folders():
         default_folder = config['app_config'].get('admin_upload_folder_name', 'uploads')
     except Exception:
         pass
+    return jsonify({'folders': folders, 'default_folder': default_folder})
+
+
+@api.route('/api/upload/image-folders/public', methods=['GET'])
+def get_public_image_upload_folders():
+    paths = current_app.config['PATHS']
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    try:
+        with open(paths['data'] / 'config.json', 'r') as f:
+            config = json.load(f)
+    except Exception:
+        return jsonify({'folders': [], 'default_folder': None})
+
+    if not config.get('app_config', {}).get('allow_public_folder_selection', False):
+        return Response(status=403)
+
+    folders = []
+    if image_directory:
+        try:
+            for entry in os.scandir(image_directory):
+                if entry.is_dir() and not entry.name.startswith('.'):
+                    folders.append(entry.name)
+            folders.sort()
+        except Exception:
+            pass
+
+    default_folder = config['app_config'].get('public_upload_folder_name', 'public uploads')
     return jsonify({'folders': folders, 'default_folder': default_folder})
 
 

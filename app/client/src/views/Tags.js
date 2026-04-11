@@ -220,9 +220,9 @@ const Tags = ({ authenticated, searchText }) => {
       {toolbarTarget &&
         authenticated &&
         ReactDOM.createPortal(
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {editMode && (
-              <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content', borderRadius: '8px' }}>
+              <ButtonGroup variant="contained" sx={{ height: 38, flexShrink: 1, minWidth: 0, borderRadius: '8px', '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } } }}>
                 <Button color="primary" onClick={handleSelectAllToggle} sx={{ borderRadius: '8px 0 0 8px' }}>
                   {allSelected ? 'Select None' : 'Select All'}
                 </Button>
@@ -233,7 +233,7 @@ const Tags = ({ authenticated, searchText }) => {
                   disabled={selectedTags.size === 0}
                   sx={{ borderRadius: '0 8px 8px 0' }}
                 >
-                  Delete {selectedTags.size > 0 && !isMdDown ? `(${selectedTags.size})` : null}
+                  Delete{selectedTags.size > 0 && !isMdDown ? ` (${selectedTags.size})` : null}
                 </Button>
               </ButtonGroup>
             )}
@@ -245,6 +245,7 @@ const Tags = ({ authenticated, searchText }) => {
                 sx={{
                   height: 38,
                   width: 120,
+                  flexShrink: 0,
                   color: 'white',
                   borderRadius: '8px',
                   bgcolor: '#3399FF',
@@ -260,6 +261,7 @@ const Tags = ({ authenticated, searchText }) => {
                 bgcolor: editMode ? 'primary.main' : '#001E3C',
                 borderRadius: '8px',
                 height: '38px',
+                flexShrink: 0,
                 border: !editMode ? '1px solid #2684FF' : 'none',
                 '&:hover': {
                   bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',

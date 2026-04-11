@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { Box, Typography } from '@mui/material'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import ImageIcon from '@mui/icons-material/Image'
-import CompactImageCard from './CompactImageCard'
+import MasonryImageCard from './MasonryImageCard'
 
 // Stable per-image delay derived from image ID so it doesn't change across re-renders
 function stableDelay(id) {
@@ -91,7 +91,7 @@ const LazyImageCard = ({
           transition={{ duration: 0.5, delay: stableDelay(img.image_id) }}
           style={{ width: '100%', height: '100%' }}
         >
-          <CompactImageCard
+          <MasonryImageCard
             image={img}
             openImageHandler={openImageHandler}
             alertHandler={alertHandler}

@@ -69,7 +69,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     ImageService.addView(image.image_id).catch(() => {})
     // Fetch linked game
     ImageService.getGame(image.image_id)
-      .then((res) => setSelectedGame(res.data || null))
+      .then((res) => setSelectedGame(res.data?.game || null))
       .catch(() => setSelectedGame(null))
   }, [open, image])
 
@@ -466,10 +466,8 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
                     )}
                     <Typography
                       sx={{
-                        fontSize: 13,
-                        color: '#FFFFFFB3',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
+                        fontSize: 14,
+                        color: 'white',
                         flex: 1,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',

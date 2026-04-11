@@ -66,14 +66,19 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
     setGameInput('')
     setGameOptions([])
     setUploadToGameFolder(false)
-    Promise.all([GameService.getGames(), ImageService.getUploadFolders()])
+    const foldersFetch = authenticated
+      ? ImageService.getUploadFolders()
+      : uiConfig?.allow_public_folder_selection
+        ? ImageService.getPublicUploadFolders()
+        : Promise.resolve({ data: { folders: [], default_folder: '' } })
+    Promise.all([GameService.getGames(), foldersFetch])
       .then(([gRes, fRes]) => {
         const games = gRes.data || []
         setAllGames(games)
         setGameOptions(games.map((g) => ({ ...g, _source: 'db' })))
         const folders = fRes.data?.folders || []
         const defaultFolder = fRes.data?.default_folder || ''
-        // Ensure the default (uploads) folder is always in the list
+        // Ensure the default folder is always in the list
         const folderSet = new Set(folders)
         if (defaultFolder && !folderSet.has(defaultFolder)) folderSet.add(defaultFolder)
         const finalFolders = [...folderSet]
@@ -174,7 +179,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
       const folder = (uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder) || null
       if (folder) formData.append('folder', folder)
       try {
-        const uploadFn = ImageService.upload
+        const uploadFn = authenticated ? ImageService.upload : ImageService.publicUpload
         await uploadFn(formData, (progress) => setUploadProgress(progress))
       } catch (err) {
         handleAlert({
@@ -197,7 +202,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
   }
 
   const uiConfig = getSetting('ui_config')
-  const canUpload = authenticated && !!uiConfig?.show_admin_upload
+  const canUpload = authenticated ? !!uiConfig?.show_admin_upload : !!uiConfig?.allow_public_upload
   if (!canUpload) return null
 
   return (

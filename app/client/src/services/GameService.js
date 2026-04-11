@@ -45,6 +45,9 @@ const service = {
   getGameVideos(gameId) {
     return Api().get(`/api/games/${gameId}/videos`)
   },
+  getGameImages(gameId) {
+    return Api().get(`/api/games/${gameId}/images`)
+  },
   createGame(gameData) {
     return Api().post('/api/games', gameData)
   },

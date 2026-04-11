@@ -229,9 +229,9 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
       </SnackbarAlert>
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+              <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
                 <Select
                   value={sortOrder}
                   options={SORT_OPTIONS}
@@ -245,9 +245,9 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
               </Box>
             )}
             {authenticated && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
-                  <ButtonGroup variant="contained" sx={{ height: 38, minWidth: 'fit-content' }}>
+                  <ButtonGroup variant="contained" sx={{ height: 38, flexShrink: 1, minWidth: 0, '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } } }}>
                     <Button color="primary" onClick={handleSelectAllToggle}>
                       {allSelected ? 'Select None' : 'Select All'}
                     </Button>
@@ -267,6 +267,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                     bgcolor: editMode ? 'primary.main' : '#001E3C',
                     borderRadius: '8px',
                     height: '38px',
+                    flexShrink: 0,
                     border: !editMode ? '1px solid #2684FF' : 'none',
                     '&:hover': {
                       bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',

@@ -921,10 +921,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                             )}
                             <Typography
                               sx={{
-                                fontSize: 13,
-                                color: '#FFFFFFB3',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.08em',
+                                fontSize: 14,
+                                color: 'white',
                                 flex: 1,
                               }}
                             >

@@ -13,6 +13,9 @@ const service = {
   getUploadFolders() {
     return Api().get('/api/upload/image/folders')
   },
+  getPublicUploadFolders() {
+    return Api().get('/api/upload/image-folders/public')
+  },
   getDetails(id) {
     return Api().get(`/api/image/details/${id}`)
   },

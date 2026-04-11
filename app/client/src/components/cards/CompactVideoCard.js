@@ -33,6 +33,7 @@ const CompactVideoCard = ({
   onSelect,
   onRemoveFromView,
   removeOnMove = false,
+  showTypeIndicator = false,
 }) => {
   const [intVideo, setIntVideo] = React.useState(video)
   const [hover, setHover] = React.useState(false)
@@ -539,6 +540,25 @@ const CompactVideoCard = ({
                 <VisibilityIcon sx={{ fontSize: 18, color: 'white' }} />
               </Box>
             </Box>
+
+            {/* Media type indicator — centered, fades out on hover */}
+            {showTypeIndicator && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                  opacity: thumbnailHover ? 0 : 1,
+                  transition: 'opacity 2s ease-in-out',
+                }}
+              >
+                <SlowMotionVideoIcon sx={{ fontSize: 40, color: 'rgba(255,255,255,0.75)', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))' }} />
+              </Box>
+            )}
 
             {/* Copy link button - shows on hover */}
             <Box

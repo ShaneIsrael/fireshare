@@ -451,9 +451,9 @@ const Dashboard = ({
       </SnackbarAlert>
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+              <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
                 <Select
                   value={dateSortOrder}
                   options={SORT_OPTIONS}
@@ -467,13 +467,15 @@ const Dashboard = ({
               </Box>
             )}
             {authenticated && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
                   <ButtonGroup
                     variant="contained"
                     sx={{
                       height: 38,
-                      minWidth: 'fit-content',
+                      flexShrink: 1,
+                      minWidth: 0,
+                      '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } },
                     }}
                   >
                     <Button color="primary" onClick={handleSelectAllToggle}>
@@ -485,7 +487,7 @@ const Dashboard = ({
                       onClick={handleLinkGameClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Link to Game {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
+                      Link{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
                     </Button>
                     <Button
                       color="primary"
@@ -493,7 +495,7 @@ const Dashboard = ({
                       onClick={handleTagClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Tag {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
+                      Tag{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
                     </Button>
                     <Button
                       color="error"
@@ -501,7 +503,7 @@ const Dashboard = ({
                       onClick={handleDeleteClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Delete {selectedVideos.size > 0 && !isMdDown ? `(${selectedVideos.size})` : null}
+                      Delete{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
                     </Button>
                   </ButtonGroup>
                 )}
@@ -511,6 +513,7 @@ const Dashboard = ({
                     bgcolor: editMode ? 'primary.main' : '#001E3C',
                     borderRadius: '8px',
                     height: '38px',
+                    flexShrink: 0,
                     border: !editMode ? '1px solid #2684FF' : 'none',
                     '&:hover': {
                       bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
