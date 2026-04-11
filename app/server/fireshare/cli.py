@@ -7,7 +7,7 @@ import click
 from datetime import datetime
 from flask import current_app, request
 from fireshare import create_app, db, util, logger
-from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink
+from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageFolderRule
 from werkzeug.security import generate_password_hash
 from pathlib import Path
 from sqlalchemy import func
@@ -1042,6 +1042,26 @@ def scan_images(root):
                              private=image_config.get("private", True))
             db.session.add(info)
         db.session.commit()
+
+        # Auto-tag new images based on image folder rules
+        if new_images:
+            img_folder_rules = {rule.folder_path: rule.game_id for rule in ImageFolderRule.query.all()}
+            if img_folder_rules:
+                logger.info(f"Checking {len(new_images)} new image(s) against {len(img_folder_rules)} image folder rule(s)")
+                auto_tagged = 0
+                for ni in new_images:
+                    parts = ni.path.split('/')
+                    if len(parts) > 1:
+                        folder = parts[0]
+                        if folder in img_folder_rules:
+                            game_id = img_folder_rules[folder]
+                            link = ImageGameLink(image_id=ni.image_id, game_id=game_id, created_at=datetime.utcnow())
+                            db.session.add(link)
+                            auto_tagged += 1
+                            logger.info(f"[Image Folder Rule] Auto-tagged {ni.image_id} to game {game_id} (folder: {folder})")
+                if auto_tagged:
+                    db.session.commit()
+                    logger.info(f"Auto-tagged {auto_tagged} image(s) via image folder rules")
 
         # Generate derived data (webp + thumbnail) for new images
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])

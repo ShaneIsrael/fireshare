@@ -91,6 +91,22 @@ const service = {
       },
     })
   },
+  getImageFolderRules() {
+    return Api().get('/api/image-folder-rules')
+  },
+  createImageFolderRule(folderPath, gameId) {
+    return Api().post('/api/image-folder-rules', {
+      folder_path: folderPath,
+      game_id: gameId,
+    })
+  },
+  deleteImageFolderRule(ruleId, unlinkImages = false) {
+    return Api().delete(`/api/image-folder-rules/${ruleId}`, {
+      params: {
+        unlink_images: unlinkImages,
+      },
+    })
+  },
 }
 
 export default service
