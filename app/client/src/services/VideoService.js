@@ -98,7 +98,7 @@ const service = {
       },
       onUploadProgress: (progressEvent) => {
         const progressTotal = (progressEvent.loaded + alreadyUploaded) / totalSize
-        const progress = (progressEvent.loaded) / progressEvent.total
+        const progress = progressEvent.loaded / progressEvent.total
         uploadProgress(progress, progressTotal, {
           loaded: (progressEvent.loaded + alreadyUploaded) / Math.pow(10, 6),
           total: totalSize / Math.pow(10, 6),
@@ -114,7 +114,7 @@ const service = {
       },
       onUploadProgress: (progressEvent) => {
         const progressTotal = (progressEvent.loaded + alreadyUploaded) / totalSize
-        const progress = (progressEvent.loaded) / progressEvent.total
+        const progress = progressEvent.loaded / progressEvent.total
         uploadProgress(progress, progressTotal, {
           loaded: (progressEvent.loaded + alreadyUploaded) / Math.pow(10, 6),
           total: totalSize / Math.pow(10, 6),

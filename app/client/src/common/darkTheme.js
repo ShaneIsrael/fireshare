@@ -183,7 +183,7 @@ const theme = {
           },
           '&.MuiTypography-body1 > svg': {
             marginTop: 2,
-          },  
+          },
           '& svg:last-child': {
             marginLeft: 2,
           },

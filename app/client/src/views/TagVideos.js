@@ -46,7 +46,14 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
   }, [])
 
-  const clips = React.useMemo(() => videos.filter((v) => (v.info?.duration || 0) >= 5).slice(0, 6).map((v) => `/api/video/poster?id=${v.video_id}&animated=true`), [videos])
+  const clips = React.useMemo(
+    () =>
+      videos
+        .filter((v) => (v.info?.duration || 0) >= 5)
+        .slice(0, 6)
+        .map((v) => `/api/video/poster?id=${v.video_id}&animated=true`),
+    [videos],
+  )
 
   React.useEffect(() => {
     if (clips.length <= 1) return
@@ -57,7 +64,9 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
   }, [clips.length])
 
   React.useEffect(() => {
-    videoRefs.current.forEach((v) => { if (v) v.play().catch(() => {}) })
+    videoRefs.current.forEach((v) => {
+      if (v) v.play().catch(() => {})
+    })
   }, [clips])
 
   const sortedVideos = React.useMemo(() => {
@@ -114,13 +123,17 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
           <Box
             key={src}
             component="video"
-            ref={(el) => { videoRefs.current[i] = el }}
+            ref={(el) => {
+              videoRefs.current[i] = el
+            }}
             src={src}
             autoPlay
             muted
             loop
             playsInline
-            onLoadedMetadata={(e) => { e.target.currentTime = (e.target.duration / clips.length) * i }}
+            onLoadedMetadata={(e) => {
+              e.target.currentTime = (e.target.duration / clips.length) * i
+            }}
             sx={{
               position: 'absolute',
               inset: 0,
@@ -167,7 +180,16 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
             px: 3,
           }}
         >
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#999', letterSpacing: 1.5, textTransform: 'uppercase', mb: 0.5 }}>
+          <Typography
+            sx={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#999',
+              letterSpacing: 1.5,
+              textTransform: 'uppercase',
+              mb: 0.5,
+            }}
+          >
             Tag
           </Typography>
           <Typography

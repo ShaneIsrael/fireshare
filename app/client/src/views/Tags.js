@@ -222,7 +222,21 @@ const Tags = ({ authenticated, searchText }) => {
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {editMode && (
-              <ButtonGroup variant="contained" sx={{ height: 38, flexShrink: 1, minWidth: 0, borderRadius: '8px', '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } } }}>
+              <ButtonGroup
+                variant="contained"
+                sx={{
+                  height: 38,
+                  flexShrink: 1,
+                  minWidth: 0,
+                  borderRadius: '8px',
+                  '& .MuiButton-root': {
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    px: { xs: 1, sm: 2 },
+                  },
+                }}
+              >
                 <Button color="primary" onClick={handleSelectAllToggle} sx={{ borderRadius: '8px 0 0 8px' }}>
                   {allSelected ? 'Select None' : 'Select All'}
                 </Button>

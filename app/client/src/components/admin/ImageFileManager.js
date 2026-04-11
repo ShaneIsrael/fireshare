@@ -164,7 +164,10 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
       <TableCell
         padding="checkbox"
         sx={{ borderBottom: '1px solid #FFFFFF0D' }}
-        onClick={(e) => { e.stopPropagation(); onToggle(file.image_id) }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle(file.image_id)
+        }}
       >
         <Checkbox
           size="small"
@@ -178,14 +181,26 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
       <TableCell sx={{ ...bodyCellSx, maxWidth: 300, overflow: 'hidden' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, overflow: 'hidden' }}>
           <Tooltip title={displayName} placement="top" enterDelay={600}>
-            <Typography sx={{ fontSize: 13, color: '#FFFFFFCC', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            <Typography
+              sx={{
+                fontSize: 13,
+                color: '#FFFFFFCC',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
+              }}
+            >
               {displayName}
             </Typography>
           </Tooltip>
           <Tooltip title="Open in new tab">
             <IconButton
               size="small"
-              onClick={(e) => { e.stopPropagation(); window.open(`/i/${file.image_id}`, '_blank') }}
+              onClick={(e) => {
+                e.stopPropagation()
+                window.open(`/i/${file.image_id}`, '_blank')
+              }}
               sx={{ color: '#FFFFFF33', p: 0.25, flexShrink: 0, '&:hover': { color: '#FFFFFF99' } }}
             >
               <OpenInNewIcon sx={{ fontSize: 13 }} />
@@ -196,7 +211,19 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
 
       {/* Size */}
       <TableCell sx={{ ...bodyCellSx }}>
-        <Tooltip arrow placement="top" title={file.derived_size > 0 ? <Box><Typography sx={{ fontSize: 12 }}>Derived: {formatSize(file.derived_size)}</Typography></Box> : ''}>
+        <Tooltip
+          arrow
+          placement="top"
+          title={
+            file.derived_size > 0 ? (
+              <Box>
+                <Typography sx={{ fontSize: 12 }}>Derived: {formatSize(file.derived_size)}</Typography>
+              </Box>
+            ) : (
+              ''
+            )
+          }
+        >
           <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize(file.size)}</Typography>
         </Tooltip>
       </TableCell>
@@ -204,7 +231,9 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
       {/* Total Size */}
       {!hiddenColumns.has('Total Size') && (
         <TableCell sx={{ ...bodyCellSx }}>
-          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>{formatSize((file.size || 0) + (file.derived_size || 0))}</Typography>
+          <Typography sx={{ fontSize: 12, color: '#FFFFFF77' }}>
+            {formatSize((file.size || 0) + (file.derived_size || 0))}
+          </Typography>
         </TableCell>
       )}
 
@@ -212,7 +241,17 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
       {!hiddenColumns.has('Resolution') && (
         <TableCell sx={{ ...bodyCellSx }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Chip label={formatResolution(file.width, file.height)} size="small" sx={{ height: 17, fontSize: 10, bgcolor: '#FFFFFF12', color: '#FFFFFF66', '& .MuiChip-label': { px: 0.75 } }} />
+            <Chip
+              label={formatResolution(file.width, file.height)}
+              size="small"
+              sx={{
+                height: 17,
+                fontSize: 10,
+                bgcolor: '#FFFFFF12',
+                color: '#FFFFFF66',
+                '& .MuiChip-label': { px: 0.75 },
+              }}
+            />
           </Box>
         </TableCell>
       )}
@@ -225,7 +264,8 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
               label={file.private ? 'Private' : 'Public'}
               size="small"
               sx={{
-                height: 17, fontSize: 10,
+                height: 17,
+                fontSize: 10,
                 bgcolor: file.private ? '#FFFFFF12' : '#1DB95418',
                 color: file.private ? '#FFFFFF66' : '#1DB954',
                 border: '1px solid',

@@ -16,7 +16,7 @@ const FolderSuggestionInline = ({ open, suggestion, folderName, onApplied, onDis
     setLoading(true)
     try {
       const gamesRes = await GameService.getGames()
-      let game = gamesRes.data.find(g => g.steamgriddb_id === suggestion.steamgriddb_id)
+      let game = gamesRes.data.find((g) => g.steamgriddb_id === suggestion.steamgriddb_id)
 
       if (!game) {
         const createRes = await GameService.createGame({
@@ -27,9 +27,7 @@ const FolderSuggestionInline = ({ open, suggestion, folderName, onApplied, onDis
         game = createRes.data
       }
 
-      const linkPromises = suggestion.video_ids.map(videoId =>
-        GameService.linkVideoToGame(videoId, game.id)
-      )
+      const linkPromises = suggestion.video_ids.map((videoId) => GameService.linkVideoToGame(videoId, game.id))
       await Promise.all(linkPromises)
 
       // Create folder rule for auto-tagging future videos
@@ -141,11 +139,7 @@ const FolderSuggestionInline = ({ open, suggestion, folderName, onApplied, onDis
 
   // Collapsed view
   return (
-    <Tooltip
-      title={`Link ${suggestion.video_count} clips to ${suggestion.game_name}?`}
-      arrow
-      placement="right"
-    >
+    <Tooltip title={`Link ${suggestion.video_count} clips to ${suggestion.game_name}?`} arrow placement="right">
       <Box
         sx={{
           m: 1,

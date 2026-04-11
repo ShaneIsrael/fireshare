@@ -6,7 +6,14 @@ import { GameService } from '../../services'
  * Reusable game search autocomplete component
  * Searches SteamGridDB, creates game if needed, and calls onGameLinked callback
  */
-const GameSearch = ({ onGameLinked, onError, onWarning, disabled = false, placeholder = 'Search for a game...', sx = {} }) => {
+const GameSearch = ({
+  onGameLinked,
+  onError,
+  onWarning,
+  disabled = false,
+  placeholder = 'Search for a game...',
+  sx = {},
+}) => {
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [gameOptions, setGameOptions] = React.useState([])
   const [gameSearchLoading, setGameSearchLoading] = React.useState(false)
@@ -60,9 +67,7 @@ const GameSearch = ({ onGameLinked, onError, onWarning, disabled = false, placeh
           const labels = { heroes: 'hero art', logos: 'logo', icons: 'icon' }
           const missing = created.missing_assets.map((k) => labels[k] || k)
           const missingStr =
-            missing.length > 1
-              ? missing.slice(0, -1).join(', ') + ' and ' + missing[missing.length - 1]
-              : missing[0]
+            missing.length > 1 ? missing.slice(0, -1).join(', ') + ' and ' + missing[missing.length - 1] : missing[0]
           const verb = missing.length > 1 ? 'were' : 'was'
           pendingWarning = `No ${missingStr} ${verb} available on SteamGridDB.`
         }

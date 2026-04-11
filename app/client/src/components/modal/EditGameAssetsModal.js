@@ -24,16 +24,43 @@ const modalSx = {
   overflow: 'hidden',
 }
 
-
 const ALL_TABS = [
-  { type: 'banner', label: 'Banner',    aspectRatio: '16 / 5', gridCols: 'repeat(auto-fill, minmax(240px, 1fr))', fit: 'cover',   pool: 'heroes' },
-  { type: 'hero',   label: 'Thumbnail', aspectRatio: '16 / 5', gridCols: 'repeat(auto-fill, minmax(240px, 1fr))', fit: 'cover',   pool: 'heroes' },
-  { type: 'logo',   label: 'Logo',      aspectRatio: '3 / 2',  gridCols: 'repeat(auto-fill, minmax(160px, 1fr))', fit: 'contain', pool: 'logos'  },
-  { type: 'icon',   label: 'Icon',      aspectRatio: '1 / 1',  gridCols: 'repeat(auto-fill, minmax(110px, 1fr))', fit: 'cover',   pool: 'icons'  },
+  {
+    type: 'banner',
+    label: 'Banner',
+    aspectRatio: '16 / 5',
+    gridCols: 'repeat(auto-fill, minmax(240px, 1fr))',
+    fit: 'cover',
+    pool: 'heroes',
+  },
+  {
+    type: 'hero',
+    label: 'Thumbnail',
+    aspectRatio: '16 / 5',
+    gridCols: 'repeat(auto-fill, minmax(240px, 1fr))',
+    fit: 'cover',
+    pool: 'heroes',
+  },
+  {
+    type: 'logo',
+    label: 'Logo',
+    aspectRatio: '3 / 2',
+    gridCols: 'repeat(auto-fill, minmax(160px, 1fr))',
+    fit: 'contain',
+    pool: 'logos',
+  },
+  {
+    type: 'icon',
+    label: 'Icon',
+    aspectRatio: '1 / 1',
+    gridCols: 'repeat(auto-fill, minmax(110px, 1fr))',
+    fit: 'cover',
+    pool: 'icons',
+  },
 ]
 
-const BANNER_TABS = ALL_TABS.filter((t) => t.type !== 'hero')    // Banner, Logo, Icon
-const CARD_TABS   = ALL_TABS.filter((t) => t.type !== 'banner')  // Thumbnail, Logo, Icon
+const BANNER_TABS = ALL_TABS.filter((t) => t.type !== 'hero') // Banner, Logo, Icon
+const CARD_TABS = ALL_TABS.filter((t) => t.type !== 'banner') // Thumbnail, Logo, Icon
 
 // ─── Tab bar item ─────────────────────────────────────────────────────────────
 
@@ -152,92 +179,83 @@ const EditGameAssetsModal = ({ game, open, onClose, onSaved, bannerOnly = false 
           }}
         >
           {TABS.map((tab, i) => (
-            <TabItem
-              key={tab.type}
-              tab={tab}
-              isActive={activeTabIndex === i}
-              onClick={() => setActiveTabIndex(i)}
-            />
+            <TabItem key={tab.type} tab={tab} isActive={activeTabIndex === i} onClick={() => setActiveTabIndex(i)} />
           ))}
         </Box>
 
         {/* ── Content area ── */}
         <Box sx={{ flex: 1, overflow: 'auto', p: 3 }}>
           {loadingOptions ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 180 }}>
-                <CircularProgress size={32} sx={{ color: '#3399FF' }} />
-              </Box>
-            ) : currentOptions.length === 0 ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 180 }}>
-                <Typography sx={{ color: '#FFFFFF4D', fontSize: 14 }}>
-                  No options available from SteamGridDB
-                </Typography>
-              </Box>
-            ) : (
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: activeTab.gridCols,
-                  gap: 1.5,
-                }}
-              >
-                {currentOptions.map((item) => {
-                  const isSelected = pendingSelections[activeTab.type] === item.url
-                  return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 180 }}>
+              <CircularProgress size={32} sx={{ color: '#3399FF' }} />
+            </Box>
+          ) : currentOptions.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 180 }}>
+              <Typography sx={{ color: '#FFFFFF4D', fontSize: 14 }}>No options available from SteamGridDB</Typography>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: activeTab.gridCols,
+                gap: 1.5,
+              }}
+            >
+              {currentOptions.map((item) => {
+                const isSelected = pendingSelections[activeTab.type] === item.url
+                return (
+                  <Box
+                    key={item.id}
+                    onClick={() => setPendingSelections((prev) => ({ ...prev, [activeTab.type]: item.url }))}
+                    sx={{
+                      position: 'relative',
+                      aspectRatio: activeTab.aspectRatio,
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      cursor: 'pointer',
+                      border: '2px solid',
+                      borderColor: isSelected ? '#3399FF' : '#FFFFFF1A',
+                      bgcolor: '#FFFFFF0D',
+                      transition: 'border-color 0.15s ease, transform 0.15s ease',
+                      '&:hover': {
+                        borderColor: isSelected ? '#3399FF' : '#FFFFFF44',
+                        transform: 'scale(1.03)',
+                      },
+                    }}
+                  >
                     <Box
-                      key={item.id}
-                      onClick={() =>
-                        setPendingSelections((prev) => ({ ...prev, [activeTab.type]: item.url }))
-                      }
+                      component="img"
+                      src={item.thumb || item.url}
+                      alt=""
                       sx={{
-                        position: 'relative',
-                        aspectRatio: activeTab.aspectRatio,
-                        borderRadius: '8px',
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        border: '2px solid',
-                        borderColor: isSelected ? '#3399FF' : '#FFFFFF1A',
-                        bgcolor: '#FFFFFF0D',
-                        transition: 'border-color 0.15s ease, transform 0.15s ease',
-                        '&:hover': {
-                          borderColor: isSelected ? '#3399FF' : '#FFFFFF44',
-                          transform: 'scale(1.03)',
-                        },
+                        width: '100%',
+                        height: '100%',
+                        objectFit: activeTab.fit,
                       }}
-                    >
+                    />
+                    {isSelected && (
                       <Box
-                        component="img"
-                        src={item.thumb || item.url}
-                        alt=""
                         sx={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: activeTab.fit,
+                          position: 'absolute',
+                          top: 6,
+                          right: 6,
+                          bgcolor: '#3399FF',
+                          borderRadius: '50%',
+                          width: 22,
+                          height: 22,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
-                      />
-                      {isSelected && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 6,
-                            right: 6,
-                            bgcolor: '#3399FF',
-                            borderRadius: '50%',
-                            width: 22,
-                            height: 22,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <CheckIcon sx={{ fontSize: 14, color: 'white' }} />
-                        </Box>
-                      )}
-                    </Box>
-                  )
-                })}
-              </Box>
-            )}
+                      >
+                        <CheckIcon sx={{ fontSize: 14, color: 'white' }} />
+                      </Box>
+                    )}
+                  </Box>
+                )
+              })}
+            </Box>
+          )}
         </Box>
 
         {/* ── Footer ── */}
@@ -254,7 +272,11 @@ const EditGameAssetsModal = ({ game, open, onClose, onSaved, bannerOnly = false 
               variant="outlined"
               onClick={onClose}
               disabled={saving}
-              sx={{ color: 'white', borderColor: '#FFFFFF44', '&:hover': { borderColor: 'white', bgcolor: '#FFFFFF12' } }}
+              sx={{
+                color: 'white',
+                borderColor: '#FFFFFF44',
+                '&:hover': { borderColor: 'white', bgcolor: '#FFFFFF12' },
+              }}
             >
               Cancel
             </Button>
