@@ -107,126 +107,128 @@ const LazyImageCard = ({
   )
 }
 
-const ImageCards = React.memo(({
-  images,
-  loadingIcon = null,
-  feedView = false,
-  authenticated,
-  size,
-  onImageOpen,
-  editMode = false,
-  selectedImages,
-  onImageSelect,
-}) => {
-  const [imgs, setImages] = React.useState(images || [])
-  const [alert, setAlert] = React.useState({ open: false })
-  const [columnCount, setColumnCount] = React.useState(3)
-  const containerRef = React.useRef()
+const ImageCards = React.memo(
+  ({
+    images,
+    loadingIcon = null,
+    feedView = false,
+    authenticated,
+    size,
+    onImageOpen,
+    editMode = false,
+    selectedImages,
+    onImageSelect,
+  }) => {
+    const [imgs, setImages] = React.useState(images || [])
+    const [alert, setAlert] = React.useState({ open: false })
+    const [columnCount, setColumnCount] = React.useState(3)
+    const containerRef = React.useRef()
 
-  React.useEffect(() => {
-    setImages(images || [])
-  }, [images])
+    React.useEffect(() => {
+      setImages(images || [])
+    }, [images])
 
-  React.useEffect(() => {
-    if (!imgs || imgs.length === 0) {
-      setColumnCount(3)
-      return
+    React.useEffect(() => {
+      if (!imgs || imgs.length === 0) {
+        setColumnCount(3)
+        return
+      }
+
+      const el = containerRef.current
+      if (!el) return
+
+      const observer = new ResizeObserver(([entry]) => {
+        const width = entry?.contentRect?.width || 0
+        if (!width) return
+        const colWidth = size || 300
+        const cols = Math.max(1, Math.floor((width + 16) / (colWidth + 16)))
+        setColumnCount(cols)
+      })
+
+      observer.observe(el)
+      return () => observer.disconnect()
+    }, [size, imgs])
+
+    const memoizedHandleAlert = useCallback((a) => setAlert(a), [])
+
+    const handleDelete = (id) => {
+      setImages((prev) => prev.filter((img) => img.image_id !== id))
     }
 
-    const el = containerRef.current
-    if (!el) return
+    const openImage = (img) => {
+      if (onImageOpen) onImageOpen(img)
+    }
 
-    const observer = new ResizeObserver(([entry]) => {
-      const width = entry?.contentRect?.width || 0
-      if (!width) return
-      const colWidth = size || 300
-      const cols = Math.max(1, Math.floor((width + 16) / (colWidth + 16)))
-      setColumnCount(cols)
-    })
-
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [size, imgs])
-
-  const memoizedHandleAlert = useCallback((a) => setAlert(a), [])
-
-  const handleDelete = (id) => {
-    setImages((prev) => prev.filter((img) => img.image_id !== id))
-  }
-
-  const openImage = (img) => {
-    if (onImageOpen) onImageOpen(img)
-  }
-
-  const EMPTY_STATE = () => (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 2,
-        py: 8,
-        px: 3,
-        border: '1px solid #FFFFFF14',
-        borderRadius: '16px',
-        background: '#00000040',
-      }}
-    >
-      {!loadingIcon && (
-        <>
-          <ImageIcon sx={{ fontSize: 56, color: '#FFFFFF33' }} />
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>No images found</Typography>
-            {!feedView && (
-              <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>
-                Upload images or scan your image library
-              </Typography>
-            )}
-          </Box>
-        </>
-      )}
-      {loadingIcon}
-    </Box>
-  )
-
-  return (
-    <Box>
-      <SnackbarAlert
-        severity={alert.type}
-        open={alert.open}
-        onClose={alert.onClose}
-        setOpen={(open) => setAlert({ ...alert, open })}
+    const EMPTY_STATE = () => (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
+          py: 8,
+          px: 3,
+          border: '1px solid #FFFFFF14',
+          borderRadius: '16px',
+          background: '#00000040',
+        }}
       >
-        {alert.message}
-      </SnackbarAlert>
+        {!loadingIcon && (
+          <>
+            <ImageIcon sx={{ fontSize: 56, color: '#FFFFFF33' }} />
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>No images found</Typography>
+              {!feedView && (
+                <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>
+                  Upload images or scan your image library
+                </Typography>
+              )}
+            </Box>
+          </>
+        )}
+        {loadingIcon}
+      </Box>
+    )
 
-      {imgs.length === 0 && EMPTY_STATE()}
-      {imgs.length > 0 && (
-        <Box
-          ref={containerRef}
-          sx={{
-            columnCount: columnCount,
-            columnGap: '8px',
-          }}
+    return (
+      <Box>
+        <SnackbarAlert
+          severity={alert.type}
+          open={alert.open}
+          onClose={alert.onClose}
+          setOpen={(open) => setAlert({ ...alert, open })}
         >
-          {imgs.map((img) => (
-            <LazyImageCard
-              key={img.image_id}
-              img={img}
-              openImageHandler={() => (editMode ? onImageSelect?.(img.image_id) : openImage(img))}
-              alertHandler={memoizedHandleAlert}
-              authenticated={authenticated}
-              onRemoveFromView={handleDelete}
-              editMode={editMode}
-              selected={selectedImages?.has(img.image_id)}
-              onSelect={onImageSelect}
-            />
-          ))}
-        </Box>
-      )}
-    </Box>
-  )
-})
+          {alert.message}
+        </SnackbarAlert>
+
+        {imgs.length === 0 && EMPTY_STATE()}
+        {imgs.length > 0 && (
+          <Box
+            ref={containerRef}
+            sx={{
+              columnCount: columnCount,
+              columnGap: '8px',
+            }}
+          >
+            {imgs.map((img) => (
+              <LazyImageCard
+                key={img.image_id}
+                img={img}
+                openImageHandler={() => (editMode ? onImageSelect?.(img.image_id) : openImage(img))}
+                alertHandler={memoizedHandleAlert}
+                authenticated={authenticated}
+                onRemoveFromView={handleDelete}
+                editMode={editMode}
+                selected={selectedImages?.has(img.image_id)}
+                onSelect={onImageSelect}
+              />
+            ))}
+          </Box>
+        )}
+      </Box>
+    )
+  },
+)
 
 export default ImageCards

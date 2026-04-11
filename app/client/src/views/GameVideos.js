@@ -370,7 +370,20 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
             {authenticated && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
-                  <ButtonGroup variant="contained" sx={{ height: 38, flexShrink: 1, minWidth: 0, '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } } }}>
+                  <ButtonGroup
+                    variant="contained"
+                    sx={{
+                      height: 38,
+                      flexShrink: 1,
+                      minWidth: 0,
+                      '& .MuiButton-root': {
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        px: { xs: 1, sm: 2 },
+                      },
+                    }}
+                  >
                     <Button color="primary" onClick={handleSelectAllToggle}>
                       {isAllSelected ? 'Select None' : 'Select All'}
                     </Button>
@@ -439,7 +452,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
         onPrev={handleImageModalPrev}
       />
 
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ px: 2 }}>
         {sortedMedia.length === 0 ? (
           <Box
             sx={{
@@ -460,7 +473,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
             sx={{
               display: 'grid',
               gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${cardSize}px), 1fr))`,
-              gap: '24px',
+              gap: 2,
             }}
           >
             {sortedMedia.map((media, index) => (

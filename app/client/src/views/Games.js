@@ -162,7 +162,7 @@ const Games = ({ authenticated, searchText }) => {
   if (loading) return <LoadingSpinner />
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       <>
         {toolbarTarget
           ? ReactDOM.createPortal(
@@ -176,7 +176,12 @@ const Games = ({ authenticated, searchText }) => {
                           height: 38,
                           flexShrink: 1,
                           minWidth: 0,
-                          '& .MuiButton-root': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', px: { xs: 1, sm: 2 } },
+                          '& .MuiButton-root': {
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            px: { xs: 1, sm: 2 },
+                          },
                         }}
                       >
                         <Button color="primary" onClick={handleSelectAllToggle}>

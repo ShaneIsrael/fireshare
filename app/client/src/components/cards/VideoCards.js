@@ -131,13 +131,9 @@ const VideoCards = ({
         <>
           <OndemandVideoIcon sx={{ fontSize: 56, color: '#FFFFFF33' }} />
           <Box sx={{ textAlign: 'center' }}>
-            <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>
-              No videos found
-            </Typography>
+            <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>No videos found</Typography>
             {!feedView && (
-              <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>
-                Scan your library to discover videos
-              </Typography>
+              <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>Scan your library to discover videos</Typography>
             )}
           </Box>
           {!feedView && (
@@ -200,7 +196,7 @@ const VideoCards = ({
               width: isSingleColumn ? 'calc(100% + 48px)' : '100%',
               mx: isSingleColumn ? '-24px' : 0,
               gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${size}px), 1fr))`,
-              gap: '24px',
+              gap: 2,
             }}
           >
             {vids.slice(0, visibleCount).map((v, index) => (
