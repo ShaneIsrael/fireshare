@@ -57,6 +57,7 @@ const drawerWidth = 240
 const minimizedDrawerWidth = 57
 const CARD_SIZE_DEFAULT = 375
 const CARD_SIZE_MULTIPLIER = 2
+const DEMO_BANNER_HEIGHT = 34
 
 const allPages = [
   { title: 'Videos', icon: <VideoLibraryIcon />, href: '/', private: false },
@@ -652,8 +653,37 @@ function Navbar20({
       </Box>
     </div>
   )
+  const demoMode = getSetting('demo_mode')
+
   return (
     <Box sx={{ display: 'flex' }}>
+      {demoMode && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: DEMO_BANNER_HEIGHT,
+            bgcolor: '#7C4D00',
+            color: '#FFE0B2',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.8rem',
+            letterSpacing: '0.02em',
+            zIndex: 9999,
+          }}
+        >
+          <strong>Demo Mode</strong>
+          {!authenticated && (
+            <span>
+              &nbsp;— Login with <strong>demo</strong> / <strong>demo</strong>
+            </span>
+          )}
+          . Some actions are disabled.
+        </Box>
+      )}
       {page !== '/login' &&
         page !== '/watch' &&
         (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && (
@@ -662,6 +692,7 @@ function Navbar20({
             open={open}
             sx={{
               backgroundColor: '#0A1929D0',
+              top: demoMode ? DEMO_BANNER_HEIGHT : 0,
             }}
           >
             <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
@@ -769,6 +800,12 @@ function Navbar20({
             variant="permanent"
             sx={{
               display: { xs: 'none', sm: 'block' },
+              ...(demoMode && {
+                '& .MuiDrawer-paper': {
+                  top: DEMO_BANNER_HEIGHT,
+                  height: `calc(100% - ${DEMO_BANNER_HEIGHT}px)`,
+                },
+              }),
             }}
             open={open}
           >
@@ -789,6 +826,7 @@ function Navbar20({
           }),
         }}
       >
+        {demoMode && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
         {toolbar &&
           page !== '/watch' &&
           (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && <Toolbar />}

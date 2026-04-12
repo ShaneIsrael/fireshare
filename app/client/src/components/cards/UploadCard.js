@@ -23,6 +23,15 @@ import styled from '@emotion/styled'
 import { keyframes } from '@emotion/react'
 import { VideoService, GameService, TagService } from '../../services'
 import { getSetting } from '../../common/utils'
+
+function checkUploadLimit(file, handleAlert) {
+  const limitMb = getSetting('upload_limit_mb') || 0
+  if (limitMb > 0 && file.size > limitMb * 1024 * 1024) {
+    handleAlert?.({ type: 'error', message: `File exceeds the ${limitMb} MB upload limit for this demo.`, open: true })
+    return false
+  }
+  return true
+}
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, checkboxSx, helperTextSx } from '../../common/modalStyles'
 import logo from '../../assets/logo.png'
 
@@ -123,6 +132,7 @@ const UploadCard = React.forwardRef(function UploadCard(
 
   React.useImperativeHandle(ref, () => ({
     openFile(file) {
+      if (!checkUploadLimit(file, handleAlert)) return
       setProgress(0)
       lastProgressUpdate.current = 0
       openMetadataDialog(file)
@@ -314,9 +324,11 @@ const UploadCard = React.forwardRef(function UploadCard(
   }
 
   const changeHandler = (event) => {
+    const file = event.target.files[0]
+    if (!checkUploadLimit(file, handleAlert)) return
     setProgress(0)
     lastProgressUpdate.current = 0
-    openMetadataDialog(event.target.files[0])
+    openMetadataDialog(file)
   }
 
   const uploadProgress = (progress, rate) => {
@@ -352,8 +364,9 @@ const UploadCard = React.forwardRef(function UploadCard(
   // Function to handle the drop event
   const dropHandler = (event) => {
     event.preventDefault()
-    setProgress(0)
     const file = event.dataTransfer.files[0]
+    if (!checkUploadLimit(file, handleAlert)) return
+    setProgress(0)
     openMetadataDialog(file)
   }
 

@@ -17,12 +17,14 @@ from . import api
 from . import transcoding as _transcoding_mod
 from .transcoding import _is_pid_running
 from .scan import _game_scan_state
+from .decorators import demo_restrict
 
 
 @api.route('/api/admin/config', methods=["GET", "PUT"])
 @login_required
 def get_or_update_config():
     paths = current_app.config['PATHS']
+    demo_mode = current_app.config.get('DEMO_MODE', False)
     if request.method == 'GET':
         config_path = paths['data'] / 'config.json'
         file = open(config_path)
@@ -34,11 +36,34 @@ def get_or_update_config():
                 'enabled': current_app.config.get('ENABLE_TRANSCODING', False),
                 'gpu_enabled': current_app.config.get('TRANSCODE_GPU', False),
             }
+            # Strip sensitive API keys in demo mode so they can't be harvested
+            if demo_mode:
+                config.get('integrations', {}).pop('steamgriddb_api_key', None)
             return config
         else:
             return jsonify({})
     if request.method == 'PUT':
         config = request.json["config"]
+        if demo_mode:
+            # Read the current saved values for immutable fields and restore them,
+            # so a direct API call cannot overwrite them in demo mode.
+            config_path_ro = paths['data'] / 'config.json'
+            if config_path_ro.exists():
+                with open(config_path_ro) as f:
+                    current = json.load(f)
+                config.setdefault('ui_config', {})['shareable_link_domain'] = (
+                    current.get('ui_config', {}).get('shareable_link_domain', '')
+                )
+                config.setdefault('app_config', {})['public_upload_folder_name'] = (
+                    current.get('app_config', {}).get('public_upload_folder_name', 'public uploads')
+                )
+                config.setdefault('app_config', {})['admin_upload_folder_name'] = (
+                    current.get('app_config', {}).get('admin_upload_folder_name', 'uploads')
+                )
+            # Force public access flags on — these must always be enabled in demo mode.
+            config.setdefault('app_config', {})['allow_public_upload'] = True
+            config.setdefault('app_config', {})['allow_public_folder_selection'] = True
+            config.setdefault('app_config', {})['allow_public_game_tag'] = True
         config_path = paths['data'] / 'config.json'
         if not config:
             return Response(status=400, response='A config must be provided.')
@@ -159,6 +184,7 @@ def admin_event_stream():
 
 @api.route('/api/admin/reset-database', methods=["POST"])
 @login_required
+@demo_restrict
 def reset_database():
     """Reset selected video and game data while preserving config and user settings"""
     try:
@@ -366,6 +392,7 @@ def get_admin_files():
 
 @api.route('/api/admin/files/bulk-delete', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_delete_files():
     """Delete multiple videos by ID (admin only)"""
     if not current_user.admin:
@@ -417,6 +444,7 @@ def bulk_delete_files():
 
 @api.route('/api/admin/files/bulk-move', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_move_files():
     """Move multiple videos to a target folder (admin only)"""
     if not current_user.admin:
@@ -489,6 +517,7 @@ def bulk_move_files():
 
 @api.route('/api/admin/folders/create', methods=['POST'])
 @login_required
+@demo_restrict
 def create_video_folder():
     """Create a new folder in the /videos root directory (admin only)"""
     if not current_user.admin:
@@ -521,6 +550,7 @@ def create_video_folder():
 
 @api.route('/api/admin/files/bulk-remove-transcodes', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_remove_transcodes():
     """Remove transcoded files for multiple videos (admin only)"""
     if not current_user.admin:
@@ -559,6 +589,7 @@ def bulk_remove_transcodes():
 
 @api.route('/api/admin/files/bulk-remove-crop', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_remove_crop():
     """Remove crop settings for multiple videos (admin only)"""
     if not current_user.admin:
@@ -695,6 +726,7 @@ def get_orphaned_derived():
 
 @api.route('/api/admin/files/cleanup-orphaned-derived', methods=['POST'])
 @login_required
+@demo_restrict
 def cleanup_orphaned_derived():
     """Delete orphaned derived folders (admin only)"""
     if not current_user.admin:
@@ -818,6 +850,7 @@ def get_admin_image_files():
 
 @api.route('/api/admin/image-files/bulk-delete', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_delete_images():
     """Delete multiple images by ID (admin only)"""
     if not current_user.admin:
@@ -868,6 +901,7 @@ def bulk_delete_images():
 
 @api.route('/api/admin/image-files/bulk-move', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_move_images():
     """Move multiple images to a target folder (admin only)"""
     if not current_user.admin:

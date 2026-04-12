@@ -29,6 +29,8 @@ export default function App() {
       .then((res) => res.data)
       .then((config) => {
         setSetting('ui_config', config)
+        setSetting('demo_mode', config.demo_mode || false)
+        setSetting('upload_limit_mb', config.upload_limit_mb || 0)
       })
       .catch((err) => console.error(err))
   })

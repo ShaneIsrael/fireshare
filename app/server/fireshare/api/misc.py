@@ -11,6 +11,7 @@ from .. import db, logger
 from ..models import Video, VideoInfo
 from ..cli import send_discord_webhook, send_generic_webhook
 from . import api
+from .decorators import demo_restrict
 
 
 # Cache for local app version and release notes (persists until server restart)
@@ -100,6 +101,11 @@ def config():
         public_config["allow_public_game_tag"] = config.get("app_config", {}).get("allow_public_game_tag", False)
         public_config["allow_public_upload"] = config.get("app_config", {}).get("allow_public_upload", False)
         public_config["allow_public_folder_selection"] = config.get("app_config", {}).get("allow_public_folder_selection", False)
+        public_config["demo_mode"] = current_app.config.get('DEMO_MODE', False)
+        public_config["transcoding_enabled"] = current_app.config.get('ENABLE_TRANSCODING', False)
+        limit_mb = current_app.config.get('DEMO_UPLOAD_LIMIT_MB', 0)
+        if limit_mb > 0:
+            public_config["upload_limit_mb"] = limit_mb
         return public_config
     else:
         return jsonify({})
@@ -212,6 +218,7 @@ def rss_feed():
 
 
 @api.route('/api/test-discord-webhook', methods=['POST'])
+@demo_restrict
 def test_discord_webhook():
     data = request.get_json()
     webhook_url = data.get('webhook_url')
@@ -234,6 +241,7 @@ def test_discord_webhook():
 
 
 @api.route('/api/test-webhook', methods=['POST'])
+@demo_restrict
 def test_webhook():
     data = request.get_json()
     webhook_url = data.get('webhook_url')

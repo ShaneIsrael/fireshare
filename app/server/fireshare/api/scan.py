@@ -14,6 +14,7 @@ from ..constants import DEFAULT_CONFIG
 from ..models import Video, VideoInfo, VideoGameLink, GameMetadata, FolderRule, Image, ImageGameLink, ImageFolderRule
 from . import api
 from .helpers import get_steamgriddb_api_key
+from .decorators import demo_restrict
 
 
 # Global state for tracking game scan progress
@@ -79,6 +80,7 @@ def folder_size():
 
 @api.route('/api/manual/scan')
 @login_required
+@demo_restrict
 def manual_scan():
     current_app.logger.info(f"Executed manual scan")
     Popen(["fireshare", "bulk-import"], shell=False, start_new_session=True)
@@ -87,6 +89,7 @@ def manual_scan():
 
 @api.route('/api/manual/scan-images')
 @login_required
+@demo_restrict
 def manual_scan_images():
     current_app.logger.info(f"Executed manual image scan")
     Popen(["fireshare", "scan-images"], shell=False, start_new_session=True)
@@ -95,6 +98,7 @@ def manual_scan_images():
 
 @api.route('/api/manual/scan-dates')
 @login_required
+@demo_restrict
 def manual_scan_dates():
     """Extract recording dates from filenames for videos missing recorded_at"""
     try:
@@ -457,6 +461,7 @@ def delete_image_folder_rule(rule_id):
 
 @api.route('/api/manual/scan-games')
 @login_required
+@demo_restrict
 def manual_scan_games():
     """Start game scan in background thread"""
     from fireshare.cli import save_game_suggestions_batch, _load_suggestions

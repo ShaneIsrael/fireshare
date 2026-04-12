@@ -15,6 +15,9 @@
 | `PROCESSED_DIRECTORY`         | Absolute path to the directory where derived data e.x optimized/transcoded videos, symlinks, posters... are stored.                           | `$(pwd)/fireshare/processed/` | Yes      |
 | `VIDEO_DIRECTORY`             | Absolute path to the source directory containing raw video files.                                                                             | `$(pwd)/path/to/my/videos/`   | Yes      |
 | `IMAGE_DIRECTORY`             | Absolute path to the source directory containing raw image files.                                                                             | `$(pwd)/path/to/my/images/`   | Yes      |
+| **Demo Mode**                 |                                                                                                                                               |                               |
+| `DEMO_MODE`                   | Set to `true` to enable demo mode. Uses known credentials, disables transcoding, blocks destructive actions, and hides sensitive API keys.    | `false`                       |
+| `DEMO_UPLOAD_LIMIT_MB`        | Maximum upload size in MB when `DEMO_MODE` is enabled. Files over the limit are rejected before upload begins. `0` disables the limit.        | `0`                           |
 | **Security**                  |                                                                                                                                               |                               |
 | `SECRET_KEY`                  | Flask session encryption key. If not set, a random key is generated on each restart, which invalidates all active sessions.                   | some random string or phrase  |
 | `ADMIN_USERNAME`              | The username for the initial administrative account.                                                                                          | `admin`                       |

@@ -120,7 +120,15 @@ def create_app(init_schedule=False):
     app.config['LDAP_PASSWORD'] = os.getenv("LDAP_PASSWORD")
     app.config['LDAP_USER_FILTER'] = os.getenv("LDAP_USER_FILTER")
     app.config['LDAP_ADMIN_GROUP'] = os.getenv("LDAP_ADMIN_GROUP")
-    app.config['ENABLE_TRANSCODING'] = os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
+    app.config['DEMO_MODE'] = os.getenv('DEMO_MODE', '').lower() in ('true', '1', 'yes')
+    app.config['DEMO_UPLOAD_LIMIT_MB'] = int(os.getenv('DEMO_UPLOAD_LIMIT_MB', '0') or '0')
+    if app.config['DEMO_MODE']:
+        app.config['ADMIN_USERNAME'] = 'demo'
+        app.config['ADMIN_PASSWORD'] = 'demo'
+    app.config['ENABLE_TRANSCODING'] = (
+        False if app.config['DEMO_MODE']
+        else os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
+    )
     app.config['TRANSCODE_GPU'] = os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
     app.config['TRANSCODE_TIMEOUT'] = int(os.getenv('TRANSCODE_TIMEOUT', '7200'))  # Default: 2 hours
 

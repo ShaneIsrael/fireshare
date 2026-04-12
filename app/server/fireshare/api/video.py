@@ -17,6 +17,7 @@ from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, VideoGameLink, VideoTagLink, FolderRule
 from . import api
 from .helpers import get_video_path, add_cache_headers, add_poster_cache_headers
+from .decorators import demo_restrict
 
 
 def _stream_video_file(video_path):
@@ -305,6 +306,7 @@ def get_videos_by_date(date):
 
 @api.route('/api/video/delete/<id>', methods=["DELETE"])
 @login_required
+@demo_restrict
 def delete_video(id):
     video = Video.query.filter_by(video_id=id).first()
     if video:

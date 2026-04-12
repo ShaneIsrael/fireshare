@@ -17,6 +17,18 @@ from .helpers import secure_filename
 from . import transcoding as _transcoding_mod
 
 
+def _check_upload_size(file_size_bytes):
+    """Return a 413 Response if the file exceeds DEMO_UPLOAD_LIMIT_MB, else None."""
+    limit_mb = current_app.config.get('DEMO_UPLOAD_LIMIT_MB', 0)
+    if limit_mb and limit_mb > 0:
+        if file_size_bytes > limit_mb * 1024 * 1024:
+            return Response(
+                status=413,
+                response=f'File exceeds the {limit_mb} MB upload limit for this demo.',
+            )
+    return None
+
+
 def _parse_upload_metadata():
     """Return (tag_ids, game_id, title) parsed from current request form data."""
     tag_ids_raw = request.form.get('tag_ids', '')
@@ -101,6 +113,11 @@ def public_upload_video():
     filetype = filename.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
+    file.seek(0, 2)
+    size_err = _check_upload_size(file.tell())
+    file.seek(0)
+    if size_err:
+        return size_err
     upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
@@ -150,6 +167,9 @@ def public_upload_videoChunked():
     filetype = filename.split('.')[-1]  # TODO, probe filetype with fmpeg instead and remux to supporrted
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
+    size_err = _check_upload_size(fileSize)
+    if size_err:
+        return size_err
 
     if config['app_config'].get('allow_public_folder_selection', False):
         requested_folder = request.form.get('folder', '').strip()
@@ -285,6 +305,11 @@ def upload_video():
     filetype = filename.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
+    file.seek(0, 2)
+    size_err = _check_upload_size(file.tell())
+    file.seek(0)
+    if size_err:
+        return size_err
     upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):
         os.makedirs(upload_directory)
@@ -336,6 +361,10 @@ def upload_videoChunked():
     filetype = fileName.split('.')[-1]
     if not filetype in SUPPORTED_FILE_TYPES:
         return Response(status=400)
+
+    size_err = _check_upload_size(fileSize)
+    if size_err:
+        return size_err
 
     upload_directory = paths['video'] / upload_folder
     if not os.path.exists(upload_directory):

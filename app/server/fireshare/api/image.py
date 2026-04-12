@@ -17,6 +17,7 @@ from .. import db, logger, util
 from ..models import Image, ImageInfo, ImageView, ImageGameLink, ImageTagLink, GameMetadata
 from . import api
 from .helpers import secure_filename
+from .decorators import demo_restrict
 
 
 SUPPORTED_IMAGE_TYPES = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
@@ -302,6 +303,7 @@ def update_image_details(image_id):
 
 @api.route('/api/image/delete/<image_id>', methods=['DELETE'])
 @login_required
+@demo_restrict
 def delete_image(image_id):
     img = Image.query.filter_by(image_id=image_id).first()
     if not img:

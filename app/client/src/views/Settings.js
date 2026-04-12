@@ -38,7 +38,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import { ConfigService, VideoService, GameService, ImageService } from '../services'
-import { setSetting } from '../common/utils'
+import { setSetting, getSetting } from '../common/utils'
 import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 
@@ -591,6 +591,7 @@ const Settings = () => {
                   control={
                     <Checkbox
                       checked={updatedConfig.app_config?.allow_public_upload || false}
+                      disabled={getSetting('demo_mode')}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
@@ -605,7 +606,7 @@ const Settings = () => {
                   control={
                     <Checkbox
                       checked={updatedConfig.app_config?.allow_public_folder_selection || false}
-                      disabled={!updatedConfig.app_config?.allow_public_upload}
+                      disabled={getSetting('demo_mode') || !updatedConfig.app_config?.allow_public_upload}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
@@ -620,7 +621,7 @@ const Settings = () => {
                   control={
                     <Checkbox
                       checked={updatedConfig.app_config?.allow_public_game_tag || false}
-                      disabled={!updatedConfig.app_config?.allow_public_upload}
+                      disabled={getSetting('demo_mode') || !updatedConfig.app_config?.allow_public_upload}
                       onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
@@ -652,6 +653,7 @@ const Settings = () => {
                   size="small"
                   label="Shareable Link Domain"
                   value={updatedConfig.ui_config?.shareable_link_domain || ''}
+                  disabled={getSetting('demo_mode')}
                   onChange={(e) =>
                     setUpdatedConfig((prev) => ({
                       ...prev,
@@ -663,7 +665,7 @@ const Settings = () => {
                   size="small"
                   label="Public Upload Folder Name"
                   value={updatedConfig.app_config?.public_upload_folder_name || ''}
-                  disabled={!updatedConfig.app_config?.allow_public_upload}
+                  disabled={getSetting('demo_mode') || !updatedConfig.app_config?.allow_public_upload}
                   onChange={(e) =>
                     setUpdatedConfig((prev) => ({
                       ...prev,
@@ -675,6 +677,7 @@ const Settings = () => {
                   size="small"
                   label="Admin Upload Folder Name"
                   value={updatedConfig.app_config?.admin_upload_folder_name || ''}
+                  disabled={getSetting('demo_mode')}
                   onChange={(e) =>
                     setUpdatedConfig((prev) => ({
                       ...prev,
@@ -769,6 +772,7 @@ const Settings = () => {
                   size="small"
                   label="Discord Webhook URL"
                   value={discordUrl}
+                  disabled={getSetting('demo_mode')}
                   error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
                   helperText={
                     discordUrl !== '' && !isValidDiscordWebhook(discordUrl) ? (
@@ -802,7 +806,7 @@ const Settings = () => {
                 <Button
                   variant="outlined"
                   startIcon={<SendIcon />}
-                  // Change this from handleCopyRssFeedUrl to your new function
+                  disabled={getSetting('demo_mode')}
                   onClick={handleTestDiscordWebhook}
                   sx={{
                     borderColor: 'rgba(255, 255, 255, 0.23)',
@@ -822,6 +826,7 @@ const Settings = () => {
                   size="small"
                   label="Generic Webhook URL"
                   value={webhookUrl}
+                  disabled={getSetting('demo_mode')}
                   error={webhookUrl !== '' && !isValidGenericWebhook(webhookUrl)}
                   helperText={
                     <span>
@@ -854,6 +859,7 @@ const Settings = () => {
                   rows={6}
                   size="small"
                   label="Generic Webhook JSON Payload"
+                  disabled={getSetting('demo_mode')}
                   value={webhookJson}
                   placeholder={jsonPlaceholder}
                   error={webhookJson !== '' && !isValidJson(webhookJson)}
@@ -879,6 +885,7 @@ const Settings = () => {
                 <Button
                   variant="outlined"
                   startIcon={<SendIcon />}
+                  disabled={getSetting('demo_mode')}
                   onClick={handleTestWebhook}
                   sx={{
                     borderColor: 'rgba(255, 255, 255, 0.23)',
@@ -899,6 +906,7 @@ const Settings = () => {
                   id="steamgrid-api-key-field"
                   size="small"
                   label="SteamGridDB API Key"
+                  disabled={getSetting('demo_mode')}
                   type={showSteamGridKey ? 'text' : 'password'}
                   value={updatedConfig.integrations?.steamgriddb_api_key || ''}
                   helperText={
@@ -939,6 +947,7 @@ const Settings = () => {
                 <TextField
                   size="small"
                   label="RSS Feed Title"
+                  disabled={getSetting('demo_mode')}
                   value={updatedConfig.rss_config?.title || ''}
                   onChange={(e) =>
                     setUpdatedConfig((prev) => ({
@@ -950,6 +959,7 @@ const Settings = () => {
                 <TextField
                   size="small"
                   label="RSS Feed Description"
+                  disabled={getSetting('demo_mode')}
                   multiline
                   rows={2}
                   value={updatedConfig.rss_config?.description || ''}
@@ -1391,6 +1401,7 @@ const Settings = () => {
                   variant="contained"
                   startIcon={<SensorsIcon />}
                   onClick={handleScan}
+                  disabled={getSetting('demo_mode')}
                   size="large"
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
@@ -1400,6 +1411,7 @@ const Settings = () => {
                   variant="contained"
                   startIcon={<ImageIcon />}
                   onClick={handleScanImages}
+                  disabled={getSetting('demo_mode')}
                   size="large"
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
@@ -1409,6 +1421,7 @@ const Settings = () => {
                   variant="contained"
                   startIcon={<SportsEsportsIcon />}
                   onClick={handleScanGames}
+                  disabled={getSetting('demo_mode')}
                   size="large"
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
@@ -1418,6 +1431,7 @@ const Settings = () => {
                   variant="contained"
                   startIcon={<CalendarMonthIcon />}
                   onClick={handleScanDates}
+                  disabled={getSetting('demo_mode')}
                   size="large"
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
@@ -1431,15 +1445,19 @@ const Settings = () => {
           {activeTab !== 4 && activeTab !== 5 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
-              <Button
-                variant="contained"
-                startIcon={<SaveIcon />}
-                disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed)}
-                onClick={handleSave}
-                fullWidth
-              >
-                Save Changes
-              </Button>
+              <Tooltip title={getSetting('demo_mode') ? 'Settings cannot be changed in demo mode' : ''} placement="top">
+                <span>
+                  <Button
+                    variant="contained"
+                    startIcon={<SaveIcon />}
+                    disabled={getSetting('demo_mode') || !updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed)}
+                    onClick={handleSave}
+                    fullWidth
+                  >
+                    Save Changes
+                  </Button>
+                </span>
+              </Tooltip>
             </Box>
           )}
         </Box>
