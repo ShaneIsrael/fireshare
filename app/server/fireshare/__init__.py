@@ -220,6 +220,17 @@ def create_app(init_schedule=False):
     
     update_config(paths['data'] / 'config.json')
 
+    if app.config['DEMO_MODE']:
+        _demo_config_path = paths['data'] / 'config.json'
+        with open(_demo_config_path, 'r+') as _f:
+            _cfg = json.load(_f)
+            _cfg.setdefault('app_config', {})['allow_public_upload'] = True
+            _cfg.setdefault('app_config', {})['allow_public_folder_selection'] = True
+            _cfg.setdefault('app_config', {})['allow_public_game_tag'] = True
+            _f.seek(0)
+            json.dump(_cfg, _f, indent=2)
+            _f.truncate()
+
     db.init_app(app)
     migrate.init_app(app, db)
 

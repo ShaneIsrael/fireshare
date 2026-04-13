@@ -419,6 +419,7 @@ export default function VideoFileManager({ setAlert }) {
   const [sortDir, setSortDir] = useState('desc')
 
   const [selected, setSelected] = useState(new Set())
+  const [selectedFolders, setSelectedFolders] = useState(new Set())
   const [collapsedFolders, setCollapsedFolders] = useState(new Set())
   const [hiddenColumns, setHiddenColumns] = useState(new Set())
 
@@ -586,7 +587,15 @@ export default function VideoFileManager({ setAlert }) {
     })
   }, [])
 
-  const selectedCount = selected.size
+  const toggleSelectFolder = useCallback((folderName) => {
+    setSelectedFolders((prev) => {
+      const next = new Set(prev)
+      next.has(folderName) ? next.delete(folderName) : next.add(folderName)
+      return next
+    })
+  }, [])
+
+  const selectedCount = selected.size + selectedFolders.size
 
   const handleSort = (column) => {
     if (sortColumn === column) {
@@ -644,8 +653,45 @@ export default function VideoFileManager({ setAlert }) {
   )
 
   const handleDelete = async () => {
-    const ok = await runBulkAction('/api/admin/files/bulk-delete', { video_ids: [...selected] }, 'Deleted files')
-    if (ok) setDeleteDialogOpen(false)
+    setActionLoading(true)
+    try {
+      const errors = []
+      let deletedFiles = 0
+      let deletedFolders = 0
+
+      if (selected.size > 0) {
+        const { data } = await Api().post('/api/admin/files/bulk-delete', { video_ids: [...selected] })
+        deletedFiles = (data.deleted ?? []).length
+        errors.push(...(data.errors ?? []))
+      }
+
+      if (selectedFolders.size > 0) {
+        const { data } = await Api().post('/api/admin/folders/delete', { folders: [...selectedFolders] })
+        deletedFolders = (data.deleted ?? []).length
+        errors.push(...(data.errors ?? []))
+      }
+
+      const parts = []
+      if (deletedFiles > 0) parts.push(`${deletedFiles} file${deletedFiles !== 1 ? 's' : ''}`)
+      if (deletedFolders > 0) parts.push(`${deletedFolders} folder${deletedFolders !== 1 ? 's' : ''}`)
+      const successMsg = parts.length > 0 ? `Deleted ${parts.join(' and ')}` : 'Nothing deleted'
+
+      if (errors.length > 0) {
+        setAlert({ open: true, message: `${successMsg}, ${errors.length} error${errors.length !== 1 ? 's' : ''}`, type: 'warning' })
+      } else {
+        setAlert({ open: true, message: successMsg, type: 'success' })
+      }
+
+      setSelected(new Set())
+      setSelectedFolders(new Set())
+      setDeleteDialogOpen(false)
+      await fetchFiles()
+    } catch (err) {
+      console.error(err)
+      setAlert({ open: true, message: err.response?.data || 'Delete failed', type: 'error' })
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleMove = async () => {
@@ -1510,7 +1556,10 @@ export default function VideoFileManager({ setAlert }) {
                     {/* Folder header row */}
                     <TableRow
                       sx={{ ...folderRowSx, cursor: 'pointer' }}
-                      onClick={() => folderFileIds.length > 0 && toggleFolderCollapse(folder)}
+                      onClick={() => {
+                        if (folderFileIds.length > 0) toggleFolderCollapse(folder)
+                        else if (folder) toggleSelectFolder(folder)
+                      }}
                     >
                       <TableCell
                         padding="checkbox"
@@ -1518,15 +1567,14 @@ export default function VideoFileManager({ setAlert }) {
                         onClick={(e) => {
                           e.stopPropagation()
                           if (folderFileIds.length > 0) toggleFolderSelect()
+                          else if (folder) toggleSelectFolder(folder)
                         }}
                       >
                         <Checkbox
                           size="small"
-                          checked={allFolderSelected}
-                          indeterminate={someFolderSelected}
-                          disabled={folderFileIds.length === 0}
+                          checked={folderFileIds.length === 0 ? selectedFolders.has(folder) : allFolderSelected}
+                          indeterminate={folderFileIds.length > 0 && someFolderSelected}
                           sx={{
-                            display: folderFileIds.length === 0 ? 'none' : 'inline-flex',
                             color: '#FFFFFF44',
                             '&.Mui-checked, &.MuiCheckbox-indeterminate': { color: '#3399FF' },
                           }}
@@ -1665,12 +1713,16 @@ export default function VideoFileManager({ setAlert }) {
         slotProps={{ paper: { sx: { ...dialogPaperSx, minWidth: 380 } } }}
       >
         <DialogTitle sx={dialogTitleSx}>
-          Delete {selectedCount} file{selectedCount !== 1 ? 's' : ''}?
+          Delete {[
+            selected.size > 0 && `${selected.size} file${selected.size !== 1 ? 's' : ''}`,
+            selectedFolders.size > 0 && `${selectedFolders.size} folder${selectedFolders.size !== 1 ? 's' : ''}`,
+          ].filter(Boolean).join(' and ')}?
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ color: '#FFFFFFAA' }}>
-            This will permanently delete {selectedCount} file{selectedCount !== 1 ? 's' : ''} and all related data. This
-            cannot be undone.
+            {selected.size > 0 && `This will permanently delete ${selected.size} file${selected.size !== 1 ? 's' : ''} and all related data. `}
+            {selectedFolders.size > 0 && `This will permanently delete ${selectedFolders.size} empty folder${selectedFolders.size !== 1 ? 's' : ''}. `}
+            This cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
@@ -1689,7 +1741,7 @@ export default function VideoFileManager({ setAlert }) {
             startIcon={actionLoading ? <CircularProgress size={14} color="inherit" /> : <DeleteIcon />}
             sx={{ textTransform: 'none' }}
           >
-            {actionLoading ? 'Deleting…' : `Delete ${selectedCount} file${selectedCount !== 1 ? 's' : ''}`}
+            {actionLoading ? 'Deleting…' : `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
           </Button>
         </DialogActions>
       </Dialog>

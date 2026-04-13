@@ -228,6 +228,7 @@ def get_folder_rules():
 
 @api.route('/api/folder-rules', methods=['POST'])
 @login_required
+@demo_restrict
 def create_folder_rule():
     """Create a folder rule and backfill existing untagged videos"""
     from ..cli import _load_suggestions, _save_suggestions
@@ -305,6 +306,7 @@ def create_folder_rule():
 
 @api.route('/api/folder-rules/<int:rule_id>', methods=['DELETE'])
 @login_required
+@demo_restrict
 def delete_folder_rule(rule_id):
     """Delete a folder rule, optionally unlinking videos"""
     rule = db.session.get(FolderRule, rule_id)
@@ -383,6 +385,7 @@ def get_image_folder_rules():
 
 @api.route('/api/image-folder-rules', methods=['POST'])
 @login_required
+@demo_restrict
 def create_image_folder_rule():
     """Create an image folder rule and backfill existing untagged images"""
     data = request.get_json()
@@ -434,6 +437,7 @@ def create_image_folder_rule():
 
 @api.route('/api/image-folder-rules/<int:rule_id>', methods=['DELETE'])
 @login_required
+@demo_restrict
 def delete_image_folder_rule(rule_id):
     """Delete an image folder rule, optionally unlinking images"""
     rule = db.session.get(ImageFolderRule, rule_id)

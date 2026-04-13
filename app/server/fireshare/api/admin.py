@@ -43,27 +43,9 @@ def get_or_update_config():
         else:
             return jsonify({})
     if request.method == 'PUT':
-        config = request.json["config"]
         if demo_mode:
-            # Read the current saved values for immutable fields and restore them,
-            # so a direct API call cannot overwrite them in demo mode.
-            config_path_ro = paths['data'] / 'config.json'
-            if config_path_ro.exists():
-                with open(config_path_ro) as f:
-                    current = json.load(f)
-                config.setdefault('ui_config', {})['shareable_link_domain'] = (
-                    current.get('ui_config', {}).get('shareable_link_domain', '')
-                )
-                config.setdefault('app_config', {})['public_upload_folder_name'] = (
-                    current.get('app_config', {}).get('public_upload_folder_name', 'public uploads')
-                )
-                config.setdefault('app_config', {})['admin_upload_folder_name'] = (
-                    current.get('app_config', {}).get('admin_upload_folder_name', 'uploads')
-                )
-            # Force public access flags on — these must always be enabled in demo mode.
-            config.setdefault('app_config', {})['allow_public_upload'] = True
-            config.setdefault('app_config', {})['allow_public_folder_selection'] = True
-            config.setdefault('app_config', {})['allow_public_game_tag'] = True
+            return Response(status=403, response='Settings cannot be changed in demo mode.')
+        config = request.json["config"]
         config_path = paths['data'] / 'config.json'
         if not config:
             return Response(status=400, response='A config must be provided.')
@@ -517,7 +499,6 @@ def bulk_move_files():
 
 @api.route('/api/admin/folders/create', methods=['POST'])
 @login_required
-@demo_restrict
 def create_video_folder():
     """Create a new folder in the /videos root directory (admin only)"""
     if not current_user.admin:
@@ -546,6 +527,45 @@ def create_video_folder():
     except Exception as e:
         logging.error(f"Error creating folder {folder_name}: {e}")
         return Response(status=500, response=str(e))
+
+
+@api.route('/api/admin/folders/delete', methods=['POST'])
+@login_required
+def delete_video_folder():
+    """Delete empty folders from the /videos root directory (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    folder_names = data.get('folders', [])
+
+    if not folder_names:
+        return Response(status=400, response='No folder names provided.')
+
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
+    results = {'deleted': [], 'errors': []}
+
+    for folder_name in folder_names:
+        if '/' in folder_name or '\\' in folder_name or folder_name.startswith('.'):
+            results['errors'].append({'folder': folder_name, 'error': 'Invalid folder name'})
+            continue
+        folder_path = video_path / folder_name
+        if not folder_path.exists() or not folder_path.is_dir():
+            results['errors'].append({'folder': folder_name, 'error': 'Folder not found'})
+            continue
+        # Only delete if empty
+        if any(folder_path.iterdir()):
+            results['errors'].append({'folder': folder_name, 'error': 'Folder is not empty'})
+            continue
+        try:
+            folder_path.rmdir()
+            results['deleted'].append(folder_name)
+            logging.info(f"Deleted empty folder: {folder_path}")
+        except Exception as e:
+            results['errors'].append({'folder': folder_name, 'error': str(e)})
+
+    return jsonify(results)
 
 
 @api.route('/api/admin/files/bulk-remove-transcodes', methods=['POST'])
@@ -1061,3 +1081,43 @@ def create_image_folder():
     except Exception as e:
         logging.error(f"Error creating image folder {folder_name}: {e}")
         return Response(status=500, response=str(e))
+
+
+@api.route('/api/admin/image-folders/delete', methods=['POST'])
+@login_required
+def delete_image_folder():
+    """Delete empty folders from the images root directory (admin only)"""
+    if not current_user.admin:
+        return Response(status=403, response='Admin access required.')
+
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    if not image_directory:
+        return Response(status=503, response='IMAGE_DIRECTORY is not configured.')
+
+    data = request.json
+    folder_names = data.get('folders', [])
+
+    if not folder_names:
+        return Response(status=400, response='No folder names provided.')
+
+    results = {'deleted': [], 'errors': []}
+
+    for folder_name in folder_names:
+        if '/' in folder_name or '\\' in folder_name or folder_name.startswith('.'):
+            results['errors'].append({'folder': folder_name, 'error': 'Invalid folder name'})
+            continue
+        folder_path = Path(image_directory) / folder_name
+        if not folder_path.exists() or not folder_path.is_dir():
+            results['errors'].append({'folder': folder_name, 'error': 'Folder not found'})
+            continue
+        if any(folder_path.iterdir()):
+            results['errors'].append({'folder': folder_name, 'error': 'Folder is not empty'})
+            continue
+        try:
+            folder_path.rmdir()
+            results['deleted'].append(folder_name)
+            logging.info(f"Deleted empty image folder: {folder_path}")
+        except Exception as e:
+            results['errors'].append({'folder': folder_name, 'error': str(e)})
+
+    return jsonify(results)
