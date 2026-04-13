@@ -830,7 +830,7 @@ function Navbar20({
           }),
         }}
       >
-        {demoMode && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
+        {demoMode && page !== '/login' && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
         {toolbar &&
           page !== '/watch' &&
           (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && <Toolbar />}
