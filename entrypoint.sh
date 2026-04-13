@@ -40,6 +40,20 @@ echo '-------------------------------------'
 rm -f $DATA_DIRECTORY/*.lock 2>/dev/null || true
 rm -f $DATA_DIRECTORY/jobs.sqlite 2>/dev/null || true
 
+# Demo mode: complete data reset when DEMO_MODE_DELETE_ALL is enabled
+DEMO_MODE=${DEMO_MODE:-false}
+DEMO_MODE_DELETE_ALL=${DEMO_MODE_DELETE_ALL:-false}
+if [ "$DEMO_MODE" = "true" ] && [ "$DEMO_MODE_DELETE_ALL" = "true" ]; then
+    echo "DEMO_MODE_DELETE_ALL: wiping all data..."
+    for dir in "$DATA_DIRECTORY" "$PROCESSED_DIRECTORY" "$VIDEO_DIRECTORY" "$IMAGE_DIRECTORY"; do
+        if [ -n "$dir" ] && [ -d "$dir" ]; then
+            echo "  Wiping $dir"
+            find "$dir" -mindepth 1 -delete
+        fi
+    done
+    echo "DEMO_MODE_DELETE_ALL: wipe complete"
+fi
+
 
 # Inject analytics tracking script into index.html if set
 if [ -n "$ANALYTICS_TRACKING_SCRIPT" ]; then
@@ -71,6 +85,12 @@ echo "Nginx started successfully"
 # Ensure PATH and LD_LIBRARY_PATH are set
 export PATH=/usr/local/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+
+# Generate a random SECRET_KEY if not provided
+if [ -z "$SECRET_KEY" ]; then
+    export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+    echo "SECRET_KEY not set, generated a random key for this session"
+fi
 
 # Run migrations as appuser
 echo "Running database migrations..."
