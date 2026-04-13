@@ -62,7 +62,7 @@ const allPages = [
   { title: 'Images', icon: <PhotoLibraryIcon />, href: '/images', private: false },
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
   { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
-  { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, adminOnly: true },
+  { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true },
   { title: 'Settings', icon: <SettingsIcon />, href: '/settings', private: true },
 ]
 
