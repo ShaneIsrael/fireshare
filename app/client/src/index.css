@@ -1,8 +1,5 @@
-html,
-body,
-#root {
+html {
   height: 100%;
-  overflow: hidden;
 }
 
 /* Use small viewport height so the app always fits when browser chrome (URL bar, bottom bar)
@@ -12,6 +9,15 @@ body,
   html {
     height: 100svh;
   }
+}
+
+/* overflow: hidden only on body/#root — NOT on html.
+   Firefox Android's video compositor fails to initialize when the root <html>
+   element has overflow: hidden, causing media errors on playback. */
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
