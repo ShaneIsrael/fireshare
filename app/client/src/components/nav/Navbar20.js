@@ -632,10 +632,12 @@ function Navbar20({
     </Box>
   )
   const isDemoUser = getSetting('is_demo_user')
+  const demoMode = getSetting('demo_mode')
+  const showDemoBanner = (isDemoUser || (demoMode && !authenticated)) && page !== '/login'
 
   return (
     <Box sx={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      {isDemoUser && page !== '/login' && (
+      {showDemoBanner && (
         <Box
           sx={{
             position: 'fixed',
@@ -643,8 +645,8 @@ function Navbar20({
             left: 0,
             right: 0,
             height: DEMO_BANNER_HEIGHT,
-            bgcolor: 'rgba(255, 152, 0, 0.06)',
-            borderBottom: '1px solid rgba(255, 152, 0, 0.18)',
+            bgcolor: '#1a1200',
+            borderBottom: '1px solid rgba(255, 152, 0, 0.3)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -694,7 +696,7 @@ function Navbar20({
             open={open}
             sx={{
               backgroundColor: '#0A1929D0',
-              top: isDemoUser ? DEMO_BANNER_HEIGHT : 0,
+              top: showDemoBanner ? DEMO_BANNER_HEIGHT : 0,
             }}
           >
             <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
@@ -803,7 +805,7 @@ function Navbar20({
             variant="permanent"
             sx={{
               display: { xs: 'none', sm: 'block' },
-              ...(isDemoUser && {
+              ...(showDemoBanner && {
                 '& .MuiDrawer-paper': {
                   top: DEMO_BANNER_HEIGHT,
                   height: `calc(100% - ${DEMO_BANNER_HEIGHT}px)`,
@@ -830,7 +832,7 @@ function Navbar20({
           }),
         }}
       >
-        {isDemoUser && page !== '/login' && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
+        {showDemoBanner && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
         {toolbar &&
           page !== '/watch' &&
           (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && <Toolbar />}
