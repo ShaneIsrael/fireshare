@@ -119,8 +119,7 @@ def public_upload_video():
     if size_err:
         return size_err
     upload_directory = paths['video'] / upload_folder
-    if not os.path.exists(upload_directory):
-        os.makedirs(upload_directory)
+    os.makedirs(upload_directory, exist_ok=True)
     save_path = os.path.join(upload_directory, filename)
     if (os.path.exists(save_path)):
         name_no_type = ".".join(filename.split('.')[0:-1])
@@ -177,8 +176,7 @@ def public_upload_videoChunked():
             upload_folder = requested_folder
 
     upload_directory = paths['video'] / upload_folder
-    if not os.path.exists(upload_directory):
-        os.makedirs(upload_directory)
+    os.makedirs(upload_directory, exist_ok=True)
 
     tempPath = os.path.join(upload_directory, f"{checkSum}.part{chunkPart:04d}")
     # Guard against path traversal: ensure the resolved path stays within upload_directory
@@ -311,8 +309,7 @@ def upload_video():
     if size_err:
         return size_err
     upload_directory = paths['video'] / upload_folder
-    if not os.path.exists(upload_directory):
-        os.makedirs(upload_directory)
+    os.makedirs(upload_directory, exist_ok=True)
     save_path = os.path.join(upload_directory, filename)
     if (os.path.exists(save_path)):
         name_no_type = ".".join(filename.split('.')[0:-1])
@@ -367,8 +364,7 @@ def upload_videoChunked():
         return size_err
 
     upload_directory = paths['video'] / upload_folder
-    if not os.path.exists(upload_directory):
-        os.makedirs(upload_directory)
+    os.makedirs(upload_directory, exist_ok=True)
 
     # Store chunks with part number to ensure proper ordering
     tempPath = os.path.join(upload_directory, f"{checkSum}.part{chunkPart:04d}")
