@@ -12,6 +12,12 @@ DEFAULT_CONFIG = {
   "ui_config": {
     "shareable_link_domain": "",
     "show_admin_upload": True,
+    "show_folder_dropdown": True,
+    "show_games": True,
+    "show_my_videos": True,
+    "show_public_upload": False,
+    "show_public_videos": True,
+    "show_images": True
   },
   "integrations": {
     "discord_webhook_url": "",
