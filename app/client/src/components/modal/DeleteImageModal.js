@@ -28,7 +28,7 @@ const DeleteImageModal = ({ open, onClose, imageId, alertHandler }) => {
           transform: 'translate(-50%, -50%)',
           width: 420,
           maxWidth: 'calc(100vw - 32px)',
-          maxHeight: 'calc(100dvh - 32px)',
+          maxHeight: 'calc(100svh - 32px)',
           overflowY: 'auto',
           bgcolor: '#041223',
           border: '1px solid #FFFFFF1A',

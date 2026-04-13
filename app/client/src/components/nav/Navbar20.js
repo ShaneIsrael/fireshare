@@ -658,7 +658,7 @@ function Navbar20({
   const demoMode = getSetting('demo_mode')
 
   return (
-    <Box sx={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
       {demoMode && (
         <Box
           sx={{

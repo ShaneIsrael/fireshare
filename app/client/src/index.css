@@ -5,6 +5,15 @@ body,
   overflow: hidden;
 }
 
+/* Use small viewport height so the app always fits when browser chrome (URL bar, bottom bar)
+   is visible. svh = the conservative/safe viewport — never larger than what the user can see.
+   Falls back to 100% (set above) for browsers that don't support svh. */
+@supports (height: 100svh) {
+  html {
+    height: 100svh;
+  }
+}
+
 body {
   margin: 0;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
