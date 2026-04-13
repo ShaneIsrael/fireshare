@@ -401,19 +401,17 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
           </Box>
 
           {/* Folder selector */}
-          {availableFolders.length > 0 && (
-            <Box sx={{ mb: 2, opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
-              <Typography sx={labelSx}>Upload Folder</Typography>
-              <Autocomplete
-                options={availableFolders}
-                value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
-                onChange={(_, value) => setSelectedFolder(value || '')}
-                disableClearable={uploadToGameFolder ? true : !!selectedFolder}
-                disabled={(uploadToGameFolder && !!selectedGame) || uploading}
-                renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
-              />
-            </Box>
-          )}
+          <Box sx={{ mb: 2, opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+            <Typography sx={labelSx}>Upload Folder</Typography>
+            <Autocomplete
+              options={availableFolders}
+              value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
+              onChange={(_, value) => setSelectedFolder(value || '')}
+              disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+              disabled={(uploadToGameFolder && !!selectedGame) || uploading}
+              renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+            />
+          </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button onClick={handleCancel} disabled={uploading} sx={{ color: '#FFFFFF77' }}>

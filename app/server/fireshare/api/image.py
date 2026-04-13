@@ -190,6 +190,9 @@ def get_image_upload_folders():
         default_folder = config['app_config'].get('admin_upload_folder_name', 'uploads')
     except Exception:
         pass
+    if default_folder and default_folder not in folders:
+        folders.append(default_folder)
+        folders.sort()
     return jsonify({'folders': folders, 'default_folder': default_folder})
 
 
@@ -217,6 +220,9 @@ def get_public_image_upload_folders():
             pass
 
     default_folder = config['app_config'].get('public_upload_folder_name', 'public uploads')
+    if default_folder and default_folder not in folders:
+        folders.append(default_folder)
+        folders.sort()
     return jsonify({'folders': folders, 'default_folder': default_folder})
 
 

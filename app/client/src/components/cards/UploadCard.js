@@ -195,8 +195,11 @@ const UploadCard = React.forwardRef(function UploadCard(
         setAllTags(tRes.data || [])
         const folders = fRes.data?.folders || []
         const defaultFolder = fRes.data?.default_folder || ''
-        setAvailableFolders(folders)
-        setSelectedFolder(folders.includes(defaultFolder) ? defaultFolder : folders[0] || '')
+        const folderSet = new Set(folders)
+        if (defaultFolder && !folderSet.has(defaultFolder)) folderSet.add(defaultFolder)
+        const finalFolders = [...folderSet]
+        setAvailableFolders(finalFolders)
+        setSelectedFolder(finalFolders.includes(defaultFolder) ? defaultFolder : finalFolders[0] || '')
       })
       .catch(() => {
         setAllGames([])
@@ -732,19 +735,17 @@ const UploadCard = React.forwardRef(function UploadCard(
                   />
                 )}
               </Box>
-              {availableFolders.length > 0 && (
-                <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
-                  <Typography sx={labelSx}>Upload Folder</Typography>
-                  <Autocomplete
-                    options={availableFolders}
-                    value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
-                    onChange={(_, value) => setSelectedFolder(value || '')}
-                    disableClearable={uploadToGameFolder ? true : !!selectedFolder}
-                    disabled={uploadToGameFolder && !!selectedGame}
-                    renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
-                  />
-                </Box>
-              )}
+              <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+                <Typography sx={labelSx}>Upload Folder</Typography>
+                <Autocomplete
+                  options={availableFolders}
+                  value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
+                  onChange={(_, value) => setSelectedFolder(value || '')}
+                  disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+                  disabled={uploadToGameFolder && !!selectedGame}
+                  renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+                />
+              </Box>
               <Box>
                 <Typography sx={labelSx}>Tags</Typography>
                 <Autocomplete
@@ -1101,19 +1102,17 @@ const UploadCard = React.forwardRef(function UploadCard(
               </Box>
 
               {/* Folder selector */}
-              {availableFolders.length > 0 && (
-                <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
-                  <Typography sx={labelSx}>Upload Folder</Typography>
-                  <Autocomplete
-                    options={availableFolders}
-                    value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
-                    onChange={(_, value) => setSelectedFolder(value || '')}
-                    disableClearable={uploadToGameFolder ? true : !!selectedFolder}
-                    disabled={uploadToGameFolder && !!selectedGame}
-                    renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
-                  />
-                </Box>
-              )}
+              <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+                <Typography sx={labelSx}>Upload Folder</Typography>
+                <Autocomplete
+                  options={availableFolders}
+                  value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
+                  onChange={(_, value) => setSelectedFolder(value || '')}
+                  disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+                  disabled={uploadToGameFolder && !!selectedGame}
+                  renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+                />
+              </Box>
 
               {/* Tag selector */}
               <Box>
