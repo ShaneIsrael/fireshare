@@ -75,6 +75,7 @@ const openedMixin = (theme) => ({
     duration: theme.transitions.duration.enteringScreen,
   }),
   overflowX: 'hidden',
+  overflowY: 'hidden',
 })
 
 const closedMixin = (theme) => ({
@@ -83,6 +84,7 @@ const closedMixin = (theme) => ({
     duration: theme.transitions.duration.leavingScreen,
   }),
   overflowX: 'hidden',
+  overflowY: 'hidden',
   width: minimizedDrawerWidth,
   [theme.breakpoints.up('sm')]: {
     width: minimizedDrawerWidth,
@@ -656,7 +658,7 @@ function Navbar20({
   const demoMode = getSetting('demo_mode')
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
       {demoMode && (
         <Box
           sx={{
@@ -791,6 +793,7 @@ function Navbar20({
               '& .MuiDrawer-paper': {
                 boxSizing: 'border-box',
                 width: effectiveOpen ? drawerWidth : minimizedDrawerWidth,
+                overflowY: 'hidden',
               },
             }}
           >
@@ -817,11 +820,12 @@ function Navbar20({
         component="main"
         sx={{
           flexGrow: 1,
+          minHeight: 0,
           p: page !== '/watch' && page !== '/image' ? mainPadding : 0,
           width: { sm: `calc(100% - ${open ? drawerWidth : minimizedDrawerWidth}px)` },
           overflowX: 'hidden',
+          overflowY: 'auto',
           ...(page === '/w' && {
-            height: '100vh',
             overflow: 'hidden',
           }),
         }}

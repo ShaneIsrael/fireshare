@@ -27,6 +27,9 @@ const modalSx = {
   left: '50%',
   transform: 'translate(-50%, -50%)',
   width: 500,
+  maxWidth: 'calc(100vw - 32px)',
+  maxHeight: 'calc(100dvh - 32px)',
+  overflowY: 'auto',
   p: 4,
   ...dialogPaperSx,
 }
