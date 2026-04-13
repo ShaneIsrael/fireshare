@@ -546,10 +546,26 @@ def delete_video_folder():
     video_path = paths['video']
     results = {'deleted': [], 'errors': []}
 
+    # Load config to get protected folder names
+    try:
+        with open(paths['data'] / 'config.json', 'r') as f:
+            config = json.load(f)
+    except Exception:
+        config = {}
+
+    app_config = config.get('app_config', {})
+    admin_upload_folder = app_config.get('admin_upload_folder_name', 'uploads').lower()
+    public_upload_folder = app_config.get('public_upload_folder_name', 'public uploads').lower()
+
     for folder_name in folder_names:
         if '/' in folder_name or '\\' in folder_name or folder_name.startswith('.'):
             results['errors'].append({'folder': folder_name, 'error': 'Invalid folder name'})
             continue
+
+        if folder_name.lower() in [admin_upload_folder, public_upload_folder]:
+            results['errors'].append({'folder': folder_name, 'error': 'Cannot delete protected folder'})
+            continue
+
         folder_path = video_path / folder_name
         if not folder_path.exists() or not folder_path.is_dir():
             results['errors'].append({'folder': folder_name, 'error': 'Folder not found'})
@@ -1102,10 +1118,27 @@ def delete_image_folder():
 
     results = {'deleted': [], 'errors': []}
 
+    # Load config to get protected folder names
+    paths = current_app.config['PATHS']
+    try:
+        with open(paths['data'] / 'config.json', 'r') as f:
+            config = json.load(f)
+    except Exception:
+        config = {}
+
+    app_config = config.get('app_config', {})
+    admin_upload_folder = app_config.get('admin_upload_folder_name', 'uploads').lower()
+    public_upload_folder = app_config.get('public_upload_folder_name', 'public uploads').lower()
+
     for folder_name in folder_names:
         if '/' in folder_name or '\\' in folder_name or folder_name.startswith('.'):
             results['errors'].append({'folder': folder_name, 'error': 'Invalid folder name'})
             continue
+
+        if folder_name.lower() in [admin_upload_folder, public_upload_folder]:
+            results['errors'].append({'folder': folder_name, 'error': 'Cannot delete protected folder'})
+            continue
+
         folder_path = Path(image_directory) / folder_name
         if not folder_path.exists() or not folder_path.is_dir():
             results['errors'].append({'folder': folder_name, 'error': 'Folder not found'})

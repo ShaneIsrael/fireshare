@@ -290,6 +290,11 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
 export default function ImageFileManager({ setAlert }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  // Helper function to check if a folder is protected from deletion
+  const isProtectedFolder = (folderName) => {
+    const protectedFolders = ['uploads', 'public uploads']
+    return protectedFolders.includes((folderName || '').toLowerCase())
+  }
 
   const [files, setFiles] = useState([])
   const [folders, setFolders] = useState([])
@@ -543,12 +548,15 @@ export default function ImageFileManager({ setAlert }) {
       const parts = []
       if (deletedFiles > 0) parts.push(`${deletedFiles} image${deletedFiles !== 1 ? 's' : ''}`)
       if (deletedFolders > 0) parts.push(`${deletedFolders} folder${deletedFolders !== 1 ? 's' : ''}`)
-      const successMsg = parts.length > 0 ? `Deleted ${parts.join(' and ')}` : 'Nothing deleted'
+      const successMsg = parts.length > 0 ? `Deleted ${parts.join(' and ')}` : ''
 
       if (errors.length > 0) {
-        setAlert({ open: true, message: `${successMsg}, ${errors.length} error${errors.length !== 1 ? 's' : ''}`, type: 'warning' })
+        const errorMsgs = [...new Set(errors.map((e) => e.error || 'Unknown error'))]
+        const errorDetail = errorMsgs.join('; ')
+        const message = successMsg ? `${successMsg} — ${errorDetail}` : errorDetail
+        setAlert({ open: true, message, type: 'warning' })
       } else {
-        setAlert({ open: true, message: successMsg, type: 'success' })
+        setAlert({ open: true, message: successMsg || 'Nothing deleted', type: 'success' })
       }
 
       setSelected(new Set())
@@ -1206,7 +1214,7 @@ export default function ImageFileManager({ setAlert }) {
           </TableHead>
 
           <TableBody>
-            {filteredFiles.length === 0 ? (
+            {groupedFiles.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={COL_SPAN} sx={{ ...bodyCellSx, textAlign: 'center', py: 4, color: '#FFFFFF55' }}>
                   No images found
@@ -1253,6 +1261,7 @@ export default function ImageFileManager({ setAlert }) {
                           size="small"
                           checked={folderFileIds.length === 0 ? selectedFolders.has(folder) : allFolderSelected}
                           indeterminate={folderFileIds.length > 0 && someFolderSelected}
+                          disabled={folderFileIds.length === 0 && isProtectedFolder(folder)}
                           sx={{
                             color: '#FFFFFF44',
                             '&.Mui-checked, &.MuiCheckbox-indeterminate': { color: '#3399FF' },
@@ -1284,6 +1293,12 @@ export default function ImageFileManager({ setAlert }) {
                             sx={{ fontSize: 12, fontWeight: 700, color: '#FFFFFFAA', letterSpacing: '0.04em' }}
                           >
                             {folder || '(root)'}
+                            {isProtectedFolder(folder) && folderFileIds.length === 0 && (
+                              <LockIcon
+                                sx={{ fontSize: 12, color: '#FFAA33', ml: 0.5 }}
+                                title="This folder cannot be deleted"
+                              />
+                            )}
                           </Typography>
                           {groupItems.length > 0 && (
                             <Typography sx={{ fontSize: 11, fontWeight: 400, color: '#FFFFFF44', ml: 0.5 }}>
@@ -1392,15 +1407,21 @@ export default function ImageFileManager({ setAlert }) {
         slotProps={{ paper: { sx: { ...dialogPaperSx, minWidth: 380 } } }}
       >
         <DialogTitle sx={dialogTitleSx}>
-          Delete {[
+          Delete{' '}
+          {[
             selected.size > 0 && `${selected.size} image${selected.size !== 1 ? 's' : ''}`,
             selectedFolders.size > 0 && `${selectedFolders.size} folder${selectedFolders.size !== 1 ? 's' : ''}`,
-          ].filter(Boolean).join(' and ')}?
+          ]
+            .filter(Boolean)
+            .join(' and ')}
+          ?
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ color: '#FFFFFFAA' }}>
-            {selected.size > 0 && `This will permanently delete ${selected.size} image${selected.size !== 1 ? 's' : ''} and all related data. `}
-            {selectedFolders.size > 0 && `This will permanently delete ${selectedFolders.size} empty folder${selectedFolders.size !== 1 ? 's' : ''}. `}
+            {selected.size > 0 &&
+              `This will permanently delete ${selected.size} image${selected.size !== 1 ? 's' : ''} and all related data. `}
+            {selectedFolders.size > 0 &&
+              `This will permanently delete ${selectedFolders.size} empty folder${selectedFolders.size !== 1 ? 's' : ''}. `}
             This cannot be undone.
           </DialogContentText>
         </DialogContent>
