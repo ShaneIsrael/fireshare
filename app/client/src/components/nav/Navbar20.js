@@ -672,7 +672,7 @@ function Navbar20({
             justifyContent: 'center',
             fontSize: '0.8rem',
             letterSpacing: '0.02em',
-            zIndex: 9999,
+            zIndex: (theme) => theme.zIndex.drawer - 1,
           }}
         >
           <strong>Demo Mode</strong>
