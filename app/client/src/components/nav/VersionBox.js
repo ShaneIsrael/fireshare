@@ -1,97 +1,123 @@
 import * as React from 'react'
-import { Box, Grid, IconButton, Typography } from '@mui/material'
+import { Box, IconButton, Typography } from '@mui/material'
 import LightTooltip from '../misc/LightTooltip'
 import GitHubIcon from '@mui/icons-material/GitHub'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'
 
+const GITHUB_URL = 'https://github.com/ShaneIsrael/fireshare'
+const ISSUES_URL = 'https://github.com/ShaneIsrael/fireshare/issues'
+const COFFEE_URL = 'https://buymeacoffee.com/shaneisrael'
+
+const actionIconSx = {
+  p: 0.75,
+  color: 'rgba(194, 224, 255, 0.5)',
+  borderRadius: '6px',
+  '&:hover': {
+    color: '#EBEBEB',
+    backgroundColor: 'rgba(194, 224, 255, 0.1)',
+  },
+}
+
 function VersionBox({ open }) {
   if (!open)
     return (
-      <Box
-        sx={{
-          display: 'flex',
-          width: 42,
-          m: 1,
-          height: 40,
-          border: '1px solid rgba(194, 224, 255, 0.18)',
-          borderRadius: '8px',
-          ':hover': {
-            backgroundColor: 'rgba(194, 224, 255, 0.08)',
+      <LightTooltip arrow title={`Fireshare v${import.meta.env.VITE_VERSION}`} placement="right">
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 42,
+            height: 40,
+            m: 1,
+            border: '1px solid rgba(194, 224, 255, 0.18)',
+            borderRadius: '8px',
+            color: 'rgba(194, 224, 255, 0.5)',
             cursor: 'pointer',
-          },
-        }}
-        justifyContent="center"
-        alignItems="center"
-        onClick={() => window.open('https://github.com/ShaneIsrael/fireshare', '_blank')}
-      >
-        <IconButton aria-label="report-bug-link" sx={{ p: 0.5, pointerEvents: 'all' }}>
-          <GitHubIcon sx={{ color: '#EBEBEB' }} />
-        </IconButton>
-      </Box>
+            '&:hover': {
+              backgroundColor: 'rgba(194, 224, 255, 0.08)',
+              color: '#EBEBEB',
+            },
+          }}
+          onClick={() => window.open(GITHUB_URL, '_blank')}
+        >
+          <GitHubIcon fontSize="small" />
+        </Box>
+      </LightTooltip>
     )
+
   return (
     <Box
       sx={{
+        display: 'flex',
+        alignItems: 'center',
         width: 222,
-        m: 1,
         height: 40,
+        m: 1,
         border: '1px solid rgba(194, 224, 255, 0.18)',
         borderRadius: '8px',
-        ':hover': {
-          backgroundColor: 'rgba(194, 224, 255, 0.08)',
-          cursor: 'pointer',
-        },
+        overflow: 'hidden',
       }}
-      onClick={() => window.open('https://github.com/ShaneIsrael/fireshare', '_blank')}
     >
-      <Grid container alignItems="center" sx={{ height: '100%' }}>
-        <Grid item sx={{ ml: 1, mr: 1 }}>
-          <IconButton aria-label="report-bug-link" sx={{ p: 0.5, pointerEvents: 'all' }}>
-            <GitHubIcon sx={{ color: '#EBEBEB' }} />
+      {/* Left: GitHub link + version */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          flex: 1,
+          minWidth: 0,
+          px: 1.25,
+          height: '100%',
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: 'rgba(194, 224, 255, 0.08)',
+          },
+        }}
+        onClick={() => window.open(GITHUB_URL, '_blank')}
+      >
+        <GitHubIcon sx={{ fontSize: 16, color: 'rgba(194, 224, 255, 0.6)', flexShrink: 0 }} />
+        <Typography
+          sx={{
+            fontFamily: 'monospace',
+            fontWeight: 700,
+            fontSize: 12,
+            color: '#2684FF',
+            letterSpacing: '0.04em',
+            userSelect: 'none',
+          }}
+        >
+          v{import.meta.env.VITE_VERSION}
+        </Typography>
+      </Box>
+
+      {/* Divider */}
+      <Box sx={{ width: '1px', height: 24, bgcolor: 'rgba(194, 224, 255, 0.12)', flexShrink: 0 }} />
+
+      {/* Right: action icons */}
+      <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5, gap: 0.25 }}>
+        <LightTooltip arrow title="Found a bug? Report it here.">
+          <IconButton
+            aria-label="report-bug-link"
+            size="small"
+            sx={actionIconSx}
+            onClick={() => window.open(ISSUES_URL, '_blank')}
+          >
+            <BugReportIcon sx={{ fontSize: 16 }} />
           </IconButton>
-        </Grid>
-        <Grid container item direction="column" xs>
-          <Grid item>
-            <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12, color: '#EBEBEB' }}>
-              Fireshare
-            </Typography>
-          </Grid>
-          <Grid item>
-            <Typography sx={{ fontFamily: 'monospace', fontWeight: 600, fontSize: 12, color: '#2684FF' }}>
-              v{import.meta.env.VITE_VERSION}
-            </Typography>
-          </Grid>
-        </Grid>
-        <Grid container item xs>
-          <LightTooltip arrow title="Found a bug? Report it here.">
-            <IconButton
-              aria-label="report-bug-link"
-              size="medium"
-              sx={{ p: 0.5, mr: 1, pointerEvents: 'all' }}
-              onClick={(e) => {
-                e.stopPropagation()
-                window.open('https://github.com/ShaneIsrael/fireshare/issues', '_blank')
-              }}
-            >
-              <BugReportIcon fontSize="inherit" />
-            </IconButton>
-          </LightTooltip>
-          <LightTooltip arrow title="Buy us a coffee!">
-            <IconButton
-              aria-label="paypal-link"
-              size="medium"
-              sx={{ p: 0.5, pointerEvents: 'all' }}
-              onClick={(e) => {
-                e.stopPropagation()
-                window.open('https://buymeacoffee.com/shaneisrael', '_blank')
-              }}
-            >
-              <VolunteerActivismIcon fontSize="inherit" />
-            </IconButton>
-          </LightTooltip>
-        </Grid>
-      </Grid>
+        </LightTooltip>
+        <LightTooltip arrow title="Buy us a coffee!">
+          <IconButton
+            aria-label="paypal-link"
+            size="small"
+            sx={actionIconSx}
+            onClick={() => window.open(COFFEE_URL, '_blank')}
+          >
+            <VolunteerActivismIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </LightTooltip>
+      </Box>
     </Box>
   )
 }

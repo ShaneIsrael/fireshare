@@ -331,191 +331,224 @@ function Navbar20({
   }
 
   const drawer = (
-    <div>
-      <Toolbar
-        sx={{
-          '&.MuiToolbar-root': {
-            pl: '13px',
-            pr: '8px',
-          },
-        }}
-        onMouseEnter={() => setLogoHovered(true)}
-        onMouseLeave={() => setLogoHovered(false)}
-      >
-        <Box
-          alt="fireshare logo"
-          component="img"
-          src={logo}
-          height={42}
-          onClick={() => navigate('/')}
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* ── Fixed header: logo ───────────────────────────────────────────────── */}
+      <Box sx={{ flexShrink: 0 }}>
+        <Toolbar
           sx={{
-            pr: open ? 2 : 0,
-            cursor: 'pointer',
-            flexShrink: 0,
-            opacity: !open && logoHovered ? 0 : 1,
-            transition: 'opacity 0.15s',
+            '&.MuiToolbar-root': {
+              pl: '13px',
+              pr: '8px',
+            },
           }}
-        />
-        {open && (
-          <>
-            <Typography
-              variant="div"
-              noWrap
-              onClick={() => navigate('/')}
-              sx={{
-                cursor: 'pointer',
-                fontWeight: 700,
-                fontSize: 26,
-                color: 'inherit',
-                textDecoration: 'none',
-                flex: 1,
-              }}
-            >
-              Fireshare
-            </Typography>
+          onMouseEnter={() => setLogoHovered(true)}
+          onMouseLeave={() => setLogoHovered(false)}
+        >
+          <Box
+            alt="fireshare logo"
+            component="img"
+            src={logo}
+            height={42}
+            onClick={() => navigate('/')}
+            sx={{
+              pr: open ? 2 : 0,
+              cursor: 'pointer',
+              flexShrink: 0,
+              opacity: !open && logoHovered ? 0 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          />
+          {open && (
+            <>
+              <Typography
+                variant="div"
+                noWrap
+                onClick={() => navigate('/')}
+                sx={{
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: 26,
+                  color: 'inherit',
+                  textDecoration: 'none',
+                  flex: 1,
+                }}
+              >
+                Fireshare
+              </Typography>
+              <IconButton
+                onClick={handleDrawerCollapse}
+                sx={{
+                  flexShrink: 0,
+                  opacity: logoHovered ? 1 : 0,
+                  transition: 'opacity 0.15s',
+                  display: { xs: 'none', sm: 'inline-flex' },
+                }}
+              >
+                <ChevronLeftIcon />
+              </IconButton>
+            </>
+          )}
+          {!open && logoHovered && (
             <IconButton
               onClick={handleDrawerCollapse}
               sx={{
-                flexShrink: 0,
-                opacity: logoHovered ? 1 : 0,
-                transition: 'opacity 0.15s',
-                display: { xs: 'none', sm: 'inline-flex' },
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: '100%',
+                borderRadius: 0,
+                display: { xs: 'none', sm: 'flex' },
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'rgba(0,0,0,0.45)',
               }}
             >
-              <ChevronLeftIcon />
+              <ChevronRightIcon />
             </IconButton>
-          </>
-        )}
-        {!open && logoHovered && (
-          <IconButton
-            onClick={handleDrawerCollapse}
-            sx={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: '100%',
-              borderRadius: 0,
-              display: { xs: 'none', sm: 'flex' },
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: 'rgba(0,0,0,0.45)',
-            }}
-          >
-            <ChevronRightIcon />
-          </IconButton>
-        )}
-      </Toolbar>
-      <Divider />
-      <List sx={{ p: 1 }}>
-        {pages.map((p) => {
-          if ((p.private && authenticated) || !p.private)
-            return (
-              <ListItem key={p.title} disablePadding>
-                <ListItemButton selected={page === p.href} onClick={() => navigate(p.href)} sx={{ height: 50, mb: 1 }}>
-                  <ListItemIcon sx={{ minWidth: 40 }}>{p.icon}</ListItemIcon>
-                  <ListItemText
-                    primary={p.title}
-                    primaryTypographyProps={{
-                      fontSize: 18,
-                      fontWeight: 600,
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            )
-          return null
-        })}
-      </List>
-      {/* Folder selector — hidden on mobile (xs) */}
-      {(page === '/' || page === '/images') &&
-      open &&
-      !isMobile &&
-      (page === '/' ? folders.length > 1 : imageFolders.length > 1) &&
-      uiConfig.show_folder_dropdown === true ? (
-        <>
-          <Divider />
-          <Box sx={{ p: open ? 1.5 : 0.75 }}>
-            {open ? (
-              <Select
-                value={page === '/' ? selectedFolder : selectedImageFolder}
-                options={createSelectFolders(page === '/' ? folders : imageFolders)}
-                onChange={page === '/' ? handleFolderChange : handleImageFolderChange}
-                styles={selectFolderTheme}
-                blurInputOnSelect
-                isSearchable={false}
-                menuPlacement="auto"
-              />
-            ) : (
-              <LightTooltip title={(page === '/' ? selectedFolder : selectedImageFolder).label} placement="right" arrow>
-                <Box
-                  sx={{
-                    width: 42,
-                    height: 38,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: '1px solid #FFFFFF26',
-                    borderRadius: '8px',
-                    backgroundColor: '#FFFFFF0D',
-                    cursor: 'pointer',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                  onClick={() => {
-                    const idx = (page === '/' ? folders : imageFolders).indexOf(
-                      (page === '/' ? selectedFolder : selectedImageFolder).value,
-                    )
-                    const list = page === '/' ? folders : imageFolders
-                    const next = list[(idx + 1) % list.length]
-                    const handler = page === '/' ? handleFolderChange : handleImageFolderChange
-                    handler({ value: next, label: next })
-                  }}
+          )}
+        </Toolbar>
+        <Divider />
+      </Box>
+
+      {/* ── Scrollable middle: nav + folder + slider + uploads ───────────────── */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          '&::-webkit-scrollbar': { width: 4 },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(194, 224, 255, 0.15)',
+            borderRadius: 2,
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: 'rgba(194, 224, 255, 0.3)',
+          },
+        }}
+      >
+        <List sx={{ p: 1 }}>
+          {pages.map((p) => {
+            if ((p.private && authenticated) || !p.private)
+              return (
+                <ListItem key={p.title} disablePadding>
+                  <ListItemButton
+                    selected={page === p.href}
+                    onClick={() => navigate(p.href)}
+                    sx={{ height: 50, mb: 1 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>{p.icon}</ListItemIcon>
+                    <ListItemText
+                      primary={p.title}
+                      primaryTypographyProps={{
+                        fontSize: 18,
+                        fontWeight: 600,
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              )
+            return null
+          })}
+        </List>
+        {/* Folder selector — hidden on mobile (xs) */}
+        {(page === '/' || page === '/images') &&
+        open &&
+        !isMobile &&
+        (page === '/' ? folders.length > 1 : imageFolders.length > 1) &&
+        uiConfig.show_folder_dropdown === true ? (
+          <>
+            <Divider />
+            <Box sx={{ p: open ? 1.5 : 0.75 }}>
+              {open ? (
+                <Select
+                  value={page === '/' ? selectedFolder : selectedImageFolder}
+                  options={createSelectFolders(page === '/' ? folders : imageFolders)}
+                  onChange={page === '/' ? handleFolderChange : handleImageFolderChange}
+                  styles={selectFolderTheme}
+                  blurInputOnSelect
+                  isSearchable={false}
+                  menuPlacement="auto"
+                />
+              ) : (
+                <LightTooltip
+                  title={(page === '/' ? selectedFolder : selectedImageFolder).label}
+                  placement="right"
+                  arrow
                 >
-                  {(page === '/' ? selectedFolder : selectedImageFolder).label.substring(0, 3)}
-                </Box>
-              </LightTooltip>
-            )}
-          </Box>
-        </>
-      ) : null}
-      {cardSlider && open && !isMobile ? (
-        <>
-          <Divider />
-          <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
-            <SliderWrapper
-              width={open ? 150 : 10}
-              h
-              cardSize={cardSize}
-              defaultCardSize={CARD_SIZE_DEFAULT}
-              cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
-              onChangeCommitted={handleCardSizeChange}
-              vertical={!open}
-            />
-          </Box>
-        </>
-      ) : null}
-      <Divider />
-      <UploadCard
-        ref={registerUploadCard}
-        authenticated={authenticated}
-        handleAlert={memoizedHandleAlert}
-        mini={!effectiveOpen}
-        onUploadComplete={() => setUploadTick((t) => t + 1)}
-      />
-      <ImageUploadCard
-        ref={registerImageUploadCard}
-        authenticated={authenticated}
-        handleAlert={memoizedHandleAlert}
-        mini={!effectiveOpen}
-        onUploadComplete={() => setUploadTick((t) => t + 1)}
-      />
-      <Box sx={{ width: '100%', bottom: 0, position: 'absolute' }}>
+                  <Box
+                    sx={{
+                      width: 42,
+                      height: 38,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid #FFFFFF26',
+                      borderRadius: '8px',
+                      backgroundColor: '#FFFFFF0D',
+                      cursor: 'pointer',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    onClick={() => {
+                      const idx = (page === '/' ? folders : imageFolders).indexOf(
+                        (page === '/' ? selectedFolder : selectedImageFolder).value,
+                      )
+                      const list = page === '/' ? folders : imageFolders
+                      const next = list[(idx + 1) % list.length]
+                      const handler = page === '/' ? handleFolderChange : handleImageFolderChange
+                      handler({ value: next, label: next })
+                    }}
+                  >
+                    {(page === '/' ? selectedFolder : selectedImageFolder).label.substring(0, 3)}
+                  </Box>
+                </LightTooltip>
+              )}
+            </Box>
+          </>
+        ) : null}
+        {cardSlider && open && !isMobile ? (
+          <>
+            <Divider />
+            <Box sx={{ display: 'flex', p: 2 }} justifyContent="center">
+              <SliderWrapper
+                width={open ? 150 : 10}
+                h
+                cardSize={cardSize}
+                defaultCardSize={CARD_SIZE_DEFAULT}
+                cardSizeMultiplier={CARD_SIZE_MULTIPLIER}
+                onChangeCommitted={handleCardSizeChange}
+                vertical={!open}
+              />
+            </Box>
+          </>
+        ) : null}
+        <Divider />
+        <UploadCard
+          ref={registerUploadCard}
+          authenticated={authenticated}
+          handleAlert={memoizedHandleAlert}
+          mini={!effectiveOpen}
+          onUploadComplete={() => setUploadTick((t) => t + 1)}
+        />
+        <ImageUploadCard
+          ref={registerImageUploadCard}
+          authenticated={authenticated}
+          handleAlert={memoizedHandleAlert}
+          mini={!effectiveOpen}
+          onUploadComplete={() => setUploadTick((t) => t + 1)}
+        />
+      </Box>
+
+      {/* ── Fixed footer: status indicators + logout + info boxes ────────────── */}
+      <Box sx={{ flexShrink: 0 }}>
         <GameScanStatus open={effectiveOpen} onComplete={handleGameScanComplete} authenticated={authenticated} />
         <TranscodingStatus open={effectiveOpen} authenticated={authenticated} />
         <FolderSuggestionInline
@@ -525,48 +558,78 @@ function Navbar20({
           onApplied={handleFolderSuggestionApplied}
           onDismiss={handleFolderSuggestionClose}
         />
-        <DiskSpaceIndicator open={effectiveOpen} visible={authenticated} />
-        <List sx={{ pl: 1, pr: 1 }}>
-          {authenticated && (
-            <ListItem disablePadding>
-              <ListItemButton onClick={handleLogout} sx={{ height: 50, backgroundColor: 'rgba(194, 224, 255, 0.08)' }}>
-                <ListItemIcon sx={{ minWidth: 40 }}>
-                  <LogoutIcon />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Logout"
-                  primaryTypographyProps={{
-                    fontSize: 18,
-                    fontWeight: 600,
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          )}
-          {!authenticated && (
-            <ListItem disablePadding>
-              <ListItemButton
-                onClick={() => navigate('/login')}
-                sx={{ height: 50, backgroundColor: 'rgba(194, 224, 255, 0.08)' }}
-              >
-                <ListItemIcon sx={{ minWidth: 40 }}>
-                  <LoginIcon />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Login"
-                  primaryTypographyProps={{
-                    fontSize: 18,
-                    fontWeight: 600,
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          )}
-        </List>
         <Divider />
+        <DiskSpaceIndicator open={effectiveOpen} visible={authenticated} />
         <VersionBox open={effectiveOpen} />
+        {authenticated ? (
+          <LightTooltip arrow title={effectiveOpen ? '' : 'Logout'} placement="right">
+            <Box
+              onClick={handleLogout}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                mx: 1,
+                my: 1,
+                px: effectiveOpen ? 1.5 : 0,
+                height: 40,
+                border: '1px solid rgba(194, 224, 255, 0.18)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                justifyContent: effectiveOpen ? 'flex-start' : 'center',
+                color: 'rgba(255, 100, 100, 0.6)',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 80, 80, 0.08)',
+                  borderColor: 'rgba(255, 100, 100, 0.35)',
+                  color: '#FF6B6B',
+                },
+                transition: 'color 0.15s, border-color 0.15s, background-color 0.15s',
+              }}
+            >
+              <LogoutIcon sx={{ fontSize: 18, flexShrink: 0 }} />
+              {effectiveOpen && (
+                <Typography sx={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.02em', userSelect: 'none' }}>
+                  Logout
+                </Typography>
+              )}
+            </Box>
+          </LightTooltip>
+        ) : (
+          <LightTooltip arrow title={effectiveOpen ? '' : 'Login'} placement="right">
+            <Box
+              onClick={() => navigate('/login')}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                mx: 1,
+                my: 1,
+                px: effectiveOpen ? 1.5 : 0,
+                height: 40,
+                border: '1px solid rgba(194, 224, 255, 0.18)',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                justifyContent: effectiveOpen ? 'flex-start' : 'center',
+                color: 'rgba(38, 132, 255, 0.7)',
+                '&:hover': {
+                  backgroundColor: 'rgba(38, 132, 255, 0.08)',
+                  borderColor: 'rgba(38, 132, 255, 0.4)',
+                  color: '#2684FF',
+                },
+                transition: 'color 0.15s, border-color 0.15s, background-color 0.15s',
+              }}
+            >
+              <LoginIcon sx={{ fontSize: 18, flexShrink: 0 }} />
+              {effectiveOpen && (
+                <Typography sx={{ fontSize: 13, fontWeight: 600, letterSpacing: '0.02em', userSelect: 'none' }}>
+                  Login
+                </Typography>
+              )}
+            </Box>
+          </LightTooltip>
+        )}
       </Box>
-    </div>
+    </Box>
   )
   const demoMode = getSetting('demo_mode')
 
