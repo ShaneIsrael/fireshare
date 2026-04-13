@@ -72,7 +72,7 @@ const jsonPlaceholder = `#Example JSON Data:
 const Settings = () => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const demoMode = getSetting('demo_mode')
+  const demoMode = getSetting('is_demo_user')
   const [alert, setAlert] = React.useState({ open: false })
   const [config, setConfig] = React.useState()
   const [updatedConfig, setUpdatedConfig] = React.useState({})

@@ -631,11 +631,11 @@ function Navbar20({
       </Box>
     </Box>
   )
-  const demoMode = getSetting('demo_mode')
+  const isDemoUser = getSetting('is_demo_user')
 
   return (
     <Box sx={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      {demoMode && page !== '/login' && (
+      {isDemoUser && page !== '/login' && (
         <Box
           sx={{
             position: 'fixed',
@@ -694,7 +694,7 @@ function Navbar20({
             open={open}
             sx={{
               backgroundColor: '#0A1929D0',
-              top: demoMode ? DEMO_BANNER_HEIGHT : 0,
+              top: isDemoUser ? DEMO_BANNER_HEIGHT : 0,
             }}
           >
             <Toolbar sx={{ backgroundColor: 'rgba(0,0,0,0)', gap: 1 }}>
@@ -803,7 +803,7 @@ function Navbar20({
             variant="permanent"
             sx={{
               display: { xs: 'none', sm: 'block' },
-              ...(demoMode && {
+              ...(isDemoUser && {
                 '& .MuiDrawer-paper': {
                   top: DEMO_BANNER_HEIGHT,
                   height: `calc(100% - ${DEMO_BANNER_HEIGHT}px)`,
@@ -830,7 +830,7 @@ function Navbar20({
           }),
         }}
       >
-        {demoMode && page !== '/login' && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
+        {isDemoUser && page !== '/login' && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
         {toolbar &&
           page !== '/watch' &&
           (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && <Toolbar />}

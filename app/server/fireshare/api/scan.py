@@ -17,6 +17,10 @@ from .helpers import get_steamgriddb_api_key
 from .decorators import demo_restrict
 
 
+# Cache for folder-size endpoint — recomputed at most once per minute
+_folder_size_cache = {'result': None, 'expires_at': 0}
+_FOLDER_SIZE_TTL = 60  # seconds
+
 # Global state for tracking game scan progress
 _game_scan_state = {
     'is_running': False,
@@ -55,6 +59,9 @@ def get_folder_size(*folder_paths):
 @api.route('/api/folder-size', methods=['GET'])
 @login_required
 def folder_size():
+    if time.time() < _folder_size_cache['expires_at']:
+        return jsonify(_folder_size_cache['result'])
+
     paths = current_app.config['PATHS']
     video_path = str(paths['video'])
     derived_path = str(paths['processed'] / 'derived')
@@ -71,11 +78,10 @@ def folder_size():
         size_tb = size_mb / (1024 * 1024)
         size_pretty = f"{round(size_tb, 1)} TB"
 
-    return jsonify({
-        "folders": [video_path, derived_path],
-        "size_bytes": size_bytes,
-        "size_pretty": size_pretty
-    })
+    result = {"folders": [video_path, derived_path], "size_bytes": size_bytes, "size_pretty": size_pretty}
+    _folder_size_cache['result'] = result
+    _folder_size_cache['expires_at'] = time.time() + _FOLDER_SIZE_TTL
+    return jsonify(result)
 
 
 @api.route('/api/manual/scan')

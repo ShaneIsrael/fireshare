@@ -30,10 +30,11 @@ export default function App() {
       .then((config) => {
         setSetting('ui_config', config)
         setSetting('demo_mode', config.demo_mode || false)
+        setSetting('is_demo_user', config.is_demo_user || false)
         setSetting('upload_limit_mb', config.upload_limit_mb || 0)
       })
       .catch((err) => console.error(err))
-  })
+  }, [])
 
   const drawerOpen = getSetting('drawerOpen') === undefined ? true : getSetting('drawerOpen')
 

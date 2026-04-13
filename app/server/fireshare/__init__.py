@@ -122,9 +122,6 @@ def create_app(init_schedule=False):
     app.config['LDAP_ADMIN_GROUP'] = os.getenv("LDAP_ADMIN_GROUP")
     app.config['DEMO_MODE'] = os.getenv('DEMO_MODE', '').lower() in ('true', '1', 'yes')
     app.config['DEMO_UPLOAD_LIMIT_MB'] = int(os.getenv('DEMO_UPLOAD_LIMIT_MB', '0') or '0')
-    if app.config['DEMO_MODE']:
-        app.config['ADMIN_USERNAME'] = 'demo'
-        app.config['ADMIN_PASSWORD'] = 'demo'
     app.config['ENABLE_TRANSCODING'] = (
         False if app.config['DEMO_MODE']
         else os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
@@ -351,6 +348,28 @@ def create_app(init_schedule=False):
                 if app.config['ADMIN_USERNAME'] and admin.username != app.config['ADMIN_USERNAME']:
                     row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
                     row.username = app.config['ADMIN_USERNAME']
+                    db.session.commit()
+            # Remove the non-admin demo account when DEMO_MODE is off.
+            if not app.config['DEMO_MODE']:
+                stale_demo = _User.query.filter_by(username='demo', admin=False).first()
+                if stale_demo:
+                    db.session.delete(stale_demo)
+                    db.session.commit()
+            # In DEMO_MODE, ensure a separate non-admin demo account exists.
+            # If the admin was previously named 'demo' (old demo mode behavior) and no
+            # explicit ADMIN_USERNAME is configured, rename it to 'admin' first.
+            if app.config['DEMO_MODE']:
+                admin = _User.query.filter_by(admin=True, ldap=False).first()
+                if admin and admin.username == 'demo' and not app.config['ADMIN_USERNAME']:
+                    admin.username = 'admin'
+                    db.session.commit()
+                if not _User.query.filter_by(username='demo').first():
+                    demo_user = _User(
+                        username='demo',
+                        password=generate_password_hash('demo', method='pbkdf2:sha256'),
+                        admin=False,
+                    )
+                    db.session.add(demo_user)
                     db.session.commit()
         except OperationalError:
             pass  # tables don't exist yet (e.g. during flask db upgrade), skip init

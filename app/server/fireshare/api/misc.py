@@ -101,7 +101,11 @@ def config():
         public_config["allow_public_game_tag"] = config.get("app_config", {}).get("allow_public_game_tag", False)
         public_config["allow_public_upload"] = config.get("app_config", {}).get("allow_public_upload", False)
         public_config["allow_public_folder_selection"] = config.get("app_config", {}).get("allow_public_folder_selection", False)
-        public_config["demo_mode"] = current_app.config.get('DEMO_MODE', False)
+        demo_mode = current_app.config.get('DEMO_MODE', False)
+        public_config["demo_mode"] = demo_mode
+        public_config["is_demo_user"] = (
+            demo_mode and current_user.is_authenticated and current_user.username == 'demo'
+        )
         public_config["transcoding_enabled"] = current_app.config.get('ENABLE_TRANSCODING', False)
         limit_mb = current_app.config.get('DEMO_UPLOAD_LIMIT_MB', 0)
         if limit_mb > 0:

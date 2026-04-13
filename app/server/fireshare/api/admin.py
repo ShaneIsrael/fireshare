@@ -36,14 +36,14 @@ def get_or_update_config():
                 'enabled': current_app.config.get('ENABLE_TRANSCODING', False),
                 'gpu_enabled': current_app.config.get('TRANSCODE_GPU', False),
             }
-            # Strip sensitive API keys in demo mode so they can't be harvested
-            if demo_mode:
+            # Strip sensitive API keys when the demo account is viewing config
+            if demo_mode and current_user.username == 'demo':
                 config.get('integrations', {}).pop('steamgriddb_api_key', None)
             return config
         else:
             return jsonify({})
     if request.method == 'PUT':
-        if demo_mode:
+        if demo_mode and current_user.username == 'demo':
             return Response(status=403, response='Settings cannot be changed in demo mode.')
         config = request.json["config"]
         config_path = paths['data'] / 'config.json'
