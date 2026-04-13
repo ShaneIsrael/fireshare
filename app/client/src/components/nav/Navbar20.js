@@ -559,8 +559,6 @@ function Navbar20({
           onDismiss={handleFolderSuggestionClose}
         />
         <Divider />
-        <DiskSpaceIndicator open={effectiveOpen} visible={authenticated} />
-        <VersionBox open={effectiveOpen} />
         {authenticated ? (
           <LightTooltip arrow title={effectiveOpen ? '' : 'Logout'} placement="right">
             <Box
@@ -628,6 +626,8 @@ function Navbar20({
             </Box>
           </LightTooltip>
         )}
+        <DiskSpaceIndicator open={effectiveOpen} visible={authenticated} />
+        <VersionBox open={effectiveOpen} />
       </Box>
     </Box>
   )
@@ -635,7 +635,7 @@ function Navbar20({
 
   return (
     <Box sx={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      {demoMode && (
+      {demoMode && page !== '/login' && (
         <Box
           sx={{
             position: 'fixed',
@@ -643,23 +643,47 @@ function Navbar20({
             left: 0,
             right: 0,
             height: DEMO_BANNER_HEIGHT,
-            bgcolor: '#7C4D00',
-            color: '#FFE0B2',
+            bgcolor: 'rgba(255, 152, 0, 0.06)',
+            borderBottom: '1px solid rgba(255, 152, 0, 0.18)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.8rem',
-            letterSpacing: '0.02em',
+            gap: 1.5,
             zIndex: (theme) => theme.zIndex.drawer - 1,
           }}
         >
-          <strong>Demo Mode</strong>
-          {!authenticated && (
-            <span>
-              &nbsp;— Login with <strong>demo</strong> / <strong>demo</strong>
-            </span>
-          )}
-          . Some actions are disabled.
+          <Box
+            sx={{
+              px: 0.75,
+              py: 0.1,
+              bgcolor: 'rgba(255, 152, 0, 0.15)',
+              border: '1px solid rgba(255, 152, 0, 0.3)',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              color: '#FFB74D',
+              userSelect: 'none',
+            }}
+          >
+            DEMO
+          </Box>
+          <Typography sx={{ fontSize: '0.75rem', color: 'rgba(255, 200, 120, 0.7)', letterSpacing: '0.02em' }}>
+            Some actions are disabled
+            {!authenticated && (
+              <>
+                {' — sign in with '}
+                <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 700, color: '#FFB74D' }}>
+                  demo
+                </Box>
+                {' / '}
+                <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 700, color: '#FFB74D' }}>
+                  demo
+                </Box>
+              </>
+            )}
+          </Typography>
         </Box>
       )}
       {page !== '/login' &&

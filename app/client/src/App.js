@@ -63,7 +63,7 @@ export default function App() {
             <Route
               path="/login"
               element={
-                <Navbar20 page="/login">
+                <Navbar20 page="/login" mainPadding={0} toolbar={false}>
                   <AuthWrapper>
                     <Login />
                   </AuthWrapper>
