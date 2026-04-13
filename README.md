@@ -28,7 +28,7 @@
       <a href="https://www.buymeacoffee.com/shaneisrael"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="41" width="174" /></a>
     </p>
     <p align="center">
-      <a href="https://v.fireshare.net">Live Demo</a>
+      <a href="https://demo.fireshare.net">Live Demo</a>
       ·
       <a href="https://github.com/ShaneIsrael/fireshare/issues">Report a Bug</a>
     </p>
@@ -92,8 +92,10 @@ Required mounts:
 1. `/data` - internal database
 2. `/processed` - generated metadata (posters, metadata files)
 3. `/videos` - source video directory to scan
+4. `/images` - source image directory to scan
 
-If your clips are in `/path/to/my_game_clips/`, mount that path to `/videos` in the container.
+If your clips are in `/path/to/my/clips/`, mount that path to `/videos` in the container.
+If your images are in `/path/to/my/images/`, mount that path to `/images` in the container.
 
 ### Docker Compose
 
