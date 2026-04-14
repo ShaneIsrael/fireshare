@@ -1,10 +1,10 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Typography, TextField, Button, Divider } from '@mui/material'
-import { AuthService } from '../../services'
+import { AuthService, ConfigService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import logo from '../../assets/logo.png'
-import { getSetting } from '../../common/utils'
+import { getSetting, setSetting } from '../../common/utils'
 
 const inputSx = {
   '& .MuiOutlinedInput-root': {
@@ -37,6 +37,9 @@ const LoginForm = function () {
     setLoading(true)
     try {
       await AuthService.login(username, password)
+      const config = (await ConfigService.getConfig()).data
+      setSetting('demo_mode', config.demo_mode || false)
+      setSetting('is_demo_user', config.is_demo_user || false)
       navigate('/')
     } catch (err) {
       const status = err.response?.status
