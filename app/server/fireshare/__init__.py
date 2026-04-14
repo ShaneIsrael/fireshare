@@ -35,8 +35,12 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
         # Enable WAL mode for better concurrency
         cursor.execute("PRAGMA journal_mode=WAL")
         
-        # Set busy timeout to 5 seconds (instead of failing immediately)
-        cursor.execute("PRAGMA busy_timeout = 5000")
+        # Set busy timeout to 30 seconds (instead of failing immediately)
+        cursor.execute("PRAGMA busy_timeout = 30000")
+
+        # Raise WAL autocheckpoint threshold to reduce write-latency spikes
+        # (default is 1000 pages ~4MB; 10000 pages ~40MB smooths out periodic flushes)
+        cursor.execute("PRAGMA wal_autocheckpoint = 10000")
         
         # Increase cache size (default is 2MB, increase to 64MB)
         cursor.execute("PRAGMA cache_size = -64000")
@@ -149,6 +153,9 @@ def create_app(init_schedule=False):
     # WAL mode (set in pragma) handles concurrent reads/writes efficiently
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'poolclass': NullPool,
+        'connect_args': {
+            'check_same_thread': False,
+        },
     }
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/jobs.sqlite'
     app.config['INIT_SCHEDULE'] = init_schedule
