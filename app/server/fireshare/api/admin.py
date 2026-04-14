@@ -283,7 +283,7 @@ def reset_database():
 @login_required
 def get_admin_files():
     """Get all videos with file metadata for the bulk file manager (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     paths = current_app.config['PATHS']
@@ -377,7 +377,7 @@ def get_admin_files():
 @demo_restrict
 def bulk_delete_files():
     """Delete multiple videos by ID (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -429,7 +429,7 @@ def bulk_delete_files():
 @demo_restrict
 def bulk_move_files():
     """Move multiple videos to a target folder (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -501,7 +501,7 @@ def bulk_move_files():
 @login_required
 def create_video_folder():
     """Create a new folder in the /videos root directory (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -533,7 +533,7 @@ def create_video_folder():
 @login_required
 def delete_video_folder():
     """Delete empty folders from the /videos root directory (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -589,7 +589,7 @@ def delete_video_folder():
 @demo_restrict
 def bulk_remove_transcodes():
     """Remove transcoded files for multiple videos (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -625,10 +625,9 @@ def bulk_remove_transcodes():
 
 @api.route('/api/admin/files/bulk-remove-crop', methods=['POST'])
 @login_required
-@demo_restrict
 def bulk_remove_crop():
     """Remove crop settings for multiple videos (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -670,7 +669,7 @@ def bulk_remove_crop():
 @login_required
 def bulk_set_privacy():
     """Set privacy for multiple videos (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -703,7 +702,7 @@ def bulk_set_privacy():
 @login_required
 def bulk_rename_files():
     """Bulk update titles for multiple videos (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
     data = request.json
     renames = data.get('renames', [])
@@ -733,7 +732,7 @@ def bulk_rename_files():
 @login_required
 def get_orphaned_derived():
     """Find derived folders with no matching video or image in the DB (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
     paths = current_app.config['PATHS']
     derived_root = paths['processed'] / 'derived'
@@ -765,7 +764,7 @@ def get_orphaned_derived():
 @demo_restrict
 def cleanup_orphaned_derived():
     """Delete orphaned derived folders (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
     paths = current_app.config['PATHS']
     derived_root = paths['processed'] / 'derived'
@@ -795,7 +794,7 @@ def cleanup_orphaned_derived():
 @login_required
 def get_admin_image_files():
     """Get all images with file metadata for the image file manager (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     image_directory = current_app.config.get('IMAGE_DIRECTORY')
@@ -889,7 +888,7 @@ def get_admin_image_files():
 @demo_restrict
 def bulk_delete_images():
     """Delete multiple images by ID (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -940,7 +939,7 @@ def bulk_delete_images():
 @demo_restrict
 def bulk_move_images():
     """Move multiple images to a target folder (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -1006,7 +1005,7 @@ def bulk_move_images():
 @login_required
 def bulk_set_image_privacy():
     """Set privacy for multiple images (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -1039,7 +1038,7 @@ def bulk_set_image_privacy():
 @login_required
 def bulk_rename_images():
     """Bulk update titles for multiple images (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
     data = request.json
     renames = data.get('renames', [])
@@ -1069,7 +1068,7 @@ def bulk_rename_images():
 @login_required
 def create_image_folder():
     """Create a new folder in the images root directory (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     image_directory = current_app.config.get('IMAGE_DIRECTORY')
@@ -1103,7 +1102,7 @@ def create_image_folder():
 @login_required
 def delete_image_folder():
     """Delete empty folders from the images root directory (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     image_directory = current_app.config.get('IMAGE_DIRECTORY')

@@ -324,6 +324,7 @@ def delete_video(id):
 
 @api.route('/api/video/move/<id>', methods=['POST'])
 @login_required
+@demo_restrict
 def move_video(id):
     video = Video.query.filter_by(video_id=id).first()
     if not video:

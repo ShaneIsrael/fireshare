@@ -45,9 +45,9 @@
 - Video Cropping
 - Video Tags for improved search and categorization
 - Open Graph metadata for rich link previews
-- [Notifications to Discord and others](./Notifications.md)
+- [Notifications to Discord and others](./docs/Notifications.md)
 - RSS feed for new public videos
-- [LDAP support](./LDAP.md)
+- [LDAP support](./docs/LDAP.md)
 - Optional [video transcoding with CPU or GPU](#transcoding-optional)
 
 # Navigation
@@ -130,7 +130,7 @@ Open `http://localhost:8080`.
 
 ### LDAP
 
-- LDAP setup: [LDAP.md](./LDAP.md)
+- LDAP setup: [LDAP.md](./docs/LDAP.md)
 
 ### Transcoding (Optional)
 
@@ -177,7 +177,7 @@ When GPU mode is enabled, Fireshare selects the best available encoder:
 
 ### Docker Environment Variables
 
-See [EnvironmentVariables.md](./EnvironmentVariables.md) for the full list of available environment variables.
+See [EnvironmentVariables.md](./docs/EnvironmentVariables.md) for the full list of available environment variables.
 
 ## Local Development
 
@@ -217,7 +217,7 @@ If you update models, create a migration and review it before opening a pull req
 
 ## Troubleshooting
 
-See [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) for a full guide covering installation issues, playback problems, permission errors, transcoding, LDAP, and more.
+See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for a full guide covering installation issues, playback problems, permission errors, transcoding, LDAP, and more.
 
 ---
 
