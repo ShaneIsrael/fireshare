@@ -110,5 +110,5 @@ fi
 # Start gunicorn as appuser via gosu (drops from root to PUID:PGID)
 echo "Starting gunicorn as appuser ($PUID:$PGID)..."
 exec gosu appuser env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" \
-    gunicorn --bind=127.0.0.1:5000 "fireshare:create_app(init_schedule=True)" \
-    --workers 3 --threads 3 --preload
+    gunicorn --config /app/server/gunicorn.conf.py \
+    --bind=127.0.0.1:5000 "fireshare:create_app(init_schedule=True)"

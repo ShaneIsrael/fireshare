@@ -8,7 +8,7 @@ backlog = 2048  # Number of pending connections
 # Worker processes
 workers = multiprocessing. cpu_count() * 2 + 1  # Recommended formula
 worker_class = "gthread"  # Use threaded workers
-threads = 4  # 4 threads per worker
+threads = 8  # 8 threads per worker (I/O-bound workload benefits from more threads)
 worker_connections = 1000
 max_requests = 2000  # Restart workers after N requests (prevents memory leaks)
 max_requests_jitter = 100  # Add randomness to prevent all workers restarting at once
