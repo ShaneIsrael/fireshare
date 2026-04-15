@@ -1,150 +1,183 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-
-import { Grid, Stack, Typography, TextField, Button, Box } from '@mui/material'
-
-import PropTypes from 'prop-types'
-
-import { AuthService } from '../../services'
+import { Box, Typography, TextField, Button, Divider } from '@mui/material'
+import { AuthService, ConfigService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
-
 import logo from '../../assets/logo.png'
+import { getSetting, setSetting } from '../../common/utils'
 
-const LoginForm = function ({ sx }) {
-  const [username, setUsername] = React.useState(null)
-  const [password, setPassword] = React.useState(null)
+const inputSx = {
+  '& .MuiOutlinedInput-root': {
+    color: 'white',
+    bgcolor: '#FFFFFF0A',
+    borderRadius: '10px',
+    '& fieldset': { borderColor: 'rgba(194, 224, 255, 0.2)' },
+    '&:hover fieldset': { borderColor: 'rgba(194, 224, 255, 0.4)' },
+    '&.Mui-focused fieldset': { borderColor: '#3399FF' },
+  },
+  '& .MuiInputLabel-root': {
+    color: 'rgba(194, 224, 255, 0.5)',
+    '&.Mui-focused': { color: '#3399FF' },
+  },
+}
+
+const LoginForm = function () {
+  const demoMode = getSetting('demo_mode')
+  const [username, setUsername] = React.useState('')
+  const [password, setPassword] = React.useState('')
+  const [loading, setLoading] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
   const navigate = useNavigate()
 
   async function login() {
     if (!username || !password) {
-      setAlert({
-        type: 'error',
-        message: 'A Username & Password are required.',
-        open: true,
-      })
+      setAlert({ type: 'error', message: 'Username and password are required.', open: true })
+      return
     }
+    setLoading(true)
     try {
       await AuthService.login(username, password)
+      const config = (await ConfigService.getConfig()).data
+      setSetting('demo_mode', config.demo_mode || false)
+      setSetting('is_demo_user', config.is_demo_user || false)
       navigate('/')
     } catch (err) {
-      const { status } = err.response
-      if (status === 401) {
-        setAlert({
-          type: 'warning',
-          message: err.response.data,
-          open: true,
-        })
-      } else {
-        setAlert({
-          type: 'error',
-          message: 'An unknown error occurred while trying to log in',
-          open: true,
-        })
-      }
+      const status = err.response?.status
+      setAlert({
+        type: status === 401 ? 'warning' : 'error',
+        message:
+          status === 401 ? err.response.data : 'An unknown error occurred while trying to log in.',
+        open: true,
+      })
+      setLoading(false)
     }
   }
 
-  const handleLogin = (ev) => {
-    if (ev.type === 'keypress') {
-      if (ev.key === 'Enter' && password) {
-        ev.preventDefault()
-        login()
-      }
-    } else {
-      ev.preventDefault()
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && username && password) {
+      e.preventDefault()
       login()
     }
   }
 
-  const handleLoginChange = (e) => {
-    setAlert({})
-    setUsername(e.target.value)
-  }
-
   return (
-    <Grid container direction="column" justifyContent="flex-end" alignItems="center" sx={{ p: 2, ...sx }}>
-      <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+    <Box
+      sx={{
+        width: '100%',
+        maxWidth: 400,
+        bgcolor: '#041223',
+        border: '1px solid rgba(194, 224, 255, 0.12)',
+        borderRadius: '16px',
+        boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(194, 224, 255, 0.04)',
+        p: { xs: 3, sm: 4 },
+      }}
+    >
+      <SnackbarAlert
+        severity={alert.type}
+        open={alert.open}
+        setOpen={(open) => setAlert({ ...alert, open })}
+      >
         {alert.message}
       </SnackbarAlert>
-      <Grid item sx={{ mb: 2 }}>
-        <Box component="img" src={logo} height={196} alt="fireshare logo" />
-      </Grid>
-      <Grid item sx={{ mb: 1 }}>
+
+      {/* Header */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+        <Box component="img" src={logo} alt="Fireshare logo" sx={{ height: 56, mb: 2 }} />
         <Typography
-          align="center"
+          sx={{ fontWeight: 700, fontSize: 26, color: 'white', letterSpacing: '-0.01em', mb: 0.5 }}
+        >
+          Fireshare
+        </Typography>
+        <Typography sx={{ fontSize: 13, color: 'rgba(194, 224, 255, 0.5)', fontWeight: 400 }}>
+          Sign in to your account
+        </Typography>
+      </Box>
+
+      <Divider sx={{ borderColor: 'rgba(194, 224, 255, 0.08)', mb: 3 }} />
+
+      {/* Demo mode callout */}
+      {demoMode && (
+        <Box
           sx={{
-            // fontFamily: 'monospace',
-            fontWeight: 700,
-            fontSize: 32,
-            letterSpacing: '.2rem',
-            color: 'inherit',
-            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            bgcolor: 'rgba(255, 167, 38, 0.08)',
+            border: '1px solid rgba(255, 167, 38, 0.25)',
+            borderRadius: '10px',
+            px: 2,
+            py: 1.25,
+            mb: 3,
           }}
         >
-          FIRESHARE
-        </Typography>
-      </Grid>
-      <Grid item>
-        <Typography variant="body1" sx={{ fontSize: 14, fontWeight: 400 }} align="center">
-          Enter your account details to sign in
-        </Typography>
-      </Grid>
-      <Grid
-        container
-        justifyContent="center"
-        sx={{
-          width: 384,
-        }}
-        spacing={1}
-      >
-        <Grid item xs={12} sx={{ mt: 4, mb: 1 }}>
-          <TextField
-            fullWidth
-            id="username"
-            label="Username"
-            variant="outlined"
-            placeholder="Username"
-            onKeyPress={handleLogin}
-            onChange={handleLoginChange}
-            autoFocus
+          <Box
+            sx={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              bgcolor: '#FFA726',
+              flexShrink: 0,
+            }}
           />
-        </Grid>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            id="password"
-            label="Password"
-            variant="outlined"
-            type="password"
-            placeholder="Password"
-            onKeyPress={handleLogin}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </Grid>
-        <Grid item xs={12} sx={{ mt: 1 }}>
-          <Stack spacing={2}>
-            <Button
-              variant="contained"
-              size="large"
-              sx={{ width: '100%' }}
-              disabled={!password || !username}
-              onClick={handleLogin}
-            >
-              Sign in
-            </Button>
-          </Stack>
-        </Grid>
-      </Grid>
-    </Grid>
-  )
-}
+          <Typography sx={{ fontSize: 13, color: '#FFD180', lineHeight: 1.5 }}>
+            <Box component="span" sx={{ fontWeight: 700 }}>Demo Mode</Box>
+            {' — sign in with '}
+            <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 700, color: '#FFE0B2' }}>demo</Box>
+            {' / '}
+            <Box component="span" sx={{ fontFamily: 'monospace', fontWeight: 700, color: '#FFE0B2' }}>demo</Box>
+          </Typography>
+        </Box>
+      )}
 
-LoginForm.propTypes = {
-  sx: PropTypes.objectOf(PropTypes.any),
-}
-LoginForm.defaultProps = {
-  sx: {},
+      {/* Fields */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <TextField
+          fullWidth
+          id="username"
+          label="Username"
+          variant="outlined"
+          autoFocus
+          autoComplete="username"
+          value={username}
+          onChange={(e) => { setAlert({}); setUsername(e.target.value) }}
+          onKeyDown={handleKeyDown}
+          sx={inputSx}
+        />
+        <TextField
+          fullWidth
+          id="password"
+          label="Password"
+          type="password"
+          variant="outlined"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={handleKeyDown}
+          sx={inputSx}
+        />
+        <Button
+          variant="contained"
+          size="large"
+          fullWidth
+          disabled={!username || !password || loading}
+          onClick={login}
+          sx={{
+            mt: 1,
+            py: 1.25,
+            borderRadius: '10px',
+            fontSize: 15,
+            fontWeight: 600,
+            textTransform: 'none',
+            bgcolor: '#2684FF',
+            '&:hover': { bgcolor: '#1a6fd4' },
+            '&.Mui-disabled': { bgcolor: 'rgba(38, 132, 255, 0.2)', color: 'rgba(255,255,255,0.3)' },
+          }}
+        >
+          {loading ? 'Signing in…' : 'Sign in'}
+        </Button>
+      </Box>
+    </Box>
+  )
 }
 
 export default LoginForm

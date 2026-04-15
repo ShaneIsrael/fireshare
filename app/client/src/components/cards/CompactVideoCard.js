@@ -933,6 +933,7 @@ const CompactVideoCard = ({
               Icon: SlowMotionVideoIcon,
               color: '#FFFFFFE6',
               requiresAuth: true,
+              hidden: !getSetting('ui_config')?.transcoding_enabled,
               onClick: handleTranscode,
             },
             {
@@ -960,6 +961,7 @@ const CompactVideoCard = ({
               onClick: () => setDeleteModalOpen(true),
             },
           ]
+            .filter((item) => !item.hidden)
             .filter((item) => !item.requiresAuth || authenticated)
             .map(({ label, Icon, color, danger, onClick }) => (
               <MenuItem

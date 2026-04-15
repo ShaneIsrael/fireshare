@@ -17,6 +17,7 @@ from .. import db, logger, util
 from ..models import Image, ImageInfo, ImageView, ImageGameLink, ImageTagLink, GameMetadata
 from . import api
 from .helpers import secure_filename
+from .decorators import demo_restrict
 
 
 SUPPORTED_IMAGE_TYPES = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
@@ -189,6 +190,9 @@ def get_image_upload_folders():
         default_folder = config['app_config'].get('admin_upload_folder_name', 'uploads')
     except Exception:
         pass
+    if default_folder and default_folder not in folders:
+        folders.append(default_folder)
+        folders.sort()
     return jsonify({'folders': folders, 'default_folder': default_folder})
 
 
@@ -216,6 +220,9 @@ def get_public_image_upload_folders():
             pass
 
     default_folder = config['app_config'].get('public_upload_folder_name', 'public uploads')
+    if default_folder and default_folder not in folders:
+        folders.append(default_folder)
+        folders.sort()
     return jsonify({'folders': folders, 'default_folder': default_folder})
 
 
@@ -302,6 +309,7 @@ def update_image_details(image_id):
 
 @api.route('/api/image/delete/<image_id>', methods=['DELETE'])
 @login_required
+@demo_restrict
 def delete_image(image_id):
     img = Image.query.filter_by(image_id=image_id).first()
     if not img:

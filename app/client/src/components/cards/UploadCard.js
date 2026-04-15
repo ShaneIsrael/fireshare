@@ -23,6 +23,15 @@ import styled from '@emotion/styled'
 import { keyframes } from '@emotion/react'
 import { VideoService, GameService, TagService } from '../../services'
 import { getSetting } from '../../common/utils'
+
+function checkUploadLimit(file, handleAlert) {
+  const limitMb = getSetting('upload_limit_mb') || 0
+  if (limitMb > 0 && file.size > limitMb * 1024 * 1024) {
+    handleAlert?.({ type: 'error', message: `File exceeds the ${limitMb} MB upload limit for this demo.`, open: true })
+    return false
+  }
+  return true
+}
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, checkboxSx, helperTextSx } from '../../common/modalStyles'
 import logo from '../../assets/logo.png'
 
@@ -123,6 +132,7 @@ const UploadCard = React.forwardRef(function UploadCard(
 
   React.useImperativeHandle(ref, () => ({
     openFile(file) {
+      if (!checkUploadLimit(file, handleAlert)) return
       setProgress(0)
       lastProgressUpdate.current = 0
       openMetadataDialog(file)
@@ -185,8 +195,11 @@ const UploadCard = React.forwardRef(function UploadCard(
         setAllTags(tRes.data || [])
         const folders = fRes.data?.folders || []
         const defaultFolder = fRes.data?.default_folder || ''
-        setAvailableFolders(folders)
-        setSelectedFolder(folders.includes(defaultFolder) ? defaultFolder : folders[0] || '')
+        const folderSet = new Set(folders)
+        if (defaultFolder && !folderSet.has(defaultFolder)) folderSet.add(defaultFolder)
+        const finalFolders = [...folderSet]
+        setAvailableFolders(finalFolders)
+        setSelectedFolder(finalFolders.includes(defaultFolder) ? defaultFolder : finalFolders[0] || '')
       })
       .catch(() => {
         setAllGames([])
@@ -314,9 +327,11 @@ const UploadCard = React.forwardRef(function UploadCard(
   }
 
   const changeHandler = (event) => {
+    const file = event.target.files[0]
+    if (!checkUploadLimit(file, handleAlert)) return
     setProgress(0)
     lastProgressUpdate.current = 0
-    openMetadataDialog(event.target.files[0])
+    openMetadataDialog(file)
   }
 
   const uploadProgress = (progress, rate) => {
@@ -352,8 +367,9 @@ const UploadCard = React.forwardRef(function UploadCard(
   // Function to handle the drop event
   const dropHandler = (event) => {
     event.preventDefault()
-    setProgress(0)
     const file = event.dataTransfer.files[0]
+    if (!checkUploadLimit(file, handleAlert)) return
+    setProgress(0)
     openMetadataDialog(file)
   }
 
@@ -719,19 +735,17 @@ const UploadCard = React.forwardRef(function UploadCard(
                   />
                 )}
               </Box>
-              {availableFolders.length > 0 && (
-                <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
-                  <Typography sx={labelSx}>Upload Folder</Typography>
-                  <Autocomplete
-                    options={availableFolders}
-                    value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
-                    onChange={(_, value) => setSelectedFolder(value || '')}
-                    disableClearable={uploadToGameFolder ? true : !!selectedFolder}
-                    disabled={uploadToGameFolder && !!selectedGame}
-                    renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
-                  />
-                </Box>
-              )}
+              <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+                <Typography sx={labelSx}>Upload Folder</Typography>
+                <Autocomplete
+                  options={availableFolders}
+                  value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
+                  onChange={(_, value) => setSelectedFolder(value || '')}
+                  disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+                  disabled={uploadToGameFolder && !!selectedGame}
+                  renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+                />
+              </Box>
               <Box>
                 <Typography sx={labelSx}>Tags</Typography>
                 <Autocomplete
@@ -1088,19 +1102,17 @@ const UploadCard = React.forwardRef(function UploadCard(
               </Box>
 
               {/* Folder selector */}
-              {availableFolders.length > 0 && (
-                <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
-                  <Typography sx={labelSx}>Upload Folder</Typography>
-                  <Autocomplete
-                    options={availableFolders}
-                    value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
-                    onChange={(_, value) => setSelectedFolder(value || '')}
-                    disableClearable={uploadToGameFolder ? true : !!selectedFolder}
-                    disabled={uploadToGameFolder && !!selectedGame}
-                    renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
-                  />
-                </Box>
-              )}
+              <Box sx={{ opacity: uploadToGameFolder && selectedGame ? 0.5 : 1 }}>
+                <Typography sx={labelSx}>Upload Folder</Typography>
+                <Autocomplete
+                  options={availableFolders}
+                  value={uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder || null}
+                  onChange={(_, value) => setSelectedFolder(value || '')}
+                  disableClearable={uploadToGameFolder ? true : !!selectedFolder}
+                  disabled={uploadToGameFolder && !!selectedGame}
+                  renderInput={(params) => <TextField {...params} size="small" sx={inputSx} />}
+                />
+              </Box>
 
               {/* Tag selector */}
               <Box>

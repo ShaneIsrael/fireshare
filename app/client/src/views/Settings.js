@@ -38,7 +38,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import { ConfigService, VideoService, GameService, ImageService } from '../services'
-import { setSetting } from '../common/utils'
+import { setSetting, getSetting } from '../common/utils'
 import LightTooltip from '../components/misc/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 
@@ -72,6 +72,7 @@ const jsonPlaceholder = `#Example JSON Data:
 const Settings = () => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const demoMode = getSetting('is_demo_user')
   const [alert, setAlert] = React.useState({ open: false })
   const [config, setConfig] = React.useState()
   const [updatedConfig, setUpdatedConfig] = React.useState({})
@@ -536,6 +537,11 @@ const Settings = () => {
             overflow: 'hidden',
           }}
         >
+          {/* fieldset[disabled] propagates to all child inputs/buttons in demo mode */}
+          <fieldset
+            disabled={demoMode}
+            style={{ border: 'none', padding: 0, margin: 0, minWidth: 0, display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}
+          >
           {/* Scrollable content area */}
           <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {/* Privacy & Upload */}
@@ -590,8 +596,7 @@ const Settings = () => {
                 <FormControlLabel
                   control={
                     <Checkbox
-                      checked={updatedConfig.app_config?.allow_public_upload || false}
-                      onChange={(e) =>
+                      checked={updatedConfig.app_config?.allow_public_upload || false}                      onChange={(e) =>
                         setUpdatedConfig((prev) => ({
                           ...prev,
                           app_config: { ...prev.app_config, allow_public_upload: e.target.checked },
@@ -651,8 +656,7 @@ const Settings = () => {
                 <TextField
                   size="small"
                   label="Shareable Link Domain"
-                  value={updatedConfig.ui_config?.shareable_link_domain || ''}
-                  onChange={(e) =>
+                  value={updatedConfig.ui_config?.shareable_link_domain || ''}                  onChange={(e) =>
                     setUpdatedConfig((prev) => ({
                       ...prev,
                       ui_config: { ...prev.ui_config, shareable_link_domain: e.target.value },
@@ -674,8 +678,7 @@ const Settings = () => {
                 <TextField
                   size="small"
                   label="Admin Upload Folder Name"
-                  value={updatedConfig.app_config?.admin_upload_folder_name || ''}
-                  onChange={(e) =>
+                  value={updatedConfig.app_config?.admin_upload_folder_name || ''}                  onChange={(e) =>
                     setUpdatedConfig((prev) => ({
                       ...prev,
                       app_config: { ...prev.app_config, admin_upload_folder_name: e.target.value },
@@ -768,8 +771,7 @@ const Settings = () => {
                 <TextField
                   size="small"
                   label="Discord Webhook URL"
-                  value={discordUrl}
-                  error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
+                  value={discordUrl}                  error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
                   helperText={
                     discordUrl !== '' && !isValidDiscordWebhook(discordUrl) ? (
                       'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
@@ -801,9 +803,7 @@ const Settings = () => {
                 />
                 <Button
                   variant="outlined"
-                  startIcon={<SendIcon />}
-                  // Change this from handleCopyRssFeedUrl to your new function
-                  onClick={handleTestDiscordWebhook}
+                  startIcon={<SendIcon />}                  onClick={handleTestDiscordWebhook}
                   sx={{
                     borderColor: 'rgba(255, 255, 255, 0.23)',
                     color: '#fff',
@@ -821,8 +821,7 @@ const Settings = () => {
                 <TextField
                   size="small"
                   label="Generic Webhook URL"
-                  value={webhookUrl}
-                  error={webhookUrl !== '' && !isValidGenericWebhook(webhookUrl)}
+                  value={webhookUrl}                  error={webhookUrl !== '' && !isValidGenericWebhook(webhookUrl)}
                   helperText={
                     <span>
                       Used for API POST to Generic Webhook Endpoint -{' '}
@@ -853,8 +852,7 @@ const Settings = () => {
                   multiline
                   rows={6}
                   size="small"
-                  label="Generic Webhook JSON Payload"
-                  value={webhookJson}
+                  label="Generic Webhook JSON Payload"                  value={webhookJson}
                   placeholder={jsonPlaceholder}
                   error={webhookJson !== '' && !isValidJson(webhookJson)}
                   helperText={
@@ -878,8 +876,7 @@ const Settings = () => {
                 />
                 <Button
                   variant="outlined"
-                  startIcon={<SendIcon />}
-                  onClick={handleTestWebhook}
+                  startIcon={<SendIcon />}                  onClick={handleTestWebhook}
                   sx={{
                     borderColor: 'rgba(255, 255, 255, 0.23)',
                     color: '#fff',
@@ -898,8 +895,7 @@ const Settings = () => {
                 <TextField
                   id="steamgrid-api-key-field"
                   size="small"
-                  label="SteamGridDB API Key"
-                  type={showSteamGridKey ? 'text' : 'password'}
+                  label="SteamGridDB API Key"                  type={showSteamGridKey ? 'text' : 'password'}
                   value={updatedConfig.integrations?.steamgriddb_api_key || ''}
                   helperText={
                     <span>
@@ -938,8 +934,7 @@ const Settings = () => {
                 <header>RSS</header>
                 <TextField
                   size="small"
-                  label="RSS Feed Title"
-                  value={updatedConfig.rss_config?.title || ''}
+                  label="RSS Feed Title"                  value={updatedConfig.rss_config?.title || ''}
                   onChange={(e) =>
                     setUpdatedConfig((prev) => ({
                       ...prev,
@@ -949,8 +944,7 @@ const Settings = () => {
                 />
                 <TextField
                   size="small"
-                  label="RSS Feed Description"
-                  multiline
+                  label="RSS Feed Description"                  multiline
                   rows={2}
                   value={updatedConfig.rss_config?.description || ''}
                   onChange={(e) =>
@@ -1390,8 +1384,7 @@ const Settings = () => {
                 <Button
                   variant="contained"
                   startIcon={<SensorsIcon />}
-                  onClick={handleScan}
-                  size="large"
+                  onClick={handleScan}                  size="large"
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
                   Scan for New Videos
@@ -1399,8 +1392,7 @@ const Settings = () => {
                 <Button
                   variant="contained"
                   startIcon={<ImageIcon />}
-                  onClick={handleScanImages}
-                  size="large"
+                  onClick={handleScanImages}                  size="large"
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
                   Scan for New Images
@@ -1408,8 +1400,7 @@ const Settings = () => {
                 <Button
                   variant="contained"
                   startIcon={<SportsEsportsIcon />}
-                  onClick={handleScanGames}
-                  size="large"
+                  onClick={handleScanGames}                  size="large"
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
                   Scan for Missing Games
@@ -1417,8 +1408,7 @@ const Settings = () => {
                 <Button
                   variant="contained"
                   startIcon={<CalendarMonthIcon />}
-                  onClick={handleScanDates}
-                  size="large"
+                  onClick={handleScanDates}                  size="large"
                   sx={{ width: '100%', maxWidth: 400 }}
                 >
                   Scan for Missing Dates
@@ -1431,17 +1421,22 @@ const Settings = () => {
           {activeTab !== 4 && activeTab !== 5 && (
             <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
               <Divider sx={{ mb: 2 }} />
-              <Button
-                variant="contained"
-                startIcon={<SaveIcon />}
-                disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed)}
-                onClick={handleSave}
-                fullWidth
-              >
-                Save Changes
-              </Button>
+              <Tooltip title={demoMode ? 'Settings cannot be changed in demo mode' : ''} placement="top">
+                <span>
+                  <Button
+                    variant="contained"
+                    startIcon={<SaveIcon />}
+                    disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed)}
+                    onClick={handleSave}
+                    fullWidth
+                  >
+                    Save Changes
+                  </Button>
+                </span>
+              </Tooltip>
             </Box>
           )}
+          </fieldset>
         </Box>
       </Box>
     </>

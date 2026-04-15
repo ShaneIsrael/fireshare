@@ -11,6 +11,7 @@ from flask_login import login_required
 from .. import util
 from ..models import VideoInfo
 from . import api
+from .decorators import demo_restrict
 
 
 # Global transcoding state
@@ -139,6 +140,7 @@ def get_transcoding_status():
 
 @api.route('/api/admin/transcoding/start', methods=["POST"])
 @login_required
+@demo_restrict
 def start_transcoding():
     """Start bulk transcoding of all videos, or queue it if already running."""
     if not current_app.config.get('ENABLE_TRANSCODING', False):
@@ -150,6 +152,7 @@ def start_transcoding():
 
 @api.route('/api/admin/transcoding/start/<video_id>', methods=["POST"])
 @login_required
+@demo_restrict
 def start_transcoding_video(video_id):
     """Start transcoding for a single video, or queue it if already running."""
     if not current_app.config.get('ENABLE_TRANSCODING', False):
@@ -161,6 +164,7 @@ def start_transcoding_video(video_id):
 
 @api.route('/api/admin/transcoding/cancel', methods=["POST"])
 @login_required
+@demo_restrict
 def cancel_transcoding():
     """Cancel ongoing transcoding."""
     global _transcoding_process

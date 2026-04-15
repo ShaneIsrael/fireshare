@@ -14,7 +14,12 @@ from ..constants import DEFAULT_CONFIG
 from ..models import Video, VideoInfo, VideoGameLink, GameMetadata, FolderRule, Image, ImageGameLink, ImageFolderRule
 from . import api
 from .helpers import get_steamgriddb_api_key
+from .decorators import demo_restrict
 
+
+# Cache for folder-size endpoint — recomputed at most once per minute
+_folder_size_cache = {'result': None, 'expires_at': 0}
+_FOLDER_SIZE_TTL = 60  # seconds
 
 # Global state for tracking game scan progress
 _game_scan_state = {
@@ -54,6 +59,9 @@ def get_folder_size(*folder_paths):
 @api.route('/api/folder-size', methods=['GET'])
 @login_required
 def folder_size():
+    if time.time() < _folder_size_cache['expires_at']:
+        return jsonify(_folder_size_cache['result'])
+
     paths = current_app.config['PATHS']
     video_path = str(paths['video'])
     derived_path = str(paths['processed'] / 'derived')
@@ -70,15 +78,15 @@ def folder_size():
         size_tb = size_mb / (1024 * 1024)
         size_pretty = f"{round(size_tb, 1)} TB"
 
-    return jsonify({
-        "folders": [video_path, derived_path],
-        "size_bytes": size_bytes,
-        "size_pretty": size_pretty
-    })
+    result = {"folders": [video_path, derived_path], "size_bytes": size_bytes, "size_pretty": size_pretty}
+    _folder_size_cache['result'] = result
+    _folder_size_cache['expires_at'] = time.time() + _FOLDER_SIZE_TTL
+    return jsonify(result)
 
 
 @api.route('/api/manual/scan')
 @login_required
+@demo_restrict
 def manual_scan():
     current_app.logger.info(f"Executed manual scan")
     Popen(["fireshare", "bulk-import"], shell=False, start_new_session=True)
@@ -87,6 +95,7 @@ def manual_scan():
 
 @api.route('/api/manual/scan-images')
 @login_required
+@demo_restrict
 def manual_scan_images():
     current_app.logger.info(f"Executed manual image scan")
     Popen(["fireshare", "scan-images"], shell=False, start_new_session=True)
@@ -95,6 +104,7 @@ def manual_scan_images():
 
 @api.route('/api/manual/scan-dates')
 @login_required
+@demo_restrict
 def manual_scan_dates():
     """Extract recording dates from filenames for videos missing recorded_at"""
     try:
@@ -224,6 +234,7 @@ def get_folder_rules():
 
 @api.route('/api/folder-rules', methods=['POST'])
 @login_required
+@demo_restrict
 def create_folder_rule():
     """Create a folder rule and backfill existing untagged videos"""
     from ..cli import _load_suggestions, _save_suggestions
@@ -301,6 +312,7 @@ def create_folder_rule():
 
 @api.route('/api/folder-rules/<int:rule_id>', methods=['DELETE'])
 @login_required
+@demo_restrict
 def delete_folder_rule(rule_id):
     """Delete a folder rule, optionally unlinking videos"""
     rule = db.session.get(FolderRule, rule_id)
@@ -379,6 +391,7 @@ def get_image_folder_rules():
 
 @api.route('/api/image-folder-rules', methods=['POST'])
 @login_required
+@demo_restrict
 def create_image_folder_rule():
     """Create an image folder rule and backfill existing untagged images"""
     data = request.get_json()
@@ -430,6 +443,7 @@ def create_image_folder_rule():
 
 @api.route('/api/image-folder-rules/<int:rule_id>', methods=['DELETE'])
 @login_required
+@demo_restrict
 def delete_image_folder_rule(rule_id):
     """Delete an image folder rule, optionally unlinking images"""
     rule = db.session.get(ImageFolderRule, rule_id)
@@ -457,6 +471,7 @@ def delete_image_folder_rule(rule_id):
 
 @api.route('/api/manual/scan-games')
 @login_required
+@demo_restrict
 def manual_scan_games():
     """Start game scan in background thread"""
     from fireshare.cli import save_game_suggestions_batch, _load_suggestions

@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
 from .api.misc import _get_local_version, _fetch_release_notes
+from .api.decorators import demo_restrict
 from datetime import datetime, timezone
 try:
     import ldap
@@ -104,6 +105,7 @@ def login():
 
 @auth.route('/api/signup', methods=['POST'])
 @login_required
+@demo_restrict
 def signup():
     username = request.json['username']
     password = request.json['password']
