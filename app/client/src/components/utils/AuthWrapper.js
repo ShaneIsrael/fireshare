@@ -9,8 +9,7 @@ const AuthWrapper = ({ children, redirect }) => {
   const [authed, setAuthed] = React.useState(true)
   const [checkingAuth, setCheckingAuth] = React.useState(true)
   const [isAdmin, setIsAdmin] = React.useState(false)
-  const [showReleaseNotes, setShowReleaseNotes] = React.useState(false)
-  const [releaseNotes, setReleaseNotes] = React.useState(null)
+  const [latestRelease, setLatestRelease] = React.useState(null)
 
   const checkLogin = React.useCallback(async () => {
     try {
@@ -18,8 +17,7 @@ const AuthWrapper = ({ children, redirect }) => {
       if (typeof response === 'object') {
         setAuthed(response.authenticated)
         setIsAdmin(response.admin || false)
-        setShowReleaseNotes(response.show_release_notes || false)
-        setReleaseNotes(response.release_notes || null)
+        setLatestRelease(response.latest_release || null)
       } else {
         setAuthed(response)
       }
@@ -53,9 +51,7 @@ const AuthWrapper = ({ children, redirect }) => {
   const childProps = {
     authenticated: authed,
     isAdmin,
-    showReleaseNotes,
-    releaseNotes,
-    setShowReleaseNotes,
+    latestRelease,
   }
 
   if (!redirect) return React.cloneElement(children, childProps)

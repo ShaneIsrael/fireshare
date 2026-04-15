@@ -41,9 +41,51 @@ preload_app = False  # Changed from True - SQLite doesn't like forking
 # Worker tmp directory
 worker_tmp_dir = "/dev/shm"  # Use RAM for worker tmp files
 
+# Sentinel file used to elect exactly one worker as the scheduler worker.
+# Written with O_EXCL so the first worker to create it wins atomically.
+_SCHEDULER_SENTINEL = "/tmp/fireshare_scheduler.lock"
+
 def on_starting(server):
     """Called just before the master process is initialized."""
+    # Remove a stale sentinel from a previous run so the first worker of this
+    # run can cleanly (re-)claim the scheduler role.
+    try:
+        os.unlink(_SCHEDULER_SENTINEL)
+    except FileNotFoundError:
+        pass
     server.log.info("Starting Fireshare")
+
+def post_fork(server, worker):
+    """Elect exactly one worker to run the background scheduler.
+
+    Each worker races to create the sentinel file with O_CREAT|O_EXCL, which
+    is atomic on POSIX filesystems.  The winner sets FIRESHARE_START_SCHEDULER
+    in its own environment; losers leave it unset.  create_app() reads this
+    env var to decide whether to call init_schedule().
+    """
+    try:
+        fd = os.open(_SCHEDULER_SENTINEL, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+        os.environ['FIRESHARE_START_SCHEDULER'] = '1'
+        server.log.info(f"Worker {os.getpid()}: elected as scheduler worker")
+    except FileExistsError:
+        os.environ.pop('FIRESHARE_START_SCHEDULER', None)
+
+def worker_exit(server, worker):
+    """When the scheduler worker exits, clear the sentinel so a replacement
+    worker can take over the scheduler role on its next startup."""
+    try:
+        with open(_SCHEDULER_SENTINEL, 'r') as f:
+            scheduler_pid = int(f.read().strip())
+        if scheduler_pid == worker.pid:
+            os.unlink(_SCHEDULER_SENTINEL)
+            server.log.info(
+                f"Scheduler worker {worker.pid} exited; sentinel cleared "
+                "so a new worker can take over"
+            )
+    except (FileNotFoundError, ValueError, IOError):
+        pass
 
 def when_ready(server):
     """Called just after the server is started."""
