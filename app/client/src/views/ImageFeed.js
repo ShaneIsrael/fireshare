@@ -313,7 +313,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                   <ImageCards
                     images={sortedImages}
                     authenticated={authenticated}
-                    feedView={true}
+                    feedView={!authenticated}
                     size={cardSize}
                     onImageOpen={handleImageOpen}
                     editMode={editMode}

@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import shutil
 import subprocess
 import tempfile
@@ -17,37 +16,18 @@ from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, VideoGameLink, VideoTagLink, FolderRule
 from . import api
 from .helpers import get_video_path, add_cache_headers, add_poster_cache_headers
+from .decorators import demo_restrict
 
 
 def _stream_video_file(video_path):
-    """Shared range-request streaming logic for video endpoints."""
-    file_size = os.stat(video_path).st_size
-    start = 0
-    length = 10240
+    """Stream a video file with proper Range request support (RFC 7233).
 
-    range_header = request.headers.get('Range', None)
-    if range_header:
-        m = re.search('([0-9]+)-([0-9]*)', range_header)
-        g = m.groups()
-        byte1, byte2 = 0, None
-        if g[0]:
-            byte1 = int(g[0])
-        if g[1]:
-            byte2 = int(g[1])
-        if byte1 < file_size:
-            start = byte1
-        if byte2:
-            length = byte2 + 1 - byte1
-        else:
-            length = file_size - start
-
-    with open(video_path, 'rb') as f:
-        f.seek(start)
-        chunk = f.read(length)
-
-    rv = Response(chunk, 206, mimetype='video/mp4', content_type='video/mp4', direct_passthrough=True)
-    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(start, start + length - 1, file_size))
-    return rv
+    Uses Flask's send_file with conditional=True so that:
+    - Requests without a Range header receive 200 OK with Accept-Ranges and Content-Length,
+      allowing browsers (especially Firefox) to discover range support.
+    - Requests with a Range header receive 206 Partial Content with Content-Range.
+    """
+    return send_file(video_path, mimetype='video/mp4', conditional=True)
 
 
 def _delete_if_exists(path):
@@ -305,6 +285,7 @@ def get_videos_by_date(date):
 
 @api.route('/api/video/delete/<id>', methods=["DELETE"])
 @login_required
+@demo_restrict
 def delete_video(id):
     video = Video.query.filter_by(video_id=id).first()
     if video:
@@ -343,6 +324,7 @@ def delete_video(id):
 
 @api.route('/api/video/move/<id>', methods=['POST'])
 @login_required
+@demo_restrict
 def move_video(id):
     video = Video.query.filter_by(video_id=id).first()
     if not video:

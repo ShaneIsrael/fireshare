@@ -29,9 +29,12 @@ export default function App() {
       .then((res) => res.data)
       .then((config) => {
         setSetting('ui_config', config)
+        setSetting('demo_mode', config.demo_mode || false)
+        setSetting('is_demo_user', config.is_demo_user || false)
+        setSetting('upload_limit_mb', config.upload_limit_mb || 0)
       })
       .catch((err) => console.error(err))
-  })
+  }, [])
 
   const drawerOpen = getSetting('drawerOpen') === undefined ? true : getSetting('drawerOpen')
 
@@ -61,7 +64,7 @@ export default function App() {
             <Route
               path="/login"
               element={
-                <Navbar20 page="/login">
+                <Navbar20 page="/login" mainPadding={0} toolbar={false}>
                   <AuthWrapper>
                     <Login />
                   </AuthWrapper>

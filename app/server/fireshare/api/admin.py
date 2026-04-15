@@ -17,12 +17,14 @@ from . import api
 from . import transcoding as _transcoding_mod
 from .transcoding import _is_pid_running
 from .scan import _game_scan_state
+from .decorators import demo_restrict
 
 
 @api.route('/api/admin/config', methods=["GET", "PUT"])
 @login_required
 def get_or_update_config():
     paths = current_app.config['PATHS']
+    demo_mode = current_app.config.get('DEMO_MODE', False)
     if request.method == 'GET':
         config_path = paths['data'] / 'config.json'
         file = open(config_path)
@@ -34,10 +36,15 @@ def get_or_update_config():
                 'enabled': current_app.config.get('ENABLE_TRANSCODING', False),
                 'gpu_enabled': current_app.config.get('TRANSCODE_GPU', False),
             }
+            # Strip sensitive API keys when the demo account is viewing config
+            if demo_mode and current_user.username == 'demo':
+                config.get('integrations', {}).pop('steamgriddb_api_key', None)
             return config
         else:
             return jsonify({})
     if request.method == 'PUT':
+        if demo_mode and current_user.username == 'demo':
+            return Response(status=403, response='Settings cannot be changed in demo mode.')
         config = request.json["config"]
         config_path = paths['data'] / 'config.json'
         if not config:
@@ -159,6 +166,7 @@ def admin_event_stream():
 
 @api.route('/api/admin/reset-database', methods=["POST"])
 @login_required
+@demo_restrict
 def reset_database():
     """Reset selected video and game data while preserving config and user settings"""
     try:
@@ -275,7 +283,7 @@ def reset_database():
 @login_required
 def get_admin_files():
     """Get all videos with file metadata for the bulk file manager (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     paths = current_app.config['PATHS']
@@ -366,9 +374,10 @@ def get_admin_files():
 
 @api.route('/api/admin/files/bulk-delete', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_delete_files():
     """Delete multiple videos by ID (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -417,9 +426,10 @@ def bulk_delete_files():
 
 @api.route('/api/admin/files/bulk-move', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_move_files():
     """Move multiple videos to a target folder (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -491,7 +501,7 @@ def bulk_move_files():
 @login_required
 def create_video_folder():
     """Create a new folder in the /videos root directory (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -519,11 +529,67 @@ def create_video_folder():
         return Response(status=500, response=str(e))
 
 
+@api.route('/api/admin/folders/delete', methods=['POST'])
+@login_required
+def delete_video_folder():
+    """Delete empty folders from the /videos root directory (admin only)"""
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    folder_names = data.get('folders', [])
+
+    if not folder_names:
+        return Response(status=400, response='No folder names provided.')
+
+    paths = current_app.config['PATHS']
+    video_path = paths['video']
+    results = {'deleted': [], 'errors': []}
+
+    # Load config to get protected folder names
+    try:
+        with open(paths['data'] / 'config.json', 'r') as f:
+            config = json.load(f)
+    except Exception:
+        config = {}
+
+    app_config = config.get('app_config', {})
+    admin_upload_folder = app_config.get('admin_upload_folder_name', 'uploads').lower()
+    public_upload_folder = app_config.get('public_upload_folder_name', 'public uploads').lower()
+
+    for folder_name in folder_names:
+        if '/' in folder_name or '\\' in folder_name or folder_name.startswith('.'):
+            results['errors'].append({'folder': folder_name, 'error': 'Invalid folder name'})
+            continue
+
+        if folder_name.lower() in [admin_upload_folder, public_upload_folder]:
+            results['errors'].append({'folder': folder_name, 'error': 'Cannot delete protected folder'})
+            continue
+
+        folder_path = video_path / folder_name
+        if not folder_path.exists() or not folder_path.is_dir():
+            results['errors'].append({'folder': folder_name, 'error': 'Folder not found'})
+            continue
+        # Only delete if empty
+        if any(folder_path.iterdir()):
+            results['errors'].append({'folder': folder_name, 'error': 'Folder is not empty'})
+            continue
+        try:
+            folder_path.rmdir()
+            results['deleted'].append(folder_name)
+            logging.info(f"Deleted empty folder: {folder_path}")
+        except Exception as e:
+            results['errors'].append({'folder': folder_name, 'error': str(e)})
+
+    return jsonify(results)
+
+
 @api.route('/api/admin/files/bulk-remove-transcodes', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_remove_transcodes():
     """Remove transcoded files for multiple videos (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -561,7 +627,7 @@ def bulk_remove_transcodes():
 @login_required
 def bulk_remove_crop():
     """Remove crop settings for multiple videos (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -603,7 +669,7 @@ def bulk_remove_crop():
 @login_required
 def bulk_set_privacy():
     """Set privacy for multiple videos (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -636,7 +702,7 @@ def bulk_set_privacy():
 @login_required
 def bulk_rename_files():
     """Bulk update titles for multiple videos (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
     data = request.json
     renames = data.get('renames', [])
@@ -666,7 +732,7 @@ def bulk_rename_files():
 @login_required
 def get_orphaned_derived():
     """Find derived folders with no matching video or image in the DB (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
     paths = current_app.config['PATHS']
     derived_root = paths['processed'] / 'derived'
@@ -695,9 +761,10 @@ def get_orphaned_derived():
 
 @api.route('/api/admin/files/cleanup-orphaned-derived', methods=['POST'])
 @login_required
+@demo_restrict
 def cleanup_orphaned_derived():
     """Delete orphaned derived folders (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
     paths = current_app.config['PATHS']
     derived_root = paths['processed'] / 'derived'
@@ -727,7 +794,7 @@ def cleanup_orphaned_derived():
 @login_required
 def get_admin_image_files():
     """Get all images with file metadata for the image file manager (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     image_directory = current_app.config.get('IMAGE_DIRECTORY')
@@ -818,9 +885,10 @@ def get_admin_image_files():
 
 @api.route('/api/admin/image-files/bulk-delete', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_delete_images():
     """Delete multiple images by ID (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -868,9 +936,10 @@ def bulk_delete_images():
 
 @api.route('/api/admin/image-files/bulk-move', methods=['POST'])
 @login_required
+@demo_restrict
 def bulk_move_images():
     """Move multiple images to a target folder (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -936,7 +1005,7 @@ def bulk_move_images():
 @login_required
 def bulk_set_image_privacy():
     """Set privacy for multiple images (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     data = request.json
@@ -969,7 +1038,7 @@ def bulk_set_image_privacy():
 @login_required
 def bulk_rename_images():
     """Bulk update titles for multiple images (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
     data = request.json
     renames = data.get('renames', [])
@@ -999,7 +1068,7 @@ def bulk_rename_images():
 @login_required
 def create_image_folder():
     """Create a new folder in the images root directory (admin only)"""
-    if not current_user.admin:
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
         return Response(status=403, response='Admin access required.')
 
     image_directory = current_app.config.get('IMAGE_DIRECTORY')
@@ -1027,3 +1096,60 @@ def create_image_folder():
     except Exception as e:
         logging.error(f"Error creating image folder {folder_name}: {e}")
         return Response(status=500, response=str(e))
+
+
+@api.route('/api/admin/image-folders/delete', methods=['POST'])
+@login_required
+def delete_image_folder():
+    """Delete empty folders from the images root directory (admin only)"""
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
+        return Response(status=403, response='Admin access required.')
+
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    if not image_directory:
+        return Response(status=503, response='IMAGE_DIRECTORY is not configured.')
+
+    data = request.json
+    folder_names = data.get('folders', [])
+
+    if not folder_names:
+        return Response(status=400, response='No folder names provided.')
+
+    results = {'deleted': [], 'errors': []}
+
+    # Load config to get protected folder names
+    paths = current_app.config['PATHS']
+    try:
+        with open(paths['data'] / 'config.json', 'r') as f:
+            config = json.load(f)
+    except Exception:
+        config = {}
+
+    app_config = config.get('app_config', {})
+    admin_upload_folder = app_config.get('admin_upload_folder_name', 'uploads').lower()
+    public_upload_folder = app_config.get('public_upload_folder_name', 'public uploads').lower()
+
+    for folder_name in folder_names:
+        if '/' in folder_name or '\\' in folder_name or folder_name.startswith('.'):
+            results['errors'].append({'folder': folder_name, 'error': 'Invalid folder name'})
+            continue
+
+        if folder_name.lower() in [admin_upload_folder, public_upload_folder]:
+            results['errors'].append({'folder': folder_name, 'error': 'Cannot delete protected folder'})
+            continue
+
+        folder_path = Path(image_directory) / folder_name
+        if not folder_path.exists() or not folder_path.is_dir():
+            results['errors'].append({'folder': folder_name, 'error': 'Folder not found'})
+            continue
+        if any(folder_path.iterdir()):
+            results['errors'].append({'folder': folder_name, 'error': 'Folder is not empty'})
+            continue
+        try:
+            folder_path.rmdir()
+            results['deleted'].append(folder_name)
+            logging.info(f"Deleted empty image folder: {folder_path}")
+        except Exception as e:
+            results['errors'].append({'folder': folder_name, 'error': str(e)})
+
+    return jsonify(results)

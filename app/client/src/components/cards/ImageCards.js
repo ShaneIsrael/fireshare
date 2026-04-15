@@ -1,9 +1,11 @@
 import React, { useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Box, Typography } from '@mui/material'
+import { Box, Button, Typography } from '@mui/material'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import ImageIcon from '@mui/icons-material/Image'
+import SensorsIcon from '@mui/icons-material/Sensors'
 import MasonryImageCard from './MasonryImageCard'
+import { ImageService } from '../../services'
 
 // Stable per-image delay derived from image ID so it doesn't change across re-renders
 function stableDelay(id) {
@@ -159,6 +161,21 @@ const ImageCards = React.memo(
       if (onImageOpen) onImageOpen(img)
     }
 
+    const handleScan = () => {
+      ImageService.scan().catch((err) =>
+        setAlert({
+          open: true,
+          type: 'error',
+          message: err.response?.data || 'Unknown Error',
+        }),
+      )
+      setAlert({
+        open: true,
+        type: 'info',
+        message: 'Image scan initiated. This could take a few minutes.',
+      })
+    }
+
     const EMPTY_STATE = () => (
       <Box
         sx={{
@@ -180,11 +197,26 @@ const ImageCards = React.memo(
             <Box sx={{ textAlign: 'center' }}>
               <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>No images found</Typography>
               {!feedView && (
-                <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>
-                  Upload images or scan your image library
-                </Typography>
+                <Typography sx={{ fontSize: 14, color: '#FFFFFF66' }}>Scan your library to discover images</Typography>
               )}
             </Box>
+            {!feedView && (
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<SensorsIcon />}
+                onClick={handleScan}
+                sx={{
+                  background: 'linear-gradient(90deg, #BC00E6, #FF3729)',
+                  '&:hover': { background: 'linear-gradient(90deg, #CC10F6, #FF4739)' },
+                  fontWeight: 600,
+                  px: 3,
+                  mt: 1,
+                }}
+              >
+                Scan Library
+              </Button>
+            )}
           </>
         )}
         {loadingIcon}

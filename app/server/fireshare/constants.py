@@ -3,15 +3,21 @@ DEFAULT_CONFIG = {
     "video_defaults": {
       "private": True
     },
-    "allow_public_upload": False,
-    "allow_public_folder_selection": False,
-    "allow_public_game_tag": False,
+    "allow_public_upload": True,
+    "allow_public_folder_selection": True,
+    "allow_public_game_tag": True,
     "public_upload_folder_name": "public uploads",
     "admin_upload_folder_name": "uploads"
   },
   "ui_config": {
     "shareable_link_domain": "",
     "show_admin_upload": True,
+    "show_folder_dropdown": True,
+    "show_games": True,
+    "show_my_videos": True,
+    "show_public_upload": False,
+    "show_public_videos": True,
+    "show_images": True
   },
   "integrations": {
     "discord_webhook_url": "",

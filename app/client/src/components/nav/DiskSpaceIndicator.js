@@ -1,140 +1,158 @@
 import * as React from 'react'
-import { Box, Typography, Tooltip, IconButton, Grid } from '@mui/material'
+import { Box, IconButton, Typography } from '@mui/material'
 import StorageIcon from '@mui/icons-material/Storage'
-import SyncIcon from '@mui/icons-material/Sync'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import LightTooltip from '../misc/LightTooltip'
 import { StatsService } from '../../services'
+
+const actionIconSx = {
+  p: 0.75,
+  color: 'rgba(194, 224, 255, 0.5)',
+  borderRadius: '6px',
+  '&:hover': {
+    color: '#EBEBEB',
+    backgroundColor: 'rgba(194, 224, 255, 0.1)',
+  },
+}
 
 const DiskSpaceIndicator = ({ open, visible }) => {
   const [folderSize, setFolderSize] = React.useState(null)
+  const [refreshing, setRefreshing] = React.useState(false)
+
+  const fetchFolderSize = React.useCallback(async () => {
+    try {
+      const data = await StatsService.getFolderSize()
+      setFolderSize(data.size_pretty)
+    } catch (error) {
+      console.error('Error fetching folder size:', error)
+    }
+  }, [])
 
   React.useEffect(() => {
-    const fetchFolderSize = async () => {
-      try {
-        const data = await StatsService.getFolderSize()
-        setFolderSize(data.size_pretty)
-      } catch (error) {
-        console.error('Error fetching folder size:', error)
-      }
-    }
-    if (visible) {
-      fetchFolderSize()
-    }
-  }, [visible])
+    if (visible) fetchFolderSize()
+  }, [visible, fetchFolderSize])
 
-  if (!visible) {
-    return null
+  const handleRefresh = async (e) => {
+    e.stopPropagation()
+    setRefreshing(true)
+    await fetchFolderSize()
+    setRefreshing(false)
   }
 
-  if (folderSize !== null) {
-    return open ? (
-      <Box
-        sx={{
-          width: 222,
-          mx: 1,
-          px: 2,
-          py: 1.5,
-          border: '1px solid rgba(194, 224, 255, 0.18)',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          color: '#EBEBEB',
-          fontWeight: 600,
-          fontSize: 13,
-          backgroundColor: 'transparent',
-          ':hover': {
-            backgroundColor: 'rgba(194, 224, 255, 0.08)',
-          },
-        }}
-      >
-        <Grid container alignItems="center">
-          <Grid item>
-            <Typography
-              sx={{
-                fontFamily: 'monospace',
-                fontWeight: 600,
-                fontSize: 12,
-                color: '#EBEBEB',
-              }}
-            >
-              Disk Usage:{' '}
-              <Box component="span" sx={{ color: '#2684FF' }}>
-                {folderSize}
-              </Box>
-            </Typography>
-          </Grid>
-        </Grid>
-      </Box>
-    ) : (
-      <Tooltip title={`Disk Usage: ${folderSize}`} arrow placement="right">
+  if (!visible) return null
+
+  const loading = folderSize === null
+
+  if (!open) {
+    return (
+      <LightTooltip arrow title={loading ? 'Loading disk usage…' : `Disk Usage: ${folderSize}`} placement="right">
         <Box
           sx={{
-            width: 42,
-            mx: 1,
-            height: 40,
-            border: '1px solid rgba(194, 224, 255, 0.18)',
-            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            ':hover': {
+            width: 42,
+            height: 40,
+            m: 1,
+            border: '1px solid rgba(194, 224, 255, 0.18)',
+            borderRadius: '8px',
+            color: 'rgba(194, 224, 255, 0.5)',
+            cursor: 'default',
+            '&:hover': {
               backgroundColor: 'rgba(194, 224, 255, 0.08)',
+              color: '#EBEBEB',
             },
           }}
         >
-          <Typography
-            sx={{
-              fontFamily: 'monospace',
-              fontWeight: 600,
-              fontSize: 15,
-              color: '#EBEBEB',
-            }}
-          >
-            <IconButton sx={{ p: 0.5, pointerEvents: 'all' }}>
-              <StorageIcon sx={{ color: '#EBEBEB' }} />
-            </IconButton>
-          </Typography>
+          <StorageIcon fontSize="small" sx={{ ...(loading && { opacity: 0.4 }) }} />
         </Box>
-      </Tooltip>
-    )
-  } else {
-    return (
-      <Box
-        sx={{
-          width: open ? 222 : 42,
-          mx: 1,
-          height: 40,
-          border: '1px solid rgba(194, 224, 255, 0.18)',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#888',
-          fontWeight: 600,
-          fontSize: 13,
-        }}
-      >
-        {open ? (
-          <Typography variant="body2" color="textSecondary">
-            Loading Disk Usage...
-          </Typography>
-        ) : (
-          <SyncIcon
-            sx={{
-              animation: 'spin 2s linear infinite',
-              '@keyframes spin': {
-                '0%': {
-                  transform: 'rotate(360deg)',
-                },
-                '100%': {
-                  transform: 'rotate(0deg)',
-                },
-              },
-            }}
-          />
-        )}
-      </Box>
+      </LightTooltip>
     )
   }
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        width: 222,
+        height: 40,
+        m: 1,
+        border: '1px solid rgba(194, 224, 255, 0.18)',
+        borderRadius: '8px',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Left: icon + label + value */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          flex: 1,
+          minWidth: 0,
+          px: 1.25,
+          height: '100%',
+        }}
+      >
+        <StorageIcon sx={{ fontSize: 16, color: 'rgba(194, 224, 255, 0.6)', flexShrink: 0 }} />
+        <Typography
+          sx={{
+            fontFamily: 'monospace',
+            fontWeight: 600,
+            fontSize: 12,
+            color: 'rgba(194, 224, 255, 0.6)',
+            userSelect: 'none',
+            flexShrink: 0,
+          }}
+        >
+          Disk
+        </Typography>
+        <Typography
+          sx={{
+            fontFamily: 'monospace',
+            fontWeight: 700,
+            fontSize: 12,
+            color: loading ? 'rgba(194, 224, 255, 0.3)' : '#2684FF',
+            letterSpacing: '0.04em',
+            userSelect: 'none',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {loading ? '—' : folderSize}
+        </Typography>
+      </Box>
+
+      {/* Divider */}
+      <Box sx={{ width: '1px', height: 24, bgcolor: 'rgba(194, 224, 255, 0.12)', flexShrink: 0 }} />
+
+      {/* Right: refresh */}
+      <Box sx={{ display: 'flex', alignItems: 'center', px: 0.5 }}>
+        <LightTooltip arrow title="Refresh disk usage">
+          <IconButton
+            aria-label="refresh-disk-usage"
+            size="small"
+            disabled={refreshing}
+            sx={{
+              ...actionIconSx,
+              ...(refreshing && {
+                animation: 'spin 1s linear infinite',
+                '@keyframes spin': {
+                  '0%': { transform: 'rotate(0deg)' },
+                  '100%': { transform: 'rotate(360deg)' },
+                },
+              }),
+            }}
+            onClick={handleRefresh}
+          >
+            <RefreshIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </LightTooltip>
+      </Box>
+    </Box>
+  )
 }
 
 export default DiskSpaceIndicator

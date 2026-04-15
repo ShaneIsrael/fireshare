@@ -35,8 +35,12 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
         # Enable WAL mode for better concurrency
         cursor.execute("PRAGMA journal_mode=WAL")
         
-        # Set busy timeout to 5 seconds (instead of failing immediately)
-        cursor.execute("PRAGMA busy_timeout = 5000")
+        # Set busy timeout to 30 seconds (instead of failing immediately)
+        cursor.execute("PRAGMA busy_timeout = 30000")
+
+        # Raise WAL autocheckpoint threshold to reduce write-latency spikes
+        # (default is 1000 pages ~4MB; 10000 pages ~40MB smooths out periodic flushes)
+        cursor.execute("PRAGMA wal_autocheckpoint = 10000")
         
         # Increase cache size (default is 2MB, increase to 64MB)
         cursor.execute("PRAGMA cache_size = -64000")
@@ -120,7 +124,12 @@ def create_app(init_schedule=False):
     app.config['LDAP_PASSWORD'] = os.getenv("LDAP_PASSWORD")
     app.config['LDAP_USER_FILTER'] = os.getenv("LDAP_USER_FILTER")
     app.config['LDAP_ADMIN_GROUP'] = os.getenv("LDAP_ADMIN_GROUP")
-    app.config['ENABLE_TRANSCODING'] = os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
+    app.config['DEMO_MODE'] = os.getenv('DEMO_MODE', '').lower() in ('true', '1', 'yes')
+    app.config['DEMO_UPLOAD_LIMIT_MB'] = int(os.getenv('DEMO_UPLOAD_LIMIT_MB', '0') or '0')
+    app.config['ENABLE_TRANSCODING'] = (
+        False if app.config['DEMO_MODE']
+        else os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
+    )
     app.config['TRANSCODE_GPU'] = os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
     app.config['TRANSCODE_TIMEOUT'] = int(os.getenv('TRANSCODE_TIMEOUT', '7200'))  # Default: 2 hours
 
@@ -144,6 +153,9 @@ def create_app(init_schedule=False):
     # WAL mode (set in pragma) handles concurrent reads/writes efficiently
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'poolclass': NullPool,
+        'connect_args': {
+            'check_same_thread': False,
+        },
     }
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/jobs.sqlite'
     app.config['INIT_SCHEDULE'] = init_schedule
@@ -211,6 +223,17 @@ def create_app(init_schedule=False):
         game_assets_dir.mkdir(parents=True, exist_ok=True)
     
     update_config(paths['data'] / 'config.json')
+
+    if app.config['DEMO_MODE']:
+        _demo_config_path = paths['data'] / 'config.json'
+        with open(_demo_config_path, 'r+') as _f:
+            _cfg = json.load(_f)
+            _cfg.setdefault('app_config', {})['allow_public_upload'] = True
+            _cfg.setdefault('app_config', {})['allow_public_folder_selection'] = True
+            _cfg.setdefault('app_config', {})['allow_public_game_tag'] = True
+            _f.seek(0)
+            json.dump(_cfg, _f, indent=2)
+            _f.truncate()
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -332,6 +355,28 @@ def create_app(init_schedule=False):
                 if app.config['ADMIN_USERNAME'] and admin.username != app.config['ADMIN_USERNAME']:
                     row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
                     row.username = app.config['ADMIN_USERNAME']
+                    db.session.commit()
+            # Remove the non-admin demo account when DEMO_MODE is off.
+            if not app.config['DEMO_MODE']:
+                stale_demo = _User.query.filter_by(username='demo', admin=False).first()
+                if stale_demo:
+                    db.session.delete(stale_demo)
+                    db.session.commit()
+            # In DEMO_MODE, ensure a separate non-admin demo account exists.
+            # If the admin was previously named 'demo' (old demo mode behavior) and no
+            # explicit ADMIN_USERNAME is configured, rename it to 'admin' first.
+            if app.config['DEMO_MODE']:
+                admin = _User.query.filter_by(admin=True, ldap=False).first()
+                if admin and admin.username == 'demo' and not app.config['ADMIN_USERNAME']:
+                    admin.username = 'admin'
+                    db.session.commit()
+                if not _User.query.filter_by(username='demo').first():
+                    demo_user = _User(
+                        username='demo',
+                        password=generate_password_hash('demo', method='pbkdf2:sha256'),
+                        admin=False,
+                    )
+                    db.session.add(demo_user)
                     db.session.commit()
         except OperationalError:
             pass  # tables don't exist yet (e.g. during flask db upgrade), skip init
