@@ -42,8 +42,10 @@ preload_app = False  # Changed from True - SQLite doesn't like forking
 worker_tmp_dir = "/dev/shm"  # Use RAM for worker tmp files
 
 # Sentinel file used to elect exactly one worker as the scheduler worker.
+# Uses /dev/shm (already our worker_tmp_dir) which is guaranteed writable.
 # Written with O_EXCL so the first worker to create it wins atomically.
-_SCHEDULER_SENTINEL = "/tmp/fireshare_scheduler.lock"
+_SCHEDULER_SENTINEL = "/dev/shm/fireshare_scheduler.lock"
+
 
 def on_starting(server):
     """Called just before the master process is initialized."""
@@ -51,9 +53,10 @@ def on_starting(server):
     # run can cleanly (re-)claim the scheduler role.
     try:
         os.unlink(_SCHEDULER_SENTINEL)
-    except FileNotFoundError:
+    except Exception:
         pass
     server.log.info("Starting Fireshare")
+
 
 def post_fork(server, worker):
     """Elect exactly one worker to run the background scheduler.
@@ -62,6 +65,8 @@ def post_fork(server, worker):
     is atomic on POSIX filesystems.  The winner sets FIRESHARE_START_SCHEDULER
     in its own environment; losers leave it unset.  create_app() reads this
     env var to decide whether to call init_schedule().
+
+    Any failure here is logged and swallowed so hook errors never crash workers.
     """
     try:
         fd = os.open(_SCHEDULER_SENTINEL, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -70,7 +75,14 @@ def post_fork(server, worker):
         os.environ['FIRESHARE_START_SCHEDULER'] = '1'
         server.log.info(f"Worker {os.getpid()}: elected as scheduler worker")
     except FileExistsError:
+        # Another worker already claimed the scheduler role
         os.environ.pop('FIRESHARE_START_SCHEDULER', None)
+    except Exception as e:
+        # Sentinel creation failed (permissions, missing dir, etc.) — degrade
+        # gracefully: no worker will run the scheduler rather than crashing.
+        server.log.warning(f"Worker {os.getpid()}: could not create scheduler sentinel: {e}")
+        os.environ.pop('FIRESHARE_START_SCHEDULER', None)
+
 
 def worker_exit(server, worker):
     """When the scheduler worker exits, clear the sentinel so a replacement
@@ -84,12 +96,14 @@ def worker_exit(server, worker):
                 f"Scheduler worker {worker.pid} exited; sentinel cleared "
                 "so a new worker can take over"
             )
-    except (FileNotFoundError, ValueError, IOError):
+    except Exception:
         pass
+
 
 def when_ready(server):
     """Called just after the server is started."""
     server.log.info("Fireshare is ready")
+
 
 def on_reload(server):
     """Called to recycle workers during a reload."""
