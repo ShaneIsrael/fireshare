@@ -61,7 +61,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 
 def update_config(path):
-    logger.info("Validating configuration file...")
+    logger.debug("Validating configuration file...")
     def combine(dict1, dict2):
         for key in dict2:
             if key in dict1:

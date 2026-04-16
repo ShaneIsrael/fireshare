@@ -305,10 +305,10 @@ def validate_video_file(path, timeout=30):
             # If libaom can't handle this bitstream, try dav1d as a fallback
             if libaom_unsupported:
                 if check_dav1d_available():
-                    logger.info("libaom cannot decode this AV1 bitstream, retrying with dav1d...")
+                    logger.debug("libaom cannot decode this AV1 bitstream, retrying with dav1d...")
                     dav1d_result = _run_decode_test(decoder='libdav1d')
                     if dav1d_result.returncode == 0:
-                        logger.info("AV1 file validated successfully with dav1d decoder")
+                        logger.debug("AV1 file validated successfully with dav1d decoder")
                         return True, None, 'libdav1d'
                     dav1d_stderr = dav1d_result.stderr.strip() if dav1d_result.stderr else ""
                     return False, f"AV1 decode failed with both libaom and dav1d: {dav1d_stderr[:200]}", None
@@ -434,7 +434,7 @@ def create_poster(video_path, out_path, second=0):
     logger.debug(f"$ {' '.join(cmd)}")
     sp.call(cmd)
     e = time.time()
-    logger.info(f'Generated poster {str(out_path)} in {e-s}s')
+    logger.debug(f'Generated poster {str(out_path)} in {e-s}s')
 
 
 # ---------------------------------------------------------------------------
@@ -467,7 +467,7 @@ def create_image_webp(src_path: Path, out_path: Path, quality: int = 90) -> bool
             img = img.convert('RGBA') if img.mode in ('RGBA', 'LA', 'P') else img.convert('RGB')
             img.save(str(out_path), 'WEBP', quality=quality, method=4)
         e = time.time()
-        logger.info(f'Created full-quality WebP {str(out_path)} in {e - s:.2f}s')
+        logger.debug(f'Created full-quality WebP {str(out_path)} in {e - s:.2f}s')
         return True
     except Exception as ex:
         logger.error(f'Failed to create WebP {str(out_path)}: {ex}')
@@ -489,7 +489,7 @@ def create_image_thumbnail(src_path: Path, out_path: Path, max_width: int = 400,
                 img = img.resize((max_width, new_height))
             img.save(str(out_path), 'WEBP', quality=quality, method=4)
         e = time.time()
-        logger.info(f'Created thumbnail {str(out_path)} in {e - s:.2f}s')
+        logger.debug(f'Created thumbnail {str(out_path)} in {e - s:.2f}s')
         return True
     except Exception as ex:
         logger.error(f'Failed to create thumbnail {str(out_path)}: {ex}')
@@ -647,12 +647,12 @@ def check_nvenc_available(encoder=None):
 
 def transcode_video(video_path, out_path):
     s = time.time()
-    logger.info(f"Transcoding video")
+    logger.debug(f"Transcoding video")
     cmd = ['ffmpeg', '-v', 'quiet', '-y', '-i', str(video_path), '-c:v', 'libx264', '-c:a', 'aac', str(out_path)]
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)
     e = time.time()
-    logger.info(f'Transcoded {str(out_path)} in {e-s}s')
+    logger.debug(f'Transcoded {str(out_path)} in {e-s}s')
 
 def _get_encoder_candidates(use_gpu=False, encoder_preference='auto'):
     """
@@ -871,7 +871,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
         logger.warning("Skipping transcoding for this video due to file corruption or read errors")
         return (False, 'corruption')
     if preferred_decoder:
-        logger.info(f"Using {preferred_decoder} as input decoder for this source file")
+        logger.debug(f"Using {preferred_decoder} as input decoder for this source file")
 
     # Get video duration for progress logging
     total_duration = get_video_duration(video_path) or 0
@@ -880,7 +880,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
     if timeout_seconds is None:
         timeout_seconds = calculate_transcode_timeout(video_path)
 
-    logger.info(f"Using transcode timeout of {timeout_seconds}s ({timeout_seconds/60:.1f} minutes)")
+    logger.debug(f"Using transcode timeout of {timeout_seconds}s ({timeout_seconds/60:.1f} minutes)")
     
     # Determine output container based on codec
     out_path_str = str(out_path)
@@ -1041,7 +1041,7 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
 
     last_exception = None
     for encoder in encoders:
-        logger.info(f"Trying {encoder['name']}...")
+        logger.debug(f"Trying {encoder['name']}...")
 
         # Build ffmpeg command targeting the temp path
         cmd = _build_transcode_command(video_path, tmp_path, height, encoder, input_decoder=preferred_decoder)
@@ -1107,11 +1107,11 @@ def create_boomerang_preview(video_path, out_path, clip_duration=5):
         '-i', str(video_path), '-y', '-vf', 'scale=-2:480',
         '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28',
         '-an', '-movflags', '+faststart', str(out_path)]
-    logger.info(f"Creating boomerang preview")
+    logger.debug(f"Creating boomerang preview")
     logger.debug(f"$: {' '.join(cmd)}")
     sp.call(cmd)
     e = time.time()
-    logger.info(f'Generated boomerang preview {str(out_path)} in {e-s}s')
+    logger.debug(f'Generated boomerang preview {str(out_path)} in {e-s}s')
 
 def dur_string_to_seconds(dur: str) -> float:
     if type(dur) == int: return float(dur)
@@ -1198,7 +1198,7 @@ def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, pa
 
                 # Try SteamGridDB with folder name
                 if steamgriddb_api_key:
-                    logger.info(f"No local folder match, searching SteamGridDB for folder: '{folder_name}'")
+                    logger.debug(f"No local folder match, searching SteamGridDB for folder: '{folder_name}'")
                     from fireshare.steamgrid import SteamGridDBClient
                     client = SteamGridDBClient(steamgriddb_api_key)
 
@@ -1267,7 +1267,7 @@ def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, pa
 
     # Step 2: Fallback to SteamGridDB search
     if steamgriddb_api_key:
-        logger.info(f"No local match found, searching SteamGridDB for: '{clean_name}'")
+        logger.debug(f"No local match found, searching SteamGridDB for: '{clean_name}'")
         from fireshare.steamgrid import SteamGridDBClient
         client = SteamGridDBClient(steamgriddb_api_key)
 

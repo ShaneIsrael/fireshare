@@ -7,7 +7,6 @@ import {
   Box,
   Typography,
   Button,
-  Chip,
   Divider,
   CircularProgress,
   IconButton,
@@ -95,7 +94,11 @@ const markdownComponents = {
       {children}
     </Box>
   ),
-  li: ({ children }) => <Box component="li" sx={{ lineHeight: 1.7 }}>{children}</Box>,
+  li: ({ children }) => (
+    <Box component="li" sx={{ lineHeight: 1.7 }}>
+      {children}
+    </Box>
+  ),
   a: ({ href, children }) => (
     <Box
       component="a"
@@ -188,29 +191,26 @@ function ReleaseCard({ release, showDivider, isLatest }) {
     <Box sx={{ px: 3, pt: 2.5, pb: showDivider ? 0 : 0.5 }}>
       {/* Header row */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
-        <Chip
-          label={`v${release.version}`}
-          size="small"
-          sx={isLatest ? {
-            bgcolor: 'rgba(255, 179, 0, 0.1)',
-            color: '#FFB300',
-            fontWeight: 700,
+        <Typography
+          sx={{
             fontFamily: 'monospace',
-            fontSize: 12,
-            height: 22,
-            borderRadius: '6px',
-            border: '1px solid rgba(255, 179, 0, 0.25)',
-          } : {
-            bgcolor: 'rgba(50, 153, 255, 0.12)',
-            color: '#3399FF',
             fontWeight: 700,
-            fontFamily: 'monospace',
-            fontSize: 12,
-            height: 22,
-            borderRadius: '6px',
-            border: '1px solid rgba(50, 153, 255, 0.25)',
+            fontSize: 14,
+            color: isLatest ? '#FFB300' : '#3399FF',
+            letterSpacing: '0.01em',
+            bgcolor: isLatest ? '#FFB30014' : '#3399FF14',
+            borderTopColor: isLatest ? '#FFB300' : '#3399FF',
+            borderRightColor: isLatest ? '#FFB300' : '#3399FF',
+            borderTop: '2px solid',
+            borderRight: '1px solid',
+            borderTopRightRadius: '4px',
+            borderBottomLeftRadius: '4px',
+            px: 1,
+            py: 0.15,
           }}
-        />
+        >
+          v{release.version}
+        </Typography>
         {showName && (
           <Typography sx={{ color: 'rgba(194, 224, 255, 0.75)', fontSize: 13, fontWeight: 600 }}>
             {release.name}
@@ -295,14 +295,7 @@ function ReleaseNotesDialog({ open, onClose, authenticated }) {
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="md"
-      fullWidth
-      scroll="paper"
-      PaperProps={{ sx: dialogPaperSx }}
-    >
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth scroll="paper" PaperProps={{ sx: dialogPaperSx }}>
       <DialogTitle sx={{ px: 3, py: 2, borderBottom: '1px solid #FFFFFF0E' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography sx={{ fontWeight: 800, color: 'white', fontSize: 16, letterSpacing: '0.02em' }}>
@@ -329,7 +322,12 @@ function ReleaseNotesDialog({ open, onClose, authenticated }) {
         ) : (
           <>
             {releases.map((release, i) => (
-              <ReleaseCard key={release.version} release={release} showDivider={i < releases.length - 1} isLatest={i === 0} />
+              <ReleaseCard
+                key={release.version}
+                release={release}
+                showDivider={i < releases.length - 1}
+                isLatest={i === 0}
+              />
             ))}
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
               {loading ? (
