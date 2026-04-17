@@ -13,8 +13,10 @@ FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 AS ffmpeg-builder
 WORKDIR /tmp
 
 # Install build dependencies
-# Remove stale NVIDIA apt sources — their GPG keys rotate and break apt-get update
-RUN rm -f /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list
+# Remove stale NVIDIA apt sources (GPG keys rotate) and enable universe repo
+RUN rm -f /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list \
+    && echo "deb http://archive.ubuntu.com/ubuntu jammy universe" >> /etc/apt/sources.list \
+    && echo "deb http://archive.ubuntu.com/ubuntu jammy-updates universe" >> /etc/apt/sources.list
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
