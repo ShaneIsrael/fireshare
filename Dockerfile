@@ -13,10 +13,10 @@ FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 AS ffmpeg-builder
 WORKDIR /tmp
 
 # Install build dependencies
-# Remove stale NVIDIA apt sources (GPG keys rotate) and enable universe repo
+# Remove stale NVIDIA apt sources (GPG keys rotate) and swap archive.ubuntu.com
+# for kernel.org's mirror, which is accessible when Canonical's servers aren't
 RUN rm -f /etc/apt/sources.list.d/cuda.list /etc/apt/sources.list.d/nvidia-ml.list \
-    && echo "deb http://archive.ubuntu.com/ubuntu jammy universe" >> /etc/apt/sources.list \
-    && echo "deb http://archive.ubuntu.com/ubuntu jammy-updates universe" >> /etc/apt/sources.list
+    && sed -i 's|http://archive.ubuntu.com/ubuntu|http://mirrors.edge.kernel.org/ubuntu|g' /etc/apt/sources.list
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
