@@ -61,7 +61,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 
 def update_config(path):
-    logger.info("Validating configuration file...")
+    logger.debug("Validating configuration file...")
     def combine(dict1, dict2):
         for key in dict2:
             if key in dict1:
@@ -189,7 +189,7 @@ def create_app(init_schedule=False):
         'data': Path(app.config['DATA_DIRECTORY']),
         'video': Path(app.config['VIDEO_DIRECTORY']),
         'processed': Path(app.config['PROCESSED_DIRECTORY']),
-    
+        'image': Path(app.config['IMAGE_DIRECTORY']),
     }
     app.config['PATHS'] = paths
     for k, path in paths.items():
@@ -274,9 +274,9 @@ def create_app(init_schedule=False):
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
 
-    if init_schedule:
-        from .schedule import init_schedule
-        init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'],
+    if init_schedule and os.environ.get('FIRESHARE_START_SCHEDULER') == '1':
+        from .schedule import init_schedule as _init_schedule
+        _init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'],
             app.config['MINUTES_BETWEEN_VIDEO_SCANS'])
     
     #Integrations Validation

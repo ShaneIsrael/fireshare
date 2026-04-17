@@ -14,9 +14,9 @@ from . import api
 from .decorators import demo_restrict
 
 
-# Cache for local app version and release notes (persists until server restart)
+# Cache for local app version and release list (persists until server restart)
 _local_version_cache = {'version': None}
-_release_cache = {'data': None, 'fetched_at': 0}
+_release_cache = {'releases': None, 'fetched_at': 0}
 
 
 def _get_local_version():
@@ -41,39 +41,47 @@ def _get_local_version():
         return None
 
 
-def _fetch_release_notes():
-    """Fetch and cache the latest GitHub release. Cache expires after 12 hours."""
+def _fetch_releases():
+    """Fetch and cache GitHub releases (up to 10). Cache expires after 12 hours."""
     cache_ttl = 12 * 60 * 60  # 12 hours
-    if _release_cache['data'] and (time.time() - _release_cache['fetched_at']) < cache_ttl:
-        return _release_cache['data']
+    if _release_cache['releases'] and (time.time() - _release_cache['fetched_at']) < cache_ttl:
+        return _release_cache['releases']
 
     try:
         response = http_requests.get(
             'https://api.github.com/repos/ShaneIsrael/fireshare/releases',
             headers={'Accept': 'application/vnd.github.v3+json'},
+            params={'per_page': 10},
             timeout=10
         )
         response.raise_for_status()
         releases = response.json()
 
         if not releases:
-            return None
+            return []
 
-        target_release = releases[0]
-
-        _release_cache['data'] = {
-            'version': target_release.get('tag_name', '').lstrip('v'),
-            'name': target_release.get('name', ''),
-            'body': target_release.get('body', ''),
-            'published_at': target_release.get('published_at', ''),
-            'html_url': target_release.get('html_url', '')
-        }
+        _release_cache['releases'] = [
+            {
+                'version': r.get('tag_name', '').lstrip('v'),
+                'name': r.get('name', ''),
+                'body': r.get('body', ''),
+                'published_at': r.get('published_at', ''),
+                'html_url': r.get('html_url', '')
+            }
+            for r in releases
+        ]
         _release_cache['fetched_at'] = time.time()
-        return _release_cache['data']
+        return _release_cache['releases']
 
     except http_requests.RequestException as e:
         logger.error(f"Failed to fetch GitHub releases: {e}")
-        return None
+        return []
+
+
+def _fetch_release_notes():
+    """Return the latest release as a single dict (used by auth endpoint)."""
+    releases = _fetch_releases()
+    return releases[0] if releases else None
 
 
 @api.route('/w/<video_id>')
@@ -108,7 +116,7 @@ def config():
         )
         public_config["transcoding_enabled"] = current_app.config.get('ENABLE_TRANSCODING', False)
         limit_mb = current_app.config.get('DEMO_UPLOAD_LIMIT_MB', 0)
-        if limit_mb > 0:
+        if limit_mb > 0 and current_app.config.get('DEMO_MODE'):
             public_config["upload_limit_mb"] = limit_mb
         return public_config
     else:
@@ -134,6 +142,28 @@ def get_release_notes():
     return jsonify({
         **release_data,
         'show_dialog': show_dialog
+    })
+
+
+@api.route('/api/releases')
+def get_releases():
+    """Return a paginated list of GitHub releases from cache."""
+    try:
+        limit = min(int(request.args.get('limit', 3)), 10)
+        offset = max(int(request.args.get('offset', 0)), 0)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid parameters'}), 400
+
+    releases = _fetch_releases()
+    total = len(releases)
+    page = releases[offset:offset + limit]
+
+    return jsonify({
+        'releases': page,
+        'total': total,
+        'offset': offset,
+        'limit': limit,
+        'has_more': offset + limit < total,
     })
 
 

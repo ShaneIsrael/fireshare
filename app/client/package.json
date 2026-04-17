@@ -1,6 +1,6 @@
 {
   "name": "fireshare",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.9.0",
@@ -21,10 +21,12 @@
     "react-dom": "^18.1.0",
     "react-helmet": "^6.1.0",
     "react-is-visible": "^1.2.0",
+    "react-markdown": "^10.1.0",
     "react-player": "^2.10.1",
     "react-router-dom": "^6.3.0",
     "react-select": "^5.3.2",
     "react-zoom-pan-pinch": "^4.0.3",
+    "remark-gfm": "^4.0.1",
     "typeface-roboto": "^1.1.13",
     "wavesurfer.js": "^7.12.4"
   },

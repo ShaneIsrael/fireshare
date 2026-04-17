@@ -247,18 +247,18 @@ def scan_videos(root):
             existing = next((vr for vr in video_rows if vr.video_id == video_id), None)
             duplicate = next((dvr for dvr in new_videos if dvr.video_id == video_id), None)
             if duplicate:
-                logger.info(f"Found duplicate video {video_id} as {str(path)}, skipping...")
+                logger.debug(f"Found duplicate video {video_id} as {str(path)}, skipping...")
             elif existing:
                 if not existing.available:
-                    logger.info(f"Updating Video {video_id}, available=True")
+                    logger.debug(f"Updating Video {video_id}, available=True")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "available": True })
                 if not existing.created_at:
                     created_at = datetime.fromtimestamp(os.path.getctime(f"{videos_path}/{path}"))
-                    logger.info(f"Updating Video {video_id}, created_at={created_at}")
+                    logger.debug(f"Updating Video {video_id}, created_at={created_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "created_at": created_at })
                 if not existing.updated_at:
                     updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
-                    logger.info(f"Updating Video {video_id}, updated_at={updated_at}")
+                    logger.debug(f"Updating Video {video_id}, updated_at={updated_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "updated_at": updated_at })
             else:
                 created_at = datetime.fromtimestamp(os.path.getctime(f"{videos_path}/{path}"))
@@ -283,7 +283,7 @@ def scan_videos(root):
             prefix = "../" * num_up
             rel_src = Path(prefix + str(src).replace(str(common_root), ''))
             if not dst.exists():
-                logger.info(f"Linking {str(rel_src)} --> {str(dst)}")
+                logger.debug(f"Linking {str(rel_src)} --> {str(dst)}")
                 try:
                     os.symlink(src, dst, dir_fd=fd)
                 except FileExistsError:
@@ -339,25 +339,25 @@ def scan_videos(root):
             pending_suggestions = {}
             for nv in videos_needing_detection:
                 filename = Path(nv.path).stem
-                logger.info(f"[Game Detection] Video: {nv.video_id}, Path: {nv.path}, Filename: {filename}")
+                logger.debug(f"[Game Detection] Video: {nv.video_id}, Path: {nv.path}, Filename: {filename}")
                 detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=nv.path)
 
                 if detected_game:
-                    logger.info(f"[Game Detection] Result: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
+                    logger.debug(f"[Game Detection] Result: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
                     if detected_game['confidence'] >= 0.65:
                         pending_suggestions[nv.video_id] = detected_game
-                        logger.info(f"[Game Detection] Queued suggestion for {nv.video_id}")
+                        logger.debug(f"[Game Detection] Queued suggestion for {nv.video_id}")
                     else:
-                        logger.info(f"[Game Detection] Confidence too low, skipping suggestion")
+                        logger.debug(f"[Game Detection] Confidence too low, skipping suggestion")
                 else:
-                    logger.info(f"[Game Detection] No match found for {nv.video_id}")
+                    logger.debug(f"[Game Detection] No match found for {nv.video_id}")
             # Batch save all suggestions at once
             if pending_suggestions:
                 save_game_suggestions_batch(pending_suggestions)
                 logger.info(f"[Game Detection] Saved {len(pending_suggestions)} suggestion(s) in batch")
 
         existing_videos = Video.query.filter_by(available=True).all()
-        logger.info(f"Verifying {len(existing_videos):,} video files still exist...")
+        logger.debug(f"Verifying {len(existing_videos):,} video files still exist...")
         for ev in existing_videos:
             file_path = Path((paths["video"] / ev.path).absolute())
             logger.debug(f"Verifying video {ev.video_id} at {file_path} is available")
@@ -418,15 +418,15 @@ def scan_video(ctx, path, tag_ids, game_id, title):
             existing = next((vr for vr in video_rows if vr.video_id == video_id), None)
             if existing:
                 if not existing.available:
-                    logger.info(f"Updating Video {video_id}, available=True")
+                    logger.debug(f"Updating Video {video_id}, available=True")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "available": True })
                 if not existing.created_at:
                     created_at = datetime.fromtimestamp(os.path.getctime(f"{videos_path}/{path}"))
-                    logger.info(f"Updating Video {video_id}, created_at={created_at}")
+                    logger.debug(f"Updating Video {video_id}, created_at={created_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "created_at": created_at })
                 if not existing.updated_at:
                     updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
-                    logger.info(f"Updating Video {video_id}, updated_at={updated_at}")
+                    logger.debug(f"Updating Video {video_id}, updated_at={updated_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "updated_at": updated_at })
             else:
                 created_at = datetime.fromtimestamp(os.path.getctime(f"{videos_path}/{path}"))
@@ -443,11 +443,11 @@ def scan_video(ctx, path, tag_ids, game_id, title):
                 prefix = "../" * num_up
                 rel_src = Path(prefix + str(src).replace(str(common_root), ''))
                 if not dst.exists():
-                    logger.info(f"Linking {str(rel_src)} --> {str(dst)}")
+                    logger.debug(f"Linking {str(rel_src)} --> {str(dst)}")
                     try:
                         os.symlink(src, dst, dir_fd=fd)
                     except FileExistsError:
-                        logger.info(f"{dst} exists already")
+                        logger.debug(f"{dst} exists already")
                 info = VideoInfo(video_id=v.video_id, title=title or Path(v.path).stem, private=video_config["private"])
                 db.session.add(info)
                 db.session.commit()
@@ -477,7 +477,7 @@ def scan_video(ctx, path, tag_ids, game_id, title):
 
                 # Automatic game detection (skip if already auto-tagged)
                 if not auto_tagged:
-                    logger.info("Attempting automatic game detection...")
+                    logger.debug("Attempting automatic game detection...")
                     steamgriddb_api_key = config.get("integrations", {}).get("steamgriddb_api_key")
                     filename = Path(v.path).stem
                     detected_game = util.detect_game_from_filename(filename, steamgriddb_api_key, path=v.path)
@@ -486,14 +486,14 @@ def scan_video(ctx, path, tag_ids, game_id, title):
                         save_game_suggestion(v.video_id, detected_game)
                         logger.info(f"Created game suggestion for video {v.video_id}: {detected_game['game_name']} (confidence: {detected_game['confidence']:.2f}, source: {detected_game['source']})")
                     else:
-                        logger.info(f"No confident game match found for video {v.video_id}")
+                        logger.debug(f"No confident game match found for video {v.video_id}")
 
-                logger.info("Syncing metadata")
+                logger.debug("Syncing metadata")
                 ctx.invoke(sync_metadata, video=video_id)
                 info = VideoInfo.query.filter(VideoInfo.video_id==video_id).one()
 
                 processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
-                logger.info(f"Checking for videos with missing posters...")
+                logger.debug(f"Checking for videos with missing posters...")
                 derived_path = Path(processed_root, "derived", info.video_id)
                 video_path = Path(processed_root, "video_links", info.video_id + video_file.suffix)
                 if video_path.exists():
@@ -561,7 +561,7 @@ def repair_symlinks():
             prefix = "../" * num_up
             rel_src = Path(prefix + str(src).replace(str(common_root), ''))
             if not dst.exists():
-                logger.info(f"Linking {str(rel_src)} --> {str(dst)}")
+                logger.debug(f"Linking {str(rel_src)} --> {str(dst)}")
                 try:
                     os.symlink(src, dst, dir_fd=fd)
                 except FileExistsError:
@@ -609,7 +609,7 @@ def sync_metadata(video):
                     else:
                         duration = 0
                 width, height = int(vcodec['width']), int(vcodec['height'])
-                logger.info(f'Scanned {v.video_id} duration={duration}s, resolution={width}x{height}: {v.video.path}')
+                logger.debug(f'Scanned {v.video_id} duration={duration}s, resolution={width}x{height}: {v.video.path}')
                 v.info = json.dumps(info)
                 v.duration = duration
                 v.width = width
@@ -642,11 +642,11 @@ def create_web_videos():
                     prefix = "../" * num_up
                     rel_src = Path(prefix + str(out_mp4_fn).replace(str(common_root), ''))
                     if not dst.exists():
-                        logger.info(f"Linking {str(rel_src)} --> {str(dst)}")
+                        logger.debug(f"Linking {str(rel_src)} --> {str(dst)}")
                         try:
                             os.symlink(out_mp4_fn, dst, dir_fd=fd)
                         except FileExistsError:
-                            logger.info(f"{dst} exists already")
+                            logger.debug(f"{dst} exists already")
                 else:
                     logger.debug(f"Skipping {v.video_id} because {str(out_mp4_fn)} already exists")
 
@@ -661,7 +661,7 @@ def create_posters(regenerate, skip):
     with create_app().app_context():
         processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
         vinfos = VideoInfo.query.all()
-        logger.info(f"Checking for videos with missing posters...")
+        logger.debug(f"Checking for videos with missing posters...")
         for vi in vinfos:
             derived_path = Path(processed_root, "derived", vi.video_id)
             video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
@@ -702,7 +702,7 @@ def create_boomerang_posters(regenerate):
                     derived_path.mkdir(parents=True)
                 util.create_boomerang_preview(video_path, poster_path)
             else:
-                logger.info(f"Skipping creation of boomerang poster for video {vi.video_id} because it exists at {str(poster_path)}")
+                logger.debug(f"Skipping creation of boomerang poster for video {vi.video_id} because it already exists")
 
 @cli.command()
 @click.option("--regenerate", "-r", help="Overwrite existing transcoded videos", is_flag=True)
@@ -785,7 +785,7 @@ def transcode_videos(regenerate, video, include_corrupt):
                 if original_height > 0 and original_height <= height:
                     skipped_source_too_small += 1
                     if video:
-                        logger.info(
+                        logger.debug(
                             f"Skipping {vi.video_id} {height}p: source height ({original_height}p) "
                             f"is not greater than target"
                         )
@@ -799,12 +799,12 @@ def transcode_videos(regenerate, video, include_corrupt):
                     reconciled_flag_updates += 1
                     reconciled_videos.add(vi.video_id)
                     if video:
-                        logger.info(f"Detected existing {height}p output on disk; updating {has_attr}=True for {vi.video_id}")
+                        logger.debug(f"Detected existing {height}p output on disk; updating {has_attr}=True for {vi.video_id}")
 
                 if output_exists and not regenerate:
                     skipped_existing_output += 1
                     if video:
-                        logger.info(f"Skipping {vi.video_id} {height}p: output already exists at {transcode_path}")
+                        logger.debug(f"Skipping {vi.video_id} {height}p: output already exists at {transcode_path}")
                     continue
 
                 work_items.append((vi, height, video_path, derived_path, transcode_path))
@@ -985,7 +985,7 @@ def scan_images(root):
             existing = next((ir for ir in image_rows if ir.image_id == iid), None)
             duplicate = next((ni for ni in new_images if ni.image_id == iid), None)
             if duplicate:
-                logger.info(f"Found duplicate image {iid} at {rel_path}, skipping...")
+                logger.debug(f"Found duplicate image {iid} at {rel_path}, skipping...")
             elif existing:
                 if not existing.available:
                     db.session.query(Image).filter_by(image_id=iid).update({"available": True})
@@ -1013,7 +1013,7 @@ def scan_images(root):
                     if not info.file_size:
                         info.file_size = src.stat().st_size
                     db.session.commit()
-                    logger.info(f"Regenerated derived data for existing image {iid}")
+                    logger.debug(f"Regenerated derived data for existing image {iid}")
             else:
                 created_at = datetime.fromtimestamp(os.path.getctime(str(img_file)))
                 updated_at = datetime.fromtimestamp(os.path.getmtime(str(img_file)))
@@ -1033,11 +1033,11 @@ def scan_images(root):
             src = Path((images_path / ni.path).absolute())
             dst = image_links / (ni.image_id + ni.extension)
             if not dst.exists():
-                logger.info(f"Linking {src} --> {dst}")
+                logger.debug(f"Linking {src} --> {dst}")
                 try:
                     os.symlink(src, dst, dir_fd=fd)
                 except FileExistsError:
-                    logger.info(f"{dst} exists already")
+                    logger.debug(f"{dst} exists already")
             info = ImageInfo(image_id=ni.image_id, title=Path(ni.path).stem,
                              private=image_config.get("private", True))
             db.session.add(info)
@@ -1058,7 +1058,7 @@ def scan_images(root):
                             link = ImageGameLink(image_id=ni.image_id, game_id=game_id, created_at=datetime.utcnow())
                             db.session.add(link)
                             auto_tagged += 1
-                            logger.info(f"[Image Folder Rule] Auto-tagged {ni.image_id} to game {game_id} (folder: {folder})")
+                            logger.debug(f"[Image Folder Rule] Auto-tagged {ni.image_id} to game {game_id} (folder: {folder})")
                 if auto_tagged:
                     db.session.commit()
                     logger.info(f"Auto-tagged {auto_tagged} image(s) via image folder rules")
@@ -1162,7 +1162,7 @@ def scan_image(ctx, path, game_id, tag_ids, title):
                 db.session.commit()
                 logger.info(f"Regenerated derived data for existing image {iid}")
             else:
-                logger.info(f"Image {iid} already indexed")
+                logger.debug(f"Image {iid} already indexed")
         else:
             created_at = datetime.fromtimestamp(os.path.getctime(str(img_file)))
             updated_at = datetime.fromtimestamp(os.path.getmtime(str(img_file)))

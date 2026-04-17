@@ -50,6 +50,7 @@ import { RegisterUploadCardContext, RegisterImageUploadCardContext } from '../ut
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
 import VersionBox from './VersionBox'
+import ReleaseNotesDialog from '../modal/ReleaseNotesDialog'
 
 const drawerWidth = 240
 const minimizedDrawerWidth = 57
@@ -144,8 +145,7 @@ const AppBar = styled(MuiAppBar, {
 function Navbar20({
   authenticated,
   isAdmin,
-  showReleaseNotes,
-  releaseNotes,
+  latestRelease,
   page,
   collapsed = false,
   searchable = false,
@@ -162,6 +162,30 @@ function Navbar20({
   const [searchText, setSearchText] = React.useState()
   const [open, setOpen] = React.useState(!collapsed)
   const [cardSize, setCardSize] = React.useState(getSetting('cardSize') || CARD_SIZE_DEFAULT)
+
+  const [featureAlertOpen, setFeatureAlertOpen] = React.useState(false)
+
+  // Auto-open release notes on first visit when a new version is available
+  React.useEffect(() => {
+    if (!latestRelease?.version) return
+    const cookieName = 'release_notes_seen_version'
+    const seenVersion = document.cookie
+      .split('; ')
+      .find((c) => c.startsWith(cookieName + '='))
+      ?.split('=')[1]
+    if (seenVersion !== latestRelease.version) {
+      setFeatureAlertOpen(true)
+    }
+  }, [latestRelease])
+
+  const handleReleaseNotesClose = React.useCallback(() => {
+    if (latestRelease?.version) {
+      const expires = new Date()
+      expires.setFullYear(expires.getFullYear() + 1)
+      document.cookie = `release_notes_seen_version=${latestRelease.version}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`
+    }
+    setFeatureAlertOpen(false)
+  }, [latestRelease])
 
   const [alert, setAlert] = React.useState({ open: false })
   const [uploadTick, setUploadTick] = React.useState(0)
@@ -251,7 +275,7 @@ function Navbar20({
     }
   }
 
-  const handleCardSizeChange = (e, newValue) => {
+  const handleCardSizeChange = (_e, newValue) => {
     const newSize = Math.round((newValue / 100) * CARD_SIZE_DEFAULT * CARD_SIZE_MULTIPLIER)
     setCardSize(newSize)
     setSetting('cardSize', newSize)
@@ -627,7 +651,11 @@ function Navbar20({
           </LightTooltip>
         )}
         <DiskSpaceIndicator open={effectiveOpen} visible={authenticated} />
-        <VersionBox open={effectiveOpen} />
+        <VersionBox
+          open={effectiveOpen}
+          releaseNotes={latestRelease}
+          onUpdateClick={() => setFeatureAlertOpen(true)}
+        />
       </Box>
     </Box>
   )
@@ -844,8 +872,6 @@ function Navbar20({
           isAdmin,
           searchText,
           cardSize,
-          showReleaseNotes,
-          releaseNotes,
           selectedFolder: effectiveFolder,
           onFolderChange: handleFolderChange,
           onFoldersLoaded: handleFoldersLoaded,
@@ -855,6 +881,11 @@ function Navbar20({
           uploadTick,
         })}
       </Box>
+      <ReleaseNotesDialog
+        open={featureAlertOpen}
+        onClose={handleReleaseNotesClose}
+        authenticated={authenticated}
+      />
     </Box>
   )
 }

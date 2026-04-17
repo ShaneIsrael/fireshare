@@ -17,6 +17,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit'
 import CheckIcon from '@mui/icons-material/Check'
 import DeleteIcon from '@mui/icons-material/Delete'
+import CasinoIcon from '@mui/icons-material/Casino'
 import Select from 'react-select'
 import ImageCards from '../components/cards/ImageCards'
 import EditImageModal from '../components/modal/EditImageModal'
@@ -34,6 +35,8 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   const [alert, setAlert] = React.useState({ open: false })
   const [modalImage, setModalImage] = React.useState(null)
   const [sortOrder, setSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
+  const [randomized, setRandomized] = React.useState(false)
+  const [randomizedImages, setRandomizedImages] = React.useState([])
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
 
   // Edit mode state
@@ -135,6 +138,19 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
     })
   }, [displayImages, sortOrder])
 
+  const finalImages = randomized ? randomizedImages : sortedImages
+
+  const handleSortChange = (option) => {
+    setSortOrder(option)
+    setRandomized(false)
+  }
+
+  const handleRandomize = () => {
+    const shuffled = [...displayImages].sort(() => Math.random() - 0.5)
+    setRandomizedImages(shuffled)
+    setRandomized(true)
+  }
+
   const handleImageOpen = React.useCallback((image) => {
     setModalImage(image)
   }, [])
@@ -154,11 +170,11 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
     })
   }, [])
 
-  const allSelected = sortedImages.length > 0 && selectedImages.size === sortedImages.length
+  const allSelected = finalImages.length > 0 && selectedImages.size === finalImages.length
 
   const handleSelectAllToggle = () => {
     if (allSelected) setSelectedImages(new Set())
-    else setSelectedImages(new Set(sortedImages.map((img) => img.image_id)))
+    else setSelectedImages(new Set(finalImages.map((img) => img.image_id)))
   }
 
   const handleDeleteClick = () => setDeleteDialogOpen(true)
@@ -188,18 +204,18 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   const handleNext = React.useCallback(() => {
     setModalImage((cur) => {
       if (!cur) return cur
-      const idx = sortedImages.findIndex((img) => img.image_id === cur.image_id)
-      return idx >= 0 && idx < sortedImages.length - 1 ? sortedImages[idx + 1] : cur
+      const idx = finalImages.findIndex((img) => img.image_id === cur.image_id)
+      return idx >= 0 && idx < finalImages.length - 1 ? finalImages[idx + 1] : cur
     })
-  }, [sortedImages])
+  }, [finalImages])
 
   const handlePrev = React.useCallback(() => {
     setModalImage((cur) => {
       if (!cur) return cur
-      const idx = sortedImages.findIndex((img) => img.image_id === cur.image_id)
-      return idx > 0 ? sortedImages[idx - 1] : cur
+      const idx = finalImages.findIndex((img) => img.image_id === cur.image_id)
+      return idx > 0 ? finalImages[idx - 1] : cur
     })
-  }, [sortedImages])
+  }, [finalImages])
 
   const handleModalClose = (update) => {
     if (update) {
@@ -231,17 +247,36 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
-                <Select
-                  value={sortOrder}
-                  options={SORT_OPTIONS}
-                  onChange={setSortOrder}
-                  styles={selectSortTheme}
-                  menuPortalTarget={document.body}
-                  menuPosition="fixed"
-                  blurInputOnSelect
-                  isSearchable={false}
-                />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                  <Select
+                    value={sortOrder}
+                    options={SORT_OPTIONS}
+                    onChange={handleSortChange}
+                    styles={selectSortTheme}
+                    menuPortalTarget={document.body}
+                    menuPosition="fixed"
+                    blurInputOnSelect
+                    isSearchable={false}
+                  />
+                </Box>
+                <IconButton
+                  onClick={handleRandomize}
+                  title="Randomize order"
+                  sx={{
+                    bgcolor: randomized ? 'primary.main' : '#001E3C',
+                    borderRadius: '8px',
+                    height: '38px',
+                    width: '38px',
+                    flexShrink: 0,
+                    border: randomized ? 'none' : '1px solid #2684FF',
+                    '&:hover': {
+                      bgcolor: randomized ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
+                    },
+                  }}
+                >
+                  <CasinoIcon fontSize="small" />
+                </IconButton>
               </Box>
             )}
             {authenticated && (
@@ -311,7 +346,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                 {loading && <LoadingSpinner />}
                 {!loading && (
                   <ImageCards
-                    images={sortedImages}
+                    images={finalImages}
                     authenticated={authenticated}
                     feedView={!authenticated}
                     size={cardSize}

@@ -25,7 +25,7 @@ import LinkIcon from '@mui/icons-material/Link'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import VideoCards from '../components/cards/VideoCards'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
-import { VideoService, GameService, ReleaseService, TagService } from '../services'
+import { VideoService, GameService, TagService } from '../services'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import TagChip from '../components/misc/TagChip'
@@ -38,8 +38,6 @@ const Dashboard = ({
   authenticated,
   searchText,
   cardSize,
-  showReleaseNotes,
-  releaseNotes: releaseNotesProp,
   selectedFolder,
   onFoldersLoaded,
   uploadTick,
@@ -70,8 +68,6 @@ const Dashboard = ({
   const [allTags, setAllTags] = React.useState([])
   const [selectedTagsForBulk, setSelectedTagsForBulk] = React.useState([])
   const [tagInputValueBulk, setTagInputValueBulk] = React.useState('')
-  const [featureAlertOpen, setFeatureAlertOpen] = React.useState(showReleaseNotes)
-  const releaseNotes = releaseNotesProp
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
   const theme = useTheme()
   const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
@@ -182,12 +178,6 @@ const Dashboard = ({
     }
   }, [editMode, isMdDown])
 
-  const handleFeatureAlertClose = () => {
-    if (releaseNotes?.version && authenticated) {
-      ReleaseService.setLastSeenVersion(releaseNotes.version).catch(() => {})
-    }
-    setFeatureAlertOpen(false)
-  }
 
   // Use folder from Navbar props (falls back to All Videos)
   const folder = selectedFolder || { value: 'All Videos', label: 'All Videos' }
@@ -736,68 +726,6 @@ const Dashboard = ({
         </DialogActions>
       </Dialog>
 
-      {/* Release Notes Dialog */}
-      <Dialog open={featureAlertOpen} onClose={handleFeatureAlertClose} maxWidth="sm" scroll="paper">
-        <DialogTitle
-          sx={{ fontSize: 18, fontWeight: 'bold', color: 'primary.main', textTransform: 'uppercase' }}
-        >{`New Update Available - v${releaseNotes?.version}`}</DialogTitle>
-        <DialogContent sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          <Box
-            sx={{
-              '& p': { my: 1 },
-              '& strong': { fontWeight: 600 },
-              '& a': { color: 'primary.main' },
-              '& ul, & ol': { pl: 2, my: 1 },
-              '& li': { mb: 0.5 },
-            }}
-            dangerouslySetInnerHTML={{
-              __html: releaseNotes?.body
-                ? releaseNotes.body
-                    // Escape HTML first
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    // Headers
-                    .replace(/^## (.+)$/gm, '<strong style="font-size: 1.1em;">$1</strong>')
-                    .replace(/^### (.+)$/gm, '<strong>$1</strong>')
-                    // Bold
-                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                    // Links
-                    .replace(
-                      /\[([^\]]+)\]\(([^)]+)\)/g,
-                      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
-                    )
-                    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
-                    // Unordered lists
-                    .replace(/(?:^|\n)([*\-] .+(?:\n[*\-] .+)*)/g, (match) => {
-                      const items = match
-                        .trim()
-                        .split('\n')
-                        .map((li) => `<li>${li.replace(/^[*\-] /, '')}</li>`)
-                        .join('')
-                      return `<ul>${items}</ul>`
-                    })
-                    // Line breaks
-                    .replace(/\n\n/g, '</p><p>')
-                    .replace(/\n/g, '<br/>')
-                    // Wrap in paragraph
-                    .replace(/^(.*)$/, '<p>$1</p>')
-                : 'Check out the latest updates!',
-            }}
-          />
-          {releaseNotes?.html_url && (
-            <Typography variant="caption" sx={{ display: 'block', mt: 2 }}>
-              <a href={releaseNotes.html_url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
-                View full release on GitHub
-              </a>
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleFeatureAlertClose} variant="contained">
-            Got it
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   )
 }

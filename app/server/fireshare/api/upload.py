@@ -19,6 +19,8 @@ from . import transcoding as _transcoding_mod
 
 def _check_upload_size(file_size_bytes):
     """Return a 413 Response if the file exceeds DEMO_UPLOAD_LIMIT_MB, else None."""
+    if not current_app.config.get('DEMO_MODE'):
+        return None
     limit_mb = current_app.config.get('DEMO_UPLOAD_LIMIT_MB', 0)
     if limit_mb and limit_mb > 0:
         if file_size_bytes > limit_mb * 1024 * 1024:
