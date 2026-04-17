@@ -190,23 +190,12 @@ function ReleaseCard({ release, showDivider, isLatest }) {
   return (
     <Box sx={{ px: 3, pt: 2.5, pb: showDivider ? 0 : 0.5 }}>
       {/* Header row */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
         <Typography
           sx={{
             fontFamily: 'monospace',
             fontWeight: 700,
-            fontSize: 14,
-            color: isLatest ? '#FFB300' : '#3399FF',
-            letterSpacing: '0.01em',
-            bgcolor: isLatest ? '#FFB30014' : '#3399FF14',
-            borderTopColor: isLatest ? '#FFB300' : '#3399FF',
-            borderRightColor: isLatest ? '#FFB300' : '#3399FF',
-            borderTop: '2px solid',
-            borderRight: '1px solid',
-            borderTopRightRadius: '4px',
-            borderBottomLeftRadius: '4px',
-            px: 1,
-            py: 0.15,
+            fontSize: 24,
           }}
         >
           v{release.version}
@@ -220,6 +209,7 @@ function ReleaseCard({ release, showDivider, isLatest }) {
           {formatDate(release.published_at)}
         </Typography>
       </Box>
+      <Divider sx={{ mb: 1, borderColor: '#FFFFFF12' }} />
 
       {/* Markdown body */}
       <Box sx={{ '& > *:first-of-type': { mt: '0 !important' } }}>
@@ -242,7 +232,7 @@ function ReleaseCard({ release, showDivider, isLatest }) {
             color: 'rgba(194, 224, 255, 0.3)',
             fontSize: 12,
             mt: 1,
-            mb: showDivider ? 2.5 : 1,
+            mb: 1,
             textDecoration: 'none',
             transition: 'color 0.15s',
             '&:hover': { color: '#3399FF' },

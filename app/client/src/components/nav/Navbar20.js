@@ -165,6 +165,28 @@ function Navbar20({
 
   const [featureAlertOpen, setFeatureAlertOpen] = React.useState(false)
 
+  // Auto-open release notes on first visit when a new version is available
+  React.useEffect(() => {
+    if (!latestRelease?.version) return
+    const cookieName = 'release_notes_seen_version'
+    const seenVersion = document.cookie
+      .split('; ')
+      .find((c) => c.startsWith(cookieName + '='))
+      ?.split('=')[1]
+    if (seenVersion !== latestRelease.version) {
+      setFeatureAlertOpen(true)
+    }
+  }, [latestRelease])
+
+  const handleReleaseNotesClose = React.useCallback(() => {
+    if (latestRelease?.version) {
+      const expires = new Date()
+      expires.setFullYear(expires.getFullYear() + 1)
+      document.cookie = `release_notes_seen_version=${latestRelease.version}; expires=${expires.toUTCString()}; path=/; SameSite=Lax`
+    }
+    setFeatureAlertOpen(false)
+  }, [latestRelease])
+
   const [alert, setAlert] = React.useState({ open: false })
   const [uploadTick, setUploadTick] = React.useState(0)
   const registerUploadCard = React.useContext(RegisterUploadCardContext)
@@ -861,7 +883,7 @@ function Navbar20({
       </Box>
       <ReleaseNotesDialog
         open={featureAlertOpen}
-        onClose={() => setFeatureAlertOpen(false)}
+        onClose={handleReleaseNotesClose}
         authenticated={authenticated}
       />
     </Box>
