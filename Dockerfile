@@ -1,6 +1,6 @@
-FROM node:24-slim as client
+FROM node:24-slim AS client
 WORKDIR /app
-ENV PATH /app/node_modules/.bin:$PATH
+ENV PATH=/app/node_modules/.bin:$PATH
 COPY app/client/package.json ./
 COPY app/client/package-lock.json ./
 COPY app/client/.env.* ./
@@ -9,7 +9,7 @@ COPY app/client/ ./
 RUN npm run build
 
 # FFmpeg builder stage with CUDA development tools
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 as ffmpeg-builder
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 AS ffmpeg-builder
 WORKDIR /tmp
 
 # Install build dependencies
@@ -155,18 +155,18 @@ RUN python3.14 -m pip install --no-cache-dir --break-system-packages --ignore-in
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/*
 
-ENV FLASK_APP /app/server/fireshare:create_app()
-ENV ENVIRONMENT production
-ENV DATA_DIRECTORY /data
-ENV VIDEO_DIRECTORY /videos
-ENV IMAGE_DIRECTORY /images
-ENV PROCESSED_DIRECTORY /processed
+ENV FLASK_APP=/app/server/fireshare:create_app()
+ENV ENVIRONMENT=production
+ENV DATA_DIRECTORY=/data
+ENV VIDEO_DIRECTORY=/videos
+ENV IMAGE_DIRECTORY=/images
+ENV PROCESSED_DIRECTORY=/processed
 ENV TEMPLATE_PATH=/app/server/fireshare/templates
-ENV ADMIN_PASSWORD admin
-ENV ANALYTICS_TRACKING_SCRIPT ""
+ENV ADMIN_PASSWORD=admin
+ENV ANALYTICS_TRACKING_SCRIPT=""
 ENV TZ=UTC
-ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-ENV PATH /usr/local/bin:$PATH
+ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+ENV PATH=/usr/local/bin:$PATH
 
 EXPOSE 80
 CMD ["bash", "/entrypoint.sh"]
