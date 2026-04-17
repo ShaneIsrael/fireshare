@@ -19,8 +19,8 @@ graceful_timeout = 30
 keepalive = 5  # Keep connections alive
 
 # Logging
-loglevel = "info"
-accesslog = "-"  # Log to stdout
+loglevel = "warning"
+accesslog = None
 errorlog = "-"   # Log to stderr
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
