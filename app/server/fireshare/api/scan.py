@@ -65,7 +65,8 @@ def folder_size():
     paths = current_app.config['PATHS']
     video_path = str(paths['video'])
     derived_path = str(paths['processed'] / 'derived')
-    size_bytes = get_folder_size(video_path, derived_path)
+    image_path = str(paths['image'])
+    size_bytes = get_folder_size(video_path, derived_path, image_path)
     size_mb = size_bytes / (1024 * 1024)
 
     if size_mb < 1024:
@@ -78,7 +79,7 @@ def folder_size():
         size_tb = size_mb / (1024 * 1024)
         size_pretty = f"{round(size_tb, 1)} TB"
 
-    result = {"folders": [video_path, derived_path], "size_bytes": size_bytes, "size_pretty": size_pretty}
+    result = {"folders": [video_path, derived_path, image_path], "size_bytes": size_bytes, "size_pretty": size_pretty}
     _folder_size_cache['result'] = result
     _folder_size_cache['expires_at'] = time.time() + _FOLDER_SIZE_TTL
     return jsonify(result)

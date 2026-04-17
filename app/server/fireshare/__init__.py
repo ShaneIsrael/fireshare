@@ -189,7 +189,7 @@ def create_app(init_schedule=False):
         'data': Path(app.config['DATA_DIRECTORY']),
         'video': Path(app.config['VIDEO_DIRECTORY']),
         'processed': Path(app.config['PROCESSED_DIRECTORY']),
-    
+        'image': Path(app.config['IMAGE_DIRECTORY']),
     }
     app.config['PATHS'] = paths
     for k, path in paths.items():
