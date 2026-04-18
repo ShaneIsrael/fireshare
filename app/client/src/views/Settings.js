@@ -565,6 +565,7 @@ const Settings = () => {
                           app_config: {
                             ...prev.app_config,
                             video_defaults: { private: !prev.app_config.video_defaults.private },
+                            image_defaults: { private: !prev.app_config.video_defaults.private },
                           },
                         }))
                       }}

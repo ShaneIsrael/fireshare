@@ -168,6 +168,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
   const handleUpload = async () => {
     setUploading(true)
     const game_id = selectedGame?.id || null
+    let successCount = 0
 
     for (let i = 0; i < pendingFiles.length; i++) {
       setUploadIndex(i)
@@ -181,22 +182,25 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
       try {
         const uploadFn = authenticated ? ImageService.upload : ImageService.publicUpload
         await uploadFn(formData, (progress) => setUploadProgress(progress))
+        successCount++
       } catch (err) {
-        handleAlert({
-          type: 'error',
-          message: `Failed to upload ${file.name}`,
-          open: true,
-        })
+        const serverMessage = err?.response?.data
+        const message = serverMessage
+          ? `Failed to upload ${file.name}: ${serverMessage}`
+          : `Failed to upload ${file.name}`
+        handleAlert({ type: 'error', message, open: true })
       }
     }
 
-    handleAlert({
-      type: 'success',
-      message: `${pendingFiles.length} image${pendingFiles.length > 1 ? 's' : ''} uploaded — they'll appear shortly.`,
-      autohideDuration: 3500,
-      open: true,
-    })
-    if (onUploadComplete) onUploadComplete()
+    if (successCount > 0) {
+      handleAlert({
+        type: 'success',
+        message: `${successCount} image${successCount > 1 ? 's' : ''} uploaded — they'll appear shortly.`,
+        autohideDuration: 3500,
+        open: true,
+      })
+      if (onUploadComplete) onUploadComplete()
+    }
     cleanup()
     setDialogOpen(false)
   }

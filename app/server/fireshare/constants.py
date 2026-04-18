@@ -3,6 +3,9 @@ DEFAULT_CONFIG = {
     "video_defaults": {
       "private": True
     },
+    "image_defaults": {
+      "private": True
+    },
     "allow_public_upload": True,
     "allow_public_folder_selection": True,
     "allow_public_game_tag": True,
@@ -17,7 +20,8 @@ DEFAULT_CONFIG = {
     "show_my_videos": True,
     "show_public_upload": False,
     "show_public_videos": True,
-    "show_images": True
+    "show_images": True,
+    "autoplay": False
   },
   "integrations": {
     "discord_webhook_url": "",
