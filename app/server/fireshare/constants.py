@@ -3,6 +3,9 @@ DEFAULT_CONFIG = {
     "video_defaults": {
       "private": True
     },
+    "image_defaults": {
+      "private": True
+    },
     "allow_public_upload": True,
     "allow_public_folder_selection": True,
     "allow_public_game_tag": True,

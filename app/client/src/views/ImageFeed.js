@@ -27,10 +27,11 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import selectSortTheme from '../common/reactSelectSortTheme'
 import { SORT_OPTIONS } from '../common/constants'
 
-const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded }) => {
+const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded, uploadTick }) => {
   const [images, setImages] = React.useState([])
   const [filteredImages, setFilteredImages] = React.useState([])
   const [loading, setLoading] = React.useState(true)
+  const imageCountRef = React.useRef(0)
   const [search, setSearch] = React.useState(searchText)
   const [alert, setAlert] = React.useState({ open: false })
   const [modalImage, setModalImage] = React.useState(null)
@@ -107,6 +108,36 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
     fetchImages()
     // eslint-disable-next-line
   }, [authenticated])
+
+  React.useEffect(() => {
+    if (uploadTick === 0) return
+    imageCountRef.current = images.length
+    let attempts = 0
+    const interval = setInterval(() => {
+      attempts++
+      const fetchFn = authenticated ? ImageService.getImages : ImageService.getPublicImages
+      fetchFn().then((res) => {
+        const fetched = res.data.images
+        if (fetched.length > imageCountRef.current || attempts >= 8) {
+          clearInterval(interval)
+          setImages(fetched)
+          setFilteredImages(fetched)
+          const tfolders = []
+          fetched.forEach((img) => {
+            const split = img.path
+              .split('/')
+              .slice(0, -1)
+              .filter((f) => f !== '')
+            if (split.length > 0 && !tfolders.includes(split[0])) tfolders.push(split[0])
+          })
+          tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Images')
+          if (onImageFoldersLoaded) onImageFoldersLoaded(tfolders)
+        }
+      })
+    }, 2000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line
+  }, [uploadTick])
 
   const folder = selectedImageFolder || { value: 'All Images', label: 'All Images' }
 
