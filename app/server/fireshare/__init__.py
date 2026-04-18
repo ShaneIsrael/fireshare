@@ -95,6 +95,10 @@ def update_config(path):
         except:
             logger.error(f"Invalid config.json file at {str(path)}, exiting...")
             sys.exit()
+        # If image_defaults is missing, inherit from video_defaults so privacy stays consistent
+        if 'image_defaults' not in current.get('app_config', {}):
+            video_private = current.get('app_config', {}).get('video_defaults', {}).get('private', True)
+            current.setdefault('app_config', {})['image_defaults'] = {'private': video_private}
         updated = combine(DEFAULT_CONFIG, current)
         path.write_text(json.dumps(updated, indent=2))
         configfile.close()
