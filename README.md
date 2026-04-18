@@ -219,6 +219,18 @@ If you update models, create a migration and review it before opening a pull req
 
 See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for a full guide covering installation issues, playback problems, permission errors, transcoding, LDAP, and more.
 
+## Star History
+
+If you like the project consider giving it a star. Stars help increase visibility which in turn helps me improve the application.
+
+<a href="https://www.star-history.com/?repos=shaneisrael%2Ffireshare&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ---
 
 [card-view]: .github/images/card-view.png
