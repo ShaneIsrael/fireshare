@@ -146,7 +146,7 @@ def loggedin():
             if release_is_old_enough:
                 latest_release = release_data
         else:
-            current_app.logger.info(f"Fireshare is up to date (v{local_version}).")
+            pass
 
     return jsonify({
         'authenticated': True,
