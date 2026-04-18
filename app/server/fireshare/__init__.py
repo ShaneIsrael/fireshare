@@ -1,4 +1,4 @@
-import os, sys, re, copy
+import os, sys, re, copy, tempfile
 import os.path
 try:
     import ldap
@@ -85,26 +85,32 @@ def update_config(path):
                 dict1[key] = dict2[key]
         return dict1
 
+    def atomic_write(target, content):
+        dir = target.parent
+        with tempfile.NamedTemporaryFile('w', dir=dir, delete=False, suffix='.tmp') as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        os.replace(tmp_path, target)
+
     from .constants import DEFAULT_CONFIG
     if not path.exists():
-        path.write_text(json.dumps(DEFAULT_CONFIG, indent=2))
+        atomic_write(path, json.dumps(DEFAULT_CONFIG, indent=2))
 
-    with open(path, 'r+') as configfile:
+    with open(path, 'r') as configfile:
         try:
             current = json.load(configfile)
         except:
             backup = path.with_suffix('.json.bak')
             logger.warning(f"Invalid config.json at {str(path)}, backing up to {str(backup)} and resetting to defaults")
             path.rename(backup)
-            path.write_text(json.dumps(DEFAULT_CONFIG, indent=2))
+            atomic_write(path, json.dumps(DEFAULT_CONFIG, indent=2))
             current = copy.deepcopy(DEFAULT_CONFIG)
         # If image_defaults is missing, inherit from video_defaults so privacy stays consistent
         if 'image_defaults' not in current.get('app_config', {}):
             video_private = current.get('app_config', {}).get('video_defaults', {}).get('private', True)
             current.setdefault('app_config', {})['image_defaults'] = {'private': video_private}
         updated = combine(copy.deepcopy(DEFAULT_CONFIG), current)
-        path.write_text(json.dumps(updated, indent=2))
-        configfile.close()
+        atomic_write(path, json.dumps(updated, indent=2))
 
 def create_app(init_schedule=False):
     app = Flask(__name__, static_url_path='', static_folder='build', template_folder='build')
@@ -192,12 +198,22 @@ def create_app(init_schedule=False):
         app.config['WARNINGS'].append(steamgridWarning)
         logger.warning(steamgridWarning)
 
+    for env_var, mount_path, message in [
+        ('DATA_DIRECTORY',      '/data',      'Data will not persist. Mount a directory to /data to persist data.'),
+        ('VIDEO_DIRECTORY',     '/videos',    'Data will not persist. Mount a directory to /videos to persist data.'),
+        ('PROCESSED_DIRECTORY', '/processed', 'Data will not persist. Mount a directory to /processed to persist data.'),
+        ('IMAGE_DIRECTORY',     '/images',    'Data will not persist. Mount a directory to /images to persist data.'),
+    ]:
+        if app.config.get(env_var) and not os.path.ismount(app.config[env_var]):
+            logger.warning(f"No volume is mounted to {mount_path}. {message}")
+
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
         'video': Path(app.config['VIDEO_DIRECTORY']),
         'processed': Path(app.config['PROCESSED_DIRECTORY']),
-        'image': Path(app.config['IMAGE_DIRECTORY']),
     }
+    if app.config['IMAGE_DIRECTORY']:
+        paths['image'] = Path(app.config['IMAGE_DIRECTORY'])
     app.config['PATHS'] = paths
     for k, path in paths.items():
         if not path.is_dir():
