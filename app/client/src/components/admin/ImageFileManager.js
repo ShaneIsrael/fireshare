@@ -471,6 +471,17 @@ export default function ImageFileManager({ setAlert }) {
 
   const selectedCount = selected.size + selectedFolders.size
 
+  const onlyEmptyFoldersSelected = useMemo(
+    () =>
+      selected.size === 0 &&
+      selectedFolders.size > 0 &&
+      [...selectedFolders].every((f) => {
+        const pair = groupedFiles.find(([folder]) => folder === f)
+        return !pair || pair[1].length === 0
+      }),
+    [selected, selectedFolders, groupedFiles],
+  )
+
   const handleSort = (column) => {
     if (sortColumn === column) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -689,81 +700,93 @@ export default function ImageFileManager({ setAlert }) {
             border: '1px solid #3399FF33',
           }}
         >
-          <Typography variant="body2" sx={{ color: '#FFFFFFCC', whiteSpace: 'nowrap', mb: isMobile ? 1 : 0 }}>
-            {selectedCount} selected
-          </Typography>
+          {!onlyEmptyFoldersSelected && (
+            <Typography variant="body2" sx={{ color: '#FFFFFFCC', whiteSpace: 'nowrap', mb: isMobile ? 1 : 0 }}>
+              {selectedCount} selected
+            </Typography>
+          )}
 
           {isMobile ? (
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               <Tooltip title="Move to folder">
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    setMoveTargetFolder(null)
-                    setMoveModalOpen(true)
-                  }}
-                  sx={{
-                    border: '1px solid #3399FF44',
-                    borderRadius: 1,
-                    color: '#7FBFFF',
-                    '&:hover': { bgcolor: '#3399FF12' },
-                  }}
-                >
-                  <DriveFileMoveIcon sx={{ fontSize: 20 }} />
-                </IconButton>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={onlyEmptyFoldersSelected}
+                    onClick={() => {
+                      setMoveTargetFolder(null)
+                      setMoveModalOpen(true)
+                    }}
+                    sx={{
+                      border: '1px solid #3399FF44',
+                      borderRadius: 1,
+                      color: '#7FBFFF',
+                      '&:hover': { bgcolor: '#3399FF12' },
+                    }}
+                  >
+                    <DriveFileMoveIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title="Rename">
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
-                    setRenameFind(
-                      selectedFiles.length === 1 ? selectedFiles[0].title || selectedFiles[0].filename || '' : '',
-                    )
-                    setRenameReplace('')
-                    setRenamePrefix('')
-                    setRenameSuffix('')
-                    setRenameDialogOpen(true)
-                  }}
-                  sx={{
-                    border: '1px solid #3399FF44',
-                    borderRadius: 1,
-                    color: '#7FBFFF',
-                    '&:hover': { bgcolor: '#3399FF12' },
-                  }}
-                >
-                  <DriveFileRenameOutlineIcon sx={{ fontSize: 20 }} />
-                </IconButton>
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={onlyEmptyFoldersSelected}
+                    onClick={() => {
+                      setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
+                      setRenameFind(
+                        selectedFiles.length === 1 ? selectedFiles[0].title || selectedFiles[0].filename || '' : '',
+                      )
+                      setRenameReplace('')
+                      setRenamePrefix('')
+                      setRenameSuffix('')
+                      setRenameDialogOpen(true)
+                    }}
+                    sx={{
+                      border: '1px solid #3399FF44',
+                      borderRadius: 1,
+                      color: '#7FBFFF',
+                      '&:hover': { bgcolor: '#3399FF12' },
+                    }}
+                  >
+                    <DriveFileRenameOutlineIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title="Set public">
-                <IconButton
-                  size="small"
-                  onClick={() => handleSetPrivacy(false)}
-                  disabled={actionLoading}
-                  sx={{
-                    border: '1px solid #1DB95444',
-                    borderRadius: 1,
-                    color: '#1DB954',
-                    '&:hover': { bgcolor: '#1DB95412' },
-                  }}
-                >
-                  <LockOpenIcon sx={{ fontSize: 20 }} />
-                </IconButton>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleSetPrivacy(false)}
+                    disabled={onlyEmptyFoldersSelected || actionLoading}
+                    sx={{
+                      border: '1px solid #1DB95444',
+                      borderRadius: 1,
+                      color: '#1DB954',
+                      '&:hover': { bgcolor: '#1DB95412' },
+                    }}
+                  >
+                    <LockOpenIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title="Set private">
-                <IconButton
-                  size="small"
-                  onClick={() => handleSetPrivacy(true)}
-                  disabled={actionLoading}
-                  sx={{
-                    border: '1px solid #FFFFFF33',
-                    borderRadius: 1,
-                    color: '#FFFFFFCC',
-                    '&:hover': { bgcolor: '#FFFFFF0D' },
-                  }}
-                >
-                  <LockIcon sx={{ fontSize: 20 }} />
-                </IconButton>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleSetPrivacy(true)}
+                    disabled={onlyEmptyFoldersSelected || actionLoading}
+                    sx={{
+                      border: '1px solid #FFFFFF33',
+                      borderRadius: 1,
+                      color: '#FFFFFFCC',
+                      '&:hover': { bgcolor: '#FFFFFF0D' },
+                    }}
+                  >
+                    <LockIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </span>
               </Tooltip>
               <Tooltip title="Delete selected">
                 <IconButton
@@ -785,48 +808,54 @@ export default function ImageFileManager({ setAlert }) {
               {/* Group 1: Organize */}
               <Box sx={{ display: 'flex', gap: '12px' }}>
                 <Tooltip title="Move selected to another folder">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<DriveFileMoveIcon />}
-                    onClick={() => {
-                      setMoveTargetFolder(null)
-                      setMoveModalOpen(true)
-                    }}
-                    sx={{
-                      textTransform: 'none',
-                      borderColor: '#3399FF44',
-                      color: '#7FBFFF',
-                      '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
-                    }}
-                  >
-                    Move
-                  </Button>
+                  <span>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={onlyEmptyFoldersSelected}
+                      startIcon={<DriveFileMoveIcon />}
+                      onClick={() => {
+                        setMoveTargetFolder(null)
+                        setMoveModalOpen(true)
+                      }}
+                      sx={{
+                        textTransform: 'none',
+                        borderColor: '#3399FF44',
+                        color: '#7FBFFF',
+                        '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
+                      }}
+                    >
+                      Move
+                    </Button>
+                  </span>
                 </Tooltip>
                 <Tooltip title="Rename selected images">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<DriveFileRenameOutlineIcon />}
-                    onClick={() => {
-                      setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
-                      setRenameFind(
-                        selectedFiles.length === 1 ? selectedFiles[0].title || selectedFiles[0].filename || '' : '',
-                      )
-                      setRenameReplace('')
-                      setRenamePrefix('')
-                      setRenameSuffix('')
-                      setRenameDialogOpen(true)
-                    }}
-                    sx={{
-                      textTransform: 'none',
-                      borderColor: '#3399FF44',
-                      color: '#7FBFFF',
-                      '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
-                    }}
-                  >
-                    Rename
-                  </Button>
+                  <span>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={onlyEmptyFoldersSelected}
+                      startIcon={<DriveFileRenameOutlineIcon />}
+                      onClick={() => {
+                        setRenameOp({ value: 'find_replace', label: 'Find & Replace' })
+                        setRenameFind(
+                          selectedFiles.length === 1 ? selectedFiles[0].title || selectedFiles[0].filename || '' : '',
+                        )
+                        setRenameReplace('')
+                        setRenamePrefix('')
+                        setRenameSuffix('')
+                        setRenameDialogOpen(true)
+                      }}
+                      sx={{
+                        textTransform: 'none',
+                        borderColor: '#3399FF44',
+                        color: '#7FBFFF',
+                        '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
+                      }}
+                    >
+                      Rename
+                    </Button>
+                  </span>
                 </Tooltip>
               </Box>
 
@@ -835,38 +864,42 @@ export default function ImageFileManager({ setAlert }) {
               {/* Group 2: Privacy */}
               <Box sx={{ display: 'flex', gap: '12px' }}>
                 <Tooltip title="Make selected images public">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<LockOpenIcon />}
-                    onClick={() => handleSetPrivacy(false)}
-                    disabled={actionLoading}
-                    sx={{
-                      textTransform: 'none',
-                      borderColor: '#1DB95444',
-                      color: '#1DB954',
-                      '&:hover': { borderColor: '#1DB954', bgcolor: '#1DB95412' },
-                    }}
-                  >
-                    Set Public
-                  </Button>
+                  <span>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<LockOpenIcon />}
+                      onClick={() => handleSetPrivacy(false)}
+                      disabled={onlyEmptyFoldersSelected || actionLoading}
+                      sx={{
+                        textTransform: 'none',
+                        borderColor: '#1DB95444',
+                        color: '#1DB954',
+                        '&:hover': { borderColor: '#1DB954', bgcolor: '#1DB95412' },
+                      }}
+                    >
+                      Set Public
+                    </Button>
+                  </span>
                 </Tooltip>
                 <Tooltip title="Make selected images private">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<LockIcon />}
-                    onClick={() => handleSetPrivacy(true)}
-                    disabled={actionLoading}
-                    sx={{
-                      textTransform: 'none',
-                      borderColor: '#FFFFFF33',
-                      color: '#FFFFFFCC',
-                      '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
-                    }}
-                  >
-                    Set Private
-                  </Button>
+                  <span>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<LockIcon />}
+                      onClick={() => handleSetPrivacy(true)}
+                      disabled={onlyEmptyFoldersSelected || actionLoading}
+                      sx={{
+                        textTransform: 'none',
+                        borderColor: '#FFFFFF33',
+                        color: '#FFFFFFCC',
+                        '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
+                      }}
+                    >
+                      Set Private
+                    </Button>
+                  </span>
                 </Tooltip>
               </Box>
 
