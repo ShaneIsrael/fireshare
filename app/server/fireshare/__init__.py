@@ -1,4 +1,4 @@
-import os, sys, re
+import os, sys, re, copy
 import os.path
 try:
     import ldap
@@ -93,13 +93,16 @@ def update_config(path):
         try:
             current = json.load(configfile)
         except:
-            logger.error(f"Invalid config.json file at {str(path)}, exiting...")
-            sys.exit()
+            backup = path.with_suffix('.json.bak')
+            logger.warning(f"Invalid config.json at {str(path)}, backing up to {str(backup)} and resetting to defaults")
+            path.rename(backup)
+            path.write_text(json.dumps(DEFAULT_CONFIG, indent=2))
+            current = copy.deepcopy(DEFAULT_CONFIG)
         # If image_defaults is missing, inherit from video_defaults so privacy stays consistent
         if 'image_defaults' not in current.get('app_config', {}):
             video_private = current.get('app_config', {}).get('video_defaults', {}).get('private', True)
             current.setdefault('app_config', {})['image_defaults'] = {'private': video_private}
-        updated = combine(DEFAULT_CONFIG, current)
+        updated = combine(copy.deepcopy(DEFAULT_CONFIG), current)
         path.write_text(json.dumps(updated, indent=2))
         configfile.close()
 
