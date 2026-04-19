@@ -6,9 +6,17 @@ bind = "127.0.0.1:5000"
 backlog = 2048  # Number of pending connections
 
 # Worker processes
-workers = multiprocessing. cpu_count() * 2 + 1  # Recommended formula
+# Cap at 4 by default — fireshare is an I/O-bound media server and gthread workers
+# with multiple threads handle concurrency efficiently without needing many processes.
+# High core-count machines (e.g. 32c/64t) would otherwise spawn 65+ workers, each
+# loading CUDA, pushing PID counts well past typical container limits (~2048).
+# Override with GUNICORN_WORKERS; set GUNICORN_WORKER_CAP=0 to remove the cap.
+_default_workers = multiprocessing.cpu_count() * 2 + 1
+_worker_cap = int(os.environ.get("GUNICORN_WORKER_CAP", 4))
+workers = int(os.environ.get("GUNICORN_WORKERS",
+              min(_default_workers, _worker_cap) if _worker_cap > 0 else _default_workers))
 worker_class = "gthread"  # Use threaded workers
-threads = 8  # 8 threads per worker (I/O-bound workload benefits from more threads)
+threads = int(os.environ.get("GUNICORN_THREADS", 8))  # 8 threads per worker (I/O-bound workload benefits from more threads)
 worker_connections = 1000
 max_requests = 2000  # Restart workers after N requests (prevents memory leaks)
 max_requests_jitter = 100  # Add randomness to prevent all workers restarting at once
