@@ -711,6 +711,8 @@ def create_boomerang_posters(regenerate):
 def transcode_videos(regenerate, video, include_corrupt):
     """Transcode videos to enabled resolution variants (1080p, 720p, 480p)"""
 
+    _TRANSCODE_LOCK = "fireshare_transcode.lock"
+
     # Store data_path for signal handler access
     _transcode_state = {'data_path': None}
 
@@ -718,6 +720,7 @@ def transcode_videos(regenerate, video, include_corrupt):
         logger.info("Transcoding cancelled by user")
         if _transcode_state['data_path']:
             util.clear_transcoding_status(_transcode_state['data_path'])
+            util.remove_lock(_transcode_state['data_path'], _TRANSCODE_LOCK)
         sys.exit(0)
 
     signal.signal(signal.SIGTERM, handle_cancel)
@@ -729,169 +732,177 @@ def transcode_videos(regenerate, video, include_corrupt):
 
         paths = current_app.config['PATHS']
         _transcode_state['data_path'] = paths['data']
-        processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
-        use_gpu = current_app.config.get('TRANSCODE_GPU', False)
-        base_timeout = current_app.config.get('TRANSCODE_TIMEOUT', 7200)
 
-        # Read transcoding settings from config
-        config_path = paths['data'] / 'config.json'
-        transcoding_config = {}
-        if config_path.exists():
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-                transcoding_config = config.get('transcoding', {})
-
-        encoder_preference = transcoding_config.get('encoder_preference', 'auto')
-
-        # Build list of enabled resolutions (highest to lowest)
-        resolutions = []
-        if transcoding_config.get('enable_1080p', True):
-            resolutions.append(1080)
-        if transcoding_config.get('enable_720p', True):
-            resolutions.append(720)
-        if transcoding_config.get('enable_480p', True):
-            resolutions.append(480)
-
-        # Get videos to transcode
-        vinfos = VideoInfo.query.filter(VideoInfo.video_id==video).all() if video else VideoInfo.query.all()
-
-        # Filter out corrupt videos unless explicitly included
-        corrupt_videos = set(get_all_corrupt_videos())
-        if not include_corrupt and not video:
-            original_count = len(vinfos)
-            vinfos = [vi for vi in vinfos if vi.video_id not in corrupt_videos]
-            skipped_count = original_count - len(vinfos)
-            if skipped_count > 0:
-                logger.info(f"Skipping {skipped_count} video(s) previously marked as corrupt. Use --include-corrupt to retry them.")
-
-        # Build work queue: list of (video_info, height) tuples that actually need transcoding
-        # Also reconcile has_* flags if outputs already exist on disk.
-        work_items = []
-        skipped_missing_source = 0
-        skipped_source_too_small = 0
-        skipped_existing_output = 0
-        reconciled_flag_updates = 0
-        reconciled_videos = set()
-        for vi in vinfos:
-            video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
-            if not video_path.exists():
-                skipped_missing_source += 1
-                if video:
-                    logger.warning(f"Skipping video {vi.video_id}: source file not found at {video_path}")
-                continue
-            derived_path = Path(processed_root, "derived", vi.video_id)
-            original_height = vi.height or 0
-            for height in resolutions:
-                if original_height > 0 and original_height <= height:
-                    skipped_source_too_small += 1
-                    if video:
-                        logger.debug(
-                            f"Skipping {vi.video_id} {height}p: source height ({original_height}p) "
-                            f"is not greater than target"
-                        )
-                    continue
-                transcode_path = derived_path / f"{vi.video_id}-{height}p.mp4"
-                has_attr = f'has_{height}p'
-                output_exists = transcode_path.exists()
-
-                if output_exists and getattr(vi, has_attr, False) is not True:
-                    setattr(vi, has_attr, True)
-                    reconciled_flag_updates += 1
-                    reconciled_videos.add(vi.video_id)
-                    if video:
-                        logger.debug(f"Detected existing {height}p output on disk; updating {has_attr}=True for {vi.video_id}")
-
-                if output_exists and not regenerate:
-                    skipped_existing_output += 1
-                    if video:
-                        logger.debug(f"Skipping {vi.video_id} {height}p: output already exists at {transcode_path}")
-                    continue
-
-                work_items.append((vi, height, video_path, derived_path, transcode_path))
-
-        if reconciled_flag_updates > 0:
-            db.session.commit()
-            logger.info(
-                f"Reconciled transcode flags from disk for {len(reconciled_videos)} video(s), "
-                f"updated {reconciled_flag_updates} flag value(s)."
-            )
-
-        total_jobs = len(work_items)
-        logger.info(f'Processing {total_jobs:,} transcode job(s) (GPU: {use_gpu}, Encoder: {encoder_preference})')
-
-        # Claim ownership of the status file immediately so the SSE poller has a
-        # stable is_running=True signal to detect regardless of how we were invoked
-        # (upload auto-transcode, bulk-import, or manual queue).  We overwrite any
-        # earlier placeholder written by _launch_scan_video or bulk_import so that
-        # our own PID is authoritative for the duration of this function.
-        util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
-
-        if total_jobs == 0:
-            if video:
-                vi = vinfos[0] if vinfos else None
-                logger.info(
-                    f"Single-video planner summary for {video}: "
-                    f"found_video_info={bool(vi)}, source_height={vi.height if vi else None}, "
-                    f"enabled_targets={','.join(f'{h}p' for h in resolutions) if resolutions else 'none'}, "
-                    f"regenerate={regenerate}, include_corrupt={include_corrupt}"
-                )
-                logger.info(
-                    "Single-video planner breakdown: "
-                    f"missing_source={skipped_missing_source}, "
-                    f"source_too_small={skipped_source_too_small}, "
-                    f"already_exists={skipped_existing_output}"
-                )
-            logger.info("No videos need transcoding")
-            util.clear_transcoding_status(paths['data'])
+        if util.lock_exists(paths['data'], _TRANSCODE_LOCK):
+            logger.info("A transcode process is already running. Aborting.")
             return
+        util.create_lock(paths['data'], _TRANSCODE_LOCK)
+        try:
+            processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
+            use_gpu = current_app.config.get('TRANSCODE_GPU', False)
+            base_timeout = current_app.config.get('TRANSCODE_TIMEOUT', 7200)
 
-        # Remove any leftover *.mp4.tmp files from a previous run that crashed
-        # before the temp file could be renamed to its final location.
-        derived_root = Path(processed_root, "derived")
-        if derived_root.exists():
-            for tmp_file in derived_root.glob('**/*.tmp.mp4'):
-                try:
-                    tmp_file.unlink()
-                    logger.info(f"Removed stale temp transcode file: {tmp_file}")
-                except OSError as ex:
-                    logger.warning(f"Could not remove stale temp file {tmp_file}: {ex}")
+            # Read transcoding settings from config
+            config_path = paths['data'] / 'config.json'
+            transcoding_config = {}
+            if config_path.exists():
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    transcoding_config = config.get('transcoding', {})
 
-        # Track corrupt videos to skip remaining heights for that video
-        corrupt_video_ids = set()
+            encoder_preference = transcoding_config.get('encoder_preference', 'auto')
 
-        for idx, (vi, height, video_path, derived_path, transcode_path) in enumerate(work_items, 1):
-            # Skip if this video was marked corrupt during this run
-            if vi.video_id in corrupt_video_ids:
-                continue
+            # Build list of enabled resolutions (highest to lowest)
+            resolutions = []
+            if transcoding_config.get('enable_1080p', True):
+                resolutions.append(1080)
+            if transcoding_config.get('enable_720p', True):
+                resolutions.append(720)
+            if transcoding_config.get('enable_480p', True):
+                resolutions.append(480)
 
-            # Update transcoding progress
-            util.write_transcoding_status(paths['data'], idx, total_jobs, vi.title, resolution=f"{height}p")
+            # Get videos to transcode
+            vinfos = VideoInfo.query.filter(VideoInfo.video_id==video).all() if video else VideoInfo.query.all()
 
-            if not derived_path.exists():
-                derived_path.mkdir(parents=True)
+            # Filter out corrupt videos unless explicitly included
+            corrupt_videos = set(get_all_corrupt_videos())
+            if not include_corrupt and not video:
+                original_count = len(vinfos)
+                vinfos = [vi for vi in vinfos if vi.video_id not in corrupt_videos]
+                skipped_count = original_count - len(vinfos)
+                if skipped_count > 0:
+                    logger.info(f"Skipping {skipped_count} video(s) previously marked as corrupt. Use --include-corrupt to retry them.")
 
-            has_attr = f'has_{height}p'
+            # Build work queue: list of (video_info, height) tuples that actually need transcoding
+            # Also reconcile has_* flags if outputs already exist on disk.
+            work_items = []
+            skipped_missing_source = 0
+            skipped_source_too_small = 0
+            skipped_existing_output = 0
+            reconciled_flag_updates = 0
+            reconciled_videos = set()
+            for vi in vinfos:
+                video_path = Path(processed_root, "video_links", vi.video_id + vi.video.extension)
+                if not video_path.exists():
+                    skipped_missing_source += 1
+                    if video:
+                        logger.warning(f"Skipping video {vi.video_id}: source file not found at {video_path}")
+                    continue
+                derived_path = Path(processed_root, "derived", vi.video_id)
+                original_height = vi.height or 0
+                for height in resolutions:
+                    if original_height > 0 and original_height <= height:
+                        skipped_source_too_small += 1
+                        if video:
+                            logger.debug(
+                                f"Skipping {vi.video_id} {height}p: source height ({original_height}p) "
+                                f"is not greater than target"
+                            )
+                        continue
+                    transcode_path = derived_path / f"{vi.video_id}-{height}p.mp4"
+                    has_attr = f'has_{height}p'
+                    output_exists = transcode_path.exists()
 
-            logger.info(f"[{idx}/{total_jobs}] Transcoding {vi.video_id} to {height}p ({vi.video.path})")
-            success, failure_reason = util.transcode_video_quality(
-                video_path, transcode_path, height, use_gpu, None, encoder_preference,
-                data_path=paths['data']
-            )
-            if success:
-                setattr(vi, has_attr, True)
-                if is_video_corrupt(vi.video_id):
-                    clear_video_corrupt(vi.video_id)
-                db.session.add(vi)
+                    if output_exists and getattr(vi, has_attr, False) is not True:
+                        setattr(vi, has_attr, True)
+                        reconciled_flag_updates += 1
+                        reconciled_videos.add(vi.video_id)
+                        if video:
+                            logger.debug(f"Detected existing {height}p output on disk; updating {has_attr}=True for {vi.video_id}")
+
+                    if output_exists and not regenerate:
+                        skipped_existing_output += 1
+                        if video:
+                            logger.debug(f"Skipping {vi.video_id} {height}p: output already exists at {transcode_path}")
+                        continue
+
+                    work_items.append((vi, height, video_path, derived_path, transcode_path))
+
+            if reconciled_flag_updates > 0:
                 db.session.commit()
-            elif failure_reason == 'corruption':
-                logger.warning(f"Skipping video {vi.video_id} {height}p transcode - source file appears corrupt")
-                mark_video_corrupt(vi.video_id)
-                corrupt_video_ids.add(vi.video_id)
-            else:
-                logger.warning(f"Skipping video {vi.video_id} {height}p transcode - all encoders failed")
+                logger.info(
+                    f"Reconciled transcode flags from disk for {len(reconciled_videos)} video(s), "
+                    f"updated {reconciled_flag_updates} flag value(s)."
+                )
 
-        util.clear_transcoding_status(paths['data'])
-        logger.info("Transcoding complete")
+            total_jobs = len(work_items)
+            logger.info(f'Processing {total_jobs:,} transcode job(s) (GPU: {use_gpu}, Encoder: {encoder_preference})')
+
+            # Claim ownership of the status file immediately so the SSE poller has a
+            # stable is_running=True signal to detect regardless of how we were invoked
+            # (upload auto-transcode, bulk-import, or manual queue).  We overwrite any
+            # earlier placeholder written by _launch_scan_video or bulk_import so that
+            # our own PID is authoritative for the duration of this function.
+            util.write_transcoding_status(paths['data'], 0, total_jobs, pid=os.getpid())
+
+            if total_jobs == 0:
+                if video:
+                    vi = vinfos[0] if vinfos else None
+                    logger.info(
+                        f"Single-video planner summary for {video}: "
+                        f"found_video_info={bool(vi)}, source_height={vi.height if vi else None}, "
+                        f"enabled_targets={','.join(f'{h}p' for h in resolutions) if resolutions else 'none'}, "
+                        f"regenerate={regenerate}, include_corrupt={include_corrupt}"
+                    )
+                    logger.info(
+                        "Single-video planner breakdown: "
+                        f"missing_source={skipped_missing_source}, "
+                        f"source_too_small={skipped_source_too_small}, "
+                        f"already_exists={skipped_existing_output}"
+                    )
+                logger.info("No videos need transcoding")
+                util.clear_transcoding_status(paths['data'])
+                return
+
+            # Remove any leftover *.mp4.tmp files from a previous run that crashed
+            # before the temp file could be renamed to its final location.
+            derived_root = Path(processed_root, "derived")
+            if derived_root.exists():
+                for tmp_file in derived_root.glob('**/*.tmp.mp4'):
+                    try:
+                        tmp_file.unlink()
+                        logger.info(f"Removed stale temp transcode file: {tmp_file}")
+                    except OSError as ex:
+                        logger.warning(f"Could not remove stale temp file {tmp_file}: {ex}")
+
+            # Track corrupt videos to skip remaining heights for that video
+            corrupt_video_ids = set()
+
+            for idx, (vi, height, video_path, derived_path, transcode_path) in enumerate(work_items, 1):
+                # Skip if this video was marked corrupt during this run
+                if vi.video_id in corrupt_video_ids:
+                    continue
+
+                # Update transcoding progress
+                util.write_transcoding_status(paths['data'], idx, total_jobs, vi.title, resolution=f"{height}p")
+
+                if not derived_path.exists():
+                    derived_path.mkdir(parents=True)
+
+                has_attr = f'has_{height}p'
+
+                logger.info(f"[{idx}/{total_jobs}] Transcoding {vi.video_id} to {height}p ({vi.video.path})")
+                success, failure_reason = util.transcode_video_quality(
+                    video_path, transcode_path, height, use_gpu, None, encoder_preference,
+                    data_path=paths['data']
+                )
+                if success:
+                    setattr(vi, has_attr, True)
+                    if is_video_corrupt(vi.video_id):
+                        clear_video_corrupt(vi.video_id)
+                    db.session.add(vi)
+                    db.session.commit()
+                elif failure_reason == 'corruption':
+                    logger.warning(f"Skipping video {vi.video_id} {height}p transcode - source file appears corrupt")
+                    mark_video_corrupt(vi.video_id)
+                    corrupt_video_ids.add(vi.video_id)
+                else:
+                    logger.warning(f"Skipping video {vi.video_id} {height}p transcode - all encoders failed")
+
+            util.clear_transcoding_status(paths['data'])
+            logger.info("Transcoding complete")
+        finally:
+            util.remove_lock(paths['data'], _TRANSCODE_LOCK)
 
 @cli.command()
 @click.pass_context
@@ -921,6 +932,11 @@ def bulk_import(ctx, root):
         ctx.invoke(create_posters, skip=thumbnail_skip)
         timing['create_posters'] = time.time() - s
         
+        # Release the scan lock before transcoding — scanning and transcoding are
+        # independent, and holding the lock across a long transcode would cause
+        # every scheduled scan during that window to abort unnecessarily.
+        util.remove_lock(paths["data"])
+
         # Transcode videos if transcoding is enabled and auto_transcode is on
         if current_app.config.get('ENABLE_TRANSCODING'):
             # Check if auto_transcode is enabled in config.json
@@ -940,9 +956,7 @@ def bulk_import(ctx, root):
                 logger.info("Skipping automatic transcoding (auto_transcode is disabled in settings)")
 
         logger.info(f"Finished bulk import. Timing info: {json.dumps(timing)}")
-
         util.clear_transcoding_status(paths['data'])
-        util.remove_lock(paths["data"])
 
 @cli.command()
 @click.option("--root", "-r", help="subdirectory of IMAGE_DIRECTORY to scan", required=False)
