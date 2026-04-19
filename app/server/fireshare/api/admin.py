@@ -12,9 +12,8 @@ from flask import current_app, jsonify, request, Response
 from flask_login import login_required, current_user
 
 from .. import db, logger, util
-from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageView
+from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageView, TranscodeJob
 from . import api
-from . import transcoding as _transcoding_mod
 from .transcoding import _is_pid_running
 from .scan import _game_scan_state
 from .decorators import demo_restrict
@@ -102,6 +101,8 @@ def admin_event_stream():
                     util.clear_transcoding_status(paths['data'])
                     progress = {"current": 0, "total": 0, "current_video": None}
 
+                pending_jobs = TranscodeJob.query.filter_by(status='pending').all()
+                completed_count = TranscodeJob.query.filter_by(status='complete').count()
                 transcoding_state = {
                     "enabled": enabled,
                     "gpu_enabled": gpu_enabled,
@@ -112,8 +113,8 @@ def admin_event_stream():
                     "percent": progress.get('percent'),
                     "eta_seconds": progress.get('eta_seconds'),
                     "resolution": progress.get('resolution'),
-                    "queue_tasks": sum(c for _, c in _transcoding_mod._transcoding_queue),
-                    "completed_tasks": _transcoding_mod._completed_tasks,
+                    "queue_tasks": sum(j.task_count for j in pending_jobs),
+                    "completed_tasks": completed_count,
                 }
 
                 if transcoding_state != last_transcoding_state:
