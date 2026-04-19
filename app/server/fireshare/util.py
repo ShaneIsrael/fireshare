@@ -48,12 +48,12 @@ AV1_CODEC_NAMES = frozenset([
     'av1_qsv',
 ])
 
-def lock_exists(path: Path):
+def lock_exists(path: Path, filename: str = "fireshare.lock"):
     """
     Checks if a lockfile exists and the owning process is still alive.
     Automatically removes stale locks left by crashed processes.
     """
-    lockfile = path / "fireshare.lock"
+    lockfile = path / filename
     if not lockfile.exists():
         return False
     try:
@@ -69,21 +69,21 @@ def lock_exists(path: Path):
             pass
         return False
 
-def create_lock(path: Path):
+def create_lock(path: Path, filename: str = "fireshare.lock"):
     """
     Creates the lock file, writing the current PID so stale locks can be detected.
     """
-    lockfile = path / "fireshare.lock"
+    lockfile = path / filename
     if not lockfile.exists():
         logger.debug(f"A lockfile has been created at {str(lockfile)}")
         with open(lockfile, 'w') as f:
             f.write(str(os.getpid()))
 
-def remove_lock(path: Path):
+def remove_lock(path: Path, filename: str = "fireshare.lock"):
     """
     Deletes the lock file
     """
-    lockfile = path / "fireshare.lock"
+    lockfile = path / filename
     if lockfile.exists():
         logger.debug(f"A lockfile has been removed at {str(lockfile)}")
         os.remove(lockfile)

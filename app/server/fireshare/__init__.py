@@ -198,14 +198,15 @@ def create_app(init_schedule=False):
         app.config['WARNINGS'].append(steamgridWarning)
         logger.warning(steamgridWarning)
 
-    for env_var, mount_path, message in [
-        ('DATA_DIRECTORY',      '/data',      'Data will not persist. Mount a directory to /data to persist data.'),
-        ('VIDEO_DIRECTORY',     '/videos',    'Data will not persist. Mount a directory to /videos to persist data.'),
-        ('PROCESSED_DIRECTORY', '/processed', 'Data will not persist. Mount a directory to /processed to persist data.'),
-        ('IMAGE_DIRECTORY',     '/images',    'Data will not persist. Mount a directory to /images to persist data.'),
-    ]:
-        if app.config.get(env_var) and not os.path.ismount(app.config[env_var]):
-            logger.warning(f"No volume is mounted to {mount_path}. {message}")
+    if app.config.get('ENVIRONMENT') != 'dev':
+        for env_var, mount_path, message in [
+            ('DATA_DIRECTORY',      '/data',      'Data will not persist. Mount a directory to /data to persist data.'),
+            ('VIDEO_DIRECTORY',     '/videos',    'Data will not persist. Mount a directory to /videos to persist data.'),
+            ('PROCESSED_DIRECTORY', '/processed', 'Data will not persist. Mount a directory to /processed to persist data.'),
+            ('IMAGE_DIRECTORY',     '/images',    'Data will not persist. Mount a directory to /images to persist data.'),
+        ]:
+            if app.config.get(env_var) and not os.path.ismount(app.config[env_var]):
+                logger.warning(f"No volume is mounted to {mount_path}. {message}")
 
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
@@ -229,15 +230,52 @@ def create_app(init_schedule=False):
             logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
 
-    # Clean up any leftover chunk files from interrupted uploads
-    import glob as _glob
-    chunk_files = _glob.glob(str(paths['video'] / '**' / '*.part[0-9][0-9][0-9][0-9]'), recursive=True)
-    for chunk_file in chunk_files:
+    # Clean up any leftover chunk files from interrupted uploads, but only once
+    # per gunicorn master lifetime.  With preload_app=False, create_app() runs in
+    # every worker process, including workers that restart while an upload is in
+    # progress.  We use a sentinel file (same O_CREAT|O_EXCL pattern as the
+    # scheduler election) so only the very first worker to start does the cleanup;
+    # all subsequent workers - including restarts triggered by max_requests or
+    # crashes - skip it and leave in-progress chunks untouched.
+    import tempfile as _tempfile
+    _SHM_DIR = "/dev/shm" if os.path.isdir("/dev/shm") else _tempfile.gettempdir()
+    _CLEANUP_SENTINEL = os.path.join(_SHM_DIR, "fireshare_cleanup.lock")
+    _should_cleanup = False
+    try:
+        fd = os.open(_CLEANUP_SENTINEL, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+        _should_cleanup = True
+    except FileExistsError:
+        pass  # Another worker already claimed cleanup for this startup
+    except Exception as e:
+        logger.warning(f"Could not create cleanup sentinel: {e}")
+
+    if _should_cleanup:
+        import glob as _glob
+        chunk_files = _glob.glob(str(paths['video'] / '**' / '*.part[0-9][0-9][0-9][0-9]'), recursive=True)
+        for chunk_file in chunk_files:
+            try:
+                os.remove(chunk_file)
+                logger.info(f"Removed leftover upload chunk: {chunk_file}")
+            except OSError as e:
+                logger.warning(f"Failed to remove leftover upload chunk {chunk_file}: {e}")
+
+        # Reset any transcode jobs that were marked 'running' when the container
+        # last shut down — those processes are gone, so the jobs need to be retried.
         try:
-            os.remove(chunk_file)
-            logger.info(f"Removed leftover upload chunk: {chunk_file}")
-        except OSError as e:
-            logger.warning(f"Failed to remove leftover upload chunk {chunk_file}: {e}")
+            from .models import TranscodeJob
+            from .api.transcoding import _ensure_drain_running
+            stale = TranscodeJob.query.filter_by(status='running').all()
+            if stale:
+                for job in stale:
+                    job.status = 'pending'
+                    job.started_at = None
+                db.session.commit()
+                logger.info(f"Reset {len(stale)} stale transcode job(s) to pending on startup")
+                _ensure_drain_running(app, paths['data'])
+        except Exception as e:
+            logger.warning(f"Could not reset stale transcode jobs: {e}")
 
     # Ensure game_assets directory exists
     game_assets_dir = paths['data'] / 'game_assets'

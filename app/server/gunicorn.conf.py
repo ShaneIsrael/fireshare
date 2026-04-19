@@ -1,14 +1,25 @@
 import multiprocessing
 import os
+import tempfile
+
+_SHM_DIR = "/dev/shm" if os.path.isdir("/dev/shm") else tempfile.gettempdir()
 
 # Server socket
 bind = "127.0.0.1:5000"
 backlog = 2048  # Number of pending connections
 
 # Worker processes
-workers = multiprocessing. cpu_count() * 2 + 1  # Recommended formula
+# Cap at 4 by default — fireshare is an I/O-bound media server and gthread workers
+# with multiple threads handle concurrency efficiently without needing many processes.
+# High core-count machines (e.g. 32c/64t) would otherwise spawn 65+ workers, each
+# loading CUDA, pushing PID counts well past typical container limits (~2048).
+# Override with GUNICORN_WORKERS; set GUNICORN_WORKER_CAP=0 to remove the cap.
+_default_workers = multiprocessing.cpu_count() * 2 + 1
+_worker_cap = int(os.environ.get("GUNICORN_WORKER_CAP", 4))
+workers = int(os.environ.get("GUNICORN_WORKERS",
+              min(_default_workers, _worker_cap) if _worker_cap > 0 else _default_workers))
 worker_class = "gthread"  # Use threaded workers
-threads = 8  # 8 threads per worker (I/O-bound workload benefits from more threads)
+threads = int(os.environ.get("GUNICORN_THREADS", 8))  # 8 threads per worker (I/O-bound workload benefits from more threads)
 worker_connections = 1000
 max_requests = 2000  # Restart workers after N requests (prevents memory leaks)
 max_requests_jitter = 100  # Add randomness to prevent all workers restarting at once
@@ -41,20 +52,24 @@ preload_app = False  # Changed from True - SQLite doesn't like forking
 # Worker tmp directory
 worker_tmp_dir = "/dev/shm"  # Use RAM for worker tmp files
 
-# Sentinel file used to elect exactly one worker as the scheduler worker.
+# Sentinel files used to elect exactly one worker per gunicorn lifetime.
 # Uses /dev/shm (already our worker_tmp_dir) which is guaranteed writable.
 # Written with O_EXCL so the first worker to create it wins atomically.
-_SCHEDULER_SENTINEL = "/dev/shm/fireshare_scheduler.lock"
+_SCHEDULER_SENTINEL = os.path.join(_SHM_DIR, "fireshare_scheduler.lock")
+# Claimed by the first worker that starts; prevents subsequent workers (including
+# workers that restart mid-upload) from re-running the startup chunk cleanup.
+_CLEANUP_SENTINEL = os.path.join(_SHM_DIR, "fireshare_cleanup.lock")
 
 
 def on_starting(server):
     """Called just before the master process is initialized."""
-    # Remove a stale sentinel from a previous run so the first worker of this
-    # run can cleanly (re-)claim the scheduler role.
-    try:
-        os.unlink(_SCHEDULER_SENTINEL)
-    except Exception:
-        pass
+    # Remove stale sentinels from a previous run so the first worker of this
+    # run can cleanly (re-)claim the scheduler and cleanup roles.
+    for sentinel in (_SCHEDULER_SENTINEL, _CLEANUP_SENTINEL):
+        try:
+            os.unlink(sentinel)
+        except Exception:
+            pass
     server.log.info("Starting Fireshare")
 
 

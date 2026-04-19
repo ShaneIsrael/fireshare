@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from flask_login import UserMixin
 from . import db
 
@@ -432,4 +433,19 @@ class ImageView(db.Model):
 
     def __repr__(self):
         return "<ImageView {} {}>".format(self.image_id, self.ip_address)
+
+
+class TranscodeJob(db.Model):
+    __tablename__ = "transcode_job"
+
+    id           = db.Column(db.Integer, primary_key=True)
+    video_id     = db.Column(db.String(64), nullable=True, index=True)  # None = bulk
+    status       = db.Column(db.String(16), nullable=False, default='pending', index=True)
+    task_count   = db.Column(db.Integer, nullable=False, default=0)
+    created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    started_at   = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+
+    def __repr__(self):
+        return "<TranscodeJob id={} video_id={} status={}>".format(self.id, self.video_id, self.status)
 
