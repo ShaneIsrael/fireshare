@@ -229,13 +229,13 @@ def create_app(init_schedule=False):
             logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
 
-    # Clean up any leftover chunk files from interrupted uploads — but only once
+    # Clean up any leftover chunk files from interrupted uploads, but only once
     # per gunicorn master lifetime.  With preload_app=False, create_app() runs in
     # every worker process, including workers that restart while an upload is in
     # progress.  We use a sentinel file (same O_CREAT|O_EXCL pattern as the
     # scheduler election) so only the very first worker to start does the cleanup;
-    # all subsequent workers — including restarts triggered by max_requests or
-    # crashes — skip it and leave in-progress chunks untouched.
+    # all subsequent workers - including restarts triggered by max_requests or
+    # crashes - skip it and leave in-progress chunks untouched.
     _CLEANUP_SENTINEL = "/dev/shm/fireshare_cleanup.lock"
     _should_cleanup = False
     try:
