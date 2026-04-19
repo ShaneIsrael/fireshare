@@ -49,20 +49,24 @@ preload_app = False  # Changed from True - SQLite doesn't like forking
 # Worker tmp directory
 worker_tmp_dir = "/dev/shm"  # Use RAM for worker tmp files
 
-# Sentinel file used to elect exactly one worker as the scheduler worker.
+# Sentinel files used to elect exactly one worker per gunicorn lifetime.
 # Uses /dev/shm (already our worker_tmp_dir) which is guaranteed writable.
 # Written with O_EXCL so the first worker to create it wins atomically.
 _SCHEDULER_SENTINEL = "/dev/shm/fireshare_scheduler.lock"
+# Claimed by the first worker that starts; prevents subsequent workers (including
+# workers that restart mid-upload) from re-running the startup chunk cleanup.
+_CLEANUP_SENTINEL = "/dev/shm/fireshare_cleanup.lock"
 
 
 def on_starting(server):
     """Called just before the master process is initialized."""
-    # Remove a stale sentinel from a previous run so the first worker of this
-    # run can cleanly (re-)claim the scheduler role.
-    try:
-        os.unlink(_SCHEDULER_SENTINEL)
-    except Exception:
-        pass
+    # Remove stale sentinels from a previous run so the first worker of this
+    # run can cleanly (re-)claim the scheduler and cleanup roles.
+    for sentinel in (_SCHEDULER_SENTINEL, _CLEANUP_SENTINEL):
+        try:
+            os.unlink(sentinel)
+        except Exception:
+            pass
     server.log.info("Starting Fireshare")
 
 

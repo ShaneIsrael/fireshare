@@ -229,15 +229,34 @@ def create_app(init_schedule=False):
             logger.info(f"Creating subpath directory at {str(subpath.absolute())}")
             subpath.mkdir(parents=True, exist_ok=True)
 
-    # Clean up any leftover chunk files from interrupted uploads
-    import glob as _glob
-    chunk_files = _glob.glob(str(paths['video'] / '**' / '*.part[0-9][0-9][0-9][0-9]'), recursive=True)
-    for chunk_file in chunk_files:
-        try:
-            os.remove(chunk_file)
-            logger.info(f"Removed leftover upload chunk: {chunk_file}")
-        except OSError as e:
-            logger.warning(f"Failed to remove leftover upload chunk {chunk_file}: {e}")
+    # Clean up any leftover chunk files from interrupted uploads — but only once
+    # per gunicorn master lifetime.  With preload_app=False, create_app() runs in
+    # every worker process, including workers that restart while an upload is in
+    # progress.  We use a sentinel file (same O_CREAT|O_EXCL pattern as the
+    # scheduler election) so only the very first worker to start does the cleanup;
+    # all subsequent workers — including restarts triggered by max_requests or
+    # crashes — skip it and leave in-progress chunks untouched.
+    _CLEANUP_SENTINEL = "/dev/shm/fireshare_cleanup.lock"
+    _should_cleanup = False
+    try:
+        fd = os.open(_CLEANUP_SENTINEL, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+        _should_cleanup = True
+    except FileExistsError:
+        pass  # Another worker already claimed cleanup for this startup
+    except Exception as e:
+        logger.warning(f"Could not create cleanup sentinel: {e}")
+
+    if _should_cleanup:
+        import glob as _glob
+        chunk_files = _glob.glob(str(paths['video'] / '**' / '*.part[0-9][0-9][0-9][0-9]'), recursive=True)
+        for chunk_file in chunk_files:
+            try:
+                os.remove(chunk_file)
+                logger.info(f"Removed leftover upload chunk: {chunk_file}")
+            except OSError as e:
+                logger.warning(f"Failed to remove leftover upload chunk {chunk_file}: {e}")
 
     # Ensure game_assets directory exists
     game_assets_dir = paths['data'] / 'game_assets'
