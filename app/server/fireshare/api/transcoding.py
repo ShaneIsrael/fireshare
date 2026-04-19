@@ -76,6 +76,12 @@ def _drain_queue(app, data_path):
                    .first())
 
             if job is None:
+                # Queue is empty — purge completed/failed rows so counts start
+                # fresh next time rather than accumulating across sessions.
+                TranscodeJob.query.filter(
+                    TranscodeJob.status.in_(['complete', 'failed'])
+                ).delete()
+                db.session.commit()
                 with _queue_lock:
                     _queue_thread = None
                     _transcoding_process = None
