@@ -78,7 +78,8 @@ def get_warnings():
 def admin_event_stream():
     """SSE endpoint for real-time admin events (transcoding, etc.)."""
 
-    # Capture config before entering generator (Flask context unavailable inside)
+    # Capture config and app before entering generator (Flask context unavailable inside)
+    app = current_app._get_current_object()
     paths = current_app.config['PATHS']
     enabled = current_app.config.get('ENABLE_TRANSCODING', False)
     gpu_enabled = current_app.config.get('TRANSCODE_GPU', False)
@@ -90,53 +91,53 @@ def admin_event_stream():
     def poll_status():
         last_transcoding_state = None
         last_game_scan_state = None
-        while not stop_event.is_set():
-            try:
-                progress = util.read_transcoding_status(paths['data'])
-                pid = progress.get('pid')
-                # Trust is_running flag; only verify process if pid present
-                is_running = progress.get('is_running', False) and (pid is None or _is_pid_running(pid))
+        with app.app_context():
+            while not stop_event.is_set():
+                try:
+                    progress = util.read_transcoding_status(paths['data'])
+                    pid = progress.get('pid')
+                    is_running = progress.get('is_running', False) and (pid is None or _is_pid_running(pid))
 
-                if progress.get('is_running') and not is_running:
-                    util.clear_transcoding_status(paths['data'])
-                    progress = {"current": 0, "total": 0, "current_video": None}
+                    if progress.get('is_running') and not is_running:
+                        util.clear_transcoding_status(paths['data'])
+                        progress = {"current": 0, "total": 0, "current_video": None}
 
-                pending_jobs = TranscodeJob.query.filter_by(status='pending').all()
-                completed_count = TranscodeJob.query.filter_by(status='complete').count()
-                transcoding_state = {
-                    "enabled": enabled,
-                    "gpu_enabled": gpu_enabled,
-                    "is_running": is_running,
-                    "current": progress.get('current', 0),
-                    "total": progress.get('total', 0),
-                    "current_video": progress.get('current_video'),
-                    "percent": progress.get('percent'),
-                    "eta_seconds": progress.get('eta_seconds'),
-                    "resolution": progress.get('resolution'),
-                    "queue_tasks": sum(j.task_count for j in pending_jobs),
-                    "completed_tasks": completed_count,
-                }
-
-                if transcoding_state != last_transcoding_state:
-                    event_queue.put(f"event: transcoding\ndata: {json.dumps(transcoding_state)}\n\n")
-                    last_transcoding_state = transcoding_state.copy()
-
-                with _game_scan_state['lock']:
-                    game_scan_state = {
-                        "is_running": _game_scan_state['is_running'],
-                        "current": _game_scan_state['current'],
-                        "total": _game_scan_state['total'],
-                        "suggestions_created": _game_scan_state['suggestions_created'],
+                    pending_jobs = TranscodeJob.query.filter_by(status='pending').all()
+                    completed_count = TranscodeJob.query.filter_by(status='complete').count()
+                    transcoding_state = {
+                        "enabled": enabled,
+                        "gpu_enabled": gpu_enabled,
+                        "is_running": is_running,
+                        "current": progress.get('current', 0),
+                        "total": progress.get('total', 0),
+                        "current_video": progress.get('current_video'),
+                        "percent": progress.get('percent'),
+                        "eta_seconds": progress.get('eta_seconds'),
+                        "resolution": progress.get('resolution'),
+                        "queue_tasks": sum(j.task_count for j in pending_jobs),
+                        "completed_tasks": completed_count,
                     }
 
-                if game_scan_state != last_game_scan_state:
-                    event_queue.put(f"event: gameScan\ndata: {json.dumps(game_scan_state)}\n\n")
-                    last_game_scan_state = game_scan_state.copy()
+                    if transcoding_state != last_transcoding_state:
+                        event_queue.put(f"event: transcoding\ndata: {json.dumps(transcoding_state)}\n\n")
+                        last_transcoding_state = transcoding_state.copy()
 
-                time.sleep(1.5)
-            except Exception as e:
-                logger.error(f"SSE poll error: {e}")
-                break
+                    with _game_scan_state['lock']:
+                        game_scan_state = {
+                            "is_running": _game_scan_state['is_running'],
+                            "current": _game_scan_state['current'],
+                            "total": _game_scan_state['total'],
+                            "suggestions_created": _game_scan_state['suggestions_created'],
+                        }
+
+                    if game_scan_state != last_game_scan_state:
+                        event_queue.put(f"event: gameScan\ndata: {json.dumps(game_scan_state)}\n\n")
+                        last_game_scan_state = game_scan_state.copy()
+
+                    time.sleep(1.5)
+                except Exception as e:
+                    logger.error(f"SSE poll error: {e}")
+                    break
 
     def generate():
         # Start polling in background thread
