@@ -261,6 +261,22 @@ def create_app(init_schedule=False):
             except OSError as e:
                 logger.warning(f"Failed to remove leftover upload chunk {chunk_file}: {e}")
 
+        # Reset any transcode jobs that were marked 'running' when the container
+        # last shut down — those processes are gone, so the jobs need to be retried.
+        try:
+            from .models import TranscodeJob
+            from .api.transcoding import _ensure_drain_running
+            stale = TranscodeJob.query.filter_by(status='running').all()
+            if stale:
+                for job in stale:
+                    job.status = 'pending'
+                    job.started_at = None
+                db.session.commit()
+                logger.info(f"Reset {len(stale)} stale transcode job(s) to pending on startup")
+                _ensure_drain_running(app, paths['data'])
+        except Exception as e:
+            logger.warning(f"Could not reset stale transcode jobs: {e}")
+
     # Ensure game_assets directory exists
     game_assets_dir = paths['data'] / 'game_assets'
     if not game_assets_dir.is_dir():

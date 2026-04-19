@@ -112,6 +112,21 @@ def _drain_queue(app, data_path):
                     pass
 
 
+def _ensure_drain_running(app, data_path):
+    """Start the drain thread if there are pending jobs and it isn't already running.
+    Called at startup after stale jobs are reset to pending."""
+    global _queue_thread
+    has_pending = TranscodeJob.query.filter_by(status='pending').first() is not None
+    if not has_pending:
+        return
+    with _queue_lock:
+        if _queue_thread is None or not _queue_thread.is_alive():
+            _queue_thread = threading.Thread(
+                target=_drain_queue, args=(app, data_path), daemon=True
+            )
+            _queue_thread.start()
+
+
 def _enqueue_transcode(video_id, data_path):
     """Insert a job into the DB queue and ensure the drain thread is running."""
     global _queue_thread
