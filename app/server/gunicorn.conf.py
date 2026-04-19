@@ -1,5 +1,8 @@
 import multiprocessing
 import os
+import tempfile
+
+_SHM_DIR = "/dev/shm" if os.path.isdir("/dev/shm") else tempfile.gettempdir()
 
 # Server socket
 bind = "127.0.0.1:5000"
@@ -52,10 +55,10 @@ worker_tmp_dir = "/dev/shm"  # Use RAM for worker tmp files
 # Sentinel files used to elect exactly one worker per gunicorn lifetime.
 # Uses /dev/shm (already our worker_tmp_dir) which is guaranteed writable.
 # Written with O_EXCL so the first worker to create it wins atomically.
-_SCHEDULER_SENTINEL = "/dev/shm/fireshare_scheduler.lock"
+_SCHEDULER_SENTINEL = os.path.join(_SHM_DIR, "fireshare_scheduler.lock")
 # Claimed by the first worker that starts; prevents subsequent workers (including
 # workers that restart mid-upload) from re-running the startup chunk cleanup.
-_CLEANUP_SENTINEL = "/dev/shm/fireshare_cleanup.lock"
+_CLEANUP_SENTINEL = os.path.join(_SHM_DIR, "fireshare_cleanup.lock")
 
 
 def on_starting(server):

@@ -198,14 +198,15 @@ def create_app(init_schedule=False):
         app.config['WARNINGS'].append(steamgridWarning)
         logger.warning(steamgridWarning)
 
-    for env_var, mount_path, message in [
-        ('DATA_DIRECTORY',      '/data',      'Data will not persist. Mount a directory to /data to persist data.'),
-        ('VIDEO_DIRECTORY',     '/videos',    'Data will not persist. Mount a directory to /videos to persist data.'),
-        ('PROCESSED_DIRECTORY', '/processed', 'Data will not persist. Mount a directory to /processed to persist data.'),
-        ('IMAGE_DIRECTORY',     '/images',    'Data will not persist. Mount a directory to /images to persist data.'),
-    ]:
-        if app.config.get(env_var) and not os.path.ismount(app.config[env_var]):
-            logger.warning(f"No volume is mounted to {mount_path}. {message}")
+    if app.config.get('ENVIRONMENT') != 'dev':
+        for env_var, mount_path, message in [
+            ('DATA_DIRECTORY',      '/data',      'Data will not persist. Mount a directory to /data to persist data.'),
+            ('VIDEO_DIRECTORY',     '/videos',    'Data will not persist. Mount a directory to /videos to persist data.'),
+            ('PROCESSED_DIRECTORY', '/processed', 'Data will not persist. Mount a directory to /processed to persist data.'),
+            ('IMAGE_DIRECTORY',     '/images',    'Data will not persist. Mount a directory to /images to persist data.'),
+        ]:
+            if app.config.get(env_var) and not os.path.ismount(app.config[env_var]):
+                logger.warning(f"No volume is mounted to {mount_path}. {message}")
 
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
@@ -236,7 +237,9 @@ def create_app(init_schedule=False):
     # scheduler election) so only the very first worker to start does the cleanup;
     # all subsequent workers - including restarts triggered by max_requests or
     # crashes - skip it and leave in-progress chunks untouched.
-    _CLEANUP_SENTINEL = "/dev/shm/fireshare_cleanup.lock"
+    import tempfile as _tempfile
+    _SHM_DIR = "/dev/shm" if os.path.isdir("/dev/shm") else _tempfile.gettempdir()
+    _CLEANUP_SENTINEL = os.path.join(_SHM_DIR, "fireshare_cleanup.lock")
     _should_cleanup = False
     try:
         fd = os.open(_CLEANUP_SENTINEL, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
