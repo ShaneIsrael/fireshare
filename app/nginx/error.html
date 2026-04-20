@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Error</title>
+<title><!--# echo var="error_code" default="Error" --> Error</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:#041223;color:#ffffffcc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
@@ -14,15 +14,13 @@ p{font-size:18px;color:#ffffff88}
 </head>
 <body>
 <div>
-<h1 id="code"></h1>
-<p id="msg"></p>
+<h1><!--# echo var="error_code" default="Error" --></h1>
+<p id="msg">An unexpected error occurred</p>
 </div>
 <script>
 var map={400:"Bad request",401:"Authentication required",403:"You do not have permission to access this resource",404:"The requested page could not be found",405:"Method not allowed",408:"Request timeout",410:"This resource is no longer available",413:"Request entity too large",414:"Request URI too long",429:"Too many requests",500:"Internal server error",502:"Bad gateway",503:"Service temporarily unavailable",504:"Gateway timeout"};
-var s=parseInt(location.pathname.replace(/\D/g,""))||0;
-document.getElementById("code").textContent=s||"Error";
-document.getElementById("msg").textContent=map[s]||"An unexpected error occurred";
-document.title=s?s+" Error":"Error";
+var code=parseInt(document.querySelector("h1").textContent);
+if(map[code])document.getElementById("msg").textContent=map[code];
 </script>
 </body>
 </html>
