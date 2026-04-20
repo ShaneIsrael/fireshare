@@ -55,9 +55,10 @@ class VideoInfo(db.Model):
     has_480p    = db.Column(db.Boolean, default=False)
     has_720p    = db.Column(db.Boolean, default=False)
     has_1080p   = db.Column(db.Boolean, default=False)
-    start_time  = db.Column(db.Float, nullable=True)
-    end_time    = db.Column(db.Float, nullable=True)
-    has_crop    = db.Column(db.Boolean, default=False)
+    start_time    = db.Column(db.Float, nullable=True)
+    end_time      = db.Column(db.Float, nullable=True)
+    has_crop      = db.Column(db.Boolean, default=False)
+    password_hash = db.Column(db.String(256), nullable=True)
 
     video       = db.relationship("Video", back_populates="info", uselist=False, lazy="joined")
 
@@ -104,6 +105,7 @@ class VideoInfo(db.Model):
             "start_time": self.start_time,
             "end_time": self.end_time,
             "has_crop": self.has_crop or False,
+            "has_password": bool(self.password_hash),
         }
 
     def __repr__(self):

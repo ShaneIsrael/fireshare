@@ -2,6 +2,7 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip } from '@mui/material'
 import TagChip from '../misc/TagChip'
+import LockIcon from '@mui/icons-material/Lock'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
@@ -18,6 +19,7 @@ import { GameService, VideoService, ConfigService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import DeleteVideoModal from '../modal/DeleteVideoModal'
 import MoveVideoModal from '../modal/MoveVideoModal'
+import PasswordModal from '../modal/PasswordModal'
 import _ from 'lodash'
 
 const PURL = getPublicWatchUrl()
@@ -67,16 +69,20 @@ const CompactVideoCard = ({
   const retryCountRef = React.useRef(0)
   const MAX_THUMBNAIL_RETRIES = 20
   const [localTags, setLocalTags] = React.useState(video.tags || [])
+  const [passwordModalOpen, setPasswordModalOpen] = React.useState(false)
+  const [unlockedLocally, setUnlockedLocally] = React.useState(video.info?.session_unlocked || false)
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
 
   const videoRef = React.useRef(null)
 
+  const isLocked = !authenticated && !unlockedLocally && video.info?.has_password
+
   React.useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    if (hover) {
+    if (hover && !isLocked) {
       const { has_480p, has_720p, has_1080p } = intVideo?.info || video.info || {}
       v.src = has_480p
         ? getVideoUrl(video.video_id, '480p', video.extension)
@@ -374,6 +380,16 @@ const CompactVideoCard = ({
 
   return (
     <>
+      <PasswordModal
+        open={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+        videoId={video.video_id}
+        onUnlocked={() => {
+          setUnlockedLocally(true)
+          setPasswordModalOpen(false)
+          openVideoHandler(video.video_id)
+        }}
+      />
       <DeleteVideoModal
         open={deleteModalOpen}
         onClose={(result) => {
@@ -407,6 +423,7 @@ const CompactVideoCard = ({
         currentDescription={description}
         currentRecordedAt={video.recorded_at}
         currentGame={game}
+        currentHasPassword={intVideo?.info?.has_password}
         alertHandler={alertHandler}
       />
 
@@ -452,7 +469,17 @@ const CompactVideoCard = ({
           />
           <motion.div
             style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
-            onClick={() => (editMode ? onSelect?.(video.video_id) : openVideoHandler(video.video_id))}
+            onClick={() => {
+              if (editMode) {
+                onSelect?.(video.video_id)
+                return
+              }
+              if (isLocked) {
+                setPasswordModalOpen(true)
+                return
+              }
+              openVideoHandler(video.video_id)
+            }}
             onMouseEnter={(e) => {
               setThumbnailHover(true)
               debouncedMouseEnter(e)
@@ -474,7 +501,7 @@ const CompactVideoCard = ({
                 objectFit: 'cover',
                 display: 'block',
                 opacity: imgLoaded ? 1 : 0,
-                transition: 'opacity 0.8s ease',
+                transition: 'opacity 0.8s ease, filter 0.3s ease, transform 0.3s ease',
               }}
             />
 
@@ -494,6 +521,31 @@ const CompactVideoCard = ({
               playsInline
               disablePictureInPicture
             />
+
+            {/* Lock overlay — centered, fades on hover */}
+            {video.info?.has_password && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                  opacity: thumbnailHover ? 0 : 1,
+                  transition: 'opacity 0.2s ease-in-out',
+                }}
+              >
+                <LockIcon
+                  sx={{
+                    fontSize: 40,
+                    color: 'rgba(255,255,255,0.75)',
+                    filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))',
+                  }}
+                />
+              </Box>
+            )}
 
             {/* Duration badge */}
             <Box

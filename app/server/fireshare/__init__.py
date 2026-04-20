@@ -121,7 +121,12 @@ def create_app(init_schedule=False):
     app.config['ENVIRONMENT'] = os.getenv('ENVIRONMENT')
     app.config['DOMAIN'] = os.getenv('DOMAIN')
     app.config['THUMBNAIL_VIDEO_LOCATION'] = int(os.getenv('THUMBNAIL_VIDEO_LOCATION') or 0)
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32)) 
+
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
+
+    from datetime import timedelta
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
+
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
     app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
@@ -392,6 +397,16 @@ def create_app(init_schedule=False):
 
     with app.app_context():
         # db.create_all()
+
+        from sqlalchemy import text as _sa_text
+        try:
+            with db.engine.connect() as _conn:
+                _cols = {row[1] for row in _conn.execute(_sa_text("PRAGMA table_info(video_info)"))}
+                if "password_hash" not in _cols:
+                    _conn.execute(_sa_text("ALTER TABLE video_info ADD COLUMN password_hash VARCHAR(256)"))
+                _conn.commit()
+        except Exception:
+            pass  # table doesn't exist yet; will be created by flask db upgrade
 
         from sqlalchemy.exc import OperationalError
         from werkzeug.security import generate_password_hash, check_password_hash

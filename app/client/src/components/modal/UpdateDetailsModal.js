@@ -6,15 +6,21 @@ import {
   Button,
   Stack,
   TextField,
+  InputAdornment,
   IconButton,
   Divider,
   Popover,
   Chip,
   Autocomplete,
+  CircularProgress,
 } from '@mui/material'
 import TagChip from '../misc/TagChip'
 import CloseIcon from '@mui/icons-material/Close'
+import CheckIcon from '@mui/icons-material/Check'
+import RefreshIcon from '@mui/icons-material/Refresh'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import LockIcon from '@mui/icons-material/Lock'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { DayPicker } from 'react-day-picker'
 import { VideoService, GameService, TagService } from '../../services'
 import GameSearch from '../game/GameSearch'
@@ -223,6 +229,154 @@ const TagsField = ({ localTags, allTags, tagInput, setTagInput, setLocalTags, in
   />
 )
 
+const PasswordField = ({ videoId, hasPassword, onPasswordChange, alertHandler }) => {
+  const [customInput, setCustomInput] = React.useState('')
+  const [loading, setLoading] = React.useState(false)
+  const [reveal, setReveal] = React.useState(null)
+
+  const handleSet = async () => {
+    if (!customInput.trim()) return
+    setLoading(true)
+    try {
+      await VideoService.setPassword(videoId, customInput.trim())
+      setCustomInput('')
+      onPasswordChange(true)
+      alertHandler?.({ open: true, type: 'success', message: 'Password set.' })
+    } catch {
+      alertHandler?.({ open: true, type: 'error', message: 'Failed to set password.' })
+    }
+    setLoading(false)
+  }
+
+  const handleGenerate = async () => {
+    setLoading(true)
+    try {
+      const res = await VideoService.generatePassword(videoId)
+      setReveal(res.data?.generated_password)
+      onPasswordChange(true)
+    } catch {
+      alertHandler?.({ open: true, type: 'error', message: 'Failed to generate password.' })
+    }
+    setLoading(false)
+  }
+
+  const handleClear = async () => {
+    setLoading(true)
+    try {
+      await VideoService.removePassword(videoId)
+      setReveal(null)
+      onPasswordChange(false)
+      alertHandler?.({ open: true, type: 'info', message: 'Password removed.' })
+    } catch {
+      alertHandler?.({ open: true, type: 'error', message: 'Failed to remove password.' })
+    }
+    setLoading(false)
+  }
+
+  const adornmentBtnSx = { color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.5 }
+
+  if (reveal) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <TextField
+          value={reveal}
+          fullWidth
+          size="small"
+          inputProps={{ readOnly: true }}
+          sx={{ ...inputSx, '& input': { fontFamily: 'monospace', letterSpacing: 1 } }}
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end" sx={{ gap: 0.25 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    navigator.clipboard.writeText(reveal)
+                    alertHandler?.({ open: true, type: 'info', message: 'Copied to clipboard.' })
+                  }}
+                  sx={adornmentBtnSx}
+                >
+                  <ContentCopyIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <IconButton size="small" onClick={() => setReveal(null)} sx={adornmentBtnSx}>
+                  <CloseIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
+    )
+  }
+
+  if (hasPassword) {
+    return (
+      <TextField
+        value="••••••••"
+        fullWidth
+        size="small"
+        inputProps={{ readOnly: true }}
+        sx={inputSx}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <LockIcon sx={{ fontSize: 15, color: '#FFFFFF66' }} />
+            </InputAdornment>
+          ),
+          endAdornment: (
+            <InputAdornment position="end">
+              {loading ? (
+                <CircularProgress size={16} sx={{ color: '#FFFFFF66' }} />
+              ) : (
+                <IconButton
+                  size="small"
+                  onClick={handleClear}
+                  sx={{ ...adornmentBtnSx, '&:hover': { color: '#EF9A9A' } }}
+                >
+                  <CloseIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              )}
+            </InputAdornment>
+          ),
+        }}
+      />
+    )
+  }
+
+  return (
+    <TextField
+      value={customInput}
+      onChange={(e) => setCustomInput(e.target.value)}
+      onKeyDown={(e) => e.key === 'Enter' && handleSet()}
+      placeholder="Set a password..."
+      size="small"
+      fullWidth
+      sx={inputSx}
+      InputProps={{
+        endAdornment: (
+          <InputAdornment position="end" sx={{ gap: 0.25 }}>
+            {loading ? (
+              <CircularProgress size={16} sx={{ color: '#FFFFFF66' }} />
+            ) : (
+              <>
+                <IconButton
+                  size="small"
+                  onClick={handleGenerate}
+                  sx={{ ...adornmentBtnSx, '&:hover': { color: '#90CAF9' } }}
+                >
+                  <RefreshIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <IconButton size="small" onClick={handleSet} disabled={!customInput.trim()} sx={adornmentBtnSx}>
+                  <CheckIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </>
+            )}
+          </InputAdornment>
+        ),
+      }}
+    />
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const UpdateDetailsModal = ({
@@ -233,6 +387,7 @@ const UpdateDetailsModal = ({
   currentDescription,
   currentRecordedAt,
   currentGame,
+  currentHasPassword,
   alertHandler,
 }) => {
   const [title, setTitle] = React.useState(currentTitle)
@@ -244,6 +399,7 @@ const UpdateDetailsModal = ({
   const [localTags, setLocalTags] = React.useState([])
   const [allTags, setAllTags] = React.useState([])
   const [tagInput, setTagInput] = React.useState('')
+  const [hasPassword, setHasPassword] = React.useState(currentHasPassword || false)
   const initialTagsRef = React.useRef([])
 
   React.useEffect(() => {
@@ -251,6 +407,7 @@ const UpdateDetailsModal = ({
     setTitle(currentTitle)
     setDescription(currentDescription)
     setLinkedGame(currentGame || null)
+    setHasPassword(currentHasPassword || false)
     setTagInput('')
     Promise.all([TagService.getVideoTags(videoId), TagService.getTags()])
       .then(([videoTagsRes, allTagsRes]) => {
@@ -398,6 +555,17 @@ const UpdateDetailsModal = ({
               setTagInput={setTagInput}
               setLocalTags={setLocalTags}
               inputSx={inputSx}
+            />
+          </LabeledField>
+
+          <Divider sx={{ borderColor: '#FFFFFF14' }} />
+
+          <LabeledField label="Password Protection">
+            <PasswordField
+              videoId={videoId}
+              hasPassword={hasPassword}
+              onPasswordChange={setHasPassword}
+              alertHandler={alertHandler}
             />
           </LabeledField>
         </Stack>

@@ -7,6 +7,7 @@ import {
   CircularProgress,
   Divider,
   IconButton,
+  InputAdornment,
   Modal,
   Paper,
   Popover,
@@ -21,6 +22,10 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import CloseIcon from '@mui/icons-material/Close'
+import CheckIcon from '@mui/icons-material/Check'
+import LinkIcon from '@mui/icons-material/Link'
+import RefreshIcon from '@mui/icons-material/Refresh'
+import LockIcon from '@mui/icons-material/Lock'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
@@ -185,6 +190,10 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [autoplay, setAutoplay] = useState(false)
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [editMode, setEditMode] = React.useState(false)
+  const [hasPassword, setHasPassword] = React.useState(false)
+  const [passwordInput, setPasswordInput] = React.useState('')
+  const [passwordLoading, setPasswordLoading] = React.useState(false)
+  const [passwordReveal, setPasswordReveal] = React.useState(null)
   const [gamePillColor, setGamePillColor] = React.useState(null)
   const [videoTags, setVideoTags] = React.useState([])
   const [allTags, setAllTags] = React.useState([])
@@ -305,6 +314,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         setTitle(details.info?.title)
         setDescription(details.info?.description)
         setPrivateView(details.info?.private)
+        setHasPassword(details.info?.has_password || false)
+        setPasswordReveal(null)
+        setPasswordInput('')
         setCropStart(details.info?.start_time ?? null)
         setCropEnd(details.info?.end_time ?? null)
         setHasCustomPoster(details.has_custom_poster || false)
@@ -893,6 +905,29 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       )}
                     </Box>
 
+                    {/* Description */}
+                    {(editMode || description) && (
+                      <Box>
+                        {editMode ? (
+                          <TextField
+                            fullWidth
+                            multiline
+                            rows={4}
+                            size="small"
+                            placeholder="Enter a video description..."
+                            value={description || ''}
+                            onChange={(e) => handleDescriptionChange(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            sx={inputSx}
+                          />
+                        ) : (
+                          <Typography sx={{ fontSize: 14, color: '#FFFFFF', lineHeight: 1.6 }}>
+                            {description}
+                          </Typography>
+                        )}
+                      </Box>
+                    )}
+
                     {/* Game search (edit mode only) */}
                     {editMode && (authenticated || getSetting('ui_config')?.allow_public_game_tag) && (
                       <Box>
@@ -1132,61 +1167,163 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       </Box>
                     )}
 
-                    {/* Description */}
-                    {(editMode || description) && (
+                    {/* Password protection (edit mode only) */}
+                    {editMode && authenticated && (
                       <Box>
-                        {editMode ? (
-                          <TextField
-                            fullWidth
-                            multiline
-                            rows={4}
-                            size="small"
-                            placeholder="Enter a video description..."
-                            value={description || ''}
-                            onChange={(e) => handleDescriptionChange(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            sx={inputSx}
-                          />
-                        ) : (
-                          <Typography sx={{ fontSize: 14, color: '#FFFFFF', lineHeight: 1.6 }}>
-                            {description}
-                          </Typography>
-                        )}
+                        <Typography sx={labelSx}>Password Protection</Typography>
+                        {(() => {
+                          const adornmentBtnSx = { color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.5 }
+                          const handleSetPassword = async () => {
+                            if (!passwordInput.trim()) return
+                            setPasswordLoading(true)
+                            try {
+                              await VideoService.setPassword(vid.video_id, passwordInput.trim())
+                              setPasswordInput('')
+                              setHasPassword(true)
+                              setAlert({ type: 'success', message: 'Password set.', open: true })
+                            } catch {
+                              setAlert({ type: 'error', message: 'Failed to set password.', open: true })
+                            }
+                            setPasswordLoading(false)
+                          }
+                          if (passwordReveal) {
+                            return (
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <TextField
+                                  value={passwordReveal}
+                                  fullWidth
+                                  size="small"
+                                  inputProps={{ readOnly: true }}
+                                  sx={{ ...inputSx, '& input': { fontFamily: 'monospace', letterSpacing: 1 } }}
+                                  InputProps={{
+                                    endAdornment: (
+                                      <InputAdornment position="end" sx={{ gap: 0.25 }}>
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(passwordReveal)
+                                            setAlert({ type: 'info', message: 'Copied to clipboard.', open: true })
+                                          }}
+                                          sx={adornmentBtnSx}
+                                        >
+                                          <ContentCopyIcon sx={{ fontSize: 16 }} />
+                                        </IconButton>
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => setPasswordReveal(null)}
+                                          sx={adornmentBtnSx}
+                                        >
+                                          <CloseIcon sx={{ fontSize: 16 }} />
+                                        </IconButton>
+                                      </InputAdornment>
+                                    ),
+                                  }}
+                                />
+                              </Box>
+                            )
+                          }
+                          if (hasPassword) {
+                            return (
+                              <TextField
+                                value="••••••••"
+                                fullWidth
+                                size="small"
+                                inputProps={{ readOnly: true }}
+                                sx={inputSx}
+                                InputProps={{
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      <LockIcon sx={{ fontSize: 15, color: '#FFFFFF66' }} />
+                                    </InputAdornment>
+                                  ),
+                                  endAdornment: (
+                                    <InputAdornment position="end">
+                                      {passwordLoading ? (
+                                        <CircularProgress size={16} sx={{ color: '#FFFFFF66' }} />
+                                      ) : (
+                                        <IconButton
+                                          size="small"
+                                          onClick={async () => {
+                                            setPasswordLoading(true)
+                                            try {
+                                              await VideoService.removePassword(vid.video_id)
+                                              setHasPassword(false)
+                                              setAlert({ type: 'info', message: 'Password removed.', open: true })
+                                            } catch {
+                                              setAlert({
+                                                type: 'error',
+                                                message: 'Failed to remove password.',
+                                                open: true,
+                                              })
+                                            }
+                                            setPasswordLoading(false)
+                                          }}
+                                          sx={{ ...adornmentBtnSx, '&:hover': { color: '#EF9A9A' } }}
+                                        >
+                                          <CloseIcon sx={{ fontSize: 16 }} />
+                                        </IconButton>
+                                      )}
+                                    </InputAdornment>
+                                  ),
+                                }}
+                              />
+                            )
+                          }
+                          return (
+                            <TextField
+                              value={passwordInput}
+                              onChange={(e) => setPasswordInput(e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleSetPassword()}
+                              placeholder="Set a password..."
+                              size="small"
+                              fullWidth
+                              sx={inputSx}
+                              InputProps={{
+                                endAdornment: (
+                                  <InputAdornment position="end" sx={{ gap: 0.25 }}>
+                                    {passwordLoading ? (
+                                      <CircularProgress size={16} sx={{ color: '#FFFFFF66' }} />
+                                    ) : (
+                                      <>
+                                        <IconButton
+                                          size="small"
+                                          onClick={async () => {
+                                            setPasswordLoading(true)
+                                            try {
+                                              const res = await VideoService.generatePassword(vid.video_id)
+                                              setPasswordReveal(res.data?.generated_password)
+                                              setHasPassword(true)
+                                            } catch {
+                                              setAlert({
+                                                type: 'error',
+                                                message: 'Failed to generate password.',
+                                                open: true,
+                                              })
+                                            }
+                                            setPasswordLoading(false)
+                                          }}
+                                          sx={{ ...adornmentBtnSx, '&:hover': { color: '#90CAF9' } }}
+                                        >
+                                          <RefreshIcon sx={{ fontSize: 16 }} />
+                                        </IconButton>
+                                        <IconButton
+                                          size="small"
+                                          onClick={handleSetPassword}
+                                          disabled={!passwordInput.trim()}
+                                          sx={adornmentBtnSx}
+                                        >
+                                          <CheckIcon sx={{ fontSize: 16 }} />
+                                        </IconButton>
+                                      </>
+                                    )}
+                                  </InputAdornment>
+                                ),
+                              }}
+                            />
+                          )
+                        })()}
                       </Box>
                     )}
-
-                    {/* Share link */}
-                    <Box>
-                      <Typography sx={labelSx}>Share</Typography>
-                      <Box sx={{ ...rowBoxSx, gap: 0.5 }}>
-                        <Typography
-                          sx={{
-                            flex: 1,
-                            fontSize: 12,
-                            color: '#FFFFFF66',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            fontFamily: 'monospace',
-                          }}
-                        >
-                          {`${PURL}${vid.video_id}`}
-                        </Typography>
-                        <Tooltip title="Copy link">
-                          <IconButton
-                            size="small"
-                            onMouseDown={handleMouseDown}
-                            onClick={() => {
-                              copyToClipboard(`${PURL}${vid.video_id}`)
-                              setAlert({ type: 'info', message: 'Link copied to clipboard', open: true })
-                            }}
-                            sx={{ color: '#FFFFFF66', '&:hover': { color: 'white' }, p: 0.5, flexShrink: 0 }}
-                          >
-                            <ContentCopyIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Box>
 
                     {/* Spacer — future "Related Videos" will live here */}
                     <Box sx={{ flex: 1 }} />
@@ -1221,7 +1358,13 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       </Tooltip>
                     )}
 
-                    <Tooltip title="Copy timestamp">
+                    <Tooltip title="Copy link">
+                      <IconButton size="small" onClick={copyToClipboard} sx={actionBtnSx}>
+                        <LinkIcon sx={{ fontSize: 20 }} />
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title="Copy timestamp link">
                       <IconButton size="small" onClick={copyTimestamp} sx={actionBtnSx}>
                         <AccessTimeIcon sx={{ fontSize: 20 }} />
                       </IconButton>

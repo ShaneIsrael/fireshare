@@ -43,6 +43,7 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight'
 import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
 import TuneIcon from '@mui/icons-material/Tune'
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import Select from 'react-select'
 import selectFolderTheme from '../../common/reactSelectFolderTheme'
 import OutlinedIconButton from '../misc/OutlinedIconButton'
@@ -140,7 +141,16 @@ const folderRowSx = {
 }
 
 // Columns that can be toggled visible/hidden
-const TOGGLEABLE_COLUMNS = ['Duration', 'Resolution', 'Transcodes', 'Cropped', 'Privacy', 'Date', 'Total Size']
+const TOGGLEABLE_COLUMNS = [
+  'Duration',
+  'Resolution',
+  'Transcodes',
+  'Cropped',
+  'Privacy',
+  'Password',
+  'Date',
+  'Total Size',
+]
 
 function smartClean(title) {
   let result = title || ''
@@ -392,6 +402,19 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
         </TableCell>
       )}
 
+      {/* Password */}
+      {!hiddenColumns.has('Password') && (
+        <TableCell sx={{ ...bodyCellSx }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {file.has_password ? (
+              <LockIcon sx={{ fontSize: 14, color: '#FFFFFF66' }} />
+            ) : (
+              <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>—</Typography>
+            )}
+          </Box>
+        </TableCell>
+      )}
+
       {/* Date */}
       {!hiddenColumns.has('Date') && (
         <TableCell sx={{ ...bodyCellSx }}>
@@ -444,6 +467,9 @@ export default function VideoFileManager({ setAlert }) {
   const [removeCropDialogOpen, setRemoveCropDialogOpen] = useState(false)
   const [renameDialogOpen, setRenameDialogOpen] = useState(false)
   const [orphanDialogOpen, setOrphanDialogOpen] = useState(false)
+  const [setPasswordDialogOpen, setSetPasswordDialogOpen] = useState(false)
+  const [removePasswordDialogOpen, setRemovePasswordDialogOpen] = useState(false)
+  const [bulkPasswordInput, setBulkPasswordInput] = useState('')
   const [colVisAnchor, setColVisAnchor] = useState(null)
 
   // Orphan state
@@ -769,6 +795,27 @@ export default function VideoFileManager({ setAlert }) {
     )
   }
 
+  const handleBulkSetPassword = async () => {
+    const ok = await runBulkAction(
+      '/api/admin/files/bulk-set-password',
+      { video_ids: [...selected], password: bulkPasswordInput.trim() },
+      'Password set',
+    )
+    if (ok) {
+      setSetPasswordDialogOpen(false)
+      setBulkPasswordInput('')
+    }
+  }
+
+  const handleBulkRemovePassword = async () => {
+    const ok = await runBulkAction(
+      '/api/admin/files/bulk-remove-password',
+      { video_ids: [...selected] },
+      'Password removed',
+    )
+    if (ok) setRemovePasswordDialogOpen(false)
+  }
+
   const handleCreateFolder = async () => {
     const name = newFolderName.trim()
     if (!name) return
@@ -868,9 +915,16 @@ export default function VideoFileManager({ setAlert }) {
   // Base columns: checkbox + name + size + visible data columns
   // checkbox(1) + name(1) + size(1) + total_size(1) + duration(1) + resolution(1) + transcodes(1) + cropped(1) + privacy(1) + date(1) = 10
   // minus hidden columns
-  const visibleDataCols = ['Duration', 'Resolution', 'Transcodes', 'Cropped', 'Privacy', 'Date', 'Total Size'].filter(
-    (c) => !hiddenColumns.has(c),
-  )
+  const visibleDataCols = [
+    'Duration',
+    'Resolution',
+    'Transcodes',
+    'Cropped',
+    'Privacy',
+    'Password',
+    'Date',
+    'Total Size',
+  ].filter((c) => !hiddenColumns.has(c))
   const COL_SPAN = 3 + visibleDataCols.length // checkbox + name + size + visible toggleable cols
 
   const renamePreviewFiles = selectedFiles.slice(0, 3)
@@ -950,6 +1004,40 @@ export default function VideoFileManager({ setAlert }) {
                     }}
                   >
                     <DriveFileRenameOutlineIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Set password">
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => setSetPasswordDialogOpen(true)}
+                    disabled={onlyEmptyFoldersSelected || actionLoading}
+                    sx={{
+                      border: '1px solid #3399FF44',
+                      borderRadius: 1,
+                      color: '#7FBFFF',
+                      '&:hover': { bgcolor: '#3399FF12' },
+                    }}
+                  >
+                    <LockIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="Remove password">
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => setRemovePasswordDialogOpen(true)}
+                    disabled={onlyEmptyFoldersSelected || actionLoading}
+                    sx={{
+                      border: '1px solid #3399FF44',
+                      borderRadius: 1,
+                      color: '#7FBFFF',
+                      '&:hover': { bgcolor: '#3399FF12' },
+                    }}
+                  >
+                    <LockOpenIcon sx={{ fontSize: 20 }} />
                   </IconButton>
                 </span>
               </Tooltip>
@@ -1089,6 +1177,40 @@ export default function VideoFileManager({ setAlert }) {
                     >
                       Rename
                     </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title="Set password on selected files">
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => setSetPasswordDialogOpen(true)}
+                      disabled={onlyEmptyFoldersSelected || actionLoading}
+                      sx={{
+                        border: '1px solid #3399FF44',
+                        borderRadius: 1,
+                        color: '#7FBFFF',
+                        '&:hover': { bgcolor: '#3399FF12' },
+                      }}
+                    >
+                      <LockIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip title="Remove password from selected files">
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => setRemovePasswordDialogOpen(true)}
+                      disabled={onlyEmptyFoldersSelected || actionLoading}
+                      sx={{
+                        border: '1px solid #3399FF44',
+                        borderRadius: 1,
+                        color: '#7FBFFF',
+                        '&:hover': { bgcolor: '#3399FF12' },
+                      }}
+                    >
+                      <LockOpenIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
                   </span>
                 </Tooltip>
               </Box>
@@ -1535,6 +1657,11 @@ export default function VideoFileManager({ setAlert }) {
                 !hiddenColumns.has('Privacy') && {
                   col: null,
                   label: 'Privacy',
+                  sx: { width: 75, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Password') && {
+                  col: null,
+                  label: 'Password',
                   sx: { width: 75, whiteSpace: 'nowrap' },
                 },
                 !hiddenColumns.has('Date') && {
@@ -2090,6 +2217,147 @@ export default function VideoFileManager({ setAlert }) {
             sx={{ textTransform: 'none' }}
           >
             {actionLoading ? 'Applying…' : 'Apply'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Set Password modal ── */}
+      <Modal
+        open={setPasswordDialogOpen}
+        onClose={() => !actionLoading && (setSetPasswordDialogOpen(false), setBulkPasswordInput(''))}
+      >
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 500,
+            maxWidth: 'calc(100vw - 32px)',
+            maxHeight: 'calc(100svh - 32px)',
+            overflowY: 'auto',
+            p: 4,
+            ...dialogPaperSx,
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 800, color: 'white', mb: 3 }}>
+            Set Password
+          </Typography>
+
+          <Stack spacing={2.5}>
+            <Box>
+              <Typography sx={{ fontSize: 13, color: '#FFFFFFAA', mb: 2 }}>
+                Set a password on {selected.size} selected file{selected.size !== 1 ? 's' : ''}. Users will need to
+                enter this password to view the video{selected.size !== 1 ? 's' : ''}.
+              </Typography>
+            </Box>
+
+            <Box>
+              <Typography sx={labelSx}>Password</Typography>
+              <TextField
+                autoFocus
+                value={bulkPasswordInput}
+                onChange={(e) => setBulkPasswordInput(e.target.value)}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && bulkPasswordInput.trim() && !actionLoading && handleBulkSetPassword()
+                }
+                placeholder="Set a password..."
+                size="small"
+                fullWidth
+                sx={inputSx}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end" sx={{ gap: 0.25 }}>
+                      {bulkPasswordInput ? (
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            navigator.clipboard.writeText(bulkPasswordInput)
+                            setAlert({ open: true, type: 'info', message: 'Copied to clipboard.' })
+                          }}
+                          sx={{ color: '#FFFFFF66', '&:hover': { color: '#90CAF9' }, p: 0.5 }}
+                        >
+                          <ContentCopyIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      ) : (
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+                            const arr = crypto.getRandomValues(new Uint8Array(12))
+                            setBulkPasswordInput(Array.from(arr, (b) => chars[b % chars.length]).join(''))
+                          }}
+                          sx={{ color: '#FFFFFF66', '&:hover': { color: '#90CAF9' }, p: 0.5 }}
+                        >
+                          <RefreshIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      )}
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+          </Stack>
+
+          <Stack direction="row" spacing={1.5} sx={{ mt: 4 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={() => {
+                setSetPasswordDialogOpen(false)
+                setBulkPasswordInput('')
+              }}
+              disabled={actionLoading}
+              sx={{ color: 'white', borderColor: 'white', '&:hover': { borderColor: 'white', bgcolor: '#FFFFFF12' } }}
+            >
+              Cancel
+            </Button>
+            <Button
+              fullWidth
+              variant="contained"
+              onClick={handleBulkSetPassword}
+              disabled={actionLoading || !bulkPasswordInput.trim()}
+              sx={{
+                bgcolor: '#3399FF',
+                '&:hover': { bgcolor: '#1976D2' },
+                '&.Mui-disabled': { bgcolor: '#3399FF44', color: '#FFFFFF44' },
+              }}
+            >
+              {actionLoading ? 'Setting…' : 'Set Password'}
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
+
+      {/* ── Remove Password dialog ── */}
+      <Dialog
+        open={removePasswordDialogOpen}
+        onClose={() => !actionLoading && setRemovePasswordDialogOpen(false)}
+        slotProps={{ paper: { sx: { ...dialogPaperSx, minWidth: 380 } } }}
+      >
+        <DialogTitle sx={dialogTitleSx}>Remove Password?</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#FFFFFFAA' }}>
+            This will remove the password from {selected.size} selected file{selected.size !== 1 ? 's' : ''}. Anyone
+            with the link will be able to view the video{selected.size !== 1 ? 's' : ''} without a password.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            onClick={() => setRemovePasswordDialogOpen(false)}
+            disabled={actionLoading}
+            sx={{ color: '#FFFFFF88', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleBulkRemovePassword}
+            disabled={actionLoading}
+            startIcon={actionLoading ? <CircularProgress size={14} color="inherit" /> : <LockOpenIcon />}
+            sx={{ textTransform: 'none' }}
+          >
+            {actionLoading ? 'Removing…' : 'Remove Password'}
           </Button>
         </DialogActions>
       </Dialog>
