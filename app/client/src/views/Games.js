@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom'
 import { GameService } from '../services'
 import { dialogPaperSx, dialogTitleSx, helperTextSx, checkboxSx } from '../common/modalStyles'
 import { recordAssetBust, applyAssetBusts } from '../services/GameService'
+import { getGameAssetUrl } from '../common/utils'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import EditGameAssetsModal from '../components/modal/EditGameAssetsModal'
 
@@ -147,13 +148,12 @@ const Games = ({ authenticated, searchText }) => {
     setGames((prev) =>
       prev.map((g) => {
         if (g.steamgriddb_id !== editedId) return g
-        const base = `/api/game/assets/${g.steamgriddb_id}`
         return {
           ...g,
-          hero_url: `${base}/hero_1.png?v=${bust}`,
-          banner_url: `${base}/hero_2.png?v=${bust}`,
-          logo_url: `${base}/logo_1.png?v=${bust}`,
-          icon_url: `${base}/icon_1.png?v=${bust}`,
+          hero_url: getGameAssetUrl(g.steamgriddb_id, 'hero_1', bust),
+          banner_url: getGameAssetUrl(g.steamgriddb_id, 'hero_2', bust),
+          logo_url: getGameAssetUrl(g.steamgriddb_id, 'logo_1', bust),
+          icon_url: getGameAssetUrl(g.steamgriddb_id, 'icon_1', bust),
         }
       }),
     )

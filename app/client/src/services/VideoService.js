@@ -150,6 +150,18 @@ const service = {
   deleteCustomPoster(id) {
     return Api().delete(`/api/video/${id}/poster/custom`)
   },
+  unlockVideo(videoId, password) {
+    return Api().post(`/api/video/${videoId}/unlock`, { password })
+  },
+  setPassword(videoId, password) {
+    return Api().put(`/api/video/details/${videoId}`, { password })
+  },
+  generatePassword(videoId) {
+    return Api().put(`/api/video/details/${videoId}`, { password: '__autogenerate__' })
+  },
+  removePassword(videoId) {
+    return Api().put(`/api/video/details/${videoId}`, { remove_password: true })
+  },
 }
 
 export default service

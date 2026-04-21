@@ -516,7 +516,7 @@ const Settings = () => {
               },
             }}
           >
-            <Tab label="Privacy & Upload" />
+            <Tab label="General" />
             <Tab label="Sidebar" />
             <Tab label="Integrations" />
             <Tab label="Transcoding" />
@@ -540,920 +540,956 @@ const Settings = () => {
           {/* fieldset[disabled] propagates to all child inputs/buttons in demo mode */}
           <fieldset
             disabled={demoMode}
-            style={{ border: 'none', padding: 0, margin: 0, minWidth: 0, display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}
+            style={{
+              border: 'none',
+              padding: 0,
+              margin: 0,
+              minWidth: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              overflow: 'hidden',
+            }}
           >
-          {/* Scrollable content area */}
-          <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-            {/* Privacy & Upload */}
-            {activeTab === 0 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
-                <Box>
-                  <LightTooltip
-                    title={updatedConfig.app_config?.video_defaults?.private ? 'Private' : 'Public'}
-                    placement="top"
-                    enterDelay={500}
-                    leaveDelay={500}
-                    enterNextDelay={1000}
-                  >
-                    <ToggleButton
-                      size="small"
-                      value="check"
-                      selected={updatedConfig.app_config?.video_defaults?.private || true}
-                      onChange={() => {
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          app_config: {
-                            ...prev.app_config,
-                            video_defaults: { private: !prev.app_config.video_defaults.private },
-                            image_defaults: { private: !prev.app_config.video_defaults.private },
-                          },
-                        }))
-                      }}
-                      sx={{ mr: 2 }}
+            {/* Scrollable content area */}
+            <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {/* General Settings */}
+              {activeTab === 0 && (
+                <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                  <Box>
+                    <LightTooltip
+                      title={updatedConfig.app_config?.video_defaults?.private ? 'Private' : 'Public'}
+                      placement="top"
+                      enterDelay={500}
+                      leaveDelay={500}
+                      enterNextDelay={1000}
                     >
-                      {updatedConfig.app_config?.video_defaults?.private && <VisibilityOffIcon />}
-                      {!updatedConfig.app_config?.video_defaults?.private && <VisibilityIcon />}
-                    </ToggleButton>
-                  </LightTooltip>
-
-                  <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 14 }}>
-                    Default Media Privacy
-                  </Typography>
-                </Box>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_admin_upload || false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_admin_upload: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Show Admin Upload Card"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.app_config?.allow_public_upload || false}                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          app_config: { ...prev.app_config, allow_public_upload: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Allow Public Upload"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.app_config?.allow_public_folder_selection || false}
-                      disabled={!updatedConfig.app_config?.allow_public_upload}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          app_config: { ...prev.app_config, allow_public_folder_selection: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Allow Public Upload Folder Selection"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.app_config?.allow_public_game_tag || false}
-                      disabled={!updatedConfig.app_config?.allow_public_upload}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          app_config: { ...prev.app_config, allow_public_game_tag: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Allow Public Game Tagging"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.autoplay || false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: {
-                            ...prev.ui_config,
-                            autoplay: e.target.checked,
-                          },
-                        }))
-                      }
-                    />
-                  }
-                  label="Auto Play Videos"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_suggestions !== false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: {
-                            ...prev.ui_config,
-                            show_suggestions: e.target.checked,
-                          },
-                        }))
-                      }
-                    />
-                  }
-                  label="Show Suggested Videos"
-                />
-                <TextField
-                  size="small"
-                  label="Shareable Link Domain"
-                  value={updatedConfig.ui_config?.shareable_link_domain || ''}                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      ui_config: { ...prev.ui_config, shareable_link_domain: e.target.value },
-                    }))
-                  }
-                />
-                <TextField
-                  size="small"
-                  label="Public Upload Folder Name"
-                  value={updatedConfig.app_config?.public_upload_folder_name || ''}
-                  disabled={!updatedConfig.app_config?.allow_public_upload}
-                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      app_config: { ...prev.app_config, public_upload_folder_name: e.target.value },
-                    }))
-                  }
-                />
-                <TextField
-                  size="small"
-                  label="Admin Upload Folder Name"
-                  value={updatedConfig.app_config?.admin_upload_folder_name || ''}                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      app_config: { ...prev.app_config, admin_upload_folder_name: e.target.value },
-                    }))
-                  }
-                />
-              </Stack>
-            )}
-
-            {/* Sidebar */}
-            {activeTab === 1 && (
-              <Stack spacing={2} sx={{ maxWidth: 500 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_videos !== false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_videos: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Videos"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_images !== false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_images: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Images"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_games !== false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_games: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Games"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_tags !== false}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_tags: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Tags"
-                />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={updatedConfig.ui_config?.show_folder_dropdown === true}
-                      onChange={(e) =>
-                        setUpdatedConfig((prev) => ({
-                          ...prev,
-                          ui_config: { ...prev.ui_config, show_folder_dropdown: e.target.checked },
-                        }))
-                      }
-                    />
-                  }
-                  label="Folder Dropdown"
-                />
-              </Stack>
-            )}
-
-            {/* Integrations */}
-            {activeTab === 2 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
-                <header>Notifications</header>
-                <TextField
-                  size="small"
-                  label="Discord Webhook URL"
-                  value={discordUrl}                  error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
-                  helperText={
-                    discordUrl !== '' && !isValidDiscordWebhook(discordUrl) ? (
-                      'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
-                    ) : (
-                      <span>
-                        Get Discord Webhook for you Server Channel -{' '}
-                        <a
-                          href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: '#2684FF', textDecoration: 'none' }}
-                        >
-                          Docs
-                        </a>
-                      </span>
-                    )
-                  }
-                  onChange={(e) => {
-                    const url = e.target.value
-                    setDiscordUrl(url)
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      integrations: {
-                        ...prev.integrations,
-                        discord_webhook_url: url,
-                      },
-                    }))
-                  }}
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<SendIcon />}                  onClick={handleTestDiscordWebhook}
-                  sx={{
-                    borderColor: 'rgba(255, 255, 255, 0.23)',
-                    color: '#fff',
-                    '&:hover': {
-                      borderColor: '#fff',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    },
-                  }}
-                >
-                  Test Discord
-                </Button>
-
-                <Divider />
-
-                <TextField
-                  size="small"
-                  label="Generic Webhook URL"
-                  value={webhookUrl}                  error={webhookUrl !== '' && !isValidGenericWebhook(webhookUrl)}
-                  helperText={
-                    <span>
-                      Used for API POST to Generic Webhook Endpoint -{' '}
-                      <a
-                        href="https://zapier.com/blog/what-are-webhooks/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#2684FF', textDecoration: 'none' }}
+                      <ToggleButton
+                        size="small"
+                        value="check"
+                        selected={updatedConfig.app_config?.video_defaults?.private || true}
+                        onChange={() => {
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            app_config: {
+                              ...prev.app_config,
+                              video_defaults: { private: !prev.app_config.video_defaults.private },
+                              image_defaults: { private: !prev.app_config.video_defaults.private },
+                            },
+                          }))
+                        }}
+                        sx={{ mr: 2 }}
                       >
-                        Example
-                      </a>
-                    </span>
-                  }
-                  onChange={(e) => {
-                    const url = e.target.value
-                    setWebhookUrl(url)
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      integrations: {
-                        ...prev.integrations,
-                        generic_webhook_url: url,
-                      },
-                    }))
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={6}
-                  size="small"
-                  label="Generic Webhook JSON Payload"                  value={webhookJson}
-                  placeholder={jsonPlaceholder}
-                  error={webhookJson !== '' && !isValidJson(webhookJson)}
-                  helperText={
-                    webhookJson !== '' && !isValidJson(webhookJson)
-                      ? 'Invalid JSON format'
-                      : 'Add Valid JSON, with data from the docs of your webhook provider'
-                  }
-                  onChange={(e) => {
-                    const val = e.target.value
-                    setWebhookJson(val)
-                    if (isValidJson(val)) {
+                        {updatedConfig.app_config?.video_defaults?.private && <VisibilityOffIcon />}
+                        {!updatedConfig.app_config?.video_defaults?.private && <VisibilityIcon />}
+                      </ToggleButton>
+                    </LightTooltip>
+
+                    <Typography variant="overline" sx={{ fontWeight: 700, fontSize: 14 }}>
+                      Default Media Privacy
+                    </Typography>
+                  </Box>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.show_admin_upload || false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: { ...prev.ui_config, show_admin_upload: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Show Admin Upload Card"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.app_config?.allow_public_upload || false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            app_config: { ...prev.app_config, allow_public_upload: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Allow Public Upload"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.app_config?.allow_public_folder_selection || false}
+                        disabled={!updatedConfig.app_config?.allow_public_upload}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            app_config: { ...prev.app_config, allow_public_folder_selection: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Allow Public Upload Folder Selection"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.app_config?.allow_public_game_tag || false}
+                        disabled={!updatedConfig.app_config?.allow_public_upload}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            app_config: { ...prev.app_config, allow_public_game_tag: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Allow Public Game Tagging"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.autoplay || false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: {
+                              ...prev.ui_config,
+                              autoplay: e.target.checked,
+                            },
+                          }))
+                        }
+                      />
+                    }
+                    label="Auto Play Videos"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.show_suggestions !== false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: {
+                              ...prev.ui_config,
+                              show_suggestions: e.target.checked,
+                            },
+                          }))
+                        }
+                      />
+                    }
+                    label="Show Suggested Videos"
+                  />
+                  <TextField
+                    size="small"
+                    label="Shareable Link Domain"
+                    value={updatedConfig.ui_config?.shareable_link_domain || ''}
+                    onChange={(e) =>
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        ui_config: { ...prev.ui_config, shareable_link_domain: e.target.value },
+                      }))
+                    }
+                  />
+                  <TextField
+                    size="small"
+                    label="Public Upload Folder Name"
+                    value={updatedConfig.app_config?.public_upload_folder_name || ''}
+                    disabled={!updatedConfig.app_config?.allow_public_upload}
+                    onChange={(e) =>
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        app_config: { ...prev.app_config, public_upload_folder_name: e.target.value },
+                      }))
+                    }
+                  />
+                  <TextField
+                    size="small"
+                    label="Admin Upload Folder Name"
+                    value={updatedConfig.app_config?.admin_upload_folder_name || ''}
+                    onChange={(e) =>
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        app_config: { ...prev.app_config, admin_upload_folder_name: e.target.value },
+                      }))
+                    }
+                  />
+                </Stack>
+              )}
+
+              {/* Sidebar */}
+              {activeTab === 1 && (
+                <Stack spacing={2} sx={{ maxWidth: 500 }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.show_videos !== false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: { ...prev.ui_config, show_videos: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Videos"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.show_images !== false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: { ...prev.ui_config, show_images: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Images"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.show_games !== false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: { ...prev.ui_config, show_games: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Games"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.show_tags !== false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: { ...prev.ui_config, show_tags: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Tags"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={updatedConfig.ui_config?.show_folder_dropdown === true}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            ui_config: { ...prev.ui_config, show_folder_dropdown: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Folder Dropdown"
+                  />
+                </Stack>
+              )}
+
+              {/* Integrations */}
+              {activeTab === 2 && (
+                <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                  <header>Notifications</header>
+                  <TextField
+                    size="small"
+                    label="Discord Webhook URL"
+                    value={discordUrl}
+                    error={discordUrl !== '' && !isValidDiscordWebhook(discordUrl)}
+                    helperText={
+                      discordUrl !== '' && !isValidDiscordWebhook(discordUrl) ? (
+                        'Webhook Format should look like: https://discord.com/api/webhooks/12345/fj8903k'
+                      ) : (
+                        <span>
+                          Get Discord Webhook for you Server Channel -{' '}
+                          <a
+                            href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: '#2684FF', textDecoration: 'none' }}
+                          >
+                            Docs
+                          </a>
+                        </span>
+                      )
+                    }
+                    onChange={(e) => {
+                      const url = e.target.value
+                      setDiscordUrl(url)
                       setUpdatedConfig((prev) => ({
                         ...prev,
                         integrations: {
                           ...prev.integrations,
-                          generic_webhook_payload: JSON.parse(val),
+                          discord_webhook_url: url,
                         },
                       }))
-                    }
-                  }}
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<SendIcon />}                  onClick={handleTestWebhook}
-                  sx={{
-                    borderColor: 'rgba(255, 255, 255, 0.23)',
-                    color: '#fff',
-                    '&:hover': {
-                      borderColor: '#fff',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    },
-                  }}
-                >
-                  Test Webhook
-                </Button>
-
-                <Divider />
-
-                <header>Game Tagging</header>
-                <TextField
-                  id="steamgrid-api-key-field"
-                  size="small"
-                  label="SteamGridDB API Key"                  type={showSteamGridKey ? 'text' : 'password'}
-                  value={updatedConfig.integrations?.steamgriddb_api_key || ''}
-                  helperText={
-                    <span>
-                      Get a free API key at{' '}
-                      <a
-                        href="https://www.steamgriddb.com/profile/preferences/api"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: '#2684FF', textDecoration: 'none' }}
-                      >
-                        SteamGridDB
-                      </a>
-                    </span>
-                  }
-                  onChange={(e) => {
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      integrations: {
-                        ...prev.integrations,
-                        steamgriddb_api_key: e.target.value,
+                    }}
+                  />
+                  <Button
+                    variant="outlined"
+                    startIcon={<SendIcon />}
+                    onClick={handleTestDiscordWebhook}
+                    sx={{
+                      borderColor: 'rgba(255, 255, 255, 0.23)',
+                      color: '#fff',
+                      '&:hover': {
+                        borderColor: '#fff',
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
                       },
-                    }))
-                  }}
-                  InputProps={{
-                    endAdornment: (
-                      <Box
-                        sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                        onClick={() => setShowSteamGridKey(!showSteamGridKey)}
-                      >
-                        {showSteamGridKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </Box>
-                    ),
-                  }}
-                />
-                <Divider />
-                <header>RSS</header>
-                <TextField
-                  size="small"
-                  label="RSS Feed Title"                  value={updatedConfig.rss_config?.title || ''}
-                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      rss_config: { ...(prev.rss_config || {}), title: e.target.value },
-                    }))
-                  }
-                />
-                <TextField
-                  size="small"
-                  label="RSS Feed Description"                  multiline
-                  rows={2}
-                  value={updatedConfig.rss_config?.description || ''}
-                  onChange={(e) =>
-                    setUpdatedConfig((prev) => ({
-                      ...prev,
-                      rss_config: { ...(prev.rss_config || {}), description: e.target.value },
-                    }))
-                  }
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<RssFeedIcon />}
-                  fullWidth
-                  onClick={handleCopyRssFeedUrl}
-                  sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
-                >
-                  Copy RSS Feed URL
-                </Button>
-              </Stack>
-            )}
+                    }}
+                  >
+                    Test Discord
+                  </Button>
 
-            {/* Transcoding */}
-            {activeTab === 3 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Transcoding will convert your videos to multiple quality levels to allow for additional quality
-                  selection options when streaming from Fireshare.
-                </Typography>
-                {!transcodingStatus.enabled ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <Tooltip title="Set ENABLE_TRANSCODING=true in your docker container to enable.">
-                      <Chip label="Disabled" color="error" size="small" sx={{ cursor: 'default' }} />
-                    </Tooltip>
-                  </Box>
-                ) : (
-                  <>
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mb: 1 }}>
-                      <Chip label="Enabled" color="success" size="small" />
-                      {transcodingStatus.gpu_enabled && <Chip label="GPU Enabled" color="info" size="small" />}
-                      {transcodingStatus.is_running && <Chip label="Running" color="warning" size="small" />}
+                  <Divider />
+
+                  <TextField
+                    size="small"
+                    label="Generic Webhook URL"
+                    value={webhookUrl}
+                    error={webhookUrl !== '' && !isValidGenericWebhook(webhookUrl)}
+                    helperText={
+                      <span>
+                        Used for API POST to Generic Webhook Endpoint -{' '}
+                        <a
+                          href="https://zapier.com/blog/what-are-webhooks/"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#2684FF', textDecoration: 'none' }}
+                        >
+                          Example
+                        </a>
+                      </span>
+                    }
+                    onChange={(e) => {
+                      const url = e.target.value
+                      setWebhookUrl(url)
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        integrations: {
+                          ...prev.integrations,
+                          generic_webhook_url: url,
+                        },
+                      }))
+                    }}
+                  />
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={6}
+                    size="small"
+                    label="Generic Webhook JSON Payload"
+                    value={webhookJson}
+                    placeholder={jsonPlaceholder}
+                    error={webhookJson !== '' && !isValidJson(webhookJson)}
+                    helperText={
+                      webhookJson !== '' && !isValidJson(webhookJson)
+                        ? 'Invalid JSON format'
+                        : 'Add Valid JSON, with data from the docs of your webhook provider'
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setWebhookJson(val)
+                      if (isValidJson(val)) {
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          integrations: {
+                            ...prev.integrations,
+                            generic_webhook_payload: JSON.parse(val),
+                          },
+                        }))
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outlined"
+                    startIcon={<SendIcon />}
+                    onClick={handleTestWebhook}
+                    sx={{
+                      borderColor: 'rgba(255, 255, 255, 0.23)',
+                      color: '#fff',
+                      '&:hover': {
+                        borderColor: '#fff',
+                        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      },
+                    }}
+                  >
+                    Test Webhook
+                  </Button>
+
+                  <Divider />
+
+                  <header>Game Tagging</header>
+                  <TextField
+                    id="steamgrid-api-key-field"
+                    size="small"
+                    label="SteamGridDB API Key"
+                    type={showSteamGridKey ? 'text' : 'password'}
+                    value={updatedConfig.integrations?.steamgriddb_api_key || ''}
+                    helperText={
+                      <span>
+                        Get a free API key at{' '}
+                        <a
+                          href="https://www.steamgriddb.com/profile/preferences/api"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#2684FF', textDecoration: 'none' }}
+                        >
+                          SteamGridDB
+                        </a>
+                      </span>
+                    }
+                    onChange={(e) => {
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        integrations: {
+                          ...prev.integrations,
+                          steamgriddb_api_key: e.target.value,
+                        },
+                      }))
+                    }}
+                    InputProps={{
+                      endAdornment: (
+                        <Box
+                          sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                          onClick={() => setShowSteamGridKey(!showSteamGridKey)}
+                        >
+                          {showSteamGridKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </Box>
+                      ),
+                    }}
+                  />
+                  <Divider />
+                  <header>RSS</header>
+                  <TextField
+                    size="small"
+                    label="RSS Feed Title"
+                    value={updatedConfig.rss_config?.title || ''}
+                    onChange={(e) =>
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        rss_config: { ...(prev.rss_config || {}), title: e.target.value },
+                      }))
+                    }
+                  />
+                  <TextField
+                    size="small"
+                    label="RSS Feed Description"
+                    multiline
+                    rows={2}
+                    value={updatedConfig.rss_config?.description || ''}
+                    onChange={(e) =>
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        rss_config: { ...(prev.rss_config || {}), description: e.target.value },
+                      }))
+                    }
+                  />
+                  <Button
+                    variant="outlined"
+                    startIcon={<RssFeedIcon />}
+                    fullWidth
+                    onClick={handleCopyRssFeedUrl}
+                    sx={{ borderColor: 'rgba(255, 255, 255, 0.23)', color: '#fff' }}
+                  >
+                    Copy RSS Feed URL
+                  </Button>
+                </Stack>
+              )}
+
+              {/* Transcoding */}
+              {activeTab === 3 && (
+                <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Transcoding will convert your videos to multiple quality levels to allow for additional quality
+                    selection options when streaming from Fireshare.
+                  </Typography>
+                  {!transcodingStatus.enabled ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <Tooltip title="Set ENABLE_TRANSCODING=true in your docker container to enable.">
+                        <Chip label="Disabled" color="error" size="small" sx={{ cursor: 'default' }} />
+                      </Tooltip>
                     </Box>
-                    <FormControl fullWidth size="small">
-                      <InputLabel variant="standard" htmlFor="encoder-preference">
-                        Encoder Preference
-                      </InputLabel>
-                      <NativeSelect
-                        value={updatedConfig.transcoding?.encoder_preference || 'auto'}
-                        inputProps={{ id: 'encoder-preference' }}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            transcoding: { ...prev.transcoding, encoder_preference: e.target.value },
-                          }))
-                        }
-                      >
-                        <option value="auto">Auto</option>
-                        <option value="h264">H.264</option>
-                        <option value="av1">AV1</option>
-                      </NativeSelect>
-                    </FormControl>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">Resolutions:</Typography>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            size="small"
-                            checked={updatedConfig.transcoding?.enable_1080p !== false}
-                            onChange={(e) =>
-                              setUpdatedConfig((prev) => ({
-                                ...prev,
-                                transcoding: { ...prev.transcoding, enable_1080p: e.target.checked },
-                              }))
-                            }
-                          />
-                        }
-                        label="1080p"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            size="small"
-                            checked={updatedConfig.transcoding?.enable_720p !== false}
-                            onChange={(e) =>
-                              setUpdatedConfig((prev) => ({
-                                ...prev,
-                                transcoding: { ...prev.transcoding, enable_720p: e.target.checked },
-                              }))
-                            }
-                          />
-                        }
-                        label="720p"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            size="small"
-                            checked={updatedConfig.transcoding?.enable_480p !== false}
-                            onChange={(e) =>
-                              setUpdatedConfig((prev) => ({
-                                ...prev,
-                                transcoding: { ...prev.transcoding, enable_480p: e.target.checked },
-                              }))
-                            }
-                          />
-                        }
-                        label="480p"
-                      />
-                    </Box>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          size="small"
-                          checked={updatedConfig.transcoding?.auto_transcode !== false}
+                  ) : (
+                    <>
+                      <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', mb: 1 }}>
+                        <Chip label="Enabled" color="success" size="small" />
+                        {transcodingStatus.gpu_enabled && <Chip label="GPU Enabled" color="info" size="small" />}
+                        {transcodingStatus.is_running && <Chip label="Running" color="warning" size="small" />}
+                      </Box>
+                      <FormControl fullWidth size="small">
+                        <InputLabel variant="standard" htmlFor="encoder-preference">
+                          Encoder Preference
+                        </InputLabel>
+                        <NativeSelect
+                          value={updatedConfig.transcoding?.encoder_preference || 'auto'}
+                          inputProps={{ id: 'encoder-preference' }}
                           onChange={(e) =>
                             setUpdatedConfig((prev) => ({
                               ...prev,
-                              transcoding: { ...prev.transcoding, auto_transcode: e.target.checked },
+                              transcoding: { ...prev.transcoding, encoder_preference: e.target.value },
                             }))
                           }
+                        >
+                          <option value="auto">Auto</option>
+                          <option value="h264">H.264</option>
+                          <option value="av1">AV1</option>
+                        </NativeSelect>
+                      </FormControl>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2">Resolutions:</Typography>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={updatedConfig.transcoding?.enable_1080p !== false}
+                              onChange={(e) =>
+                                setUpdatedConfig((prev) => ({
+                                  ...prev,
+                                  transcoding: { ...prev.transcoding, enable_1080p: e.target.checked },
+                                }))
+                              }
+                            />
+                          }
+                          label="1080p"
                         />
-                      }
-                      label="Automatically transcode new videos"
-                    />
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      {!transcodingStatus.is_running ? (
-                        <Button
-                          variant="contained"
-                          startIcon={<PlayArrowIcon />}
-                          onClick={async () => {
-                            try {
-                              await ConfigService.startTranscoding()
-                            } catch (err) {
-                              setAlert({ open: true, message: err.response?.data || 'Failed to start', type: 'error' })
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={updatedConfig.transcoding?.enable_720p !== false}
+                              onChange={(e) =>
+                                setUpdatedConfig((prev) => ({
+                                  ...prev,
+                                  transcoding: { ...prev.transcoding, enable_720p: e.target.checked },
+                                }))
+                              }
+                            />
+                          }
+                          label="720p"
+                        />
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              size="small"
+                              checked={updatedConfig.transcoding?.enable_480p !== false}
+                              onChange={(e) =>
+                                setUpdatedConfig((prev) => ({
+                                  ...prev,
+                                  transcoding: { ...prev.transcoding, enable_480p: e.target.checked },
+                                }))
+                              }
+                            />
+                          }
+                          label="480p"
+                        />
+                      </Box>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            size="small"
+                            checked={updatedConfig.transcoding?.auto_transcode !== false}
+                            onChange={(e) =>
+                              setUpdatedConfig((prev) => ({
+                                ...prev,
+                                transcoding: { ...prev.transcoding, auto_transcode: e.target.checked },
+                              }))
                             }
-                          }}
-                          fullWidth
-                        >
-                          Transcode All Videos
-                        </Button>
+                          />
+                        }
+                        label="Automatically transcode new videos"
+                      />
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        {!transcodingStatus.is_running ? (
+                          <Button
+                            variant="contained"
+                            startIcon={<PlayArrowIcon />}
+                            onClick={async () => {
+                              try {
+                                await ConfigService.startTranscoding()
+                              } catch (err) {
+                                setAlert({
+                                  open: true,
+                                  message: err.response?.data || 'Failed to start',
+                                  type: 'error',
+                                })
+                              }
+                            }}
+                            fullWidth
+                          >
+                            Transcode All Videos
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="contained"
+                            color="error"
+                            startIcon={<StopIcon />}
+                            onClick={async () => {
+                              try {
+                                await ConfigService.cancelTranscoding()
+                                window.dispatchEvent(new Event('transcodingCancelled'))
+                              } catch (err) {
+                                setAlert({
+                                  open: true,
+                                  message: err.response?.data || 'Failed to cancel',
+                                  type: 'error',
+                                })
+                              }
+                            }}
+                            fullWidth
+                          >
+                            Cancel Transcoding
+                          </Button>
+                        )}
+                      </Box>
+                    </>
+                  )}
+                </Stack>
+              )}
+
+              {/* Folders */}
+              {activeTab === 4 && (
+                <Stack spacing={2} sx={{ maxWidth: 500, mt: -1 }}>
+                  <Tabs
+                    value={folderSubTab}
+                    onChange={(_, v) => setFolderSubTab(v)}
+                    sx={{
+                      '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
+                    }}
+                  >
+                    <Tab label="Video Folder Rules" />
+                    <Tab label="Image Folder Rules" />
+                  </Tabs>
+
+                  {/* Video Folder Rules */}
+                  {folderSubTab === 0 && (
+                    <>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Videos in these folders will be linked to the selected game. Modify these if your setup is not
+                          detected automatically.
+                        </Typography>
+                      </Box>
+                      {folderRules.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                          No folders found.
+                        </Typography>
                       ) : (
-                        <Button
-                          variant="contained"
-                          color="error"
-                          startIcon={<StopIcon />}
-                          onClick={async () => {
-                            try {
-                              await ConfigService.cancelTranscoding()
-                              window.dispatchEvent(new Event('transcodingCancelled'))
-                            } catch (err) {
-                              setAlert({ open: true, message: err.response?.data || 'Failed to cancel', type: 'error' })
-                            }
-                          }}
-                          fullWidth
-                        >
-                          Cancel Transcoding
-                        </Button>
+                        <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
+                          <Stack spacing={1}>
+                            {folderRules.map((item) => (
+                              <Box
+                                key={item.folder_path}
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  p: 1.5,
+                                  borderRadius: '8px',
+                                  bgcolor: '#FFFFFF0D',
+                                }}
+                              >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+                                  <FolderIcon sx={{ color: '#FFFFFF66' }} />
+                                  <Box sx={{ flex: 1 }}>
+                                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
+                                      {item.folder_path}
+                                      <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
+                                        ({item.video_count} videos)
+                                      </Typography>
+                                    </Typography>
+                                    {editingFolder === item.folder_path ? (
+                                      <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Box sx={{ flex: 1 }}>
+                                          <GameSearch
+                                            placeholder="Search for a game..."
+                                            onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
+                                            onError={() =>
+                                              setAlert({ open: true, type: 'error', message: 'Failed to search games' })
+                                            }
+                                            onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
+                                          />
+                                        </Box>
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => setEditingFolder(null)}
+                                          sx={{ color: '#FFFFFF66' }}
+                                        >
+                                          <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                      </Box>
+                                    ) : item.rule ? (
+                                      <Typography
+                                        sx={{
+                                          fontSize: 12,
+                                          color: '#3399FF',
+                                          cursor: 'pointer',
+                                          '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                        onClick={() => setEditingFolder(item.folder_path)}
+                                      >
+                                        → {item.rule.game?.name || 'Unknown game'}
+                                      </Typography>
+                                    ) : item.suggested_game ? (
+                                      <Typography
+                                        sx={{
+                                          fontSize: 12,
+                                          color: '#FFB74D',
+                                          cursor: 'pointer',
+                                          '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                        onClick={() => handleUpdateFolderRule(item.folder_path, item.suggested_game)}
+                                      >
+                                        Suggested: {item.suggested_game.name} (click to apply)
+                                      </Typography>
+                                    ) : (
+                                      <Typography
+                                        sx={{
+                                          fontSize: 12,
+                                          color: '#FFFFFF55',
+                                          cursor: 'pointer',
+                                          '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                        onClick={() => setEditingFolder(item.folder_path)}
+                                      >
+                                        No game linked - click to add
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </Box>
+                                {item.rule && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      setDeleteMenuAnchor(e.currentTarget)
+                                      setDeleteMenuRuleId(item.rule.id)
+                                    }}
+                                    sx={{ color: '#FFFFFF66' }}
+                                  >
+                                    <MoreVertIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            ))}
+                          </Stack>
+                        </Box>
                       )}
-                    </Box>
-                  </>
-                )}
-              </Stack>
-            )}
+                      <Menu
+                        anchorEl={deleteMenuAnchor}
+                        open={Boolean(deleteMenuAnchor)}
+                        onClose={() => {
+                          setDeleteMenuAnchor(null)
+                          setDeleteMenuRuleId(null)
+                        }}
+                      >
+                        <MenuItem onClick={() => handleDeleteFolderRule(false)}>Delete rule only</MenuItem>
+                        <MenuItem onClick={() => handleDeleteFolderRule(true)}>Delete rule & unlink videos</MenuItem>
+                      </Menu>
+                    </>
+                  )}
 
-            {/* Folders */}
-            {activeTab === 4 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, mt: -1 }}>
-                <Tabs
-                  value={folderSubTab}
-                  onChange={(_, v) => setFolderSubTab(v)}
-                  sx={{
-                    '& .MuiTab-root': { textTransform: 'none', fontWeight: 600 },
-                  }}
-                >
-                  <Tab label="Video Folder Rules" />
-                  <Tab label="Image Folder Rules" />
-                </Tabs>
-
-                {/* Video Folder Rules */}
-                {folderSubTab === 0 && (
-                  <>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Videos in these folders will be linked to the selected game. Modify these if your setup is not
-                        detected automatically.
-                      </Typography>
-                    </Box>
-                    {folderRules.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                        No folders found.
-                      </Typography>
-                    ) : (
-                      <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
-                        <Stack spacing={1}>
-                          {folderRules.map((item) => (
-                            <Box
-                              key={item.folder_path}
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                p: 1.5,
-                                borderRadius: '8px',
-                                bgcolor: '#FFFFFF0D',
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-                                <FolderIcon sx={{ color: '#FFFFFF66' }} />
-                                <Box sx={{ flex: 1 }}>
-                                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
-                                    {item.folder_path}
-                                    <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
-                                      ({item.video_count} videos)
-                                    </Typography>
-                                  </Typography>
-                                  {editingFolder === item.folder_path ? (
-                                    <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                      <Box sx={{ flex: 1 }}>
-                                        <GameSearch
-                                          placeholder="Search for a game..."
-                                          onGameLinked={(game) => handleUpdateFolderRule(item.folder_path, game)}
-                                          onError={() =>
-                                            setAlert({ open: true, type: 'error', message: 'Failed to search games' })
-                                          }
-                                          onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
-                                        />
-                                      </Box>
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => setEditingFolder(null)}
-                                        sx={{ color: '#FFFFFF66' }}
-                                      >
-                                        <CloseIcon fontSize="small" />
-                                      </IconButton>
-                                    </Box>
-                                  ) : item.rule ? (
-                                    <Typography
-                                      sx={{
-                                        fontSize: 12,
-                                        color: '#3399FF',
-                                        cursor: 'pointer',
-                                        '&:hover': { textDecoration: 'underline' },
-                                      }}
-                                      onClick={() => setEditingFolder(item.folder_path)}
-                                    >
-                                      → {item.rule.game?.name || 'Unknown game'}
-                                    </Typography>
-                                  ) : item.suggested_game ? (
-                                    <Typography
-                                      sx={{
-                                        fontSize: 12,
-                                        color: '#FFB74D',
-                                        cursor: 'pointer',
-                                        '&:hover': { textDecoration: 'underline' },
-                                      }}
-                                      onClick={() => handleUpdateFolderRule(item.folder_path, item.suggested_game)}
-                                    >
-                                      Suggested: {item.suggested_game.name} (click to apply)
-                                    </Typography>
-                                  ) : (
-                                    <Typography
-                                      sx={{
-                                        fontSize: 12,
-                                        color: '#FFFFFF55',
-                                        cursor: 'pointer',
-                                        '&:hover': { textDecoration: 'underline' },
-                                      }}
-                                      onClick={() => setEditingFolder(item.folder_path)}
-                                    >
-                                      No game linked - click to add
-                                    </Typography>
-                                  )}
-                                </Box>
-                              </Box>
-                              {item.rule && (
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    setDeleteMenuAnchor(e.currentTarget)
-                                    setDeleteMenuRuleId(item.rule.id)
-                                  }}
-                                  sx={{ color: '#FFFFFF66' }}
-                                >
-                                  <MoreVertIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                            </Box>
-                          ))}
-                        </Stack>
+                  {/* Image Folder Rules */}
+                  {folderSubTab === 1 && (
+                    <>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Images in these folders will be linked to the selected game. Modify these if your setup is not
+                          detected automatically.
+                        </Typography>
                       </Box>
-                    )}
-                    <Menu
-                      anchorEl={deleteMenuAnchor}
-                      open={Boolean(deleteMenuAnchor)}
-                      onClose={() => {
-                        setDeleteMenuAnchor(null)
-                        setDeleteMenuRuleId(null)
-                      }}
-                    >
-                      <MenuItem onClick={() => handleDeleteFolderRule(false)}>Delete rule only</MenuItem>
-                      <MenuItem onClick={() => handleDeleteFolderRule(true)}>Delete rule & unlink videos</MenuItem>
-                    </Menu>
-                  </>
-                )}
-
-                {/* Image Folder Rules */}
-                {folderSubTab === 1 && (
-                  <>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        Images in these folders will be linked to the selected game. Modify these if your setup is not
-                        detected automatically.
-                      </Typography>
-                    </Box>
-                    {imageFolderRules.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                        No folders found.
-                      </Typography>
-                    ) : (
-                      <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
-                        <Stack spacing={1}>
-                          {imageFolderRules.map((item) => (
-                            <Box
-                              key={item.folder_path}
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                p: 1.5,
-                                borderRadius: '8px',
-                                bgcolor: '#FFFFFF0D',
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
-                                <ImageIcon sx={{ color: '#FFFFFF66' }} />
-                                <Box sx={{ flex: 1 }}>
-                                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
-                                    {item.folder_path}
-                                    <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
-                                      ({item.image_count} images)
+                      {imageFolderRules.length === 0 ? (
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                          No folders found.
+                        </Typography>
+                      ) : (
+                        <Box sx={{ maxHeight: 800, overflowY: 'auto', pr: 1 }}>
+                          <Stack spacing={1}>
+                            {imageFolderRules.map((item) => (
+                              <Box
+                                key={item.folder_path}
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  p: 1.5,
+                                  borderRadius: '8px',
+                                  bgcolor: '#FFFFFF0D',
+                                }}
+                              >
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>
+                                  <ImageIcon sx={{ color: '#FFFFFF66' }} />
+                                  <Box sx={{ flex: 1 }}>
+                                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
+                                      {item.folder_path}
+                                      <Typography component="span" sx={{ fontSize: 12, ml: 1, color: '#FFFFFF55' }}>
+                                        ({item.image_count} images)
+                                      </Typography>
                                     </Typography>
-                                  </Typography>
-                                  {editingImageFolder === item.folder_path ? (
-                                    <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                      <Box sx={{ flex: 1 }}>
-                                        <GameSearch
-                                          placeholder="Search for a game..."
-                                          onGameLinked={(game) => handleUpdateImageFolderRule(item.folder_path, game)}
-                                          onError={() =>
-                                            setAlert({ open: true, type: 'error', message: 'Failed to search games' })
-                                          }
-                                          onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
-                                        />
+                                    {editingImageFolder === item.folder_path ? (
+                                      <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Box sx={{ flex: 1 }}>
+                                          <GameSearch
+                                            placeholder="Search for a game..."
+                                            onGameLinked={(game) => handleUpdateImageFolderRule(item.folder_path, game)}
+                                            onError={() =>
+                                              setAlert({ open: true, type: 'error', message: 'Failed to search games' })
+                                            }
+                                            onWarning={(msg) => setAlert({ open: true, type: 'warning', message: msg })}
+                                          />
+                                        </Box>
+                                        <IconButton
+                                          size="small"
+                                          onClick={() => setEditingImageFolder(null)}
+                                          sx={{ color: '#FFFFFF66' }}
+                                        >
+                                          <CloseIcon fontSize="small" />
+                                        </IconButton>
                                       </Box>
-                                      <IconButton
-                                        size="small"
-                                        onClick={() => setEditingImageFolder(null)}
-                                        sx={{ color: '#FFFFFF66' }}
+                                    ) : item.rule ? (
+                                      <Typography
+                                        sx={{
+                                          fontSize: 12,
+                                          color: '#3399FF',
+                                          cursor: 'pointer',
+                                          '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                        onClick={() => setEditingImageFolder(item.folder_path)}
                                       >
-                                        <CloseIcon fontSize="small" />
-                                      </IconButton>
-                                    </Box>
-                                  ) : item.rule ? (
-                                    <Typography
-                                      sx={{
-                                        fontSize: 12,
-                                        color: '#3399FF',
-                                        cursor: 'pointer',
-                                        '&:hover': { textDecoration: 'underline' },
-                                      }}
-                                      onClick={() => setEditingImageFolder(item.folder_path)}
-                                    >
-                                      → {item.rule.game?.name || 'Unknown game'}
-                                    </Typography>
-                                  ) : item.suggested_game ? (
-                                    <Typography
-                                      sx={{
-                                        fontSize: 12,
-                                        color: '#FFB74D',
-                                        cursor: 'pointer',
-                                        '&:hover': { textDecoration: 'underline' },
-                                      }}
-                                      onClick={() => handleUpdateImageFolderRule(item.folder_path, item.suggested_game)}
-                                    >
-                                      Suggested: {item.suggested_game.name} (click to apply)
-                                    </Typography>
-                                  ) : (
-                                    <Typography
-                                      sx={{
-                                        fontSize: 12,
-                                        color: '#FFFFFF55',
-                                        cursor: 'pointer',
-                                        '&:hover': { textDecoration: 'underline' },
-                                      }}
-                                      onClick={() => setEditingImageFolder(item.folder_path)}
-                                    >
-                                      No game linked - click to add
-                                    </Typography>
-                                  )}
+                                        → {item.rule.game?.name || 'Unknown game'}
+                                      </Typography>
+                                    ) : item.suggested_game ? (
+                                      <Typography
+                                        sx={{
+                                          fontSize: 12,
+                                          color: '#FFB74D',
+                                          cursor: 'pointer',
+                                          '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                        onClick={() =>
+                                          handleUpdateImageFolderRule(item.folder_path, item.suggested_game)
+                                        }
+                                      >
+                                        Suggested: {item.suggested_game.name} (click to apply)
+                                      </Typography>
+                                    ) : (
+                                      <Typography
+                                        sx={{
+                                          fontSize: 12,
+                                          color: '#FFFFFF55',
+                                          cursor: 'pointer',
+                                          '&:hover': { textDecoration: 'underline' },
+                                        }}
+                                        onClick={() => setEditingImageFolder(item.folder_path)}
+                                      >
+                                        No game linked - click to add
+                                      </Typography>
+                                    )}
+                                  </Box>
                                 </Box>
+                                {item.rule && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      setDeleteImageMenuAnchor(e.currentTarget)
+                                      setDeleteImageMenuRuleId(item.rule.id)
+                                    }}
+                                    sx={{ color: '#FFFFFF66' }}
+                                  >
+                                    <MoreVertIcon fontSize="small" />
+                                  </IconButton>
+                                )}
                               </Box>
-                              {item.rule && (
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    setDeleteImageMenuAnchor(e.currentTarget)
-                                    setDeleteImageMenuRuleId(item.rule.id)
-                                  }}
-                                  sx={{ color: '#FFFFFF66' }}
-                                >
-                                  <MoreVertIcon fontSize="small" />
-                                </IconButton>
-                              )}
-                            </Box>
-                          ))}
-                        </Stack>
-                      </Box>
-                    )}
-                    <Menu
-                      anchorEl={deleteImageMenuAnchor}
-                      open={Boolean(deleteImageMenuAnchor)}
-                      onClose={() => {
-                        setDeleteImageMenuAnchor(null)
-                        setDeleteImageMenuRuleId(null)
-                      }}
-                    >
-                      <MenuItem onClick={() => handleDeleteImageFolderRule(false)}>Delete rule only</MenuItem>
-                      <MenuItem onClick={() => handleDeleteImageFolderRule(true)}>Delete rule & unlink images</MenuItem>
-                    </Menu>
-                  </>
-                )}
-              </Stack>
-            )}
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
+                      <Menu
+                        anchorEl={deleteImageMenuAnchor}
+                        open={Boolean(deleteImageMenuAnchor)}
+                        onClose={() => {
+                          setDeleteImageMenuAnchor(null)
+                          setDeleteImageMenuRuleId(null)
+                        }}
+                      >
+                        <MenuItem onClick={() => handleDeleteImageFolderRule(false)}>Delete rule only</MenuItem>
+                        <MenuItem onClick={() => handleDeleteImageFolderRule(true)}>
+                          Delete rule & unlink images
+                        </MenuItem>
+                      </Menu>
+                    </>
+                  )}
+                </Stack>
+              )}
 
-            {/* Actions */}
-            {activeTab === 5 && (
-              <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
-                <Button
-                  variant="contained"
-                  startIcon={<SensorsIcon />}
-                  onClick={handleScan}                  size="large"
-                  sx={{ width: '100%', maxWidth: 400 }}
-                >
-                  Scan for New Videos
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<ImageIcon />}
-                  onClick={handleScanImages}                  size="large"
-                  sx={{ width: '100%', maxWidth: 400 }}
-                >
-                  Scan for New Images
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<SportsEsportsIcon />}
-                  onClick={handleScanGames}                  size="large"
-                  sx={{ width: '100%', maxWidth: 400 }}
-                >
-                  Scan for Missing Games
-                </Button>
-                <Button
-                  variant="contained"
-                  startIcon={<CalendarMonthIcon />}
-                  onClick={handleScanDates}                  size="large"
-                  sx={{ width: '100%', maxWidth: 400 }}
-                >
-                  Scan for Missing Dates
-                </Button>
-              </Stack>
-            )}
-          </Box>
-
-          {/* Save button pinned to bottom */}
-          {activeTab !== 4 && activeTab !== 5 && (
-            <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
-              <Divider sx={{ mb: 2 }} />
-              <Tooltip title={demoMode ? 'Settings cannot be changed in demo mode' : ''} placement="top">
-                <span>
+              {/* Actions */}
+              {activeTab === 5 && (
+                <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                   <Button
                     variant="contained"
-                    startIcon={<SaveIcon />}
-                    disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed)}
-                    onClick={handleSave}
-                    fullWidth
+                    startIcon={<SensorsIcon />}
+                    onClick={handleScan}
+                    size="large"
+                    sx={{ width: '100%', maxWidth: 400 }}
                   >
-                    Save Changes
+                    Scan for New Videos
                   </Button>
-                </span>
-              </Tooltip>
+                  <Button
+                    variant="contained"
+                    startIcon={<ImageIcon />}
+                    onClick={handleScanImages}
+                    size="large"
+                    sx={{ width: '100%', maxWidth: 400 }}
+                  >
+                    Scan for New Images
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<SportsEsportsIcon />}
+                    onClick={handleScanGames}
+                    size="large"
+                    sx={{ width: '100%', maxWidth: 400 }}
+                  >
+                    Scan for Missing Games
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<CalendarMonthIcon />}
+                    onClick={handleScanDates}
+                    size="large"
+                    sx={{ width: '100%', maxWidth: 400 }}
+                  >
+                    Scan for Missing Dates
+                  </Button>
+                </Stack>
+              )}
             </Box>
-          )}
+
+            {/* Save button pinned to bottom */}
+            {activeTab !== 4 && activeTab !== 5 && (
+              <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
+                <Divider sx={{ mb: 2 }} />
+                <Tooltip title={demoMode ? 'Settings cannot be changed in demo mode' : ''} placement="top">
+                  <span>
+                    <Button
+                      variant="contained"
+                      startIcon={<SaveIcon />}
+                      disabled={!updateable || (!isValidDiscordWebhook(discordUrl) && isDiscordUsed)}
+                      onClick={handleSave}
+                      fullWidth
+                    >
+                      Save Changes
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Box>
+            )}
           </fieldset>
         </Box>
       </Box>

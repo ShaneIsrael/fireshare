@@ -24,6 +24,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import LinkIcon from '@mui/icons-material/Link'
 import { GameService, VideoService, ImageService } from '../services'
 import { recordAssetBust, applyAssetBusts } from '../services/GameService'
+import { getGameAssetUrl } from '../common/utils'
 import CompactVideoCard from '../components/cards/CompactVideoCard'
 import VideoModal from '../components/modal/VideoModal'
 import CompactImageCard from '../components/cards/CompactImageCard'
@@ -225,13 +226,12 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     setEditingAssets(false)
     setGame((prev) => {
       if (!prev) return prev
-      const base = `/api/game/assets/${prev.steamgriddb_id}`
       return {
         ...prev,
-        hero_url: `${base}/hero_1.png?v=${bust}`,
-        banner_url: `${base}/hero_2.png?v=${bust}`,
-        logo_url: `${base}/logo_1.png?v=${bust}`,
-        icon_url: `${base}/icon_1.png?v=${bust}`,
+        hero_url: getGameAssetUrl(prev.steamgriddb_id, 'hero_1', bust),
+        banner_url: getGameAssetUrl(prev.steamgriddb_id, 'hero_2', bust),
+        logo_url: getGameAssetUrl(prev.steamgriddb_id, 'logo_1', bust),
+        icon_url: getGameAssetUrl(prev.steamgriddb_id, 'icon_1', bust),
       }
     })
   }

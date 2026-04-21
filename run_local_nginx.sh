@@ -31,4 +31,5 @@ nginx
 
 source .env.dev
 flask db upgrade
+fireshare migrate-game-assets
 flask run --with-threads
