@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { saveProgress, getResumeTime } from '../../common/videoProgress'
 import {
   Autocomplete,
   Box,
@@ -210,6 +211,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const playerRef = React.useRef()
   const waveformRef = React.useRef(null)
   const thumbnailInputRef = React.useRef(null)
+  const lastSavedRef = useRef(0)
 
   useEffect(() => {
     if (!open || editMode) return
@@ -544,6 +546,12 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
         setViewAdded(true)
         VideoService.addView(vid?.video_id || videoId).catch((err) => console.error(err))
       }
+    }
+
+    const now = Date.now()
+    if (now - lastSavedRef.current > 5000) {
+      lastSavedRef.current = now
+      saveProgress(vid.video_id, currentTime, vid.info?.duration)
     }
   }
 

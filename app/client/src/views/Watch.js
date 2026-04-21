@@ -1,4 +1,5 @@
 import React, { useRef } from 'react'
+import { saveProgress, getResumeTime } from '../common/videoProgress'
 import { useLocation, useParams } from 'react-router-dom'
 import { Button, CircularProgress, Divider, IconButton, TextField, Tooltip, Typography, Box } from '@mui/material'
 import { Helmet } from 'react-helmet'
@@ -57,6 +58,7 @@ const Watch = ({ authenticated }) => {
   const [passwordLoading, setPasswordLoading] = React.useState(false)
 
   const videoPlayerRef = useRef(null)
+  const lastSavedRef = useRef(0)
   const [alert, setAlert] = React.useState({ open: false })
 
   React.useEffect(() => {
@@ -168,6 +170,11 @@ const Watch = ({ authenticated }) => {
       setViewAdded(true)
       VideoService.addView(id).catch((err) => console.error(err))
     }
+    const now = Date.now()
+    if (now - lastSavedRef.current > 5000) {
+      lastSavedRef.current = now
+      saveProgress(id, e.playedSeconds, details?.info?.duration)
+    }
   }
 
   const getPosterUrl = () => {
@@ -237,7 +244,7 @@ const Watch = ({ authenticated }) => {
               onReady={(player) => {
                 videoPlayerRef.current = player
               }}
-              startTime={time ? parseFloat(time) : 0}
+              startTime={time ? parseFloat(time) : getResumeTime(id, details?.info?.duration)}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
               fluid={false}
               fill={true}

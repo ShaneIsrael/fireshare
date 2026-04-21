@@ -590,6 +590,10 @@ def get_original_video():
     """Serves the original unmodified video file, bypassing any crop. Used by the waveform editor."""
     video_id = request.args.get('id')
     subid = request.args.get('subid')
+    if not current_user.is_authenticated:
+        video_info = VideoInfo.query.filter_by(video_id=video_id).first()
+        if video_info and video_info.password_hash and not _is_session_unlocked(video_id):
+            return Response(status=403)
     try:
         video_path = get_video_path(video_id, subid, quality=None)
         return send_file(video_path, mimetype='video/mp4', conditional=True)
@@ -608,6 +612,10 @@ def get_video_audio():
     video_id = request.args.get('id')
     if not video_id:
         return Response(status=400)
+    if not current_user.is_authenticated:
+        video_info = VideoInfo.query.filter_by(video_id=video_id).first()
+        if video_info and video_info.password_hash and not _is_session_unlocked(video_id):
+            return Response(status=403)
     try:
         paths = current_app.config['PATHS']
         derived_dir = paths['processed'] / 'derived' / video_id
@@ -647,11 +655,11 @@ def nginx_video_auth():
     """Internal endpoint called by nginx auth_request to gate password-protected video files."""
     original_uri = request.headers.get('X-Original-URI', '')
     video_id = None
-    m = re.match(r'^/_content/video/([a-zA-Z0-9]+)\.[a-z0-9]+', original_uri)
+    m = re.match(r'^/_content/video/([\w-]+)\.[a-z0-9]+', original_uri)
     if m:
         video_id = m.group(1)
     if not video_id:
-        m = re.match(r'^/_content/derived/([a-zA-Z0-9]+)/', original_uri)
+        m = re.match(r'^/_content/derived/([\w-]+)/', original_uri)
         if m:
             video_id = m.group(1)
     if not video_id:
