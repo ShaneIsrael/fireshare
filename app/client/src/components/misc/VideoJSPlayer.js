@@ -69,36 +69,55 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
     }
   }, [media, playerWrapper])
 
-  // --- startTime: seek to the requested position once metadata is loaded -----
+  // --- startTime: seek to the requested position once the player is ready ----
   useEffect(() => {
     if (!media || !startTime || startTimeApplied.current) return
 
-    const handleLoaded = () => {
-      if (media.readyState >= 1) {
-        media.currentTime = startTime
-        startTimeApplied.current = true
+    const applySeek = () => {
+      // Validate against actual media duration when available, skipping the seek
+      // if the saved position is outside the 10–90% window.
+      if (media.duration > 0) {
+        const pct = startTime / media.duration
+        if (startTime < 10 || pct > 0.9) {
+          startTimeApplied.current = true
+          return
+        }
       }
-    }
-
-    // If metadata already loaded, seek immediately
-    if (media.readyState >= 1) {
       media.currentTime = startTime
       startTimeApplied.current = true
+    }
+
+    // canplay fires after loadedmetadata and guarantees the browser is actually
+    // ready to play from any position — more reliable than loadedmetadata alone.
+    const handleCanPlay = () => {
+      if (!startTimeApplied.current) applySeek()
+    }
+
+    // loadedmetadata is an earlier signal; use it as a first attempt.
+    const handleLoaded = () => {
+      if (!startTimeApplied.current) applySeek()
+    }
+
+    if (media.readyState >= 1) {
+      // Metadata already loaded — try immediately, canplay will catch it if needed.
+      applySeek()
     } else {
       media.addEventListener('loadedmetadata', handleLoaded, { once: true })
     }
+    media.addEventListener('canplay', handleCanPlay, { once: true })
 
-    // Also handle the case where autoplay is blocked and user manually presses play
+    // Final safety net: if autoplay fires before canplay (e.g. the browser starts
+    // playing before our listeners run), seek on the first play event too.
     const handlePlay = () => {
       if (!startTimeApplied.current || Math.abs(media.currentTime - startTime) > SEEK_TOLERANCE_SECONDS) {
-        media.currentTime = startTime
-        startTimeApplied.current = true
+        applySeek()
       }
     }
     media.addEventListener('play', handlePlay, { once: true })
 
     return () => {
       media.removeEventListener('loadedmetadata', handleLoaded)
+      media.removeEventListener('canplay', handleCanPlay)
       media.removeEventListener('play', handlePlay)
     }
   }, [media, startTime])

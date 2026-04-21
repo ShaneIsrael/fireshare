@@ -11,10 +11,15 @@ export function getResumeTime(videoId, duration) {
     const raw = localStorage.getItem(KEY_PREFIX + videoId)
     if (!raw) return 0
     const { position, duration: savedDuration } = JSON.parse(raw)
+    if (!position || position <= 0) return 0
     const effectiveDuration = duration || savedDuration
-    if (!effectiveDuration || !position) return 0
-    const pct = position / effectiveDuration
-    if (pct < 0.1 || pct > 0.9) return 0
+    // Only apply the boundary check when we have a reliable duration.
+    // If duration is unknown, return the position anyway — the player will
+    // validate against media.duration when it applies the seek.
+    if (effectiveDuration > 0) {
+      const pct = position / effectiveDuration
+      if (position < 10 || pct > 0.9) return 0
+    }
     return position
   } catch {
     return 0
