@@ -55,9 +55,10 @@ ENV ADMIN_PASSWORD=admin
 ENV ANALYTICS_TRACKING_SCRIPT=""
 ENV TZ=UTC
 ENV PATH=/usr/local/bin:$PATH
-# Transcoding is permanently disabled in the lite image — no encoding dependencies are installed.
-# entrypoint-lite.sh enforces this at runtime, overriding any user-supplied env value.
-ENV ENABLE_TRANSCODING=false
+# GPU transcoding is permanently disabled in the lite image — NVENC is not available.
+# entrypoint-lite.sh enforces TRANSCODE_GPU=false at runtime, overriding any user-supplied value.
+ENV FIRESHARE_LITE=true
+ENV TRANSCODE_GPU=false
 
 EXPOSE 80
 CMD ["bash", "/entrypoint-lite.sh"]

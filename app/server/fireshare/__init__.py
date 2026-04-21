@@ -148,7 +148,10 @@ def create_app(init_schedule=False):
         False if app.config['DEMO_MODE']
         else os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
     )
-    app.config['TRANSCODE_GPU'] = os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
+    app.config['TRANSCODE_GPU'] = (
+        False if os.getenv('FIRESHARE_LITE', '').lower() in ('true', '1', 'yes')
+        else os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
+    )
     app.config['TRANSCODE_TIMEOUT'] = int(os.getenv('TRANSCODE_TIMEOUT', '7200'))  # Default: 2 hours
 
     #Integrations
