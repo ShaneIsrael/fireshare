@@ -454,26 +454,29 @@ function Navbar20({
           },
         }}
       >
-        <List sx={{ p: 1 }}>
+        <List sx={{ pt: 1 }}>
           {pages.map((p) => {
             if ((p.private && authenticated) || !p.private)
               return (
-                <ListItem key={p.title} disablePadding>
-                  <ListItemButton
-                    selected={page === p.href}
-                    onClick={() => navigate(p.href)}
-                    sx={{ height: 50, mb: 1 }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 40 }}>{p.icon}</ListItemIcon>
-                    <ListItemText
-                      primary={p.title}
-                      primaryTypographyProps={{
-                        fontSize: 18,
-                        fontWeight: 600,
-                      }}
-                    />
-                  </ListItemButton>
-                </ListItem>
+                <>
+                  {p.href === '/files' && <Divider sx={{ mb: 1, width: '100%' }} />}
+                  <ListItem key={p.title} disablePadding sx={{ px: 1 }}>
+                    <ListItemButton
+                      selected={page === p.href}
+                      onClick={() => navigate(p.href)}
+                      sx={{ height: 50, mb: p.href !== '/settings' ? 1 : 0 }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 40 }}>{p.icon}</ListItemIcon>
+                      <ListItemText
+                        primary={p.title}
+                        primaryTypographyProps={{
+                          fontSize: 18,
+                          fontWeight: 600,
+                        }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                </>
               )
             return null
           })}
@@ -651,11 +654,7 @@ function Navbar20({
           </LightTooltip>
         )}
         <DiskSpaceIndicator open={effectiveOpen} visible={authenticated} />
-        <VersionBox
-          open={effectiveOpen}
-          releaseNotes={latestRelease}
-          onUpdateClick={() => setFeatureAlertOpen(true)}
-        />
+        <VersionBox open={effectiveOpen} releaseNotes={latestRelease} onUpdateClick={() => setFeatureAlertOpen(true)} />
       </Box>
     </Box>
   )
@@ -881,11 +880,7 @@ function Navbar20({
           uploadTick,
         })}
       </Box>
-      <ReleaseNotesDialog
-        open={featureAlertOpen}
-        onClose={handleReleaseNotesClose}
-        authenticated={authenticated}
-      />
+      <ReleaseNotesDialog open={featureAlertOpen} onClose={handleReleaseNotesClose} authenticated={authenticated} />
     </Box>
   )
 }
