@@ -124,20 +124,50 @@ const UploadCard = React.forwardRef(function UploadCard(
   const [titleDraft, setTitleDraft] = React.useState('')
   const [thumbnail, setThumbnail] = React.useState(null)
   const [thumbnailReady, setThumbnailReady] = React.useState(false)
+  const [previewUrl, setPreviewUrl] = React.useState(null)
+  const [previewPlayable, setPreviewPlayable] = React.useState(false)
   const [availableFolders, setAvailableFolders] = React.useState([])
   const [selectedFolder, setSelectedFolder] = React.useState('')
   // Stored metadata to attach on next upload
   const pendingMetadata = React.useRef({ tag_ids: null, game_id: null, folder: null })
   const imageThumbnailUrlRef = React.useRef(null)
+  const previewUrlRef = React.useRef(null)
 
   React.useImperativeHandle(ref, () => ({
     openFile(file) {
-      if (!checkUploadLimit(file, handleAlert)) return
+      if (!file || !checkUploadLimit(file, handleAlert)) return
       setProgress(0)
       lastProgressUpdate.current = 0
       openMetadataDialog(file)
     },
   }))
+
+  const clearPreviewUrl = React.useCallback(() => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = null
+    }
+    setPreviewUrl(null)
+    setPreviewPlayable(false)
+  }, [])
+
+  const createPreviewUrl = React.useCallback(
+    (file) => {
+      clearPreviewUrl()
+      const url = URL.createObjectURL(file)
+      previewUrlRef.current = url
+      setPreviewUrl(url)
+      setPreviewPlayable(true)
+    },
+    [clearPreviewUrl],
+  )
+
+  React.useEffect(
+    () => () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    },
+    [],
+  )
 
   const extractThumbnail = (file) => {
     setThumbnail(null)
@@ -181,6 +211,7 @@ const UploadCard = React.forwardRef(function UploadCard(
     setEditingTitle(false)
     setTitleDraft('')
 
+    createPreviewUrl(file)
     extractThumbnail(file)
     const foldersFetch = authenticated
       ? VideoService.getUploadFolders()
@@ -247,8 +278,6 @@ const UploadCard = React.forwardRef(function UploadCard(
     setSelectedFile(pendingFile)
     setIsSelected(true)
     setPendingFile(null)
-    setThumbnail(null)
-    setThumbnailReady(false)
     if (imageThumbnailUrlRef.current) {
       URL.revokeObjectURL(imageThumbnailUrlRef.current)
       imageThumbnailUrlRef.current = null
@@ -272,6 +301,7 @@ const UploadCard = React.forwardRef(function UploadCard(
       URL.revokeObjectURL(imageThumbnailUrlRef.current)
       imageThumbnailUrlRef.current = null
     }
+    clearPreviewUrl()
   }
 
   const handleGameInputChange = async (_, value) => {
@@ -328,7 +358,7 @@ const UploadCard = React.forwardRef(function UploadCard(
 
   const changeHandler = (event) => {
     const file = event.target.files[0]
-    if (!checkUploadLimit(file, handleAlert)) return
+    if (!file || !checkUploadLimit(file, handleAlert)) return
     setProgress(0)
     lastProgressUpdate.current = 0
     openMetadataDialog(file)
@@ -368,7 +398,7 @@ const UploadCard = React.forwardRef(function UploadCard(
   const dropHandler = (event) => {
     event.preventDefault()
     const file = event.dataTransfer.files[0]
-    if (!checkUploadLimit(file, handleAlert)) return
+    if (!file || !checkUploadLimit(file, handleAlert)) return
     setProgress(0)
     openMetadataDialog(file)
   }
@@ -414,6 +444,10 @@ const UploadCard = React.forwardRef(function UploadCard(
       setProgress(0)
       setUploadRate(null)
       setIsSelected(false)
+      setSelectedFile(null)
+      setThumbnail(null)
+      setThumbnailReady(false)
+      clearPreviewUrl()
     }
 
     async function uploadChunked() {
@@ -482,6 +516,10 @@ const UploadCard = React.forwardRef(function UploadCard(
       setProgress(0)
       setUploadRate(null)
       setIsSelected(false)
+      setSelectedFile(null)
+      setThumbnail(null)
+      setThumbnailReady(false)
+      clearPreviewUrl()
     }
 
     if (selectedFile.size > chunkSize) {
@@ -565,6 +603,34 @@ const UploadCard = React.forwardRef(function UploadCard(
     </Box>
   )
 
+  const renderLocalVideoPreview = (sx = {}) =>
+    previewUrl && previewPlayable ? (
+      <Box
+        component="video"
+        src={previewUrl}
+        poster={thumbnail || undefined}
+        muted
+        autoPlay
+        loop
+        playsInline
+        disablePictureInPicture
+        controlsList="nofullscreen nodownload noremoteplayback"
+        onCanPlay={(event) => {
+          const playPromise = event.currentTarget.play()
+          if (playPromise?.catch) playPromise.catch(() => {})
+        }}
+        onContextMenu={(e) => e.preventDefault()}
+        onError={() => setPreviewPlayable(false)}
+        sx={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+          ...sx,
+        }}
+      />
+    ) : null
+
   const canUpload = authenticated ? !!uiConfig?.show_admin_upload : !!uiConfig?.allow_public_upload
   if (!canUpload) return null
 
@@ -607,7 +673,12 @@ const UploadCard = React.forwardRef(function UploadCard(
                     }}
                   />
                 )}
-                {!thumbnailReady && (
+                {renderLocalVideoPreview({
+                  position: 'absolute',
+                  inset: 0,
+                  animation: `${fadeIn} 0.3s ease`,
+                })}
+                {!thumbnailReady && (!previewUrl || !previewPlayable) && (
                   <Box
                     sx={{
                       position: 'absolute',
@@ -618,7 +689,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                     }}
                   />
                 )}
-                {thumbnailReady && !thumbnail && (
+                {thumbnailReady && !thumbnail && (!previewUrl || !previewPlayable) && (
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                     <CloudUploadIcon sx={{ color: '#FFFFFF33', fontSize: 32 }} />
                   </Box>
@@ -874,8 +945,31 @@ const UploadCard = React.forwardRef(function UploadCard(
               onDrop={dropHandler}
               onDragOver={dragOverHandler}
             >
+              {progress > 0 && !mini && previewUrl && previewPlayable && (
+                <>
+                  {renderLocalVideoPreview({
+                    position: 'absolute',
+                    inset: 0,
+                    opacity: 0.72,
+                    pointerEvents: 'none',
+                  })}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(90deg, rgba(0, 18, 36, 0.92), rgba(0, 18, 36, 0.58))',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </>
+              )}
               <Box sx={{ display: 'flex', height: '100%' }} justifyContent="center" alignItems="center">
-                <Stack sx={{ zIndex: 0, width: '100%' }} alignItems="center" justifyContent="center" spacing={0.5}>
+                <Stack
+                  sx={{ zIndex: 1, position: 'relative', width: '100%' }}
+                  alignItems="center"
+                  justifyContent="center"
+                  spacing={0.5}
+                >
                   {!isSelected && (
                     <Input
                       id="icon-button-file"
@@ -972,7 +1066,12 @@ const UploadCard = React.forwardRef(function UploadCard(
                     }}
                   />
                 )}
-                {!thumbnailReady && (
+                {renderLocalVideoPreview({
+                  position: 'absolute',
+                  inset: 0,
+                  animation: `${fadeIn} 0.3s ease`,
+                })}
+                {!thumbnailReady && (!previewUrl || !previewPlayable) && (
                   <Box
                     sx={{
                       position: 'absolute',
@@ -983,7 +1082,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                     }}
                   />
                 )}
-                {thumbnailReady && !thumbnail && (
+                {thumbnailReady && !thumbnail && (!previewUrl || !previewPlayable) && (
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                     <CloudUploadIcon sx={{ color: '#FFFFFF33', fontSize: 32 }} />
                   </Box>
