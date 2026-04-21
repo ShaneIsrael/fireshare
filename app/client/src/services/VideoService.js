@@ -24,7 +24,7 @@ const service = {
   getRandomPublicVideo() {
     return Api().get('/api/video/public/random')
   },
-  getSuggestions(videoId, count = 5) {
+  getSuggestions(videoId, count = 6) {
     return Api().get('/api/video/suggestions', {
       params: { video_id: videoId, count },
     })

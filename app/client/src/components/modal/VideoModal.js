@@ -1227,11 +1227,11 @@ const VideoModal = ({
                       </Box>
                     </Box>
 
-                    {suggestions.length > 0 && !editMode && getSetting('ui_config')?.show_suggestions !== false && (
+                    {suggestions.some((s) => s.video_id !== videoId) && !editMode && getSetting('ui_config')?.show_suggestions !== false && (
                       <Box>
                         <Typography sx={labelSx}>Suggested</Typography>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                          {suggestions.map((suggestion) => (
+                          {suggestions.filter((s) => s.video_id !== videoId).map((suggestion) => (
                             <SuggestionCard
                               key={suggestion.video_id}
                               video={suggestion}
