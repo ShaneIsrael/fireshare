@@ -654,6 +654,23 @@ const Settings = () => {
                   }
                   label="Auto Play Videos"
                 />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={updatedConfig.ui_config?.show_suggestions !== false}
+                      onChange={(e) =>
+                        setUpdatedConfig((prev) => ({
+                          ...prev,
+                          ui_config: {
+                            ...prev.ui_config,
+                            show_suggestions: e.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                  }
+                  label="Show Suggested Videos"
+                />
                 <TextField
                   size="small"
                   label="Shareable Link Domain"

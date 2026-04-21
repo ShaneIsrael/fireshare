@@ -1,5 +1,6 @@
 import React from 'react'
 import { Chip } from '@mui/material'
+import { Link as RouterLink } from 'react-router-dom'
 
 /**
  * Reusable tag chip. Use size="small" for video cards, default for previews.
@@ -12,6 +13,7 @@ import { Chip } from '@mui/material'
 const TagChip = ({ name, color, href, size = 'medium', onDelete, ...rest }) => {
   const displayName = name ? name.replace(/_/g, ' ') : ''
   const accentColor = color || '#2684FF'
+  const isInternalHref = href?.startsWith('/')
 
   const smallSx = {
     height: 22,
@@ -35,8 +37,9 @@ const TagChip = ({ name, color, href, size = 'medium', onDelete, ...rest }) => {
     <Chip
       label={displayName}
       size={size}
-      component={href ? 'a' : undefined}
-      href={href}
+      component={href ? (isInternalHref ? RouterLink : 'a') : undefined}
+      to={isInternalHref ? href : undefined}
+      href={isInternalHref ? undefined : href}
       onClick={href ? (e) => e.stopPropagation() : undefined}
       onDelete={onDelete}
       sx={{
