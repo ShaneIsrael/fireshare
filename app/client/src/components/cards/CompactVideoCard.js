@@ -24,6 +24,7 @@ import _ from 'lodash'
 
 const PURL = getPublicWatchUrl()
 const POSTER_VERSION = Date.now()
+const APP_ORIGIN = window.location.origin
 
 const CompactVideoCard = ({
   video,
@@ -805,10 +806,11 @@ const CompactVideoCard = ({
         >
           {/* Game icon — only shown when a game is linked */}
           {game?.icon_url && (
-            <a
-              href={`games/${game.steamgriddb_id}`}
+            <Box
+              component="a"
+              href={`${APP_ORIGIN}/games/${game.steamgriddb_id}`}
               onClick={(e) => e.stopPropagation()}
-              style={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
+              sx={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
             >
               <img
                 src={game.icon_url}
@@ -818,7 +820,7 @@ const CompactVideoCard = ({
                 }}
                 style={{ width: 40, height: 40, objectFit: 'contain', display: 'block' }}
               />
-            </a>
+            </Box>
           )}
 
           {/* Text info */}
@@ -891,7 +893,7 @@ const CompactVideoCard = ({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
                 <Typography
                   component={game?.steamgriddb_id ? 'a' : 'span'}
-                  href={game?.steamgriddb_id ? `games/${game.steamgriddb_id}` : undefined}
+                  href={game?.steamgriddb_id ? `${APP_ORIGIN}/games/${game.steamgriddb_id}` : undefined}
                   onClick={game?.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
                   sx={{
                     fontSize: 14,

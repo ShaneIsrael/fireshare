@@ -45,10 +45,12 @@ import { ConfigService, VideoService, GameService, TagService } from '../../serv
 import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../misc/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
+import SuggestionCard from '../cards/SuggestionCard'
 import WaveformCropper from './WaveformCropper'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
+const APP_ORIGIN = window.location.origin
 
 // ─── Shared style constants (matching UpdateDetailsModal / CompactVideoCard) ──
 
@@ -178,7 +180,17 @@ const DateField = ({ selectedDate, selectedTime, onDateChange, onTimeChange }) =
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCallback, onNext, onPrev }) => {
+const VideoModal = ({
+  open,
+  onClose,
+  videoId,
+  feedView,
+  authenticated,
+  updateCallback,
+  onNext,
+  onPrev,
+  onSuggestionSelect,
+}) => {
   const [title, setTitle] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [updateable, setUpdatable] = React.useState(false)
@@ -207,6 +219,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
   const [pendingThumbnailFile, setPendingThumbnailFile] = React.useState(null)
   const [pendingThumbnailPreview, setPendingThumbnailPreview] = React.useState(null)
   const [thumbnailLoaded, setThumbnailLoaded] = React.useState(false)
+  const [suggestions, setSuggestions] = React.useState([])
 
   const playerRef = React.useRef()
   const waveformRef = React.useRef(null)
@@ -375,6 +388,30 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
       cancelled = true
     }
   }, [videoId])
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    if (!open || !videoId) {
+      setSuggestions([])
+      return () => {
+        cancelled = true
+      }
+    }
+
+    VideoService.getSuggestions(videoId)
+      .then((res) => {
+        if (!cancelled) setSuggestions(res.data || [])
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestions([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const handleGameLinked = async (game, warning) => {
     try {
@@ -646,7 +683,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
             justifyContent: 'center',
             // Full-screen on small viewports, padded on desktop
             p: { xs: 0, md: '96px' },
-            overflowY: { xs: 'auto', md: 'unset' },
+            overflowY: { xs: 'hidden', md: 'unset' },
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose()
@@ -667,8 +704,8 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 display: 'flex',
                 flexDirection: 'column',
                 width: { xs: '100%', md: `calc(${videoW_css} + ${SIDEBAR_WIDTH})` },
-                height: 'auto',
-                maxHeight: { xs: 'none', md: '100%' },
+                height: { xs: '100dvh', md: 'auto' },
+                maxHeight: { xs: '100dvh', md: '100%' },
                 maxWidth: '100%',
               }}
             >
@@ -677,7 +714,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 sx={{
                   display: 'flex',
                   flexDirection: { xs: 'column', md: 'row' },
-                  height: { xs: 'auto', md: videoH_css },
+                  height: { xs: '100%', md: videoH_css },
                   overflow: 'hidden',
                 }}
               >
@@ -725,7 +762,9 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                 <Box
                   sx={{
                     width: { xs: '100%', md: SIDEBAR_WIDTH },
+                    flex: { xs: 1, md: 'none' },
                     flexShrink: 0,
+                    minHeight: 0,
                     display: 'flex',
                     flexDirection: 'column',
                     bgcolor: '#041223',
@@ -846,7 +885,11 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                           {selectedGame && (
                             <Box
                               component={selectedGame.steamgriddb_id ? 'a' : 'div'}
-                              href={selectedGame.steamgriddb_id ? `games/${selectedGame.steamgriddb_id}` : undefined}
+                              href={
+                                selectedGame.steamgriddb_id
+                                  ? `${APP_ORIGIN}/games/${selectedGame.steamgriddb_id}`
+                                  : undefined
+                              }
                               onClick={selectedGame.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
                               sx={{
                                 display: 'flex',
@@ -904,7 +947,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                                   key={tag.id}
                                   name={tag.name}
                                   color={tag.color}
-                                  href={`tags/${tag.id}`}
+                                  href={`${APP_ORIGIN}/tags/${tag.id}`}
                                   size="small"
                                 />
                               ))}
@@ -1334,8 +1377,24 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                       </Box>
                     )}
 
-                    {/* Spacer — future "Related Videos" will live here */}
-                    <Box sx={{ flex: 1 }} />
+                    {suggestions.some((s) => s.video_id !== videoId) &&
+                      !editMode &&
+                      getSetting('ui_config')?.show_suggestions !== false && (
+                        <Box>
+                          <Typography sx={labelSx}>Suggested</Typography>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            {suggestions
+                              .filter((s) => s.video_id !== videoId)
+                              .map((suggestion) => (
+                                <SuggestionCard
+                                  key={suggestion.video_id}
+                                  video={suggestion}
+                                  onSelect={onSuggestionSelect}
+                                />
+                              ))}
+                          </Box>
+                        </Box>
+                      )}
                   </Box>
 
                   <Divider sx={{ borderColor: '#FFFFFF14', flexShrink: 0 }} />

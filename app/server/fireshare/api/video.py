@@ -7,7 +7,7 @@ import time as _time
 import subprocess
 import tempfile
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from flask import current_app, jsonify, request, Response, send_file, session
@@ -211,6 +211,143 @@ def get_random_public_video():
     vjson = random_video.json()
     vjson["view_count"] = VideoView.count(random_video.video_id)
     return jsonify(vjson)
+
+
+@api.route('/api/video/suggestions')
+def get_video_suggestions():
+    import random
+
+    video_id = request.args.get('video_id')
+    try:
+        count = min(max(int(request.args.get('count', 5)), 1), 10)
+    except (TypeError, ValueError):
+        count = 5
+
+    if not video_id:
+        return Response(status=400, response='video_id is required.')
+
+    current_video = Video.query.filter_by(video_id=video_id).first()
+    if not current_video:
+        return Response(status=404, response='Video not found.')
+
+    authenticated = current_user.is_authenticated
+
+    def base_query():
+        query = Video.query.join(VideoInfo).filter(
+            Video.video_id != video_id,
+            Video.available == True,
+        )
+        if not authenticated:
+            query = query.filter(VideoInfo.private == False)
+        return query
+
+    seen = set()
+    pool = []
+
+    def with_unseen(query):
+        if seen:
+            return query.filter(Video.video_id.notin_(list(seen)))
+        return query
+
+    def add_candidates(videos, limit):
+        added = 0
+        for video in videos:
+            if video.video_id in seen or added >= limit:
+                continue
+            seen.add(video.video_id)
+            pool.append(video)
+            added += 1
+
+    game_link = VideoGameLink.query.filter_by(video_id=video_id).first()
+    if game_link:
+        same_game_ids = [
+            link.video_id
+            for link in VideoGameLink.query
+            .filter(VideoGameLink.game_id == game_link.game_id, VideoGameLink.video_id != video_id)
+            .all()
+        ]
+        if same_game_ids:
+            candidates = (
+                base_query()
+                .filter(Video.video_id.in_(same_game_ids))
+                .order_by(func.random())
+                .limit(3)
+                .all()
+            )
+            add_candidates(candidates, 3)
+            seen.update(same_game_ids)
+
+    tag_ids = [link.tag_id for link in VideoTagLink.query.filter_by(video_id=video_id).all()]
+    if tag_ids and len(pool) < count:
+        same_tag_ids = list(set(
+            link.video_id
+            for link in VideoTagLink.query
+            .filter(VideoTagLink.tag_id.in_(tag_ids), VideoTagLink.video_id != video_id)
+            .all()
+        ))
+        if same_tag_ids:
+            candidates = (
+                with_unseen(base_query())
+                .filter(Video.video_id.in_(same_tag_ids))
+                .order_by(func.random())
+                .limit(3)
+                .all()
+            )
+            add_candidates(candidates, 3)
+
+    if current_video.source_folder and len(pool) < count:
+        candidates = (
+            with_unseen(base_query())
+            .filter(Video.source_folder == current_video.source_folder)
+            .order_by(func.random())
+            .limit(2)
+            .all()
+        )
+        add_candidates(candidates, 2)
+
+    if current_video.recorded_at and len(pool) < count:
+        window_start = current_video.recorded_at - timedelta(days=3)
+        window_end = current_video.recorded_at + timedelta(days=3)
+        candidates = (
+            with_unseen(base_query())
+            .filter(
+                Video.recorded_at >= window_start,
+                Video.recorded_at <= window_end,
+            )
+            .order_by(func.random())
+            .limit(2)
+            .all()
+        )
+        add_candidates(candidates, 2)
+
+    if len(pool) < count:
+        needed = count - len(pool)
+        candidates = (
+            with_unseen(base_query())
+            .order_by(func.random())
+            .limit(needed)
+            .all()
+        )
+        add_candidates(candidates, needed)
+
+    random.shuffle(pool)
+
+    pool_ids = [video.video_id for video in pool]
+    game_links_map = {
+        link.video_id: link
+        for link in VideoGameLink.query.filter(VideoGameLink.video_id.in_(pool_ids)).all()
+    } if pool_ids else {}
+
+    result = []
+    for video in pool[:count]:
+        video_json = video.json()
+        video_json['view_count'] = VideoView.count(video.video_id)
+        game_link = game_links_map.get(video.video_id)
+        if game_link:
+            video_json['game'] = game_link.game.json()
+        result.append(video_json)
+
+    return jsonify(result)
 
 
 @api.route('/api/videos/public')
