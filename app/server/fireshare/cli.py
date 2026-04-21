@@ -1235,5 +1235,50 @@ def scan_image(ctx, path, game_id, tag_ids, title):
             logger.info(f"Image {iid} indexed successfully")
 
 
+@cli.command()
+def migrate_game_assets():
+    """Convert any non-webp game assets to webp at 100% quality."""
+    from PIL import Image as PILImage
+
+    _ASSET_SLOTS = ['hero_1', 'hero_2', 'logo_1', 'icon_1']
+    _NON_WEBP_EXTENSIONS = ['.png', '.jpg', '.jpeg']
+
+    with create_app().app_context():
+        paths = current_app.config['PATHS']
+        game_assets_base = paths['data'] / 'game_assets'
+
+        if not game_assets_base.exists():
+            logger.info("migrate-game-assets: no game_assets directory found, nothing to do")
+            return
+
+        converted = 0
+        skipped = 0
+        errors = 0
+
+        for game_dir in sorted(game_assets_base.iterdir()):
+            if not game_dir.is_dir():
+                continue
+            for slot in _ASSET_SLOTS:
+                webp_path = game_dir / f'{slot}.webp'
+                if webp_path.exists():
+                    skipped += 1
+                    continue
+                for ext in _NON_WEBP_EXTENSIONS:
+                    src = game_dir / f'{slot}{ext}'
+                    if src.exists():
+                        try:
+                            with PILImage.open(src) as img:
+                                img.save(webp_path, 'WEBP', quality=100, method=6)
+                            src.unlink()
+                            logger.info(f"migrate-game-assets: converted {src.name} -> {webp_path.name} in {game_dir.name}")
+                            converted += 1
+                        except Exception as e:
+                            logger.error(f"migrate-game-assets: failed to convert {src}: {e}")
+                            errors += 1
+                        break
+
+        logger.info(f"migrate-game-assets: complete — {converted} converted, {skipped} already webp, {errors} errors")
+
+
 if __name__=="__main__":
     cli()

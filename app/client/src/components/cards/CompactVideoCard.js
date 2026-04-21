@@ -14,7 +14,7 @@ import FolderIcon from '@mui/icons-material/Folder'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, toHHMMSS, getVideoUrl, getSetting, getPosterUrl } from '../../common/utils'
+import { getPublicWatchUrl, toHHMMSS, getVideoUrl, getSetting, getPosterUrl, getGameAssetUrl } from '../../common/utils'
 import { GameService, VideoService, ConfigService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import DeleteVideoModal from '../modal/DeleteVideoModal'
@@ -193,7 +193,7 @@ const CompactVideoCard = ({
       const { steamgriddbId, bust } = e.detail
       if (gameRef.current?.steamgriddb_id === steamgriddbId) {
         setGame((prev) =>
-          prev ? { ...prev, icon_url: `/api/game/assets/${steamgriddbId}/icon_1.png?v=${bust}` } : prev,
+          prev ? { ...prev, icon_url: getGameAssetUrl(steamgriddbId, 'icon_1', bust) } : prev,
         )
       }
     }

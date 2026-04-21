@@ -168,6 +168,24 @@ export const getPublicImageUrl = () => {
 }
 
 /**
+ * Gets the URL for a game asset (hero, banner, logo, icon).
+ * In nginx/prod mode uses /_content/game_assets/; in dev uses /api/game/assets/.
+ * @param {number} steamgriddbId - SteamGridDB game ID
+ * @param {string} slot - Asset slot name, e.g. 'hero_1', 'logo_1', 'icon_1'
+ * @param {string|number} [cacheBuster] - Optional cache-busting value
+ * @returns {string} Asset URL
+ */
+export const getGameAssetUrl = (steamgriddbId, slot, cacheBuster) => {
+  const SERVED_BY = getServedBy()
+  const base =
+    SERVED_BY === 'nginx'
+      ? `/_content/game_assets/${steamgriddbId}`
+      : `/api/game/assets/${steamgriddbId}`
+  const url = `${base}/${slot}.webp`
+  return cacheBuster ? `${url}?v=${cacheBuster}` : url
+}
+
+/**
  * Gets the thumbnail URL for an image
  */
 export const getImageThumbnailUrl = (imageId, cacheBuster) => {

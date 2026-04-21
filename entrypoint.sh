@@ -98,6 +98,9 @@ gosu appuser env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" flask db upgrad
 
 echo "Database migrations complete"
 
+echo "Running game asset extension migration..."
+gosu appuser env PATH="$PATH" LD_LIBRARY_PATH="$LD_LIBRARY_PATH" fireshare migrate-game-assets
+
 # Generate boomerang previews once on first boot
 BOOMERANG_FLAG="$DATA_DIRECTORY/.boomerangs_generated"
 if [ ! -f "$BOOMERANG_FLAG" ]; then

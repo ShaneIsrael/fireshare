@@ -152,6 +152,7 @@ def create_app(init_schedule=False):
         False if os.getenv('FIRESHARE_LITE', '').lower() in ('true', '1', 'yes')
         else os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
     )
+    app.config['SERVE_GAME_ASSETS_NGINX'] = os.getenv('ENVIRONMENT', '') == 'production'
     app.config['TRANSCODE_TIMEOUT'] = int(os.getenv('TRANSCODE_TIMEOUT', '7200'))  # Default: 2 hours
 
     #Integrations
