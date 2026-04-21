@@ -714,6 +714,7 @@ const VideoModal = ({ open, onClose, videoId, feedView, authenticated, updateCal
                     onReady={(player) => {
                       playerRef.current = player
                     }}
+                    startTime={getResumeTime(vid.video_id, vid.info?.duration)}
                     fill={true}
                     fluid={false}
                     playsinline={true}
