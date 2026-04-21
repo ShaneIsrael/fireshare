@@ -6,7 +6,9 @@ on:
       - "app/**"
       - "migrations/**"
       - "Dockerfile"
+      - "Dockerfile.lite"
       - "entrypoint.sh"
+      - "entrypoint-lite.sh"
   workflow_dispatch:
     inputs:
       tag:
@@ -42,6 +44,14 @@ jobs:
           file: Dockerfile
           tags: shaneisrael/fireshare:develop
 
+      - name: Push Lite to Docker Hub
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          file: Dockerfile.lite
+          tags: shaneisrael/fireshare:develop-lite
+
   manual_push_to_registry:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     name: Build & Push [${{ github.event.inputs.tag }}]
@@ -65,3 +75,11 @@ jobs:
           push: true
           file: Dockerfile
           tags: shaneisrael/fireshare:${{ github.event.inputs.tag }}
+
+      - name: Push Lite to Docker Hub
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          file: Dockerfile.lite
+          tags: shaneisrael/fireshare:${{ github.event.inputs.tag }}-lite
