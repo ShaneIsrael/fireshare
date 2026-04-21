@@ -146,6 +146,7 @@ RUN mkdir /data && mkdir /processed
 COPY entrypoint.sh /
 COPY app/nginx/prod.conf /etc/nginx/nginx.conf
 COPY app/nginx/error.html /etc/nginx/error.html
+COPY app/nginx/api_unavailable.html /etc/nginx/api_unavailable.html
 COPY app/server/ /app/server
 COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
