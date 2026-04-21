@@ -42,6 +42,7 @@ const CompactVideoCard = ({
   const [hover, setHover] = React.useState(false)
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
   const [game, setGame] = React.useState(video.game || null)
+  const [gameReady, setGameReady] = React.useState(!!video.game)
   const [privateView, setPrivateView] = React.useState(video.info?.private)
   const [title, setTitle] = React.useState(
     video.info?.title ||
@@ -176,13 +177,10 @@ const CompactVideoCard = ({
     if (video.game) return
     GameService.getVideoGame(video.video_id)
       .then((response) => {
-        if (response.data) {
-          setGame(response.data)
-        }
+        if (response.data) setGame(response.data)
       })
-      .catch(() => {
-        // No game linked
-      })
+      .catch(() => {})
+      .finally(() => setGameReady(true))
   }, [video.video_id, video.game])
 
   const gameRef = React.useRef(game)
@@ -438,6 +436,8 @@ const CompactVideoCard = ({
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
+          opacity: gameReady ? 1 : 0,
+          transition: 'opacity 0.15s ease',
         }}
       >
         {selected && (
@@ -804,22 +804,23 @@ const CompactVideoCard = ({
             gap: 1.5,
           }}
         >
-          {/* Game icon — only shown when a game is linked */}
-          {game?.icon_url && (
+          {/* Game icon — space reserved whenever a game is linked so the layout doesn't shift when the image loads */}
+          {game && (
             <Box
-              component="a"
-              href={`${APP_ORIGIN}/games/${game.steamgriddb_id}`}
-              onClick={(e) => e.stopPropagation()}
-              sx={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
+              component={game.icon_url ? 'a' : 'div'}
+              href={game.icon_url ? `${APP_ORIGIN}/games/${game.steamgriddb_id}` : undefined}
+              onClick={game.icon_url ? (e) => e.stopPropagation() : undefined}
+              sx={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start', width: 40, height: 40 }}
             >
-              <img
-                src={game.icon_url}
-                alt={game.name}
-                onError={(e) => {
-                  e.currentTarget.parentElement.style.display = 'none'
-                }}
-                style={{ width: 40, height: 40, objectFit: 'contain', display: 'block' }}
-              />
+              {game.icon_url && (
+                <img
+                  src={game.icon_url}
+                  alt={game.name}
+                  onLoad={(e) => { e.currentTarget.style.opacity = 1 }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  style={{ width: 40, height: 40, objectFit: 'contain', display: 'block', opacity: 0, transition: 'opacity 0.15s ease' }}
+                />
+              )}
             </Box>
           )}
 
