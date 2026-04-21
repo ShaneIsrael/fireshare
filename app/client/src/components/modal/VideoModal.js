@@ -361,7 +361,6 @@ const VideoModal = ({
       setSelectedTime('')
       setEditMode(false)
       setVideoTags([])
-      setSuggestions([])
       setCropStart(null)
       setCropEnd(null)
       setHasCustomPoster(false)
@@ -397,7 +396,8 @@ const VideoModal = ({
     return () => {
       cancelled = true
     }
-  }, [open, videoId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const handleGameLinked = async (game, warning) => {
     try {
@@ -663,7 +663,7 @@ const VideoModal = ({
             justifyContent: 'center',
             // Full-screen on small viewports, padded on desktop
             p: { xs: 0, md: '96px' },
-            overflowY: { xs: 'auto', md: 'unset' },
+            overflowY: { xs: 'hidden', md: 'unset' },
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose()
@@ -684,8 +684,8 @@ const VideoModal = ({
                 display: 'flex',
                 flexDirection: 'column',
                 width: { xs: '100%', md: `calc(${videoW_css} + ${SIDEBAR_WIDTH})` },
-                height: 'auto',
-                maxHeight: { xs: 'none', md: '100%' },
+                height: { xs: '100dvh', md: 'auto' },
+                maxHeight: { xs: '100dvh', md: '100%' },
                 maxWidth: '100%',
               }}
             >
@@ -694,7 +694,7 @@ const VideoModal = ({
                 sx={{
                   display: 'flex',
                   flexDirection: { xs: 'column', md: 'row' },
-                  height: { xs: 'auto', md: videoH_css },
+                  height: { xs: '100%', md: videoH_css },
                   overflow: 'hidden',
                 }}
               >
@@ -741,7 +741,9 @@ const VideoModal = ({
                 <Box
                   sx={{
                     width: { xs: '100%', md: SIDEBAR_WIDTH },
+                    flex: { xs: 1, md: 'none' },
                     flexShrink: 0,
+                    minHeight: 0,
                     display: 'flex',
                     flexDirection: 'column',
                     bgcolor: '#041223',
@@ -1225,9 +1227,9 @@ const VideoModal = ({
                       </Box>
                     </Box>
 
-                    {suggestions.length > 0 && (
+                    {suggestions.length > 0 && !editMode && (
                       <Box>
-                        <Typography sx={labelSx}>Up Next</Typography>
+                        <Typography sx={labelSx}>Suggested</Typography>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                           {suggestions.map((suggestion) => (
                             <SuggestionCard
