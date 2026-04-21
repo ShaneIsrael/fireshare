@@ -2,6 +2,7 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip } from '@mui/material'
 import TagChip from '../misc/TagChip'
+import LockIcon from '@mui/icons-material/Lock'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
@@ -13,15 +14,17 @@ import FolderIcon from '@mui/icons-material/Folder'
 import CheckIcon from '@mui/icons-material/Check'
 import CloseIcon from '@mui/icons-material/Close'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
-import { getPublicWatchUrl, toHHMMSS, getVideoUrl, getSetting, getPosterUrl } from '../../common/utils'
+import { getPublicWatchUrl, toHHMMSS, getVideoUrl, getSetting, getPosterUrl, getGameAssetUrl } from '../../common/utils'
 import { GameService, VideoService, ConfigService } from '../../services'
 import UpdateDetailsModal from '../modal/UpdateDetailsModal'
 import DeleteVideoModal from '../modal/DeleteVideoModal'
 import MoveVideoModal from '../modal/MoveVideoModal'
+import PasswordModal from '../modal/PasswordModal'
 import _ from 'lodash'
 
 const PURL = getPublicWatchUrl()
 const POSTER_VERSION = Date.now()
+const APP_ORIGIN = window.location.origin
 
 const CompactVideoCard = ({
   video,
@@ -67,16 +70,20 @@ const CompactVideoCard = ({
   const retryCountRef = React.useRef(0)
   const MAX_THUMBNAIL_RETRIES = 20
   const [localTags, setLocalTags] = React.useState(video.tags || [])
+  const [passwordModalOpen, setPasswordModalOpen] = React.useState(false)
+  const [unlockedLocally, setUnlockedLocally] = React.useState(video.info?.session_unlocked || false)
 
   const uiConfig = getSetting('ui_config')
   const canTagGames = authenticated || uiConfig?.allow_public_game_tag
 
   const videoRef = React.useRef(null)
 
+  const isLocked = !authenticated && !unlockedLocally && video.info?.has_password
+
   React.useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    if (hover) {
+    if (hover && !isLocked) {
       const { has_480p, has_720p, has_1080p } = intVideo?.info || video.info || {}
       v.src = has_480p
         ? getVideoUrl(video.video_id, '480p', video.extension)
@@ -187,7 +194,7 @@ const CompactVideoCard = ({
       const { steamgriddbId, bust } = e.detail
       if (gameRef.current?.steamgriddb_id === steamgriddbId) {
         setGame((prev) =>
-          prev ? { ...prev, icon_url: `/api/game/assets/${steamgriddbId}/icon_1.png?v=${bust}` } : prev,
+          prev ? { ...prev, icon_url: getGameAssetUrl(steamgriddbId, 'icon_1', bust) } : prev,
         )
       }
     }
@@ -374,6 +381,16 @@ const CompactVideoCard = ({
 
   return (
     <>
+      <PasswordModal
+        open={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+        videoId={video.video_id}
+        onUnlocked={() => {
+          setUnlockedLocally(true)
+          setPasswordModalOpen(false)
+          openVideoHandler(video.video_id)
+        }}
+      />
       <DeleteVideoModal
         open={deleteModalOpen}
         onClose={(result) => {
@@ -407,6 +424,7 @@ const CompactVideoCard = ({
         currentDescription={description}
         currentRecordedAt={video.recorded_at}
         currentGame={game}
+        currentHasPassword={intVideo?.info?.has_password}
         alertHandler={alertHandler}
       />
 
@@ -452,7 +470,17 @@ const CompactVideoCard = ({
           />
           <motion.div
             style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
-            onClick={() => (editMode ? onSelect?.(video.video_id) : openVideoHandler(video.video_id))}
+            onClick={() => {
+              if (editMode) {
+                onSelect?.(video.video_id)
+                return
+              }
+              if (isLocked) {
+                setPasswordModalOpen(true)
+                return
+              }
+              openVideoHandler(video.video_id)
+            }}
             onMouseEnter={(e) => {
               setThumbnailHover(true)
               debouncedMouseEnter(e)
@@ -474,7 +502,7 @@ const CompactVideoCard = ({
                 objectFit: 'cover',
                 display: 'block',
                 opacity: imgLoaded ? 1 : 0,
-                transition: 'opacity 0.8s ease',
+                transition: 'opacity 0.8s ease, filter 0.3s ease, transform 0.3s ease',
               }}
             />
 
@@ -494,6 +522,31 @@ const CompactVideoCard = ({
               playsInline
               disablePictureInPicture
             />
+
+            {/* Lock overlay — centered, fades on hover */}
+            {video.info?.has_password && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                  opacity: thumbnailHover ? 0 : 1,
+                  transition: 'opacity 0.2s ease-in-out',
+                }}
+              >
+                <LockIcon
+                  sx={{
+                    fontSize: 40,
+                    color: 'rgba(255,255,255,0.75)',
+                    filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.9))',
+                  }}
+                />
+              </Box>
+            )}
 
             {/* Duration badge */}
             <Box
@@ -753,10 +806,11 @@ const CompactVideoCard = ({
         >
           {/* Game icon — only shown when a game is linked */}
           {game?.icon_url && (
-            <a
-              href={`games/${game.steamgriddb_id}`}
+            <Box
+              component="a"
+              href={`${APP_ORIGIN}/games/${game.steamgriddb_id}`}
               onClick={(e) => e.stopPropagation()}
-              style={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
+              sx={{ flexShrink: 0, lineHeight: 0, alignSelf: 'flex-start' }}
             >
               <img
                 src={game.icon_url}
@@ -766,7 +820,7 @@ const CompactVideoCard = ({
                 }}
                 style={{ width: 40, height: 40, objectFit: 'contain', display: 'block' }}
               />
-            </a>
+            </Box>
           )}
 
           {/* Text info */}
@@ -839,7 +893,7 @@ const CompactVideoCard = ({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
                 <Typography
                   component={game?.steamgriddb_id ? 'a' : 'span'}
-                  href={game?.steamgriddb_id ? `games/${game.steamgriddb_id}` : undefined}
+                  href={game?.steamgriddb_id ? `${APP_ORIGIN}/games/${game.steamgriddb_id}` : undefined}
                   onClick={game?.steamgriddb_id ? (e) => e.stopPropagation() : undefined}
                   sx={{
                     fontSize: 14,

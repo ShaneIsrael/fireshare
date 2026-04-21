@@ -6,6 +6,7 @@ import requests
 import logging
 from typing import Optional, List, Dict
 from pathlib import Path
+from PIL import Image as PILImage
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +205,17 @@ class SteamGridDBClient:
 
         return assets
 
+    def _convert_to_webp(self, src: Path, dest: Path) -> bool:
+        """Convert an image file to webp at 100% quality, removing the source file."""
+        try:
+            with PILImage.open(src) as img:
+                img.save(dest, 'WEBP', quality=100, method=6)
+            src.unlink()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to convert {src} to webp: {e}")
+            return False
+
     def _download_asset(self, url: str, save_path: Path) -> bool:
         """
         Download a single asset from URL to save_path
@@ -290,8 +302,9 @@ class SteamGridDBClient:
                     ext = self._get_extension_from_url(url)
                     temp_path = temp_dir / f"hero_{i}{ext}"
                     if self._download_asset(url, temp_path):
-                        hero_count += 1
-                    # Don't fail if hero download fails, it's optional
+                        webp_path = temp_dir / f"hero_{i}.webp"
+                        if ext == '.webp' or self._convert_to_webp(temp_path, webp_path):
+                            hero_count += 1
 
             # Download logo (optional)
             logo_count = 0
@@ -301,8 +314,9 @@ class SteamGridDBClient:
                     ext = self._get_extension_from_url(url)
                     temp_path = temp_dir / f"logo_1{ext}"
                     if self._download_asset(url, temp_path):
-                        logo_count += 1
-                    # Don't fail if logo download fails, it's optional
+                        webp_path = temp_dir / f"logo_1.webp"
+                        if ext == '.webp' or self._convert_to_webp(temp_path, webp_path):
+                            logo_count += 1
 
             # Download icon (optional)
             icon_count = 0
@@ -312,8 +326,9 @@ class SteamGridDBClient:
                     ext = self._get_extension_from_url(url)
                     temp_path = temp_dir / f"icon_1{ext}"
                     if self._download_asset(url, temp_path):
-                        icon_count += 1
-                    # Don't fail if icon download fails, it's optional
+                        webp_path = temp_dir / f"icon_1.webp"
+                        if ext == '.webp' or self._convert_to_webp(temp_path, webp_path):
+                            icon_count += 1
 
             # All downloads successful, move to final location
             final_dir = base_path / str(game_id)
@@ -334,7 +349,7 @@ class SteamGridDBClient:
                     "heroes": hero_count,
                     "logos": logo_count,
                     "icons": icon_count
-                }
+                },
             }
 
         except Exception as e:
@@ -343,7 +358,8 @@ class SteamGridDBClient:
             return {
                 "success": False,
                 "error": error_msg,
-                "assets": {"heroes": 0, "logos": 0, "icons": 0}
+                "assets": {"heroes": 0, "logos": 0, "icons": 0},
+                "extensions": {},
             }
 
         finally:

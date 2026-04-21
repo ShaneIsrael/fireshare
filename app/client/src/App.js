@@ -124,11 +124,11 @@ export default function App() {
             <Route
               path="/watch/:id"
               element={
-                <Navbar20 collapsed={true} page="/watch">
-                  <AuthWrapper>
+                <AuthWrapper>
+                  <Navbar20 collapsed={true} page="/watch">
                     <Watch />
-                  </AuthWrapper>
-                </Navbar20>
+                  </Navbar20>
+                </AuthWrapper>
               }
             />
             <Route
@@ -151,11 +151,11 @@ export default function App() {
             <Route
               path="/image/:id"
               element={
-                <Navbar20 collapsed={true} page="/image">
-                  <AuthWrapper>
+                <AuthWrapper>
+                  <Navbar20 collapsed={true} page="/image">
                     <ViewImage />
-                  </AuthWrapper>
-                </Navbar20>
+                  </Navbar20>
+                </AuthWrapper>
               }
             />
             <Route

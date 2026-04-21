@@ -10,6 +10,7 @@ from queue import Queue, Empty
 
 from flask import current_app, jsonify, request, Response
 from flask_login import login_required, current_user
+from werkzeug.security import generate_password_hash
 
 from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageView, TranscodeJob
@@ -365,6 +366,7 @@ def get_admin_files():
             'has_720p': v.info.has_720p if v.info else False,
             'has_1080p': v.info.has_1080p if v.info else False,
             'has_crop': v.info.has_crop if v.info else False,
+            'has_password': bool(v.info.password_hash) if v.info else False,
             'available': v.available,
             'created_at': v.created_at.isoformat() if v.created_at else None,
             'recorded_at': v.recorded_at.isoformat() if v.recorded_at else None,
@@ -691,6 +693,70 @@ def bulk_set_privacy():
             continue
         try:
             video_info.private = bool(private)
+            db.session.commit()
+            results['updated'].append(vid_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'video_id': vid_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/files/bulk-set-password', methods=['POST'])
+@login_required
+def bulk_set_password():
+    """Set a password on multiple videos (admin only)"""
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    video_ids = data.get('video_ids', [])
+    password = data.get('password', '').strip()
+    if not video_ids:
+        return Response(status=400, response='No video IDs provided.')
+    if not password:
+        return Response(status=400, response='A password must be provided.')
+
+    hashed = generate_password_hash(password, method='pbkdf2:sha256')
+    results = {'updated': [], 'errors': []}
+
+    for vid_id in video_ids:
+        video_info = VideoInfo.query.filter_by(video_id=vid_id).first()
+        if not video_info:
+            results['errors'].append({'video_id': vid_id, 'error': 'Not found'})
+            continue
+        try:
+            video_info.password_hash = hashed
+            db.session.commit()
+            results['updated'].append(vid_id)
+        except Exception as e:
+            db.session.rollback()
+            results['errors'].append({'video_id': vid_id, 'error': str(e)})
+
+    return jsonify(results)
+
+
+@api.route('/api/admin/files/bulk-remove-password', methods=['POST'])
+@login_required
+def bulk_remove_password():
+    """Remove the password from multiple videos (admin only)"""
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
+        return Response(status=403, response='Admin access required.')
+
+    data = request.json
+    video_ids = data.get('video_ids', [])
+    if not video_ids:
+        return Response(status=400, response='No video IDs provided.')
+
+    results = {'updated': [], 'errors': []}
+
+    for vid_id in video_ids:
+        video_info = VideoInfo.query.filter_by(video_id=vid_id).first()
+        if not video_info:
+            results['errors'].append({'video_id': vid_id, 'error': 'Not found'})
+            continue
+        try:
+            video_info.password_hash = None
             db.session.commit()
             results['updated'].append(vid_id)
         except Exception as e:

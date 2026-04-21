@@ -24,6 +24,11 @@ const service = {
   getRandomPublicVideo() {
     return Api().get('/api/video/public/random')
   },
+  getSuggestions(videoId, count = 6) {
+    return Api().get('/api/video/suggestions', {
+      params: { video_id: videoId, count },
+    })
+  },
   getViews(id) {
     return Api().get(`/api/video/${id}/views`)
   },
@@ -144,6 +149,18 @@ const service = {
   },
   deleteCustomPoster(id) {
     return Api().delete(`/api/video/${id}/poster/custom`)
+  },
+  unlockVideo(videoId, password) {
+    return Api().post(`/api/video/${videoId}/unlock`, { password })
+  },
+  setPassword(videoId, password) {
+    return Api().put(`/api/video/details/${videoId}`, { password })
+  },
+  generatePassword(videoId) {
+    return Api().put(`/api/video/details/${videoId}`, { password: '__autogenerate__' })
+  },
+  removePassword(videoId) {
+    return Api().put(`/api/video/details/${videoId}`, { remove_password: true })
   },
 }
 

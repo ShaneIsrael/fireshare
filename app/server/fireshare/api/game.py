@@ -109,7 +109,7 @@ def update_game_asset(steamgriddb_id):
     asset_dir = paths['data'] / 'game_assets' / str(steamgriddb_id)
     asset_dir.mkdir(parents=True, exist_ok=True)
 
-    dest_path = asset_dir / f'{base_name}{ext}'
+    dest_path = asset_dir / f'{base_name}.webp'
 
     # Download to temp file first — do NOT remove the old asset until success
     import shutil
@@ -119,13 +119,20 @@ def update_game_asset(steamgriddb_id):
         success = client._download_asset(url, temp_path)
         if not success:
             return Response(status=502, response='Failed to download asset from SteamGridDB.')
-        # Download succeeded — now atomically replace: remove old, move new into place
+        # Convert to webp if needed
+        webp_temp = temp_dir / f'{base_name}.webp'
+        if ext != '.webp' and not client._convert_to_webp(temp_path, webp_temp):
+            return Response(status=500, response='Failed to convert asset to webp.')
+        final_temp = webp_temp if ext != '.webp' else temp_path
+        # Atomically replace: remove all old variants, move new webp into place
         for existing in asset_dir.glob(f'{base_name}.*'):
             try:
                 existing.unlink()
             except OSError as e:
                 current_app.logger.warning(f'Could not remove old asset {existing}: {e}')
-        shutil.move(str(temp_path), str(dest_path))
+        shutil.move(str(final_temp), str(dest_path))
+        game.updated_at = datetime.utcnow()
+        db.session.commit()
     finally:
         if temp_dir.exists():
             shutil.rmtree(temp_dir)
@@ -187,9 +194,11 @@ def get_games():
         if game.steamgriddb_id:
             asset_dir = paths['data'] / 'game_assets' / str(game.steamgriddb_id)
             for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'), ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
-                found = find_asset_with_extensions(asset_dir, base)
-                if found and data.get(key):
-                    data[key] = data[key] + f'?v={int(found.stat().st_mtime)}'
+                asset_path = asset_dir / f'{base}.webp'
+                if not asset_path.exists():
+                    asset_path = find_asset_with_extensions(asset_dir, base)
+                if asset_path and asset_path.exists() and data.get(key):
+                    data[key] = data[key] + f'?v={int(asset_path.stat().st_mtime)}'
         result.append(data)
     resp = jsonify(result)
     resp.headers['Cache-Control'] = 'no-store'
@@ -247,12 +256,10 @@ def create_game():
         current_app.logger.info(f"Game {data['name']} was created by another request, returning existing")
         return jsonify(existing_game.json()), 200
 
-    # Create game metadata (without URL fields - they will be constructed dynamically)
     game = GameMetadata(
         steamgriddb_id=data['steamgriddb_id'],
         name=data['name'],
         release_date=data.get('release_date'),
-        # Do NOT set hero_url, logo_url, icon_url - they will be constructed dynamically
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -313,9 +320,11 @@ def get_video_game(video_id):
         paths = current_app.config['PATHS']
         asset_dir = paths['data'] / 'game_assets' / str(link.game.steamgriddb_id)
         for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'), ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
-            found = find_asset_with_extensions(asset_dir, base)
-            if found and data.get(key):
-                data[key] = data[key] + f'?v={int(found.stat().st_mtime)}'
+            asset_path = asset_dir / f'{base}.webp'
+            if not asset_path.exists():
+                asset_path = find_asset_with_extensions(asset_dir, base)
+            if asset_path and asset_path.exists() and data.get(key):
+                data[key] = data[key] + f'?v={int(asset_path.stat().st_mtime)}'
     resp = jsonify(data)
     resp.headers['Cache-Control'] = 'no-store'
     return resp

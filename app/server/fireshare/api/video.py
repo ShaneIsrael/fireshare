@@ -1,14 +1,18 @@
 import logging
 import os
+import re
+import secrets
 import shutil
+import time as _time
 import subprocess
 import tempfile
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
-from flask import current_app, jsonify, request, Response, send_file
+from flask import current_app, jsonify, request, Response, send_file, session
 from flask_login import login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import func
 from sqlalchemy.sql import text
 
@@ -174,6 +178,8 @@ def get_videos():
         vjson = v.json()
         vjson["view_count"] = VideoView.count(v.video_id)
         vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all() if l.tag is not None]
+        if vjson.get("info", {}).get("has_password"):
+            vjson["info"]["session_unlocked"] = _is_session_unlocked(v.video_id)
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -207,6 +213,143 @@ def get_random_public_video():
     return jsonify(vjson)
 
 
+@api.route('/api/video/suggestions')
+def get_video_suggestions():
+    import random
+
+    video_id = request.args.get('video_id')
+    try:
+        count = min(max(int(request.args.get('count', 5)), 1), 10)
+    except (TypeError, ValueError):
+        count = 5
+
+    if not video_id:
+        return Response(status=400, response='video_id is required.')
+
+    current_video = Video.query.filter_by(video_id=video_id).first()
+    if not current_video:
+        return Response(status=404, response='Video not found.')
+
+    authenticated = current_user.is_authenticated
+
+    def base_query():
+        query = Video.query.join(VideoInfo).filter(
+            Video.video_id != video_id,
+            Video.available == True,
+        )
+        if not authenticated:
+            query = query.filter(VideoInfo.private == False)
+        return query
+
+    seen = set()
+    pool = []
+
+    def with_unseen(query):
+        if seen:
+            return query.filter(Video.video_id.notin_(list(seen)))
+        return query
+
+    def add_candidates(videos, limit):
+        added = 0
+        for video in videos:
+            if video.video_id in seen or added >= limit:
+                continue
+            seen.add(video.video_id)
+            pool.append(video)
+            added += 1
+
+    game_link = VideoGameLink.query.filter_by(video_id=video_id).first()
+    if game_link:
+        same_game_ids = [
+            link.video_id
+            for link in VideoGameLink.query
+            .filter(VideoGameLink.game_id == game_link.game_id, VideoGameLink.video_id != video_id)
+            .all()
+        ]
+        if same_game_ids:
+            candidates = (
+                base_query()
+                .filter(Video.video_id.in_(same_game_ids))
+                .order_by(func.random())
+                .limit(3)
+                .all()
+            )
+            add_candidates(candidates, 3)
+            seen.update(same_game_ids)
+
+    tag_ids = [link.tag_id for link in VideoTagLink.query.filter_by(video_id=video_id).all()]
+    if tag_ids and len(pool) < count:
+        same_tag_ids = list(set(
+            link.video_id
+            for link in VideoTagLink.query
+            .filter(VideoTagLink.tag_id.in_(tag_ids), VideoTagLink.video_id != video_id)
+            .all()
+        ))
+        if same_tag_ids:
+            candidates = (
+                with_unseen(base_query())
+                .filter(Video.video_id.in_(same_tag_ids))
+                .order_by(func.random())
+                .limit(3)
+                .all()
+            )
+            add_candidates(candidates, 3)
+
+    if current_video.source_folder and len(pool) < count:
+        candidates = (
+            with_unseen(base_query())
+            .filter(Video.source_folder == current_video.source_folder)
+            .order_by(func.random())
+            .limit(2)
+            .all()
+        )
+        add_candidates(candidates, 2)
+
+    if current_video.recorded_at and len(pool) < count:
+        window_start = current_video.recorded_at - timedelta(days=3)
+        window_end = current_video.recorded_at + timedelta(days=3)
+        candidates = (
+            with_unseen(base_query())
+            .filter(
+                Video.recorded_at >= window_start,
+                Video.recorded_at <= window_end,
+            )
+            .order_by(func.random())
+            .limit(2)
+            .all()
+        )
+        add_candidates(candidates, 2)
+
+    if len(pool) < count:
+        needed = count - len(pool)
+        candidates = (
+            with_unseen(base_query())
+            .order_by(func.random())
+            .limit(needed)
+            .all()
+        )
+        add_candidates(candidates, needed)
+
+    random.shuffle(pool)
+
+    pool_ids = [video.video_id for video in pool]
+    game_links_map = {
+        link.video_id: link
+        for link in VideoGameLink.query.filter(VideoGameLink.video_id.in_(pool_ids)).all()
+    } if pool_ids else {}
+
+    result = []
+    for video in pool[:count]:
+        video_json = video.json()
+        video_json['view_count'] = VideoView.count(video.video_id)
+        game_link = game_links_map.get(video.video_id)
+        if game_link:
+            video_json['game'] = game_link.game.json()
+        result.append(video_json)
+
+    return jsonify(result)
+
+
 @api.route('/api/videos/public')
 def get_public_videos():
     sort = request.args.get('sort')
@@ -235,6 +378,8 @@ def get_public_videos():
             continue
         vjson["view_count"] = VideoView.count(v.video_id)
         vjson["tags"] = [l.tag.json() for l in VideoTagLink.query.filter_by(video_id=v.video_id).all() if l.tag is not None]
+        if vjson.get("info", {}).get("has_password"):
+            vjson["info"]["session_unlocked"] = _is_session_unlocked(v.video_id)
         videos_json.append(vjson)
 
     if sort == "views asc":
@@ -391,6 +536,10 @@ def handle_video_details(id):
             vjson["view_count"] = VideoView.count(video.video_id)
             derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video.video_id)
             vjson["has_custom_poster"] = (derived_dir / "custom_poster.webp").exists()
+            if video.info and video.info.password_hash:
+                vjson["info"]["session_unlocked"] = (
+                    current_user.is_authenticated or _is_session_unlocked(video.video_id)
+                )
             return jsonify(vjson)
         else:
             return jsonify({
@@ -405,15 +554,33 @@ def handle_video_details(id):
             data = request.json.copy()
             recorded_at = data.pop('recorded_at', None)
 
+            # Handle password fields — must be popped before the generic update to
+            # prevent direct hash manipulation and ensure the hash is always derived
+            # from the plain-text password here in the server.
+            _UNSET = object()
+            new_password   = data.pop('password', _UNSET)
+            remove_password = data.pop('remove_password', False)
+
             # Extract crop fields before the generic VideoInfo update so they don't
             # get written directly (we handle them via the crop pipeline below)
-            _UNSET = object()
             new_start = data.pop('start_time', _UNSET)
             new_end   = data.pop('end_time',   _UNSET)
 
             # Update remaining VideoInfo fields generically
             if data:
                 db.session.query(VideoInfo).filter_by(video_id=id).update(data)
+
+            # Handle password changes
+            generated_password = None
+            if remove_password:
+                video_info.password_hash = None
+            elif new_password is not _UNSET:
+                if new_password == '__autogenerate__':
+                    plain = secrets.token_urlsafe(12)
+                    generated_password = plain
+                else:
+                    plain = new_password
+                video_info.password_hash = generate_password_hash(plain, method='pbkdf2:sha256')
 
             # Update Video.recorded_at if provided
             if recorded_at is not None:
@@ -458,6 +625,8 @@ def handle_video_details(id):
                     # Creating / replacing the crop
                     _apply_crop_async(video, video_info, resolved_start, resolved_end, paths)
 
+            if generated_password is not None:
+                return jsonify({"generated_password": generated_password}), 201
             return Response(status=201)
         else:
             return jsonify({
@@ -558,6 +727,10 @@ def get_original_video():
     """Serves the original unmodified video file, bypassing any crop. Used by the waveform editor."""
     video_id = request.args.get('id')
     subid = request.args.get('subid')
+    if not current_user.is_authenticated:
+        video_info = VideoInfo.query.filter_by(video_id=video_id).first()
+        if video_info and video_info.password_hash and not _is_session_unlocked(video_id):
+            return Response(status=403)
     try:
         video_path = get_video_path(video_id, subid, quality=None)
         return send_file(video_path, mimetype='video/mp4', conditional=True)
@@ -576,6 +749,10 @@ def get_video_audio():
     video_id = request.args.get('id')
     if not video_id:
         return Response(status=400)
+    if not current_user.is_authenticated:
+        video_info = VideoInfo.query.filter_by(video_id=video_id).first()
+        if video_info and video_info.password_hash and not _is_session_unlocked(video_id):
+            return Response(status=403)
     try:
         paths = current_app.config['PATHS']
         derived_dir = paths['processed'] / 'derived' / video_id
@@ -593,11 +770,68 @@ def get_video_audio():
         return Response(status=404)
 
 
+@api.route('/api/video/<video_id>/unlock', methods=['POST'])
+def unlock_video(video_id):
+    video_info = VideoInfo.query.filter_by(video_id=video_id).first()
+    if not video_info or not video_info.password_hash:
+        return jsonify({"error": "Video is not password protected"}), 400
+    submitted = (request.json or {}).get('password', '')
+    if check_password_hash(video_info.password_hash, submitted):
+        session.permanent = True
+        unlocked = session.get('unlocked_videos', {})
+        if not isinstance(unlocked, dict):
+            unlocked = {}
+        unlocked[video_id] = _time.time()
+        session['unlocked_videos'] = unlocked
+        return jsonify({"unlocked": True})
+    return jsonify({"error": "Incorrect password"}), 403
+
+
+@api.route('/api/video/nginx-auth')
+def nginx_video_auth():
+    """Internal endpoint called by nginx auth_request to gate password-protected video files."""
+    original_uri = request.headers.get('X-Original-URI', '')
+    video_id = None
+    m = re.match(r'^/_content/video/([\w-]+)\.[a-z0-9]+', original_uri)
+    if m:
+        video_id = m.group(1)
+    if not video_id:
+        m = re.match(r'^/_content/derived/([\w-]+)/', original_uri)
+        if m:
+            video_id = m.group(1)
+    if not video_id:
+        return '', 200
+    video_info = VideoInfo.query.filter_by(video_id=video_id).first()
+    if not video_info or not video_info.password_hash:
+        return '', 200
+    if current_user.is_authenticated:
+        return '', 200
+    unlocked = session.get('unlocked_videos', {})
+    if isinstance(unlocked, dict):
+        ts = unlocked.get(video_id)
+        if ts and (_time.time() - ts) < 3600:
+            return '', 200
+    return '', 403
+
+
+def _is_session_unlocked(video_id):
+    unlocked = session.get('unlocked_videos', {})
+    if not isinstance(unlocked, dict):
+        return False
+    ts = unlocked.get(video_id)
+    return bool(ts and (_time.time() - ts) < 3600)
+
+
 @api.route('/api/video')
 def get_video():
     video_id = request.args.get('id')
     subid = request.args.get('subid')
     quality = request.args.get('quality')  # Support quality parameter (720p, 1080p, cropped)
+    if not current_user.is_authenticated:
+        video_info = VideoInfo.query.filter_by(video_id=video_id).first()
+        if video_info and video_info.password_hash:
+            if not _is_session_unlocked(video_id):
+                return Response(status=403, response="Password required")
     video_path = get_video_path(video_id, subid, quality)
     return _stream_video_file(video_path)
 

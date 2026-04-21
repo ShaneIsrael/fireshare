@@ -1,9 +1,11 @@
 import React, { useRef } from 'react'
+import { saveProgress, getResumeTime } from '../common/videoProgress'
 import { useLocation, useParams } from 'react-router-dom'
-import { Divider, IconButton, Tooltip, Typography, Box } from '@mui/material'
+import { Button, CircularProgress, Divider, IconButton, TextField, Tooltip, Typography, Box } from '@mui/material'
 import { Helmet } from 'react-helmet'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import LockIcon from '@mui/icons-material/Lock'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import { VideoService, GameService } from '../services'
@@ -13,6 +15,7 @@ import VideoJSPlayer from '../components/misc/VideoJSPlayer'
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
 const SERVED_BY = getServedBy()
+const APP_ORIGIN = window.location.origin
 
 const actionBtnSx = {
   color: '#FFFFFFB3',
@@ -50,8 +53,13 @@ const Watch = ({ authenticated }) => {
   const [viewAdded, setViewAdded] = React.useState(false)
   const [selectedGame, setSelectedGame] = React.useState(null)
   const [gamePillColor, setGamePillColor] = React.useState(null)
+  const [unlocked, setUnlocked] = React.useState(false)
+  const [passwordInput, setPasswordInput] = React.useState('')
+  const [passwordError, setPasswordError] = React.useState(null)
+  const [passwordLoading, setPasswordLoading] = React.useState(false)
 
   const videoPlayerRef = useRef(null)
+  const lastSavedRef = useRef(0)
   const [alert, setAlert] = React.useState({ open: false })
 
   React.useEffect(() => {
@@ -61,6 +69,7 @@ const Watch = ({ authenticated }) => {
         const videoViews = (await VideoService.getViews(id)).data
         setDetails(resp)
         setViews(videoViews)
+        setUnlocked(authenticated || !resp.info?.has_password || resp.info?.session_unlocked === true)
         if (!resp.info?.duration || resp.info?.duration < 10) {
           setViewAdded(true)
           VideoService.addView(id).catch((err) => console.error(err))
@@ -162,6 +171,11 @@ const Watch = ({ authenticated }) => {
       setViewAdded(true)
       VideoService.addView(id).catch((err) => console.error(err))
     }
+    const now = Date.now()
+    if (now - lastSavedRef.current > 5000) {
+      lastSavedRef.current = now
+      saveProgress(id, e.playedSeconds, details?.info?.duration)
+    }
   }
 
   const getPosterUrl = () => {
@@ -169,6 +183,19 @@ const Watch = ({ authenticated }) => {
       return `${URL}/_content/derived/${id}/thumbnail`
     }
     return `${URL}/api/video/poster?id=${id}`
+  }
+
+  const handleUnlock = async () => {
+    if (!passwordInput) return
+    setPasswordLoading(true)
+    setPasswordError(null)
+    try {
+      await VideoService.unlockVideo(id, passwordInput)
+      setUnlocked(true)
+    } catch (err) {
+      setPasswordError(err.response?.status === 403 ? 'Incorrect password.' : 'An error occurred.')
+      setPasswordLoading(false)
+    }
   }
 
   if (notFound) return <NotFound title={notFound.title} body={notFound.body} />
@@ -187,43 +214,112 @@ const Watch = ({ authenticated }) => {
         <meta property="og:title" value={details?.info?.title} />
         {details?.info?.description && <meta property="og:description" value={details?.info?.description} />}
         <meta property="og:image" value={`${URL}/api/video/poster?id=${id}`} />
-        <meta
-          property="og:video"
-          value={
-            SERVED_BY === 'nginx'
-              ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
-              : `${URL}/api/video?id=${id}`
-          }
-        />
-        <meta property="og:video:width" value={details?.info?.width} />
-        <meta property="og:video:height" value={details?.info?.height} />
+        {!details?.info?.has_password && (
+          <>
+            <meta
+              property="og:video"
+              value={
+                SERVED_BY === 'nginx'
+                  ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
+                  : `${URL}/api/video?id=${id}`
+              }
+            />
+            <meta property="og:video:width" value={details?.info?.width} />
+            <meta property="og:video:height" value={details?.info?.height} />
+          </>
+        )}
         <meta property="og:site_name" value="Fireshare" />
       </Helmet>
       <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
-        <Box
-          style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}
-          sx={{
-            // Override VideoJS default 2rem border-radius responsively
-            '& > div': {
-              borderRadius: 0,
-            },
-          }}
-        >
-          <VideoJSPlayer
-            sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
-            poster={getPosterUrl()}
-            autoplay={true}
-            controls={true}
-            onTimeUpdate={handleTimeUpdate}
-            onReady={(player) => {
-              videoPlayerRef.current = player
+        {unlocked ? (
+          <Box
+            style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}
+            sx={{ '& > div': { borderRadius: 0 } }}
+          >
+            <VideoJSPlayer
+              sources={getVideoSources(id, details?.info, details?.extension || '.mp4')}
+              poster={getPosterUrl()}
+              autoplay={true}
+              controls={true}
+              onTimeUpdate={handleTimeUpdate}
+              onReady={(player) => {
+                videoPlayerRef.current = player
+              }}
+              startTime={time ? parseFloat(time) : getResumeTime(id, details?.info?.duration)}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              fluid={false}
+              fill={true}
+            />
+          </Box>
+        ) : (
+          <Box
+            style={{ flex: '1 1 auto', minHeight: 0, width: '100%', position: 'relative', backgroundColor: '#000' }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundImage: `url(${getPosterUrl()})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              overflow: 'hidden',
             }}
-            startTime={time ? parseFloat(time) : 0}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-            fluid={false}
-            fill={true}
-          />
-        </Box>
+          >
+            {/* Dim overlay */}
+            <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }} />
+            {/* Unlock form */}
+            <Box
+              sx={{
+                position: 'relative',
+                zIndex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                width: '100%',
+                maxWidth: 360,
+                px: 3,
+              }}
+            >
+              <LockIcon sx={{ fontSize: 48, color: '#fff' }} />
+              <Typography variant="h6" sx={{ fontWeight: 700, color: 'white', textAlign: 'center' }}>
+                Password Protected
+              </Typography>
+              <Typography sx={{ fontSize: 14, color: '#FFFFFFB3', textAlign: 'center' }}>
+                Enter the password to watch this video.
+              </Typography>
+              <TextField
+                fullWidth
+                type="password"
+                placeholder="Password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
+                autoFocus
+                error={!!passwordError}
+                helperText={passwordError || ''}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    color: 'white',
+                    bgcolor: '#FFFFFF0D',
+                    '& fieldset': { borderColor: '#FFFFFF33' },
+                    '&:hover fieldset': { borderColor: '#FFFFFF66' },
+                    '&.Mui-focused fieldset': { borderColor: '#90CAF9' },
+                  },
+                  '& .MuiFormHelperText-root': { color: '#EF5350' },
+                }}
+              />
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={handleUnlock}
+                disabled={passwordLoading || !passwordInput}
+                sx={{ bgcolor: '#1565C0', '&:hover': { bgcolor: '#0D47A1' }, py: 1.25 }}
+              >
+                {passwordLoading ? <CircularProgress size={22} sx={{ color: 'white' }} /> : 'Unlock'}
+              </Button>
+            </Box>
+          </Box>
+        )}
         <Box
           sx={{
             flexShrink: 0,
@@ -287,7 +383,7 @@ const Watch = ({ authenticated }) => {
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flexShrink: 0 }}>
                 <Box
                   component={selectedGame.steamgriddb_id ? 'a' : 'div'}
-                  href={selectedGame.steamgriddb_id ? `games/${selectedGame.steamgriddb_id}` : undefined}
+                  href={selectedGame.steamgriddb_id ? `${APP_ORIGIN}/games/${selectedGame.steamgriddb_id}` : undefined}
                   sx={{
                     display: 'inline-flex',
                     alignItems: 'center',

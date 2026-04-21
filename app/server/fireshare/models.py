@@ -55,9 +55,10 @@ class VideoInfo(db.Model):
     has_480p    = db.Column(db.Boolean, default=False)
     has_720p    = db.Column(db.Boolean, default=False)
     has_1080p   = db.Column(db.Boolean, default=False)
-    start_time  = db.Column(db.Float, nullable=True)
-    end_time    = db.Column(db.Float, nullable=True)
-    has_crop    = db.Column(db.Boolean, default=False)
+    start_time    = db.Column(db.Float, nullable=True)
+    end_time      = db.Column(db.Float, nullable=True)
+    has_crop      = db.Column(db.Boolean, default=False)
+    password_hash = db.Column(db.String(256), nullable=True)
 
     video       = db.relationship("Video", back_populates="info", uselist=False, lazy="joined")
 
@@ -104,6 +105,7 @@ class VideoInfo(db.Model):
             "start_time": self.start_time,
             "end_time": self.end_time,
             "has_crop": self.has_crop or False,
+            "has_password": bool(self.password_hash),
         }
 
     def __repr__(self):
@@ -127,20 +129,21 @@ class GameMetadata(db.Model):
     def json(self):
         from flask import current_app
 
-        # Construct dynamic URLs for assets if steamgriddb_id exists
         hero_url = None
+        banner_url = None
         logo_url = None
         icon_url = None
 
-        banner_url = None
-
         if self.steamgriddb_id:
-            domain = f"https://{current_app.config['DOMAIN']}" if current_app.config.get('DOMAIN') else ""
-            # Assume standard .png extension - endpoint handles if missing or different
-            hero_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/hero_1.png"
-            banner_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/hero_2.png"
-            logo_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/logo_1.png"
-            icon_url = f"{domain}/api/game/assets/{self.steamgriddb_id}/icon_1.png"
+            if current_app.config.get('SERVE_GAME_ASSETS_NGINX'):
+                domain = f"https://{current_app.config['DOMAIN']}" if current_app.config.get('DOMAIN') else ""
+                base = f"{domain}/_content/game_assets/{self.steamgriddb_id}"
+            else:
+                base = f"/api/game/assets/{self.steamgriddb_id}"
+            hero_url   = f"{base}/hero_1.webp"
+            banner_url = f"{base}/hero_2.webp"
+            logo_url   = f"{base}/logo_1.webp"
+            icon_url   = f"{base}/icon_1.webp"
 
         return {
             "id": self.id,

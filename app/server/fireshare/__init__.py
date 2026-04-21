@@ -121,7 +121,12 @@ def create_app(init_schedule=False):
     app.config['ENVIRONMENT'] = os.getenv('ENVIRONMENT')
     app.config['DOMAIN'] = os.getenv('DOMAIN')
     app.config['THUMBNAIL_VIDEO_LOCATION'] = int(os.getenv('THUMBNAIL_VIDEO_LOCATION') or 0)
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32)) 
+
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
+
+    from datetime import timedelta
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
+
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
     app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')
     app.config['PROCESSED_DIRECTORY'] = os.getenv('PROCESSED_DIRECTORY')
@@ -143,7 +148,11 @@ def create_app(init_schedule=False):
         False if app.config['DEMO_MODE']
         else os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
     )
-    app.config['TRANSCODE_GPU'] = os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
+    app.config['TRANSCODE_GPU'] = (
+        False if os.getenv('FIRESHARE_LITE', '').lower() in ('true', '1', 'yes')
+        else os.getenv('TRANSCODE_GPU', '').lower() in ('true', '1', 'yes')
+    )
+    app.config['SERVE_GAME_ASSETS_NGINX'] = os.getenv('ENVIRONMENT', '') == 'production'
     app.config['TRANSCODE_TIMEOUT'] = int(os.getenv('TRANSCODE_TIMEOUT', '7200'))  # Default: 2 hours
 
     #Integrations
@@ -263,17 +272,29 @@ def create_app(init_schedule=False):
 
         # Reset any transcode jobs that were marked 'running' when the container
         # last shut down — those processes are gone, so the jobs need to be retried.
+        # Also purge completed/failed rows from the previous session so their counts
+        # don't bleed into the next session's progress display.
         try:
             from .models import TranscodeJob
             from .api.transcoding import _ensure_drain_running
-            stale = TranscodeJob.query.filter_by(status='running').all()
-            if stale:
+            with app.app_context():
+                purged = TranscodeJob.query.filter(
+                    TranscodeJob.status.in_(['complete', 'failed'])
+                ).delete()
+                if purged:
+                    logger.info(f"Purged {purged} completed/failed transcode job(s) from previous session")
+
+                stale = TranscodeJob.query.filter_by(status='running').all()
                 for job in stale:
                     job.status = 'pending'
                     job.started_at = None
+                if stale:
+                    logger.info(f"Reset {len(stale)} stale transcode job(s) to pending on startup")
+
                 db.session.commit()
-                logger.info(f"Reset {len(stale)} stale transcode job(s) to pending on startup")
-                _ensure_drain_running(app, paths['data'])
+
+                if stale:
+                    _ensure_drain_running(app, paths['data'])
         except Exception as e:
             logger.warning(f"Could not reset stale transcode jobs: {e}")
 
@@ -392,6 +413,16 @@ def create_app(init_schedule=False):
 
     with app.app_context():
         # db.create_all()
+
+        from sqlalchemy import text as _sa_text
+        try:
+            with db.engine.connect() as _conn:
+                _cols = {row[1] for row in _conn.execute(_sa_text("PRAGMA table_info(video_info)"))}
+                if "password_hash" not in _cols:
+                    _conn.execute(_sa_text("ALTER TABLE video_info ADD COLUMN password_hash VARCHAR(256)"))
+                _conn.commit()
+        except Exception:
+            pass  # table doesn't exist yet; will be created by flask db upgrade
 
         from sqlalchemy.exc import OperationalError
         from werkzeug.security import generate_password_hash, check_password_hash

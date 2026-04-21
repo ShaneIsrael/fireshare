@@ -38,6 +38,7 @@
 
 - Share videos through unique links
 - Public / Private feeds (private is link only)
+- Password protected videos
 - Game-based organization with cover art
 - Mobile Device Support
 - Uploads (optional, can be restricted)

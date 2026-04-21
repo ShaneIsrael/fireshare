@@ -91,7 +91,8 @@ def video_metadata(video_id):
     if video:
         derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
         poster_file = "custom_poster.webp" if (derived_dir / "custom_poster.webp").exists() else "poster.jpg"
-        return render_template('metadata.html', video=video.json(), domain=domain, poster_file=poster_file)
+        password_protected = bool(video.info and video.info.password_hash)
+        return render_template('metadata.html', video=video.json(), domain=domain, poster_file=poster_file, password_protected=password_protected)
     else:
         return redirect('{}/watch/{}'.format(domain, video_id), code=302)
 
