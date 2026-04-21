@@ -1227,7 +1227,7 @@ const VideoModal = ({
                       </Box>
                     </Box>
 
-                    {suggestions.length > 0 && !editMode && (
+                    {suggestions.length > 0 && !editMode && getSetting('ui_config')?.show_suggestions !== false && (
                       <Box>
                         <Typography sx={labelSx}>Suggested</Typography>
                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>

@@ -269,6 +269,7 @@ def get_video_suggestions():
                 .all()
             )
             add_candidates(candidates, 3)
+            seen.update(same_game_ids)
 
     tag_ids = [link.tag_id for link in VideoTagLink.query.filter_by(video_id=video_id).all()]
     if tag_ids and len(pool) < count:

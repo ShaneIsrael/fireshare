@@ -21,7 +21,8 @@ DEFAULT_CONFIG = {
     "show_public_upload": False,
     "show_public_videos": True,
     "show_images": True,
-    "autoplay": False
+    "autoplay": False,
+    "show_suggestions": True
   },
   "integrations": {
     "discord_webhook_url": "",
