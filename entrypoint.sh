@@ -63,7 +63,7 @@ if [ "$missing_mounts" -eq 1 ]; then
     exit 1
 fi
 if [ -n "$IMAGE_DIRECTORY" ] && ! mountpoint -q "$IMAGE_DIRECTORY" 2>/dev/null; then
-    echo "  \033[33m▸ No volume mounted at $IMAGE_DIRECTORY — uploaded images will not persist\033[0m"
+    printf "  \033[33m▸ No volume mounted at %s — uploaded images will not persist\033[0m\n" "$IMAGE_DIRECTORY"
 fi
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
