@@ -225,10 +225,18 @@ def create_app(init_schedule=False):
     if app.config['IMAGE_DIRECTORY']:
         paths['image'] = Path(app.config['IMAGE_DIRECTORY'])
     app.config['PATHS'] = paths
+    failed_paths = []
     for k, path in paths.items():
         if not path.is_dir():
             logger.info(f"Creating {k} directory at {str(path)}")
-            path.mkdir(parents=True, exist_ok=True)
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except PermissionError:
+                logger.warning(f"Permission denied creating {k} directory at {str(path)}. Mount a volume to this path or ensure the directory exists with correct permissions.")
+                failed_paths.append(k)
+    for k in failed_paths:
+        del paths[k]
+    app.config['PATHS'] = paths
     subpaths = [
         paths['processed'] / 'video_links',
         paths['processed'] / 'image_links',
