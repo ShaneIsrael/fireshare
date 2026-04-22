@@ -270,34 +270,6 @@ def create_app(init_schedule=False):
             except OSError as e:
                 logger.warning(f"Failed to remove leftover upload chunk {chunk_file}: {e}")
 
-        # Reset any transcode jobs that were marked 'running' when the container
-        # last shut down — those processes are gone, so the jobs need to be retried.
-        # Also purge completed/failed rows from the previous session so their counts
-        # don't bleed into the next session's progress display.
-        try:
-            from .models import TranscodeJob
-            from .api.transcoding import _ensure_drain_running
-            with app.app_context():
-                purged = TranscodeJob.query.filter(
-                    TranscodeJob.status.in_(['complete', 'failed'])
-                ).delete()
-                if purged:
-                    logger.info(f"Purged {purged} completed/failed transcode job(s) from previous session")
-
-                stale = TranscodeJob.query.filter_by(status='running').all()
-                for job in stale:
-                    job.status = 'pending'
-                    job.started_at = None
-                if stale:
-                    logger.info(f"Reset {len(stale)} stale transcode job(s) to pending on startup")
-
-                db.session.commit()
-
-                if stale:
-                    _ensure_drain_running(app, paths['data'])
-        except Exception as e:
-            logger.warning(f"Could not reset stale transcode jobs: {e}")
-
     # Ensure game_assets directory exists
     game_assets_dir = paths['data'] / 'game_assets'
     if not game_assets_dir.is_dir():
@@ -320,6 +292,33 @@ def create_app(init_schedule=False):
     db.init_app(app)
     migrate.init_app(app, db)
 
+    # Reset any transcode jobs that were marked 'running' when the container
+    # last shut down — those processes are gone, so the jobs need to be retried.
+    # Also purge completed/failed rows from the previous session so their counts
+    # don't bleed into the next session's progress display.
+    try:
+        from .models import TranscodeJob
+        from .api.transcoding import _ensure_drain_running
+        with app.app_context():
+            purged = TranscodeJob.query.filter(
+                TranscodeJob.status.in_(['complete', 'failed'])
+            ).delete()
+            if purged:
+                logger.info(f"Purged {purged} completed/failed transcode job(s) from previous session")
+
+            stale = TranscodeJob.query.filter_by(status='running').all()
+            for job in stale:
+                job.status = 'pending'
+                job.started_at = None
+            if stale:
+                logger.info(f"Reset {len(stale)} stale transcode job(s) to pending on startup")
+
+            db.session.commit()
+
+            if stale:
+                _ensure_drain_running(app, paths['data'])
+    except Exception as e:
+        logger.warning(f"Could not reset stale transcode jobs: {e}")
 
     if app.config["LDAP_ENABLE"]:
         if ldap is None:
