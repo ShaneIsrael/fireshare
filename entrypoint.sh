@@ -50,6 +50,22 @@ fi
 
 log "UID=$(id -u appuser)  GID=$(id -g appuser)"
 
+# ── Mount validation ──────────────────────────────────────────────────────────
+missing_mounts=0
+for mount_path in "$DATA_DIRECTORY" "$VIDEO_DIRECTORY" "$PROCESSED_DIRECTORY"; do
+    if [ -n "$mount_path" ] && ! mountpoint -q "$mount_path" 2>/dev/null; then
+        warn "Required volume not mounted at $mount_path"
+        missing_mounts=1
+    fi
+done
+if [ "$missing_mounts" -eq 1 ]; then
+    warn "Fireshare cannot start without /data, /videos, and /processed mounted. Exiting."
+    exit 1
+fi
+if [ -n "$IMAGE_DIRECTORY" ] && ! mountpoint -q "$IMAGE_DIRECTORY" 2>/dev/null; then
+    log "No volume mounted at $IMAGE_DIRECTORY - uploaded images will not persist"
+fi
+
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 rm -f "$DATA_DIRECTORY"/*.lock 2>/dev/null || true
 rm -f "$DATA_DIRECTORY/jobs.sqlite" 2>/dev/null || true
