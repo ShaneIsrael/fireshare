@@ -208,14 +208,16 @@ def create_app(init_schedule=False):
         logger.warning(steamgridWarning)
 
     if app.config.get('ENVIRONMENT') != 'dev':
-        for env_var, mount_path, message in [
-            ('DATA_DIRECTORY',      '/data',      'Data will not persist. Mount a directory to /data to persist data.'),
-            ('VIDEO_DIRECTORY',     '/videos',    'Data will not persist. Mount a directory to /videos to persist data.'),
-            ('PROCESSED_DIRECTORY', '/processed', 'Data will not persist. Mount a directory to /processed to persist data.'),
-            ('IMAGE_DIRECTORY',     '/images',    'Data will not persist. Mount a directory to /images to persist data.'),
+        for env_var, mount_path in [
+            ('DATA_DIRECTORY',      '/data'),
+            ('VIDEO_DIRECTORY',     '/videos'),
+            ('PROCESSED_DIRECTORY', '/processed'),
         ]:
             if app.config.get(env_var) and not os.path.ismount(app.config[env_var]):
-                logger.warning(f"No volume is mounted to {mount_path}. {message}")
+                logger.error(f"Required volume not mounted at {mount_path}. Fireshare cannot start without /data, /videos, and /processed mounted.")
+                sys.exit(1)
+        if app.config.get('IMAGE_DIRECTORY') and not os.path.ismount(app.config['IMAGE_DIRECTORY']):
+            logger.warning("No volume is mounted to /images. Data will not persist. Mount a directory to /images to persist data.")
 
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
@@ -223,7 +225,7 @@ def create_app(init_schedule=False):
         'processed': Path(app.config['PROCESSED_DIRECTORY']),
     }
     if app.config['IMAGE_DIRECTORY']:
-        paths['image'] = Path(app.config['IMAGE_DIRECTORY'])
+        paths['images'] = Path(app.config['IMAGE_DIRECTORY'])
     app.config['PATHS'] = paths
     failed_paths = []
     for k, path in paths.items():
@@ -232,7 +234,10 @@ def create_app(init_schedule=False):
             try:
                 path.mkdir(parents=True, exist_ok=True)
             except PermissionError:
-                logger.warning(f"Permission denied creating {k} directory at {str(path)}. Mount a volume to this path or ensure the directory exists with correct permissions.")
+                if k == 'images':
+                    logger.warning("Uploaded images will not persist. Mount a directory to /images to persist uploaded images.")
+                else:
+                    logger.warning(f"Permission denied creating {k} directory at {str(path)}. Mount a volume to this path or ensure the directory exists with correct permissions.")
                 failed_paths.append(k)
     for k in failed_paths:
         del paths[k]
