@@ -35,6 +35,8 @@
 
 ---
 
+If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/ShaneIsrael) is the best way to support development. It keeps the demo server running and helps me carve out time on weekends for new features and updates.
+
 ## Key Features
 
 - Share videos through unique links
@@ -88,12 +90,12 @@ Fireshare is designed to run in Docker.
 
 **Required volume mounts:**
 
-| Mount | Purpose |
-|---|---|
-| `/data` | Internal database |
+| Mount        | Purpose                                      |
+| ------------ | -------------------------------------------- |
+| `/data`      | Internal database                            |
 | `/processed` | Generated metadata (posters, metadata files) |
-| `/videos` | Source video directory to scan |
-| `/images` | Source image directory to scan |
+| `/videos`    | Source video directory to scan               |
+| `/images`    | Source image directory to scan               |
 
 ### Docker Compose
 
@@ -124,11 +126,11 @@ Open `http://localhost:8080`.
 
 The `fireshare:latest-lite` image is a smaller alternative that uses the system-provided FFmpeg instead of the CUDA-enabled build included in the standard image. It is a good fit for most users who do not need GPU transcoding.
 
-| | Standard | Lite |
-|---|---|---|
-| GPU transcoding (NVIDIA NVENC) | Supported | Not available |
-| CPU transcoding | Supported | Supported |
-| Image size | Larger (CUDA libraries) | Smaller |
+|                                | Standard                | Lite          |
+| ------------------------------ | ----------------------- | ------------- |
+| GPU transcoding (NVIDIA NVENC) | Supported               | Not available |
+| CPU transcoding                | Supported               | Supported     |
+| Image size                     | Larger (CUDA libraries) | Smaller       |
 
 Use the lite image by appending `-lite` to your tag:
 
@@ -183,18 +185,18 @@ Fireshare automatically selects the best available encoder.
 
 **GPU mode** (`TRANSCODE_GPU=true`):
 
-| Encoder | Requirement |
-|---|---|
-| AV1 (av1_nvenc) | RTX 40 series or newer |
-| H.264 (h264_nvenc) | GTX 1050 or newer |
-| CPU fallback | Used if GPU encoding fails |
+| Encoder            | Requirement                |
+| ------------------ | -------------------------- |
+| AV1 (av1_nvenc)    | RTX 40 series or newer     |
+| H.264 (h264_nvenc) | GTX 1050 or newer          |
+| CPU fallback       | Used if GPU encoding fails |
 
 **CPU mode** (`TRANSCODE_GPU=false`):
 
-| Encoder | Notes |
-|---|---|
-| H.264 | Most compatible, faster encoding |
-| AV1 | Best compression, slower |
+| Encoder | Notes                            |
+| ------- | -------------------------------- |
+| H.264   | Most compatible, faster encoding |
+| AV1     | Best compression, slower         |
 
 ### Docker Environment Variables
 
