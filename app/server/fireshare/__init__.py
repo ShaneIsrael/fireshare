@@ -218,13 +218,12 @@ def create_app(init_schedule=False):
     failed_paths = []
     for k, path in paths.items():
         if not path.is_dir():
-            logger.info(f"Creating {k} directory at {str(path)}")
+            if k != 'images':
+                logger.info(f"Creating {k} directory at {str(path)}")
             try:
                 path.mkdir(parents=True, exist_ok=True)
             except PermissionError:
-                if k == 'images':
-                    logger.warning("Uploaded images will not persist. Mount a directory to /images to persist uploaded images.")
-                else:
+                if k != 'images':
                     logger.warning(f"Permission denied creating {k} directory at {str(path)}. Mount a volume to this path or ensure the directory exists with correct permissions.")
                 failed_paths.append(k)
     for k in failed_paths:
