@@ -207,18 +207,6 @@ def create_app(init_schedule=False):
         app.config['WARNINGS'].append(steamgridWarning)
         logger.warning(steamgridWarning)
 
-    if app.config.get('ENVIRONMENT') != 'dev':
-        for env_var, mount_path in [
-            ('DATA_DIRECTORY',      '/data'),
-            ('VIDEO_DIRECTORY',     '/videos'),
-            ('PROCESSED_DIRECTORY', '/processed'),
-        ]:
-            if app.config.get(env_var) and not os.path.ismount(app.config[env_var]):
-                logger.error(f"Required volume not mounted at {mount_path}. Fireshare cannot start without /data, /videos, and /processed mounted.")
-                sys.exit(1)
-        if app.config.get('IMAGE_DIRECTORY') and not os.path.ismount(app.config['IMAGE_DIRECTORY']):
-            logger.warning("No volume is mounted to /images. Data will not persist. Mount a directory to /images to persist data.")
-
     paths = {
         'data': Path(app.config['DATA_DIRECTORY']),
         'video': Path(app.config['VIDEO_DIRECTORY']),
