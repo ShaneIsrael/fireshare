@@ -65,8 +65,8 @@ def folder_size():
     paths = current_app.config['PATHS']
     video_path = str(paths['video'])
     derived_path = str(paths['processed'] / 'derived')
-    image_path = str(paths['image'])
-    size_bytes = get_folder_size(video_path, derived_path, image_path)
+    image_path = str(paths['images']) if 'images' in paths else None
+    size_bytes = get_folder_size(video_path, derived_path, *([image_path] if image_path else []))
     size_mb = size_bytes / (1024 * 1024)
 
     if size_mb < 1024:
