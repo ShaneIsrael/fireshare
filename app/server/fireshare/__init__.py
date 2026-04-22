@@ -19,7 +19,7 @@ from sqlalchemy.pool import NullPool
 from sqlite3 import Connection as SQLite3Connection
 
 logger = logging.getLogger('fireshare')
-handler = logging.StreamHandler()
+handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(os.getenv('FS_LOGLEVEL', 'INFO').upper())
 formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName)s:%(lineno)d | %(message)s')
 handler.setFormatter(formatter)
