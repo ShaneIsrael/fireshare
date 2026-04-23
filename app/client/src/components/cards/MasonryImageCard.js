@@ -147,6 +147,7 @@ const MasonryImageCard = ({
             variant="rectangular"
             animation="wave"
             width="100%"
+            height="100%"
             sx={{
               aspectRatio:
                 image.info?.width && image.info?.height ? `${image.info.width} / ${image.info.height}` : '16 / 9',
