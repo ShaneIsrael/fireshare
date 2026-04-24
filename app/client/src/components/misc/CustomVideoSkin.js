@@ -48,6 +48,46 @@ const SEEK_TIME = 10
 
 const DISABLE_PIP_BUTTON = true
 
+const IS_IOS = /iP(ad|hone|od)/.test(navigator.userAgent)
+
+// iOS Safari does not support the standard Fullscreen API — only
+// video.webkitEnterFullscreen() works, and only on the <video> element itself.
+function IOSFullscreenButton() {
+  const media = useMedia()
+  const [isFullscreen, setIsFullscreen] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!media) return
+    const onEnter = () => setIsFullscreen(true)
+    const onExit = () => setIsFullscreen(false)
+    media.addEventListener('webkitbeginfullscreen', onEnter)
+    media.addEventListener('webkitendfullscreen', onExit)
+    return () => {
+      media.removeEventListener('webkitbeginfullscreen', onEnter)
+      media.removeEventListener('webkitendfullscreen', onExit)
+    }
+  }, [media])
+
+  const handleClick = () => {
+    if (!media) return
+    if (isFullscreen) {
+      media.webkitExitFullscreen?.()
+    } else {
+      media.webkitEnterFullscreen?.()
+    }
+  }
+
+  return (
+    <Button onClick={handleClick} className="media-button--icon media-button--fullscreen">
+      {isFullscreen ? (
+        <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
+      ) : (
+        <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
+      )}
+    </Button>
+  )
+}
+
 /* ── tiny helper matching the skin's internal <Button> wrapper ──────── */
 const Button = React.forwardRef(function Button({ className, ...props }, ref) {
   return <button ref={ref} type="button" className={`media-button ${className ?? ''}`} {...props} />
@@ -345,23 +385,27 @@ function CustomVideoSkin({ children, className, sources, currentSourceIndex, onQ
           )}
 
           {/* Fullscreen */}
-          <Tooltip.Root side="top">
-            <Tooltip.Trigger
-              render={
-                <FullscreenButton
-                  render={(props) => (
-                    <Button {...props} className="media-button--icon media-button--fullscreen">
-                      <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
-                      <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
-                    </Button>
-                  )}
-                />
-              }
-            />
-            <Tooltip.Popup className="media-surface media-tooltip">
-              <FullscreenLabel />
-            </Tooltip.Popup>
-          </Tooltip.Root>
+          {IS_IOS ? (
+            <IOSFullscreenButton />
+          ) : (
+            <Tooltip.Root side="top">
+              <Tooltip.Trigger
+                render={
+                  <FullscreenButton
+                    render={(props) => (
+                      <Button {...props} className="media-button--icon media-button--fullscreen">
+                        <FullscreenEnterIcon className="media-icon media-icon--fullscreen-enter" />
+                        <FullscreenExitIcon className="media-icon media-icon--fullscreen-exit" />
+                      </Button>
+                    )}
+                  />
+                }
+              />
+              <Tooltip.Popup className="media-surface media-tooltip">
+                <FullscreenLabel />
+              </Tooltip.Popup>
+            </Tooltip.Root>
+          )}
         </Tooltip.Provider>
       </Controls.Root>
 

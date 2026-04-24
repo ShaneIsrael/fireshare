@@ -48,12 +48,14 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   React.useEffect(() => {
     if (!open || !image) {
       wasOpenRef.current = false
-      return
-    }
-    // Only hide content when first opening the modal, not when cycling images
-    if (!wasOpenRef.current) {
+      setTitle('')
+      setPrivateView(false)
+      setSelectedGame(null)
       setImgLoaded(false)
-      wasOpenRef.current = true
+      setShowSwipeHint(false)
+      setPanningDisabled(true)
+      latestTitleRef.current = ''
+      return
     }
     const t =
       image.info?.title ||
@@ -67,10 +69,18 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     latestTitleRef.current = t
     setPrivateView(image.info?.private || false)
     ImageService.addView(image.image_id).catch(() => {})
-    // Fetch linked game
     ImageService.getGame(image.image_id)
       .then((res) => setSelectedGame(res.data?.game || null))
       .catch(() => setSelectedGame(null))
+
+    if (!wasOpenRef.current) {
+      wasOpenRef.current = true
+      setImgLoaded(false)
+      const preload = new window.Image()
+      preload.onload = () => setImgLoaded(true)
+      preload.onerror = () => setImgLoaded(true)
+      preload.src = fullImageUrl
+    }
   }, [open, image])
 
   // Flush any pending save on unmount / close
@@ -217,7 +227,11 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   if (!image) return null
 
   return (
-    <Modal open={open} onClose={handleClose} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <Modal
+      open={open && imgLoaded}
+      onClose={handleClose}
+      sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
       <Box
         sx={{
           display: 'flex',
@@ -227,8 +241,6 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
           width: { xs: '100vw', sm: 'auto' },
           height: { xs: '100svh', sm: 'auto' },
           outline: 'none',
-          opacity: imgLoaded ? 1 : 0,
-          transition: 'opacity 0.2s ease-in-out',
           bgcolor: { xs: '#000', sm: 'transparent' },
         }}
       >
@@ -566,7 +578,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
                 '&:hover': { borderColor: '#FFFFFF55', bgcolor: '#FFFFFF12' },
               }}
             >
-              Download
+              Download HD
             </Button>
           </Stack>
         </Box>

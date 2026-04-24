@@ -1427,7 +1427,14 @@ const VideoModal = ({
                     )}
 
                     <Tooltip title="Copy link">
-                      <IconButton size="small" onClick={copyToClipboard} sx={actionBtnSx}>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          copyToClipboard(`${PURL}${vid.video_id}`)
+                          setAlert({ type: 'info', message: 'Link copied to clipboard', open: true })
+                        }}
+                        sx={actionBtnSx}
+                      >
                         <LinkIcon sx={{ fontSize: 20 }} />
                       </IconButton>
                     </Tooltip>

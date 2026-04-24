@@ -20,6 +20,7 @@ function stableDelay(id) {
 // viewport its full content mounts and fades in, keeping the masonry stable.
 const LazyImageCard = ({
   img,
+  listVersion,
   openImageHandler,
   alertHandler,
   authenticated,
@@ -33,41 +34,54 @@ const LazyImageCard = ({
 
   React.useEffect(() => {
     const el = ref.current
-    if (!el || activated) return
+    if (!el) return
 
-    const observerRef = { current: null }
+    if (!activated) {
+      const observerRef = { current: null }
 
-    // Double-rAF ensures CSS columns layout has fully settled before we
-    // measure positions — a single rAF fires before column reflow finishes.
-    const rafId = requestAnimationFrame(() => {
-      const rafId2 = requestAnimationFrame(() => {
-        if (!el) return
-        const rect = el.getBoundingClientRect()
-        const inView = rect.top < window.innerHeight + 600 && rect.bottom > -600
-        if (inView) {
-          setActivated(true)
-          return
-        }
-        observerRef.current = new IntersectionObserver(
-          ([entry]) => {
-            if (entry.isIntersecting) {
-              setActivated(true)
-              observerRef.current?.disconnect()
-            }
-          },
-          { rootMargin: '600px' },
-        )
-        observerRef.current.observe(el)
+      // Double-rAF ensures CSS columns layout has fully settled before we
+      // measure positions — a single rAF fires before column reflow finishes.
+      const rafId = requestAnimationFrame(() => {
+        const rafId2 = requestAnimationFrame(() => {
+          if (!el) return
+          const rect = el.getBoundingClientRect()
+          const inView = rect.top < window.innerHeight + 600 && rect.bottom > -600
+          if (inView) {
+            setActivated(true)
+            return
+          }
+          observerRef.current = new IntersectionObserver(
+            ([entry]) => {
+              if (entry.isIntersecting) {
+                setActivated(true)
+                observerRef.current?.disconnect()
+              }
+            },
+            { rootMargin: '600px' },
+          )
+          observerRef.current.observe(el)
+        })
+        rafIds.push(rafId2)
       })
-      rafIds.push(rafId2)
-    })
-    const rafIds = [rafId]
+      const rafIds = [rafId]
 
-    return () => {
-      rafIds.forEach(cancelAnimationFrame)
-      observerRef.current?.disconnect()
+      return () => {
+        rafIds.forEach(cancelAnimationFrame)
+        observerRef.current?.disconnect()
+      }
+    } else {
+      // Unload cards that drift more than 2× viewport height out of view.
+      const margin = window.innerHeight * 2
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (!entry.isIntersecting) setActivated(false)
+        },
+        { rootMargin: `${margin}px` },
+      )
+      observer.observe(el)
+      return () => observer.disconnect()
     }
-  }, [activated])
+  }, [activated, listVersion])
 
   const w = img.info?.width
   const h = img.info?.height
@@ -88,10 +102,10 @@ const LazyImageCard = ({
     >
       {activated && (
         <motion.div
-          initial={{ opacity: 0, filter: 'blur(12px)' }}
+          initial={{ opacity: 0, filter: 'blur(8px)' }}
           animate={{ opacity: 1, filter: 'blur(0px)' }}
           transition={{ duration: 0.5, delay: stableDelay(img.image_id) }}
-          style={{ width: '100%', height: '100%' }}
+          style={{ width: '100%' }}
         >
           <MasonryImageCard
             image={img}
@@ -124,10 +138,12 @@ const ImageCards = React.memo(
     const [imgs, setImages] = React.useState(images || [])
     const [alert, setAlert] = React.useState({ open: false })
     const [columnCount, setColumnCount] = React.useState(3)
+    const [listVersion, setListVersion] = React.useState(0)
     const containerRef = React.useRef()
 
     React.useEffect(() => {
       setImages(images || [])
+      setListVersion((v) => v + 1)
     }, [images])
 
     React.useEffect(() => {
@@ -247,6 +263,7 @@ const ImageCards = React.memo(
               <LazyImageCard
                 key={img.image_id}
                 img={img}
+                listVersion={listVersion}
                 openImageHandler={() => (editMode ? onImageSelect?.(img.image_id) : openImage(img))}
                 alertHandler={memoizedHandleAlert}
                 authenticated={authenticated}

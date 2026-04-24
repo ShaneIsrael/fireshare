@@ -132,7 +132,7 @@ const MasonryImageCard = ({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        border: '3px solid #000',
+        border: imgLoaded ? '2px solid #000' : 'none',
       }}
     >
       {/* Thumbnail */}
@@ -147,9 +147,11 @@ const MasonryImageCard = ({
             variant="rectangular"
             animation="wave"
             width="100%"
+            height="100%"
             sx={{
-              aspectRatio: '16 / 9',
-              bgcolor: 'rgba(30, 60, 130, 0.4)',
+              aspectRatio:
+                image.info?.width && image.info?.height ? `${image.info.width} / ${image.info.height}` : '16 / 9',
+              bgcolor: 'transparent',
             }}
           />
         )}
