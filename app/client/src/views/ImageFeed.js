@@ -38,6 +38,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   const [sortOrder, setSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
   const [randomized, setRandomized] = React.useState(false)
   const [randomizedImages, setRandomizedImages] = React.useState([])
+  const [randomizeKey, setRandomizeKey] = React.useState(0)
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
 
   // Edit mode state
@@ -180,6 +181,8 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
     const shuffled = [...displayImages].sort(() => Math.random() - 0.5)
     setRandomizedImages(shuffled)
     setRandomized(true)
+    setRandomizeKey((k) => k + 1)
+    window.scrollTo({ top: 0 })
   }
 
   const handleImageOpen = React.useCallback((image) => {
@@ -377,6 +380,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                 {loading && <LoadingSpinner />}
                 {!loading && (
                   <ImageCards
+                    key={randomizeKey}
                     images={finalImages}
                     authenticated={authenticated}
                     feedView={!authenticated}
