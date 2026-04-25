@@ -394,7 +394,7 @@ def create_video_crop(source_path, out_path, start_time=None, end_time=None):
         cmd += ['-ss', str(start_time)]
     if end_time:
         cmd += ['-to', str(end_time)]
-    cmd += ['-i', str(source_path), '-c', 'copy', str(out_path)]
+    cmd += ['-i', str(source_path), '-c', 'copy', '-movflags', '+faststart', str(out_path)]
     logger.debug(f"$ {' '.join(cmd)}")
     result = sp.call(cmd)
     if result == 0:

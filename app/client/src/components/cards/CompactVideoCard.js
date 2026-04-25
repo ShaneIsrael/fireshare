@@ -146,10 +146,12 @@ const CompactVideoCard = ({
     setDescription(video.info?.description || '')
     setLocalTags(video.tags || [])
     if (video.game !== undefined) setGame(video.game || null)
-    setImgLoaded(false)
-    setImgRetryKey(0)
-    retryCountRef.current = 0
-    clearTimeout(retryTimeoutRef.current)
+    if (video.video_id !== previousVideo?.video_id) {
+      setImgLoaded(false)
+      setImgRetryKey(0)
+      retryCountRef.current = 0
+      clearTimeout(retryTimeoutRef.current)
+    }
   }
   React.useEffect(() => {
     previousVideoRef.current = video

@@ -25,6 +25,7 @@ import LoadingSpinner from '../components/misc/LoadingSpinner'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import selectFolderTheme from '../common/reactSelectFolderTheme'
 import OutlinedIconButton from '../components/misc/OutlinedIconButton'
+import MarqueeSingleValue from '../components/misc/MarqueeSingleValue'
 import { SORT_OPTIONS } from '../common/constants'
 
 const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded, onImageFolderChange, showFolderDropdown, uploadTick }) => {
@@ -295,7 +296,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
             {!(editMode && isMdDown) && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
                 {showFolderDropdown && imageFolderList.length > 1 && (
-                  <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                  <Box sx={{ minWidth: { xs: 100, sm: 150 }, maxWidth: { xs: 130, sm: 200 }, flexShrink: 0 }}>
                     <Select
                       value={selectedImageFolder}
                       options={imageFolderList.map((f) => ({ value: f, label: f }))}
@@ -305,6 +306,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                       menuPosition="fixed"
                       blurInputOnSelect
                       isSearchable={false}
+                      components={{ SingleValue: MarqueeSingleValue }}
                     />
                   </Box>
                 )}

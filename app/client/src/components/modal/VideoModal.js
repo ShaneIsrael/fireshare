@@ -220,11 +220,14 @@ const VideoModal = ({
   const [pendingThumbnailPreview, setPendingThumbnailPreview] = React.useState(null)
   const [thumbnailLoaded, setThumbnailLoaded] = React.useState(false)
   const [suggestions, setSuggestions] = React.useState([])
+  const [cropProcessing, setCropProcessing] = React.useState(false)
+  const [playerVersion, setPlayerVersion] = React.useState(0)
 
   const playerRef = React.useRef()
   const waveformRef = React.useRef(null)
   const thumbnailInputRef = React.useRef(null)
   const lastSavedRef = useRef(0)
+  const cropPollRef = useRef(null)
 
   useEffect(() => {
     if (!open || editMode) return
@@ -413,6 +416,13 @@ const VideoModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
+  useEffect(() => {
+    if (!open) {
+      clearInterval(cropPollRef.current)
+      setCropProcessing(false)
+    }
+  }, [open])
+
   const handleGameLinked = async (game, warning) => {
     try {
       await GameService.linkVideoToGame(vid.video_id, game.id)
@@ -521,7 +531,24 @@ const VideoModal = ({
       }
       await VideoService.updateDetails(vid.video_id, payload)
       if (cropChanged) {
-        setVideo((prev) => ({ ...prev, info: { ...prev.info, start_time: cropStart, end_time: cropEnd } }))
+        setVideo((prev) => ({ ...prev, info: { ...prev.info, start_time: cropStart, end_time: cropEnd, has_crop: false } }))
+        setCropProcessing(true)
+        const videoId = vid.video_id
+        clearInterval(cropPollRef.current)
+        cropPollRef.current = setInterval(async () => {
+          try {
+            const res = await VideoService.getDetails(videoId)
+            if (res.data?.info?.has_crop) {
+              clearInterval(cropPollRef.current)
+              setVideo((prev) => ({ ...prev, info: { ...prev.info, ...res.data.info } }))
+              setPlayerVersion((v) => v + 1)
+              setCropProcessing(false)
+              setPosterCacheKey(Date.now())
+            }
+          } catch {
+            // ignore transient poll errors
+          }
+        }, 2000)
       }
       setUpdatable(false)
       setEditMode(false)
@@ -738,7 +765,7 @@ const VideoModal = ({
                   }}
                 >
                   <VideoJSPlayer
-                    key={vid.video_id}
+                    key={`${vid.video_id}-${playerVersion}`}
                     sources={getVideoSources(
                       vid.video_id,
                       editMode ? { ...vid?.info, has_crop: false } : vid?.info,
@@ -756,6 +783,28 @@ const VideoModal = ({
                     fluid={false}
                     playsinline={true}
                   />
+                  {cropProcessing && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backdropFilter: 'blur(6px)',
+                        backgroundColor: 'rgba(2, 13, 26, 0.55)',
+                        zIndex: 10,
+                        borderRadius: 'inherit',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
+                        <CircularProgress size={48} sx={{ color: '#fff' }} />
+                        <Typography variant="body2" sx={{ color: '#fff', fontWeight: 500, letterSpacing: '0.02em' }}>
+                          Cropping video...
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
                 </Box>
 
                 {/* ── Right: Info Sidebar ──────────────────────────────────────── */}

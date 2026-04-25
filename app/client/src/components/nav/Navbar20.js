@@ -454,9 +454,9 @@ const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || 
           {pages.map((p) => {
             if ((p.private && authenticated) || !p.private)
               return (
-                <>
+                <React.Fragment key={p.title}>
                   {p.href === '/files' && <Divider sx={{ mb: 1, width: '100%' }} />}
-                  <ListItem key={p.title} disablePadding sx={{ px: 1 }}>
+                  <ListItem disablePadding sx={{ px: 1 }}>
                     <ListItemButton
                       selected={page === p.href}
                       onClick={() => navigate(p.href)}
@@ -472,7 +472,7 @@ const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || 
                       />
                     </ListItemButton>
                   </ListItem>
-                </>
+                </React.Fragment>
               )
             return null
           })}
