@@ -48,7 +48,6 @@ import UploadCard from '../cards/UploadCard'
 import ImageUploadCard from '../cards/ImageUploadCard'
 import { RegisterUploadCardContext, RegisterImageUploadCardContext } from '../utils/GlobalDragDropOverlay'
 import Select from 'react-select'
-import selectFolderTheme from '../../common/reactSelectFolderTheme'
 import VersionBox from './VersionBox'
 import ReleaseNotesDialog from '../modal/ReleaseNotesDialog'
 
@@ -213,8 +212,7 @@ function Navbar20({
 
   const [selectedFolder, setSelectedFolder] = React.useState(initFolder)
 
-  // On mobile, force "All Videos"
-  const effectiveFolder = isMobile ? { value: 'All Videos', label: 'All Videos' } : selectedFolder
+  const effectiveFolder = selectedFolder
 
   const handleFolderChange = React.useCallback((folder) => {
     setSetting('folder', folder)
@@ -228,7 +226,7 @@ function Navbar20({
   // --- Image folder selection state ---
   const [imageFolders, setImageFolders] = React.useState(['All Images'])
   const [selectedImageFolder, setSelectedImageFolder] = React.useState({ value: 'All Images', label: 'All Images' })
-  const effectiveImageFolder = isMobile ? { value: 'All Images', label: 'All Images' } : selectedImageFolder
+  const effectiveImageFolder = selectedImageFolder
 
   const handleImageFolderChange = React.useCallback((folder) => {
     setSelectedImageFolder(folder)
@@ -238,9 +236,7 @@ function Navbar20({
     setImageFolders(folderList)
   }, [])
 
-  const createSelectFolders = (f) => f.map((v) => ({ value: v, label: v }))
-
-  const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || {})
+const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || {})
 
   React.useEffect(() => {
     const handleUiConfigUpdate = () => setUiConfig(getSetting('ui_config') || {})
@@ -481,66 +477,6 @@ function Navbar20({
             return null
           })}
         </List>
-        {/* Folder selector — hidden on mobile (xs) */}
-        {(page === '/' || page === '/images') &&
-        open &&
-        !isMobile &&
-        (page === '/' ? folders.length > 1 : imageFolders.length > 1) &&
-        uiConfig.show_folder_dropdown === true ? (
-          <>
-            <Divider />
-            <Box sx={{ p: open ? 1.5 : 0.75 }}>
-              {open ? (
-                <Select
-                  value={page === '/' ? selectedFolder : selectedImageFolder}
-                  options={createSelectFolders(page === '/' ? folders : imageFolders)}
-                  onChange={page === '/' ? handleFolderChange : handleImageFolderChange}
-                  styles={selectFolderTheme}
-                  blurInputOnSelect
-                  isSearchable={false}
-                  menuPlacement="auto"
-                />
-              ) : (
-                <LightTooltip
-                  title={(page === '/' ? selectedFolder : selectedImageFolder).label}
-                  placement="right"
-                  arrow
-                >
-                  <Box
-                    sx={{
-                      width: 42,
-                      height: 38,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid #FFFFFF26',
-                      borderRadius: '8px',
-                      backgroundColor: '#FFFFFF0D',
-                      cursor: 'pointer',
-                      color: '#fff',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                    onClick={() => {
-                      const idx = (page === '/' ? folders : imageFolders).indexOf(
-                        (page === '/' ? selectedFolder : selectedImageFolder).value,
-                      )
-                      const list = page === '/' ? folders : imageFolders
-                      const next = list[(idx + 1) % list.length]
-                      const handler = page === '/' ? handleFolderChange : handleImageFolderChange
-                      handler({ value: next, label: next })
-                    }}
-                  >
-                    {(page === '/' ? selectedFolder : selectedImageFolder).label.substring(0, 3)}
-                  </Box>
-                </LightTooltip>
-              )}
-            </Box>
-          </>
-        ) : null}
         {cardSlider && open && !isMobile ? (
           <>
             <Divider />
@@ -791,9 +727,10 @@ function Navbar20({
                         borderRadius: '8px',
                         height: '38px',
                         width: '38px',
-                        border: '1px solid #2684FF',
-                        bgcolor: '#001E3C',
-                        '&:hover': { bgcolor: '#FFFFFF33' },
+                        border: '1px solid #FFFFFF33',
+                        bgcolor: 'transparent',
+                        color: '#FFFFFFCC',
+                        '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
                       }}
                     >
                       <SearchIcon fontSize="small" />
@@ -877,6 +814,7 @@ function Navbar20({
           selectedImageFolder: effectiveImageFolder,
           onImageFolderChange: handleImageFolderChange,
           onImageFoldersLoaded: handleImageFoldersLoaded,
+          showFolderDropdown: uiConfig.show_folder_dropdown === true,
           uploadTick,
         })}
       </Box>

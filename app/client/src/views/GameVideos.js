@@ -37,6 +37,8 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import { SORT_OPTIONS } from '../common/constants'
 import selectSortTheme from '../common/reactSelectSortTheme'
 
+const PAGE_SIZE = 48
+
 const GameVideos = ({ cardSize, authenticated, searchText }) => {
   const { gameId } = useParams()
   const theme = useTheme()
@@ -67,6 +69,9 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
 
   // Cover art editing
   const [editingAssets, setEditingAssets] = React.useState(false)
+
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
+  const sentinelRef = React.useRef()
 
   if (searchText !== search) {
     setSearch(searchText)
@@ -272,6 +277,23 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     })
   }, [sortedVideos, filteredImages, sortOrder])
 
+  React.useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [sortedMedia])
+
+  React.useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, sortedMedia.length))
+      },
+      { rootMargin: '400px' },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [sortedMedia.length])
+
   const totalSelected = selectedVideos.size + selectedImages.size
 
   const allMediaSelected = sortedMedia.length > 0 && totalSelected === sortedMedia.length
@@ -476,12 +498,12 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
               gap: 2,
             }}
           >
-            {sortedMedia.map((media, index) => (
+            {sortedMedia.slice(0, visibleCount).map((media, index) => (
               <motion.div
                 key={media.type === 'video' ? `v-${media.item.video_id}` : `i-${media.item.image_id}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: Math.min(index, 12) * 0.04 }}
+                transition={{ duration: 0.3, delay: Math.min(index % PAGE_SIZE, 12) * 0.04 }}
               >
                 {media.type === 'video' ? (
                   <CompactVideoCard
@@ -519,6 +541,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
             ))}
           </Box>
         )}
+        <div ref={sentinelRef} style={{ height: 1 }} />
       </Box>
 
       {/* Delete Confirmation Dialog */}
