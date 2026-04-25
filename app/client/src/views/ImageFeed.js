@@ -4,7 +4,6 @@ import {
   Box,
   Grid,
   Button,
-  ButtonGroup,
   IconButton,
   Dialog,
   DialogTitle,
@@ -24,10 +23,11 @@ import EditImageModal from '../components/modal/EditImageModal'
 import { ImageService } from '../services'
 import LoadingSpinner from '../components/misc/LoadingSpinner'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
-import selectSortTheme from '../common/reactSelectSortTheme'
+import selectFolderTheme from '../common/reactSelectFolderTheme'
+import OutlinedIconButton from '../components/misc/OutlinedIconButton'
 import { SORT_OPTIONS } from '../common/constants'
 
-const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded, uploadTick }) => {
+const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded, onImageFolderChange, showFolderDropdown, uploadTick }) => {
   const [images, setImages] = React.useState([])
   const [filteredImages, setFilteredImages] = React.useState([])
   const [loading, setLoading] = React.useState(true)
@@ -39,6 +39,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   const [randomized, setRandomized] = React.useState(false)
   const [randomizedImages, setRandomizedImages] = React.useState([])
   const [randomizeKey, setRandomizeKey] = React.useState(0)
+  const [imageFolderList, setImageFolderList] = React.useState([])
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
 
   // Edit mode state
@@ -93,6 +94,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
         })
         tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Images')
         if (onImageFoldersLoaded) onImageFoldersLoaded(tfolders)
+        setImageFolderList(tfolders)
         setLoading(false)
       })
       .catch((err) => {
@@ -133,6 +135,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
           })
           tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Images')
           if (onImageFoldersLoaded) onImageFoldersLoaded(tfolders)
+          setImageFolderList(tfolders)
         }
       })
     }, 2000)
@@ -282,12 +285,26 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                {showFolderDropdown && imageFolderList.length > 1 && (
+                  <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                    <Select
+                      value={selectedImageFolder}
+                      options={imageFolderList.map((f) => ({ value: f, label: f }))}
+                      onChange={onImageFolderChange}
+                      styles={selectFolderTheme}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      blurInputOnSelect
+                      isSearchable={false}
+                    />
+                  </Box>
+                )}
                 <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
                   <Select
                     value={sortOrder}
                     options={SORT_OPTIONS}
                     onChange={handleSortChange}
-                    styles={selectSortTheme}
+                    styles={selectFolderTheme}
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
                     blurInputOnSelect
@@ -298,15 +315,15 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                   onClick={handleRandomize}
                   title="Randomize order"
                   sx={{
-                    bgcolor: randomized ? 'primary.main' : '#001E3C',
+                    border: '1px solid',
+                    borderColor: randomized ? '#FFFFFF55' : '#FFFFFF33',
                     borderRadius: '8px',
                     height: '38px',
                     width: '38px',
                     flexShrink: 0,
-                    border: randomized ? 'none' : '1px solid #2684FF',
-                    '&:hover': {
-                      bgcolor: randomized ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
-                    },
+                    bgcolor: randomized ? '#FFFFFF18' : 'transparent',
+                    color: '#FFFFFFCC',
+                    '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
                   }}
                 >
                   <CasinoIcon fontSize="small" />
@@ -316,44 +333,32 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
             {authenticated && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
-                  <ButtonGroup
-                    variant="contained"
-                    sx={{
-                      height: 38,
-                      flexShrink: 1,
-                      minWidth: 0,
-                      '& .MuiButton-root': {
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        px: { xs: 1, sm: 2 },
-                      },
-                    }}
-                  >
-                    <Button color="primary" onClick={handleSelectAllToggle}>
+                  <Box sx={{ display: 'flex', gap: 1, flexShrink: 1, minWidth: 0 }}>
+                    <OutlinedIconButton onClick={handleSelectAllToggle}>
                       {allSelected ? 'Select None' : 'Select All'}
-                    </Button>
-                    <Button
-                      color="error"
-                      startIcon={<DeleteIcon />}
+                    </OutlinedIconButton>
+                    <OutlinedIconButton
+                      icon={<DeleteIcon sx={{ fontSize: 16 }} />}
                       onClick={handleDeleteClick}
                       disabled={selectedImages.size === 0}
+                      sx={{ color: selectedImages.size > 0 ? '#FF6B6B' : undefined, borderColor: selectedImages.size > 0 ? '#FF6B6B66' : undefined }}
                     >
-                      Delete{selectedImages.size > 0 && !isMdDown ? ` (${selectedImages.size})` : ''}
-                    </Button>
-                  </ButtonGroup>
+                      {!isMdDown ? `Delete${selectedImages.size > 0 ? ` (${selectedImages.size})` : ''}` : null}
+                    </OutlinedIconButton>
+                  </Box>
                 )}
                 <IconButton
                   onClick={handleEditModeToggle}
                   sx={{
-                    bgcolor: editMode ? 'primary.main' : '#001E3C',
+                    border: '1px solid',
+                    borderColor: editMode ? '#FFFFFF55' : '#FFFFFF33',
                     borderRadius: '8px',
                     height: '38px',
+                    width: '38px',
                     flexShrink: 0,
-                    border: !editMode ? '1px solid #2684FF' : 'none',
-                    '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
-                    },
+                    bgcolor: editMode ? '#FFFFFF18' : 'transparent',
+                    color: '#FFFFFFCC',
+                    '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
                   }}
                 >
                   {editMode ? <CheckIcon /> : <EditIcon />}

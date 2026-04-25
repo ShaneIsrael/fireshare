@@ -5,7 +5,6 @@ import {
   Grid,
   IconButton,
   Button,
-  ButtonGroup,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -30,7 +29,8 @@ import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import TagChip from '../components/misc/TagChip'
 
-import selectSortTheme from '../common/reactSelectSortTheme'
+import selectFolderTheme from '../common/reactSelectFolderTheme'
+import OutlinedIconButton from '../components/misc/OutlinedIconButton'
 import { SORT_OPTIONS } from '../common/constants'
 import { inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
@@ -39,12 +39,15 @@ const Dashboard = ({
   searchText,
   cardSize,
   selectedFolder,
+  onFolderChange,
   onFoldersLoaded,
+  showFolderDropdown,
   uploadTick,
 }) => {
   const [videos, setVideos] = React.useState([])
   const [search, setSearch] = React.useState(searchText)
   const [filteredVideos, setFilteredVideos] = React.useState([])
+  const [folderList, setFolderList] = React.useState([])
   const [loading, setLoading] = React.useState(true)
   const [dateSortOrder, setDateSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
 
@@ -114,6 +117,7 @@ const Dashboard = ({
         })
         tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
         if (onFoldersLoaded) onFoldersLoaded(tfolders)
+        setFolderList(tfolders)
         setLoading(false)
       })
       .catch((err) => {
@@ -159,6 +163,7 @@ const Dashboard = ({
           })
           tfolders.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1)).unshift('All Videos')
           if (onFoldersLoaded) onFoldersLoaded(tfolders)
+          setFolderList(tfolders)
         }
       })
     }, 2000)
@@ -443,76 +448,78 @@ const Dashboard = ({
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
-                <Select
-                  value={dateSortOrder}
-                  options={SORT_OPTIONS}
-                  onChange={setDateSortOrder}
-                  styles={selectSortTheme}
-                  menuPortalTarget={document.body}
-                  menuPosition="fixed"
-                  blurInputOnSelect
-                  isSearchable={false}
-                />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                {showFolderDropdown && folderList.length > 1 && (
+                  <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                    <Select
+                      value={selectedFolder}
+                      options={folderList.map((f) => ({ value: f, label: f }))}
+                      onChange={onFolderChange}
+                      styles={selectFolderTheme}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      blurInputOnSelect
+                      isSearchable={false}
+                    />
+                  </Box>
+                )}
+                <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                  <Select
+                    value={dateSortOrder}
+                    options={SORT_OPTIONS}
+                    onChange={setDateSortOrder}
+                    styles={selectFolderTheme}
+                    menuPortalTarget={document.body}
+                    menuPosition="fixed"
+                    blurInputOnSelect
+                    isSearchable={false}
+                  />
+                </Box>
               </Box>
             )}
             {authenticated && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
-                  <ButtonGroup
-                    variant="contained"
-                    sx={{
-                      height: 38,
-                      flexShrink: 1,
-                      minWidth: 0,
-                      '& .MuiButton-root': {
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        px: { xs: 1, sm: 2 },
-                      },
-                    }}
-                  >
-                    <Button color="primary" onClick={handleSelectAllToggle}>
+                  <Box sx={{ display: 'flex', gap: 1, flexShrink: 1, minWidth: 0 }}>
+                    <OutlinedIconButton onClick={handleSelectAllToggle}>
                       {allSelected ? 'Select None' : 'Select All'}
-                    </Button>
-                    <Button
-                      color="primary"
-                      startIcon={<LinkIcon />}
+                    </OutlinedIconButton>
+                    <OutlinedIconButton
+                      icon={<LinkIcon sx={{ fontSize: 16 }} />}
                       onClick={handleLinkGameClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Link{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
-                    </Button>
-                    <Button
-                      color="primary"
-                      startIcon={<LocalOfferIcon />}
+                      {!isMdDown ? `Link${selectedVideos.size > 0 ? ` (${selectedVideos.size})` : ''}` : null}
+                    </OutlinedIconButton>
+                    <OutlinedIconButton
+                      icon={<LocalOfferIcon sx={{ fontSize: 16 }} />}
                       onClick={handleTagClick}
                       disabled={selectedVideos.size === 0}
                     >
-                      Tag{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
-                    </Button>
-                    <Button
-                      color="error"
-                      startIcon={<DeleteIcon />}
+                      {!isMdDown ? `Tag${selectedVideos.size > 0 ? ` (${selectedVideos.size})` : ''}` : null}
+                    </OutlinedIconButton>
+                    <OutlinedIconButton
+                      icon={<DeleteIcon sx={{ fontSize: 16 }} />}
                       onClick={handleDeleteClick}
                       disabled={selectedVideos.size === 0}
+                      sx={{ color: selectedVideos.size > 0 ? '#FF6B6B' : undefined, borderColor: selectedVideos.size > 0 ? '#FF6B6B66' : undefined }}
                     >
-                      Delete{selectedVideos.size > 0 && !isMdDown ? ` (${selectedVideos.size})` : null}
-                    </Button>
-                  </ButtonGroup>
+                      {!isMdDown ? `Delete${selectedVideos.size > 0 ? ` (${selectedVideos.size})` : ''}` : null}
+                    </OutlinedIconButton>
+                  </Box>
                 )}
                 <IconButton
                   onClick={handleEditModeToggle}
                   sx={{
-                    bgcolor: editMode ? 'primary.main' : '#001E3C',
+                    border: '1px solid',
+                    borderColor: editMode ? '#FFFFFF55' : '#FFFFFF33',
                     borderRadius: '8px',
                     height: '38px',
+                    width: '38px',
                     flexShrink: 0,
-                    border: !editMode ? '1px solid #2684FF' : 'none',
-                    '&:hover': {
-                      bgcolor: editMode ? 'primary.dark' : 'rgba(255, 255, 255, 0.2)',
-                    },
+                    bgcolor: editMode ? '#FFFFFF18' : 'transparent',
+                    color: '#FFFFFFCC',
+                    '&:hover': { borderColor: '#FFFFFF66', bgcolor: '#FFFFFF0D' },
                   }}
                 >
                   {editMode ? <CheckIcon /> : <EditIcon />}
