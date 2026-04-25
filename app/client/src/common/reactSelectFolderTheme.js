@@ -14,6 +14,10 @@ const selectTheme = {
     fontSize: 14,
     fontFamily: 'Inter, sans-serif',
   }),
+  menuPortal: (styles) => ({
+    ...styles,
+    zIndex: 2000,
+  }),
   menu: (styles) => ({
     ...styles,
     borderRadius: '8px',
