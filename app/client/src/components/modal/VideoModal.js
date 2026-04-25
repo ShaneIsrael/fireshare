@@ -501,7 +501,18 @@ const VideoModal = ({
       return
     }
 
-    // Upload pending thumbnail first
+    // Optimistically close edit mode and reflect changes in the UI immediately.
+    setUpdatable(false)
+    setEditMode(false)
+    updateCallback({ id: vid.video_id, title, description })
+    setAlert({ type: 'success', message: 'Details Updated', open: true })
+
+    if (cropChanged) {
+      setVideo((prev) => ({ ...prev, info: { ...prev.info, start_time: cropStart, end_time: cropEnd, has_crop: false } }))
+      setCropProcessing(true)
+    }
+
+    // Upload pending thumbnail (must complete before details call).
     if (pendingThumbnailFile) {
       const formData = new FormData()
       formData.append('file', pendingThumbnailFile)
@@ -512,16 +523,12 @@ const VideoModal = ({
         window.URL.revokeObjectURL(pendingThumbnailPreview)
         setPendingThumbnailFile(null)
         setPendingThumbnailPreview(null)
-      } catch (err) {
+      } catch {
         setAlert({ type: 'error', message: 'Failed to upload thumbnail', open: true })
-        return
       }
     }
 
-    if (!updateable && !cropChanged) {
-      setEditMode(false)
-      return
-    }
+    if (!updateable && !cropChanged) return
 
     try {
       const payload = { title, description, recorded_at: getRecordedAtISO() }
@@ -531,8 +538,6 @@ const VideoModal = ({
       }
       await VideoService.updateDetails(vid.video_id, payload)
       if (cropChanged) {
-        setVideo((prev) => ({ ...prev, info: { ...prev.info, start_time: cropStart, end_time: cropEnd, has_crop: false } }))
-        setCropProcessing(true)
         const videoId = vid.video_id
         clearInterval(cropPollRef.current)
         cropPollRef.current = setInterval(async () => {
@@ -550,12 +555,9 @@ const VideoModal = ({
           }
         }, 2000)
       }
-      setUpdatable(false)
-      setEditMode(false)
-      updateCallback({ id: vid.video_id, title, description })
-      setAlert({ type: 'success', message: 'Details Updated', open: true })
-    } catch (err) {
-      setAlert({ type: 'error', message: 'An error occurred trying to update the details', open: true })
+    } catch {
+      setAlert({ type: 'error', message: 'An error occurred trying to save changes', open: true })
+      if (cropChanged) setCropProcessing(false)
     }
   }
 
