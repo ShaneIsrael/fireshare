@@ -507,9 +507,17 @@ const VideoModal = ({
     updateCallback({ id: vid.video_id, title, description })
     setAlert({ type: 'success', message: 'Details Updated', open: true })
 
+    const cropApplied = cropChanged && (cropStart !== null || cropEnd !== null)
+    const cropCleared = cropChanged && cropStart === null && cropEnd === null
+
     if (cropChanged) {
       setVideo((prev) => ({ ...prev, info: { ...prev.info, start_time: cropStart, end_time: cropEnd, has_crop: false } }))
+    }
+    if (cropApplied) {
       setCropProcessing(true)
+    }
+    if (cropCleared) {
+      setPlayerVersion((v) => v + 1)
     }
 
     // Upload pending thumbnail (must complete before details call).
@@ -537,7 +545,7 @@ const VideoModal = ({
         payload.end_time = cropEnd
       }
       await VideoService.updateDetails(vid.video_id, payload)
-      if (cropChanged) {
+      if (cropApplied) {
         const videoId = vid.video_id
         clearInterval(cropPollRef.current)
         cropPollRef.current = setInterval(async () => {
@@ -557,7 +565,7 @@ const VideoModal = ({
       }
     } catch {
       setAlert({ type: 'error', message: 'An error occurred trying to save changes', open: true })
-      if (cropChanged) setCropProcessing(false)
+      if (cropApplied) setCropProcessing(false)
     }
   }
 
