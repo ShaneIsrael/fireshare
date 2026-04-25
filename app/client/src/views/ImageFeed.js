@@ -145,6 +145,15 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
 
   const folder = selectedImageFolder || { value: 'All Images', label: 'All Images' }
 
+  const prevFolderRef = React.useRef(folder.value)
+  React.useEffect(() => {
+    if (prevFolderRef.current !== folder.value) {
+      prevFolderRef.current = folder.value
+      setRandomizeKey((k) => k + 1)
+      window.scrollTo({ top: 0 })
+    }
+  }, [folder.value])
+
   const displayImages = React.useMemo(() => {
     if (folder.value === 'All Images') {
       return filteredImages
