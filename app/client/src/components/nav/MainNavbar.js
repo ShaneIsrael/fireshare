@@ -34,11 +34,11 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { AuthService } from '../../services'
 
 import logo from '../../assets/logo.png'
-import Search from '../search/Search'
-import LightTooltip from '../misc/LightTooltip'
+import Search from './Search'
+import LightTooltip from '../ui/LightTooltip'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import { getSetting, setSetting } from '../../common/utils'
-import SliderWrapper from '../misc/SliderWrapper'
+import SliderWrapper from '../ui/SliderWrapper'
 import GameScanStatus from './GameScanStatus'
 import TranscodingStatus from './TranscodingStatus'
 import FolderSuggestionInline from './FolderSuggestionInline'
@@ -141,7 +141,7 @@ const AppBar = styled(MuiAppBar, {
   }),
 }))
 
-function Navbar20({
+function MainNavbar({
   authenticated,
   isAdmin,
   latestRelease,
@@ -303,7 +303,6 @@ const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || 
 
   // Game scan complete handler
   const handleGameScanComplete = React.useCallback(async (data) => {
-    console.log('[Navbar20] handleGameScanComplete called with data:', data)
     setAlert({
       open: true,
       type: 'success',
@@ -313,17 +312,14 @@ const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || 
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     try {
-      console.log('[Navbar20] Fetching folder suggestions...')
       const res = await GameService.getFolderSuggestions()
       const suggestions = res.data
-      console.log('[Navbar20] Folder suggestions response:', suggestions)
       if (Object.keys(suggestions).length > 0) {
-        console.log('[Navbar20] Setting folder suggestions for:', Object.keys(suggestions)[0])
         setFolderSuggestions(suggestions)
         setCurrentSuggestionFolder(Object.keys(suggestions)[0])
       }
     } catch (err) {
-      console.error('[Navbar20] Error fetching folder suggestions:', err)
+      console.error('Error fetching folder suggestions:', err)
     }
   }, [])
 
@@ -823,4 +819,4 @@ const [uiConfig, setUiConfig] = React.useState(() => getSetting('ui_config') || 
   )
 }
 
-export default Navbar20
+export default MainNavbar

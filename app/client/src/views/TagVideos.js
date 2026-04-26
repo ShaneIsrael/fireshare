@@ -5,9 +5,9 @@ import { useParams } from 'react-router-dom'
 import Select from 'react-select'
 import { TagService } from '../services'
 import VideoCards from '../components/cards/VideoCards'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { SORT_OPTIONS } from '../common/constants'
-import selectSortTheme from '../common/reactSelectSortTheme'
+import { sortSelectTheme as selectSortTheme } from '../common/reactSelectThemes'
 
 const TagVideos = ({ cardSize, authenticated, searchText }) => {
   const { tagId } = useParams()
@@ -89,7 +89,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
   const color = tag?.color || '#2684FF'
 
   return (
-    <Box>
+    <>
       {toolbarTarget &&
         ReactDOM.createPortal(
           <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
@@ -106,7 +106,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
           </Box>,
           toolbarTarget,
         )}
-
+      <Box>
       {/* Tag hero banner */}
       <Box
         sx={{
@@ -210,7 +210,8 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
       <Box sx={{ p: 3 }}>
         <VideoCards videos={sortedVideos} authenticated={authenticated} size={cardSize} feedView={false} />
       </Box>
-    </Box>
+      </Box>
+    </>
   )
 }
 

@@ -45,54 +45,11 @@ import TuneIcon from '@mui/icons-material/Tune'
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import Select from 'react-select'
-import selectFolderTheme from '../../common/reactSelectFolderTheme'
-import OutlinedIconButton from '../misc/OutlinedIconButton'
+import { folderSelectTheme as selectFolderTheme } from '../../common/reactSelectThemes'
+import OutlinedIconButton from '../ui/OutlinedIconButton'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, rowBoxSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
-
-function formatSize(bytes) {
-  if (bytes == null || bytes === 0) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
-
-function formatDuration(seconds) {
-  if (seconds == null || isNaN(seconds)) return '—'
-  const s = Math.floor(seconds)
-  const hrs = Math.floor(s / 3600)
-  const mins = Math.floor((s % 3600) / 60)
-  const secs = s % 60
-  if (hrs > 0) {
-    return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-  }
-  return `${mins}:${String(secs).padStart(2, '0')}`
-}
-
-function formatDate(isoString) {
-  if (!isoString) return '—'
-  try {
-    return new Date(isoString).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return '—'
-  }
-}
-
-function formatResolution(width, height) {
-  if (!width || !height) return '—'
-  const shortSide = Math.min(width, height)
-  if (shortSide >= 2160) return '4K'
-  if (shortSide >= 1440) return '1440p'
-  if (shortSide >= 1080) return '1080p'
-  if (shortSide >= 720) return '720p'
-  if (shortSide >= 480) return '480p'
-  return `${width}×${height}`
-}
+import { formatSize, formatTableDate, formatDuration, formatResolution } from '../../common/utils'
 
 function sortFiles(files, column, dir) {
   const sorted = [...files]
@@ -418,8 +375,8 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
       {/* Date */}
       {!hiddenColumns.has('Date') && (
         <TableCell sx={{ ...bodyCellSx }}>
-          <Tooltip title={file.recorded_at ? `Recorded: ${formatDate(file.recorded_at)}` : ''} placement="top">
-            <Typography sx={{ fontSize: 12, color: '#FFFFFF55' }}>{formatDate(file.created_at)}</Typography>
+          <Tooltip title={file.recorded_at ? `Recorded: ${formatTableDate(file.recorded_at)}` : ''} placement="top">
+            <Typography sx={{ fontSize: 12, color: '#FFFFFF55' }}>{formatTableDate(file.created_at)}</Typography>
           </Tooltip>
         </TableCell>
       )}

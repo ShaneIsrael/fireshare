@@ -264,7 +264,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
           }}
         >
           <TransformWrapper
-            ref={transformRef}
+            onInit={(ref) => { transformRef.current = ref }}
             minScale={1}
             maxScale={5}
             centerOnInit

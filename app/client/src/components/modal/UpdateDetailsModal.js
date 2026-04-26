@@ -14,7 +14,7 @@ import {
   Autocomplete,
   CircularProgress,
 } from '@mui/material'
-import TagChip from '../misc/TagChip'
+import TagChip from '../ui/TagChip'
 import CloseIcon from '@mui/icons-material/Close'
 import CheckIcon from '@mui/icons-material/Check'
 import RefreshIcon from '@mui/icons-material/Refresh'

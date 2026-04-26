@@ -11,7 +11,6 @@ try:
     import ldap
 except ImportError:
     ldap = None
-import logging
 
 def auth_user_ldap(username, password):
     formatted = current_app.config["LDAP_USER_FILTER"].format(
@@ -64,12 +63,10 @@ def auth_user_ldap(username, password):
             current_app.logger.debug("user search yielded no results")
             return False, False
 
-    except:
-        logging.exception('')
+    except Exception:
+        current_app.logger.exception('LDAP authentication error')
         current_app.logger.debug("failure at block1")
         return False, False
-
-    return False, False
 
 
 auth = Blueprint('auth', __name__)

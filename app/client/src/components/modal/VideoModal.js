@@ -16,7 +16,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
-import TagChip from '../misc/TagChip'
+import TagChip from '../ui/TagChip'
 import { motion } from 'framer-motion'
 import { DayPicker } from 'react-day-picker'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -43,7 +43,7 @@ import {
 } from '../../common/utils'
 import { ConfigService, VideoService, GameService, TagService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
-import VideoJSPlayer from '../misc/VideoJSPlayer'
+import VideoJSPlayer from '../player/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
 import SuggestionCard from '../cards/SuggestionCard'
 import WaveformCropper from './WaveformCropper'

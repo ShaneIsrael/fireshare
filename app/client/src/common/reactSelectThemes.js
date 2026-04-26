@@ -1,6 +1,6 @@
 import zIndex from '@mui/material/styles/zIndex'
 
-const selectTheme = {
+export const folderSelectTheme = {
   control: (styles) => ({
     ...styles,
     backgroundColor: '#FFFFFF0D',
@@ -67,4 +67,51 @@ const selectTheme = {
     },
   }),
 }
-export default selectTheme
+
+export const sortSelectTheme = {
+  control: (styles) => ({
+    ...styles,
+    backgroundColor: '#001E3C',
+    borderColor: '#2684FF',
+    borderRadius: 10,
+    '&:hover': {
+      borderColor: '#2684FF',
+    },
+    color: '#fff',
+  }),
+  menu: (styles) => ({
+    ...styles,
+    borderRadius: 0,
+    marginTop: 0,
+    backgroundColor: '#001E3C',
+    '&:hover': {
+      borderColor: '#2684FF',
+    },
+  }),
+  menuPortal: (styles) => ({
+    ...styles,
+    zIndex: 2000,
+  }),
+  menuList: (styles) => ({
+    ...styles,
+    backgroundColor: '#001E3C',
+    padding: 0,
+  }),
+  singleValue: (styles) => ({
+    ...styles,
+    color: '#fff',
+  }),
+  option: (styles, { isFocused, isSelected }) => ({
+    backgroundColor: '#003366',
+    boxSizing: 'border-box',
+    display: 'block',
+    fontSize: 'inherit',
+    label: 'option',
+    padding: '8px 12px',
+    userSelect: 'none',
+    width: '100%',
+    '&:hover': {
+      backgroundColor: '#3399FF',
+    },
+  }),
+}

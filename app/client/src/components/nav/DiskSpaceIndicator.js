@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Box, IconButton, Typography } from '@mui/material'
 import StorageIcon from '@mui/icons-material/Storage'
 import RefreshIcon from '@mui/icons-material/Refresh'
-import LightTooltip from '../misc/LightTooltip'
+import LightTooltip from '../ui/LightTooltip'
 import { StatsService } from '../../services'
 
 const actionIconSx = {

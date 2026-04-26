@@ -18,7 +18,7 @@ import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
 import { getSetting, setSetting } from './common/utils'
 import AuthWrapper from './components/utils/AuthWrapper'
-import Navbar20 from './components/nav/Navbar20'
+import MainNavbar from './components/nav/MainNavbar'
 import GlobalDragDropOverlay from './components/utils/GlobalDragDropOverlay'
 
 const muitheme = createTheme(darkTheme)
@@ -48,7 +48,7 @@ export default function App() {
               path="/"
               element={
                 <AuthWrapper>
-                  <Navbar20
+                  <MainNavbar
                     page="/"
                     collapsed={!drawerOpen}
                     searchable
@@ -57,27 +57,27 @@ export default function App() {
                     searchPlaceholder="Search title, game, or #tag..."
                   >
                     <Dashboard />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
             <Route
               path="/login"
               element={
-                <Navbar20 page="/login" mainPadding={0} toolbar={false}>
+                <MainNavbar page="/login" mainPadding={0} toolbar={false}>
                   <AuthWrapper>
                     <Login />
                   </AuthWrapper>
-                </Navbar20>
+                </MainNavbar>
               }
             />
             <Route
               path="/settings"
               element={
                 <AuthWrapper collapsed={!drawerOpen} redirect={'/login'}>
-                  <Navbar20 page="/settings">
+                  <MainNavbar page="/settings">
                     <Settings />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -85,9 +85,9 @@ export default function App() {
               path="/games"
               element={
                 <AuthWrapper>
-                  <Navbar20 page="/games" collapsed={!drawerOpen} searchable searchPlaceholder="Search games...">
+                  <MainNavbar page="/games" collapsed={!drawerOpen} searchable searchPlaceholder="Search games...">
                     <Games />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -95,9 +95,9 @@ export default function App() {
               path="/games/:gameId"
               element={
                 <AuthWrapper>
-                  <Navbar20 page="/games" collapsed={!drawerOpen} styleToggle cardSlider searchable mainPadding={0}>
+                  <MainNavbar page="/games" collapsed={!drawerOpen} styleToggle cardSlider searchable mainPadding={0}>
                     <GameVideos />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -105,9 +105,9 @@ export default function App() {
               path="/tags"
               element={
                 <AuthWrapper>
-                  <Navbar20 page="/tags" collapsed={!drawerOpen} searchable searchPlaceholder="Search tags...">
+                  <MainNavbar page="/tags" collapsed={!drawerOpen} searchable searchPlaceholder="Search tags...">
                     <Tags />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -115,9 +115,9 @@ export default function App() {
               path="/tags/:tagId"
               element={
                 <AuthWrapper>
-                  <Navbar20 page="/tags" collapsed={!drawerOpen} styleToggle cardSlider searchable mainPadding={0}>
+                  <MainNavbar page="/tags" collapsed={!drawerOpen} styleToggle cardSlider searchable mainPadding={0}>
                     <TagVideos />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -125,9 +125,9 @@ export default function App() {
               path="/watch/:id"
               element={
                 <AuthWrapper>
-                  <Navbar20 collapsed={true} page="/watch">
+                  <MainNavbar collapsed={true} page="/watch">
                     <Watch />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -135,7 +135,7 @@ export default function App() {
               path="/images"
               element={
                 <AuthWrapper>
-                  <Navbar20
+                  <MainNavbar
                     page="/images"
                     collapsed={!drawerOpen}
                     styleToggle
@@ -144,7 +144,7 @@ export default function App() {
                     searchPlaceholder="Search title, game, or #tag..."
                   >
                     <ImageFeed />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -152,9 +152,9 @@ export default function App() {
               path="/image/:id"
               element={
                 <AuthWrapper>
-                  <Navbar20 collapsed={true} page="/image">
+                  <MainNavbar collapsed={true} page="/image">
                     <ViewImage />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -162,9 +162,9 @@ export default function App() {
               path="/files"
               element={
                 <AuthWrapper redirect={'/login'}>
-                  <Navbar20 page="/files" collapsed={!drawerOpen}>
+                  <MainNavbar page="/files" collapsed={!drawerOpen}>
                     <FileManager />
-                  </Navbar20>
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />
@@ -172,7 +172,9 @@ export default function App() {
               path="*"
               element={
                 <AuthWrapper>
-                  <NotFound />
+                  <MainNavbar page="*">
+                    <NotFound />
+                  </MainNavbar>
                 </AuthWrapper>
               }
             />

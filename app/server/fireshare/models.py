@@ -69,12 +69,6 @@ class VideoInfo(db.Model):
         return vcodec
 
     @property
-    def acodec(self):
-        info = json.loads(self.info) if self.info else None
-        acodec = [i for i in info if i["codec_type"] == "video"][0] if info else None
-        return acodec
-
-    @property
     def framerate(self):
         if self.vcodec:
             frn, frd = self.vcodec.get("r_frame_rate", "").split("/")

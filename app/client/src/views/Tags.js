@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { motion } from 'framer-motion'
-import TagChip from '../components/misc/TagChip'
+import TagChip from '../components/ui/TagChip'
 import {
   Box,
   Grid,
@@ -29,7 +29,7 @@ import { useNavigate } from 'react-router-dom'
 import { SketchPicker } from 'react-color'
 import { TagService } from '../services'
 import { getPosterUrl } from '../common/utils'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { labelSx, inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
 const DEFAULT_TAG_COLOR = '#1a3a5c'
@@ -216,7 +216,7 @@ const Tags = ({ authenticated, searchText }) => {
   if (loading) return <LoadingSpinner />
 
   return (
-    <Box sx={{ p: 3 }}>
+    <>
       {toolbarTarget &&
         authenticated &&
         ReactDOM.createPortal(
@@ -287,8 +287,8 @@ const Tags = ({ authenticated, searchText }) => {
           </Box>,
           toolbarTarget,
         )}
-
-      {filteredTags.length === 0 ? (
+      <Box sx={{ p: 3 }}>
+        {filteredTags.length === 0 ? (
         <Box
           sx={{
             display: 'flex',
@@ -369,7 +369,7 @@ const Tags = ({ authenticated, searchText }) => {
                               filter: 'saturate(0.25)',
                               zIndex: 0,
                             }}
-                          />
+                          ></Box>
                           <Box
                             sx={{
                               position: 'absolute',
@@ -378,7 +378,7 @@ const Tags = ({ authenticated, searchText }) => {
                               mixBlendMode: 'multiply',
                               zIndex: 0,
                             }}
-                          />
+                          ></Box>
                           <Box
                             sx={{
                               position: 'absolute',
@@ -386,7 +386,7 @@ const Tags = ({ authenticated, searchText }) => {
                               bgcolor: '#00000077',
                               zIndex: 0,
                             }}
-                          />
+                          ></Box>
                         </>
                       )}
                       {editMode && (
@@ -598,7 +598,8 @@ const Tags = ({ authenticated, searchText }) => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+      </Box>
+    </>
   )
 }
 

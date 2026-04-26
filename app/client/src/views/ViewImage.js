@@ -6,7 +6,7 @@ import DownloadIcon from '@mui/icons-material/Download'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { ImageService } from '../services'
 import { getPublicImageUrl, getImageUrl, copyToClipboard } from '../common/utils'
 

@@ -4,7 +4,7 @@ import FolderIcon from '@mui/icons-material/Folder'
 import Select from 'react-select'
 import { VideoService } from '../../services'
 import { labelSx, dialogPaperSx } from '../../common/modalStyles'
-import selectFolderTheme from '../../common/reactSelectFolderTheme'
+import { folderSelectTheme as selectFolderTheme } from '../../common/reactSelectThemes'
 
 const MoveVideoModal = ({ open, onClose, video, alertHandler }) => {
   const [folders, setFolders] = React.useState([])
