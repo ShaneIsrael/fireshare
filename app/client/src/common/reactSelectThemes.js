@@ -32,6 +32,10 @@ export const folderSelectTheme = {
     backgroundColor: 'transparent',
     padding: 4,
   }),
+  valueContainer: (styles) => ({
+    ...styles,
+    paddingRight: 0,
+  }),
   singleValue: (styles) => ({
     ...styles,
     color: '#fff',
@@ -62,6 +66,7 @@ export const folderSelectTheme = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    marginBottom: 2,
     '&:active': {
       backgroundColor: '#FFFFFF26',
     },
@@ -96,6 +101,10 @@ export const sortSelectTheme = {
     ...styles,
     backgroundColor: '#001E3C',
     padding: 0,
+  }),
+  valueContainer: (styles) => ({
+    ...styles,
+    paddingRight: 0,
   }),
   singleValue: (styles) => ({
     ...styles,

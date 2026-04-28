@@ -31,7 +31,7 @@ import TagChip from '../components/ui/TagChip'
 
 import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
 import OutlinedIconButton from '../components/ui/OutlinedIconButton'
-import MarqueeSingleValue from '../components/ui/MarqueeSingleValue'
+import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
 import { SORT_OPTIONS } from '../common/constants'
 import { inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
@@ -461,7 +461,7 @@ const Dashboard = ({
                       menuPosition="fixed"
                       blurInputOnSelect
                       isSearchable={false}
-                      components={{ SingleValue: MarqueeSingleValue }}
+                      components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
                     />
                   </Box>
                 )}

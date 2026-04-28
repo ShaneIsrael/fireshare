@@ -46,6 +46,7 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import Select from 'react-select'
 import { folderSelectTheme as selectFolderTheme } from '../../common/reactSelectThemes'
+import MarqueeSingleValue, { MarqueeOption } from '../ui/MarqueeSingleValue'
 import OutlinedIconButton from '../ui/OutlinedIconButton'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, rowBoxSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
@@ -1319,6 +1320,7 @@ export default function VideoFileManager({ setAlert }) {
                 onChange={(opt) => setFolderFilter(opt.value)}
                 styles={selectFolderTheme}
                 isSearchable={false}
+                components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
               />
             </Box>
             {uniqueGames.length > 0 && (
@@ -1437,6 +1439,7 @@ export default function VideoFileManager({ setAlert }) {
               onChange={(opt) => setFolderFilter(opt.value)}
               styles={selectFolderTheme}
               isSearchable={false}
+              components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
             />
           </Box>
 

@@ -25,7 +25,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
 import OutlinedIconButton from '../components/ui/OutlinedIconButton'
-import MarqueeSingleValue from '../components/ui/MarqueeSingleValue'
+import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
 import { SORT_OPTIONS } from '../common/constants'
 
 const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded, onImageFolderChange, showFolderDropdown, uploadTick }) => {
@@ -306,7 +306,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                       menuPosition="fixed"
                       blurInputOnSelect
                       isSearchable={false}
-                      components={{ SingleValue: MarqueeSingleValue }}
+                      components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
                     />
                   </Box>
                 )}
