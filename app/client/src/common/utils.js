@@ -48,10 +48,8 @@ export const useDebounce = (value, delay) => {
   return debouncedValue
 }
 
-export const getSettings = () => localStorage.getItem('config') && JSON.parse(localStorage.getItem('config'))
 export const getSetting = (setting) =>
   localStorage.getItem('config') && JSON.parse(localStorage.getItem('config'))[setting]
-export const setSettings = (settings) => localStorage.setItem('config', JSON.stringify(settings))
 export const setSetting = (setting, value) => {
   if (localStorage.getItem('config')) {
     const settings = JSON.parse(localStorage.getItem('config'))
@@ -59,16 +57,6 @@ export const setSetting = (setting, value) => {
   } else {
     localStorage.setItem('config', JSON.stringify({ [setting]: value }))
   }
-}
-
-export const formatDate = (isoString) => {
-  if (!isoString) return null
-  const date = new Date(isoString)
-  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' })
-  const month = date.toLocaleDateString('en-US', { month: 'short' })
-  const day = date.getDate()
-  const year = date.getFullYear()
-  return `${weekday}, ${month} ${day}, ${year}`
 }
 
 export const toHHMMSS = (secs) => {
@@ -89,7 +77,6 @@ export const copyToClipboard = (textToCopy) => {
     // navigator clipboard api method'
     return navigator.clipboard.writeText(textToCopy)
   } else {
-    console.log('test')
     // text area method
     let textArea = document.createElement('textarea')
     textArea.value = textToCopy
@@ -268,4 +255,48 @@ export const getVideoSources = (videoId, videoInfo, extension) => {
   }
 
   return sources
+}
+
+export const formatSize = (bytes) => {
+  if (bytes == null || bytes === 0) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+}
+
+export const formatTableDate = (isoString) => {
+  if (!isoString) return '—'
+  try {
+    return new Date(isoString).toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return '—'
+  }
+}
+
+export const formatDuration = (seconds) => {
+  if (seconds == null || isNaN(seconds)) return '—'
+  const s = Math.floor(seconds)
+  const hrs = Math.floor(s / 3600)
+  const mins = Math.floor((s % 3600) / 60)
+  const secs = s % 60
+  if (hrs > 0) {
+    return `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+  return `${mins}:${String(secs).padStart(2, '0')}`
+}
+
+export const formatResolution = (width, height) => {
+  if (!width || !height) return '—'
+  const shortSide = Math.min(width, height)
+  if (shortSide >= 2160) return '4K'
+  if (shortSide >= 1440) return '1440p'
+  if (shortSide >= 1080) return '1080p'
+  if (shortSide >= 720) return '720p'
+  if (shortSide >= 480) return '480p'
+  return `${width}×${height}`
 }

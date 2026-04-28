@@ -23,14 +23,15 @@ import CheckIcon from '@mui/icons-material/Check'
 import LinkIcon from '@mui/icons-material/Link'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import VideoCards from '../components/cards/VideoCards'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 import { VideoService, GameService, TagService } from '../services'
 import Select from 'react-select'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
-import TagChip from '../components/misc/TagChip'
+import TagChip from '../components/ui/TagChip'
 
-import selectFolderTheme from '../common/reactSelectFolderTheme'
-import OutlinedIconButton from '../components/misc/OutlinedIconButton'
+import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
+import OutlinedIconButton from '../components/ui/OutlinedIconButton'
+import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
 import { SORT_OPTIONS } from '../common/constants'
 import { inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
@@ -450,7 +451,7 @@ const Dashboard = ({
             {!(editMode && isMdDown) && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
                 {showFolderDropdown && folderList.length > 1 && (
-                  <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                  <Box sx={{ minWidth: { xs: 100, sm: 150 }, maxWidth: { xs: 130, sm: 200 }, flexShrink: 0 }}>
                     <Select
                       value={selectedFolder}
                       options={folderList.map((f) => ({ value: f, label: f }))}
@@ -460,6 +461,7 @@ const Dashboard = ({
                       menuPosition="fixed"
                       blurInputOnSelect
                       isSearchable={false}
+                      components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
                     />
                   </Box>
                 )}

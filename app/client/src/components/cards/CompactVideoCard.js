@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip } from '@mui/material'
-import TagChip from '../misc/TagChip'
+import TagChip from '../ui/TagChip'
 import LockIcon from '@mui/icons-material/Lock'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -146,10 +146,12 @@ const CompactVideoCard = ({
     setDescription(video.info?.description || '')
     setLocalTags(video.tags || [])
     if (video.game !== undefined) setGame(video.game || null)
-    setImgLoaded(false)
-    setImgRetryKey(0)
-    retryCountRef.current = 0
-    clearTimeout(retryTimeoutRef.current)
+    if (video.video_id !== previousVideo?.video_id) {
+      setImgLoaded(false)
+      setImgRetryKey(0)
+      retryCountRef.current = 0
+      clearTimeout(retryTimeoutRef.current)
+    }
   }
   React.useEffect(() => {
     previousVideoRef.current = video

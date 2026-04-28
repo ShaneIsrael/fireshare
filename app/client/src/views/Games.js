@@ -27,7 +27,7 @@ import { GameService } from '../services'
 import { dialogPaperSx, dialogTitleSx, helperTextSx, checkboxSx } from '../common/modalStyles'
 import { recordAssetBust, applyAssetBusts } from '../services/GameService'
 import { getGameAssetUrl } from '../common/utils'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EditGameAssetsModal from '../components/modal/EditGameAssetsModal'
 
 const Games = ({ authenticated, searchText }) => {

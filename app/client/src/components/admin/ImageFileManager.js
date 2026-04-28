@@ -41,36 +41,12 @@ import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight'
 import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
 import TuneIcon from '@mui/icons-material/Tune'
 import Select from 'react-select'
-import selectFolderTheme from '../../common/reactSelectFolderTheme'
-import OutlinedIconButton from '../misc/OutlinedIconButton'
+import { folderSelectTheme as selectFolderTheme } from '../../common/reactSelectThemes'
+import MarqueeSingleValue, { MarqueeOption } from '../ui/MarqueeSingleValue'
+import OutlinedIconButton from '../ui/OutlinedIconButton'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, rowBoxSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
-
-function formatSize(bytes) {
-  if (bytes == null || bytes === 0) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
-}
-
-function formatDate(isoString) {
-  if (!isoString) return '—'
-  try {
-    return new Date(isoString).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  } catch {
-    return '—'
-  }
-}
-
-function formatResolution(width, height) {
-  if (!width || !height) return '—'
-  return `${width}×${height}`
-}
+import { formatSize, formatTableDate, formatResolution } from '../../common/utils'
 
 function sortFiles(files, column, dir) {
   const sorted = [...files]
@@ -280,7 +256,7 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
       {/* Date */}
       {!hiddenColumns.has('Date') && (
         <TableCell sx={{ ...bodyCellSx }}>
-          <Typography sx={{ fontSize: 12, color: '#FFFFFF55' }}>{formatDate(file.created_at)}</Typography>
+          <Typography sx={{ fontSize: 12, color: '#FFFFFF55' }}>{formatTableDate(file.created_at)}</Typography>
         </TableCell>
       )}
     </TableRow>
@@ -960,6 +936,7 @@ export default function ImageFileManager({ setAlert }) {
                 onChange={(opt) => setFolderFilter(opt.value)}
                 styles={selectFolderTheme}
                 isSearchable={false}
+                components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
               />
             </Box>
             {uniqueGames.length > 0 && (
@@ -1059,6 +1036,7 @@ export default function ImageFileManager({ setAlert }) {
               onChange={(opt) => setFolderFilter(opt.value)}
               styles={selectFolderTheme}
               isSearchable={false}
+              components={{ SingleValue: MarqueeSingleValue }}
             />
           </Box>
 

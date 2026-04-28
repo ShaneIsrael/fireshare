@@ -31,11 +31,11 @@ import CompactImageCard from '../components/cards/CompactImageCard'
 import EditImageModal from '../components/modal/EditImageModal'
 import GameVideosHeader from '../components/game/GameVideosHeader'
 import GameSearch from '../components/game/GameSearch'
-import LoadingSpinner from '../components/misc/LoadingSpinner'
+import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EditGameAssetsModal from '../components/modal/EditGameAssetsModal'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import { SORT_OPTIONS } from '../common/constants'
-import selectSortTheme from '../common/reactSelectSortTheme'
+import { sortSelectTheme as selectSortTheme } from '../common/reactSelectThemes'
 
 const PAGE_SIZE = 48
 

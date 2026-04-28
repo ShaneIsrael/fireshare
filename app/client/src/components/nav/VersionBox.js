@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Box, IconButton, Typography } from '@mui/material'
-import LightTooltip from '../misc/LightTooltip'
+import LightTooltip from '../ui/LightTooltip'
 import GitHubIcon from '@mui/icons-material/GitHub'
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'

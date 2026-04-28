@@ -39,12 +39,11 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
 import { ConfigService, VideoService, GameService, ImageService } from '../services'
 import { setSetting, getSetting } from '../common/utils'
-import LightTooltip from '../components/misc/LightTooltip'
+import LightTooltip from '../components/ui/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 
 import _ from 'lodash'
-import WarningService from '../services/WarningService'
-import adminSSE from '../services/AdminSSE'
+import { WarningService, adminSSE } from '../services'
 
 const isValidDiscordWebhook = (url) => {
   const regex = /^https:\/\/discord\.com\/api\/webhooks\/\d{17,20}\/[\w-]{60,}$/

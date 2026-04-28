@@ -10,7 +10,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import { VideoService, GameService } from '../services'
 import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoSources } from '../common/utils'
-import VideoJSPlayer from '../components/misc/VideoJSPlayer'
+import VideoJSPlayer from '../components/player/VideoJSPlayer'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()

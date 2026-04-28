@@ -10,7 +10,7 @@ import { getPublicImageUrl, getImageThumbnailUrl } from '../../common/utils'
 import { ImageService } from '../../services'
 import DeleteImageModal from '../modal/DeleteImageModal'
 import CheckIcon from '@mui/icons-material/Check'
-import TagChip from '../misc/TagChip'
+import TagChip from '../ui/TagChip'
 
 const IMAGE_VERSION = Date.now()
 

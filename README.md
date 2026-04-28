@@ -41,6 +41,7 @@ If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/Sha
 
 - Share videos through unique links
 - Public / private feeds (private is link-only)
+- [video transcoding with CPU or GPU](#transcoding-optional)
 - Password protected videos
 - Game-based organization with cover art
 - Mobile device support
@@ -52,7 +53,6 @@ If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/Sha
 - [Notifications to Discord and others](./docs/Notifications.md)
 - RSS feed for new public videos
 - [LDAP support](./docs/LDAP.md)
-- Optional [video transcoding with CPU or GPU](#transcoding-optional)
 
 ## Navigation
 
@@ -99,7 +99,34 @@ Fireshare is designed to run in Docker.
 
 ### Docker Compose
 
-Edit `docker-compose.yml` for your host paths and admin credentials, then run:
+```yaml
+services:
+  fireshare:
+    container_name: fireshare
+    image: shaneisrael/fireshare:latest-lite
+    ports:
+      - "8080:80"
+    volumes:
+      - /path/to/data:/data
+      - /path/to/processed:/processed
+      - /path/to/videos:/videos
+      - /path/to/images:/images
+    environment:
+      - ADMIN_USERNAME=your-admin-username
+      - ADMIN_PASSWORD=your-admin-password
+      - SECRET_KEY=replace_with_random_string_can_be_anything
+      # The domain your instance is hosted at. e.x: v.fireshare.net
+      # this is required for opengraph to work correctly for shared links.
+      - DOMAIN=
+      # PUID/PGID: the user/group ID the container runs as. Files written to your
+      # volumes (data, processed, videos, images) will be owned by this user. Set these to
+      # match the owner of your host directories to avoid permission errors.
+      # Run `id` on your host to find your UID and GID.
+      - PUID=1000
+      - PGID=1000
+```
+
+Update the volume paths and credentials, then run:
 
 ```sh
 docker-compose up -d
@@ -116,7 +143,10 @@ docker run --name fireshare \
   -v /path/to/my/videos:/videos:rw \
   -v /path/to/my/images:/images:rw \
   -p 8080:80 \
+  -e ADMIN_USERNAME=your-admin-username \
   -e ADMIN_PASSWORD=your-admin-password \
+  -e PUID=user-id-with-read-write-permissions \
+  -e PGID=group-id-with-read-write-permissions \
   -d shaneisrael/fireshare:latest
 ```
 
@@ -133,17 +163,6 @@ The `fireshare:latest-lite` image is a smaller alternative that uses the system-
 | Image size                     | Larger (CUDA libraries) | Smaller       |
 
 Use the lite image by appending `-lite` to your tag:
-
-```sh
-docker run --name fireshare \
-  -v $(pwd)/fireshare/data:/data:rw \
-  -v $(pwd)/fireshare/processed:/processed:rw \
-  -v /path/to/my/videos:/videos:rw \
-  -v /path/to/my/images:/images:rw \
-  -p 8080:80 \
-  -e ADMIN_PASSWORD=your-admin-password \
-  -d shaneisrael/fireshare:latest-lite
-```
 
 > **Note:** Setting `TRANSCODE_GPU=true` has no effect in the lite image. GPU transcoding is permanently disabled regardless of environment variables.
 
