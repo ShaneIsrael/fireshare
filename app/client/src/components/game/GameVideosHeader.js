@@ -5,9 +5,15 @@ import ImageIcon from '@mui/icons-material/Image'
 const GameVideosHeader = ({ game, height = 200, editMode, onEditAssets }) => {
   const bgUrl = game?.banner_url || game?.hero_url || null
   const [imgLoaded, setImgLoaded] = React.useState(false)
+  const imgRef = React.useRef(null)
 
   React.useEffect(() => {
     setImgLoaded(false)
+    // Chromium serves cached images synchronously, firing onLoad before React attaches
+    // the handler. Check .complete after reset to catch that case.
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setImgLoaded(true)
+    }
   }, [bgUrl])
 
   return (
@@ -36,6 +42,7 @@ const GameVideosHeader = ({ game, height = 200, editMode, onEditAssets }) => {
           />
           <Box
             component="img"
+            ref={imgRef}
             src={bgUrl}
             onLoad={() => setImgLoaded(true)}
             sx={{

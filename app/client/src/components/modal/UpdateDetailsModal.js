@@ -446,7 +446,7 @@ const UpdateDetailsModal = ({
     try {
       await VideoService.updateDetails(videoId, {
         title: title || currentTitle,
-        description: description || currentDescription,
+        description: description ?? currentDescription,
         recorded_at: getRecordedAtISO(),
       })
 
@@ -474,7 +474,7 @@ const UpdateDetailsModal = ({
       alertHandler?.({ open: true, type: 'success', message: 'Video details updated!' })
       close({
         title: title || currentTitle,
-        description: description || currentDescription,
+        description: description ?? currentDescription,
         game: linkedGame,
         tags: finalTags,
       })

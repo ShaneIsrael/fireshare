@@ -344,6 +344,12 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
     setModalImage(null)
   }
 
+  const handleVideoUpdate = ({ id, ...rest }) => {
+    const apply = (vs) => vs.map((v) => (v.video_id === id ? { ...v, info: { ...v.info, ...rest } } : v))
+    setVideos(apply)
+    setFilteredVideos(apply)
+  }
+
   const handleImageModalNext = React.useCallback(() => {
     setModalImage((cur) => {
       if (!cur) return cur
@@ -453,6 +459,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
         videoId={videoModal.id}
         feedView={false}
         authenticated={authenticated}
+        updateCallback={handleVideoUpdate}
         onNext={() => {
           const videoItems = sortedMedia.filter((m) => m.type === 'video').map((m) => m.item)
           const i = videoItems.findIndex((v) => v.video_id === videoModal.id)

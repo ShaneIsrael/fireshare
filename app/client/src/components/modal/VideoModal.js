@@ -504,7 +504,7 @@ const VideoModal = ({
     // Optimistically close edit mode and reflect changes in the UI immediately.
     setUpdatable(false)
     setEditMode(false)
-    updateCallback({ id: vid.video_id, title, description })
+    updateCallback?.({ id: vid.video_id, title, description })
     setAlert({ type: 'success', message: 'Details Updated', open: true })
 
     const cropApplied = cropChanged && (cropStart !== null || cropEnd !== null)
@@ -573,7 +573,7 @@ const VideoModal = ({
     if (authenticated) {
       try {
         await VideoService.updatePrivacy(vid.video_id, !privateView)
-        updateCallback({ id: vid.video_id, private: !privateView })
+        updateCallback?.({ id: vid.video_id, private: !privateView })
         setAlert({
           type: privateView ? 'info' : 'warning',
           message: privateView ? 'Added to your public feed' : 'Removed from your public feed',
