@@ -28,16 +28,16 @@ def upgrade():
         )
     """))
 
-    op.create_unique_constraint(
-        'uq_video_game_link_video_id_game_id',
-        'video_game_link',
-        ['video_id', 'game_id']
-    )
+    with op.batch_alter_table('video_game_link', schema=None) as batch_op:
+        batch_op.create_unique_constraint(
+            'uq_video_game_link_video_id_game_id',
+            ['video_id', 'game_id']
+        )
 
 
 def downgrade():
-    op.drop_constraint(
-        'uq_video_game_link_video_id_game_id',
-        'video_game_link',
-        type_='unique'
-    )
+    with op.batch_alter_table('video_game_link', schema=None) as batch_op:
+        batch_op.drop_constraint(
+            'uq_video_game_link_video_id_game_id',
+            type_='unique'
+        )
