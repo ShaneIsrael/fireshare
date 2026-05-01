@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import '@videojs/react/video/skin.css'
+import './videoSkinOverrides.css'
 import { createPlayer, useMedia, Poster } from '@videojs/react'
 import { Video, videoFeatures } from '@videojs/react/video'
 import CustomVideoSkin from './CustomVideoSkin'
