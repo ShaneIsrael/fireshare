@@ -1,4 +1,10 @@
 /* Constrain the controls scrim to the bottom ~25% of the video instead of the full frame */
 .media-default-skin .media-overlay {
   background-image: linear-gradient(to top, oklch(0 0 0 / 0.55) 0px, oklch(0 0 0 / 0.35) 40px, oklch(0 0 0 / 0) 80px);
+  backdrop-filter: none;
+}
+
+.media-default-skin .media-controls[data-visible] ~ .media-overlay,
+.media-default-skin .media-error[data-open] ~ .media-overlay {
+  backdrop-filter: none;
 }
