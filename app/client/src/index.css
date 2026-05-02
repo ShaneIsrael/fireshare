@@ -78,8 +78,3 @@ code {
     color: rgba(0, 219, 255, 1);
   }
 }
-
-/* Remove the gradient/scrim overlay that darkens the video when controls appear */
-/* .media-default-skin .media-overlay {
-  display: none;
-} */

@@ -155,6 +155,7 @@ class GameMetadata(db.Model):
 
 class VideoGameLink(db.Model):
     __tablename__ = "video_game_link"
+    __table_args__ = (db.UniqueConstraint("video_id", "game_id"),)
 
     id          = db.Column(db.Integer, primary_key=True)
     video_id    = db.Column(db.String(32), db.ForeignKey("video.video_id"), nullable=False)

@@ -323,8 +323,10 @@ def scan_videos(root):
                     folder = parts[0]
                     if folder in folder_rules:
                         game_id = folder_rules[folder]
-                        link = VideoGameLink(video_id=nv.video_id, game_id=game_id, created_at=datetime.utcnow())
-                        db.session.add(link)
+                        existing = VideoGameLink.query.filter_by(video_id=nv.video_id, game_id=game_id).first()
+                        if not existing:
+                            link = VideoGameLink(video_id=nv.video_id, game_id=game_id, created_at=datetime.utcnow())
+                            db.session.add(link)
                         auto_tagged.add(nv.video_id)
                         logger.info(f"[Folder Rule] Auto-tagged {nv.video_id} to game {game_id} (folder: {folder})")
             if auto_tagged:
