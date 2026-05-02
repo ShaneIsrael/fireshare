@@ -90,6 +90,28 @@ RUN cd ffmpeg-6.1 && \
 RUN ffmpeg -version && \
     ffmpeg -hide_banner -encoders 2>/dev/null | grep -E "(nvenc|264|265|vpx|aom|svt)" | head -20
 
+# Python build stage — compiles Python 3.14 from source; works on all architectures
+FROM ubuntu:22.04 AS python-source
+ARG PYTHON_VERSION=3.14.0
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential wget xz-utils \
+    libssl-dev libffi-dev zlib1g-dev \
+    libbz2-dev libreadline-dev libsqlite3-dev \
+    liblzma-dev uuid-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN wget -q https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tar.xz && \
+    tar -xf Python-${PYTHON_VERSION}.tar.xz && \
+    cd Python-${PYTHON_VERSION} && \
+    ./configure \
+        --prefix=/opt/python3.14 \
+        --enable-shared \
+        --with-ensurepip=install \
+        LDFLAGS="-Wl,-rpath /opt/python3.14/lib" && \
+    make -j$(nproc) && \
+    make altinstall && \
+    /opt/python3.14/bin/python3.14 -m pip install --upgrade pip && \
+    rm -f /tmp/Python-${PYTHON_VERSION}.tar.xz
+
 # Main application stage
 FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
 WORKDIR /
@@ -100,17 +122,9 @@ COPY --from=ffmpeg-builder /usr/local/bin/ffprobe /usr/local/bin/ffprobe
 COPY --from=ffmpeg-builder /usr/local/lib/lib* /usr/local/lib/
 
 # Install runtime dependencies
-# Split into two stages within one RUN to avoid committing build-time layers:
-# 1) Add deadsnakes PPA and install build-time deps alongside runtime deps
-# 2) Install Python packages, then purge everything build-only
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-    software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     nginx-extras supervisor \
-    python3.14 python3.14-dev python3.14-venv \
     libldap2-dev libsasl2-dev libssl-dev \
     libffi-dev libc-dev \
     build-essential \
@@ -121,11 +135,15 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     libopus0 libvorbis0a libvorbisenc2 \
     libass9 libfreetype6 libmp3lame0 libwebp7 libwebpmux3 \
     libldap-2.5-0 libsasl2-2 \
-    && python3.14 -m ensurepip --upgrade \
-    && python3.14 -m pip install --upgrade --break-system-packages pip \
-    && ln -sf /usr/bin/python3.14 /usr/bin/python3 \
-    && ln -sf /usr/bin/python3.14 /usr/bin/python \
-    && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/*
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=python-source /opt/python3.14 /opt/python3.14
+RUN echo "/opt/python3.14/lib" > /etc/ld.so.conf.d/python3.14.conf && \
+    ldconfig && \
+    ln -sf /opt/python3.14/bin/python3.14 /usr/bin/python3.14 && \
+    ln -sf /opt/python3.14/bin/python3.14 /usr/bin/python3 && \
+    ln -sf /opt/python3.14/bin/python3.14 /usr/bin/python && \
+    ln -sf /opt/python3.14/bin/pip3.14 /usr/bin/pip3.14
 
 # Create symlinks and configure library path
 RUN ln -sf /usr/local/bin/ffmpeg /usr/bin/ffmpeg && \
@@ -151,13 +169,11 @@ COPY app/server/ /app/server
 COPY migrations/ /migrations
 COPY --from=client /app/build /app/build
 COPY --from=client /app/package.json /app
-RUN python3.14 -m pip install --no-cache-dir --break-system-packages --ignore-installed /app/server \
+RUN python3.14 -m pip install --no-cache-dir --ignore-installed /app/server \
     && apt-get purge -y --auto-remove \
-        python3.14-dev \
         libldap2-dev libsasl2-dev libssl-dev \
         libffi-dev libc-dev \
         build-essential \
-        software-properties-common \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/*
 
