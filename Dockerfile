@@ -94,7 +94,7 @@ RUN ffmpeg -version && \
 FROM ubuntu:22.04 AS python-source
 ARG PYTHON_VERSION=3.14.0
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential wget xz-utils \
+    build-essential wget xz-utils ca-certificates \
     libssl-dev libffi-dev zlib1g-dev \
     libbz2-dev libreadline-dev libsqlite3-dev \
     liblzma-dev uuid-dev \
