@@ -113,7 +113,7 @@ nginx -g 'daemon on;'
 log "Nginx ready"
 
 # ── Environment ───────────────────────────────────────────────────────────────
-export PATH=/usr/local/bin:$PATH
+export PATH=/opt/python3.14/bin:/usr/local/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
 if [ -z "$SECRET_KEY" ]; then

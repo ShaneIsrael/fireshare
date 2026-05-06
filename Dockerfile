@@ -188,7 +188,7 @@ ENV ADMIN_PASSWORD=admin
 ENV ANALYTICS_TRACKING_SCRIPT=""
 ENV TZ=UTC
 ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
-ENV PATH=/usr/local/bin:$PATH
+ENV PATH=/opt/python3.14/bin:/usr/local/bin:$PATH
 
 EXPOSE 80
 CMD ["bash", "/entrypoint.sh"]
