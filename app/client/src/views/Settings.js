@@ -649,6 +649,20 @@ const Settings = () => {
                   <FormControlLabel
                     control={
                       <Checkbox
+                        checked={updatedConfig.app_config?.allow_downloads !== false}
+                        onChange={(e) =>
+                          setUpdatedConfig((prev) => ({
+                            ...prev,
+                            app_config: { ...prev.app_config, allow_downloads: e.target.checked },
+                          }))
+                        }
+                      />
+                    }
+                    label="Allow Public Downloads"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
                         checked={updatedConfig.ui_config?.autoplay || false}
                         onChange={(e) =>
                           setUpdatedConfig((prev) => ({

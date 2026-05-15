@@ -30,6 +30,7 @@ import LockIcon from '@mui/icons-material/Lock'
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera'
+import FileDownloadIcon from '@mui/icons-material/FileDownload'
 import './datepicker-dark.css'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -212,6 +213,7 @@ const VideoModal = ({
   const [allTags, setAllTags] = React.useState([])
   const [tagInputValue, setTagInputValue] = React.useState('')
   const [cropStart, setCropStart] = React.useState(null)
+  const [appConfig, setAppConfig] = React.useState({})
   const [cropEnd, setCropEnd] = React.useState(null)
   const [hasCustomPoster, setHasCustomPoster] = React.useState(false)
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
@@ -239,6 +241,14 @@ const VideoModal = ({
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [open, editMode, onNext, onPrev])
+
+  useEffect(() => {
+    ConfigService.getConfig()
+      .then((res) => {
+        setAppConfig(res.data)
+      })
+      .catch((err) => console.error('Failed to load config:', err))
+  }, [])
 
   React.useEffect(() => {
     if (!selectedGame?.icon_url) {
@@ -604,6 +614,19 @@ const VideoModal = ({
     }
     copyToClipboard(`${PURL}${vid.video_id}?t=${currentTime}`)
     setAlert({ type: 'info', message: 'Time stamped link copied to clipboard', open: true })
+  }
+
+  const downloadVideo = () => {
+    const URL = getUrl()
+    const fileName = `${title || vid.video_id}${vid.extension}`
+    const downloadUrl = `${URL}/_content/video-download/${vid.video_id}${vid.extension}`
+    
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   const handleTimeUpdate = (e) => {
@@ -1504,6 +1527,14 @@ const VideoModal = ({
                         <AccessTimeIcon sx={{ fontSize: 20 }} />
                       </IconButton>
                     </Tooltip>
+
+                    {(authenticated || appConfig.allow_downloads !== false) && (
+                      <Tooltip title="Download video">
+                        <IconButton size="small" onClick={downloadVideo} sx={actionBtnSx}>
+                          <FileDownloadIcon sx={{ fontSize: 20 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
 
                     {authenticated &&
                       (editMode ? (

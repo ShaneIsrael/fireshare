@@ -110,6 +110,7 @@ def config():
         public_config["allow_public_game_tag"] = config.get("app_config", {}).get("allow_public_game_tag", False)
         public_config["allow_public_upload"] = config.get("app_config", {}).get("allow_public_upload", False)
         public_config["allow_public_folder_selection"] = config.get("app_config", {}).get("allow_public_folder_selection", False)
+        public_config["allow_downloads"] = config.get("app_config", {}).get("allow_downloads", True)
         demo_mode = current_app.config.get('DEMO_MODE', False)
         public_config["demo_mode"] = demo_mode
         public_config["is_demo_user"] = (

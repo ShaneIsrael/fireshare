@@ -822,6 +822,34 @@ def nginx_video_auth():
     return '', 403
 
 
+@api.route('/api/video/nginx-auth-download')
+def nginx_video_auth_download():
+    """Internal endpoint called by nginx auth_request to gate video downloads.
+    
+    Authenticated users can always download.
+    Unauthenticated users can only download if allow_downloads is enabled in config.
+    """
+    if current_user.is_authenticated:
+        return '', 200
+    
+    # Check if public downloads are allowed
+    try:
+        import json
+        paths = current_app.config['PATHS']
+        config_path = paths['data'] / 'config.json'
+        with open(config_path) as f:
+            config = json.load(f)
+        allow_downloads = config.get("app_config", {}).get("allow_downloads", True)
+        if allow_downloads:
+            return '', 200
+    except Exception as e:
+        current_app.logger.error(f"Error checking download config: {e}")
+        # Default to deny on error for unauthenticated users
+        return '', 403
+    
+    return '', 403
+
+
 def _is_session_unlocked(video_id):
     unlocked = session.get('unlocked_videos', {})
     if not isinstance(unlocked, dict):
