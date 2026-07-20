@@ -59,6 +59,7 @@ const Dashboard = ({
   // Edit mode state
   const [editMode, setEditMode] = React.useState(false)
   const [selectedVideos, setSelectedVideos] = React.useState(new Set())
+  const lastSelectedIdRef = React.useRef(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [linkGameDialogOpen, setLinkGameDialogOpen] = React.useState(false)
   const [allGames, setAllGames] = React.useState([])
@@ -229,6 +230,7 @@ const Dashboard = ({
     if (editMode) {
       setSelectedVideos(new Set())
     }
+    lastSelectedIdRef.current = null
   }
 
   const allSelected = sortedVideos.length > 0 && selectedVideos.size === sortedVideos.length
@@ -241,13 +243,33 @@ const Dashboard = ({
     }
   }
 
-  const handleVideoSelect = (videoId) => {
+  const handleVideoSelect = (videoId, shiftKey = false) => {
     const newSelected = new Set(selectedVideos)
+    const anchorId = lastSelectedIdRef.current
+    if (shiftKey && anchorId !== null && anchorId !== videoId) {
+      const ids = sortedVideos.map((v) => v.video_id)
+      const anchorIndex = ids.indexOf(anchorId)
+      const clickedIndex = ids.indexOf(videoId)
+      if (anchorIndex !== -1 && clickedIndex !== -1) {
+        // Apply the anchor's state to the whole range, so shift-click extends
+        // a selection or a deselection depending on the last action
+        const selecting = newSelected.has(anchorId)
+        const [start, end] = anchorIndex < clickedIndex ? [anchorIndex, clickedIndex] : [clickedIndex, anchorIndex]
+        for (let i = start; i <= end; i++) {
+          if (selecting) newSelected.add(ids[i])
+          else newSelected.delete(ids[i])
+        }
+        lastSelectedIdRef.current = videoId
+        setSelectedVideos(newSelected)
+        return
+      }
+    }
     if (newSelected.has(videoId)) {
       newSelected.delete(videoId)
     } else {
       newSelected.add(videoId)
     }
+    lastSelectedIdRef.current = videoId
     setSelectedVideos(newSelected)
   }
 
