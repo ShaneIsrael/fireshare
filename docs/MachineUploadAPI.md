@@ -77,8 +77,8 @@ The response identifies the configured default and existing top-level upload dir
 {
   "default_folder": "uploads",
   "folders": [
-    {"name": "clips"},
-    {"name": "vice"}
+    "clips",
+    "vice"
   ]
 }
 ```
@@ -87,7 +87,8 @@ Folder names are sorted case-insensitively and contain only letters, numbers, un
 hyphens. Hidden and internal directories are omitted. The response never includes filesystem paths.
 This list is advisory: clients may still submit a new valid folder name to the upload endpoint, and
 FireShare creates that directory when storing the upload. The configured default is returned even
-when its directory does not exist yet.
+when its directory does not exist yet. To use the default, omit the multipart `folder` field rather
+than sending `default_folder` back. There is no separate folder-creation endpoint.
 
 ## Publish a video
 

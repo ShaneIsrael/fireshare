@@ -51,6 +51,11 @@ class MachineUploadApiTests(MachineApiTestCase):
         response = self.client.get("/api/v1/folders", headers=self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
+        self.app.config["MACHINE_API_TOKEN"] = None
+        response = self.client.get("/api/v1/folders")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json["error"]["code"], "machine_api_disabled")
+
     def test_folder_listing_returns_configured_default(self):
         config_path = self.data_dir / "config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -100,11 +105,7 @@ class MachineUploadApiTests(MachineApiTestCase):
             response.json,
             {
                 "default_folder": "uploads",
-                "folders": [
-                    {"name": "Alpha"},
-                    {"name": "clips"},
-                    {"name": "Zulu"},
-                ],
+                "folders": ["Alpha", "clips", "Zulu"],
             },
         )
         self.assertNotIn(str(self.video_dir), response.get_data(as_text=True))
@@ -176,6 +177,7 @@ class MachineUploadApiTests(MachineApiTestCase):
         self.assertEqual(kwargs["game_id"], 42)
         self.assertEqual(kwargs["tag_ids"], [3, 8])
         self.assertRegex(kwargs["machine_job_id"], r"^[0-9a-f]{32}$")
+        self.assertTrue((self.video_dir / "vice").is_dir())
         self.assertFalse(list((self.video_dir / ".fireshare-upload-tmp").iterdir()))
 
     @patch("fireshare.api.upload._launch_scan_video")

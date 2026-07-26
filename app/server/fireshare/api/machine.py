@@ -1,6 +1,7 @@
 import errno
 import hmac
 import json
+import os
 import re
 from datetime import timezone
 from functools import wraps
@@ -146,25 +147,32 @@ def get_machine_upload_folders():
         default_folder = get_default_upload_folder()
         video_root = current_app.config["PATHS"]["video"].resolve()
         try:
-            entries = list(video_root.iterdir())
+            entries = os.scandir(video_root)
         except FileNotFoundError:
-            entries = []
+            return _json_response(
+                {
+                    "default_folder": default_folder,
+                    "folders": [],
+                },
+                200,
+            )
 
         folders = []
-        for entry in entries:
-            name = entry.name
-            if (
-                name.startswith(".")
-                or name.casefold() in INTERNAL_FOLDER_NAMES
-                or not is_valid_upload_folder_name(name)
-                or not entry.is_dir()
-            ):
-                continue
-            try:
-                entry.resolve().relative_to(video_root)
-            except (OSError, ValueError):
-                continue
-            folders.append({"name": name})
+        with entries:
+            for entry in entries:
+                name = entry.name
+                if (
+                    name.startswith(".")
+                    or name.casefold() in INTERNAL_FOLDER_NAMES
+                    or not is_valid_upload_folder_name(name)
+                    or not entry.is_dir()
+                ):
+                    continue
+                try:
+                    Path(entry.path).resolve().relative_to(video_root)
+                except (OSError, ValueError):
+                    continue
+                folders.append(name)
     except MachineUploadError as exc:
         return _error_response(exc.code, exc.message, exc.status_code)
     except OSError:
@@ -175,7 +183,7 @@ def get_machine_upload_folders():
             500,
         )
 
-    folders.sort(key=lambda folder: (folder["name"].casefold(), folder["name"]))
+    folders.sort(key=lambda name: (name.casefold(), name))
     return _json_response(
         {
             "default_folder": default_folder,
