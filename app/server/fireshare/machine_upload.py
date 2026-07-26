@@ -84,6 +84,10 @@ def validate_idempotency_key(value):
     return value
 
 
+def is_valid_upload_folder_name(value):
+    return isinstance(value, str) and FOLDER_PATTERN.fullmatch(value) is not None
+
+
 def _load_config():
     config_path = current_app.config["PATHS"]["data"] / "config.json"
     try:
@@ -95,6 +99,19 @@ def _load_config():
             "FireShare configuration could not be read.",
             500,
         ) from exc
+
+
+def get_default_upload_folder(config=None):
+    if config is None:
+        config = _load_config()
+    folder = config.get("app_config", {}).get("admin_upload_folder_name", "uploads")
+    if not is_valid_upload_folder_name(folder):
+        raise MachineUploadError(
+            "configuration_error",
+            "The configured upload folder is invalid.",
+            500,
+        )
+    return folder
 
 
 def _parse_optional_positive_int(raw_value, field_name):
@@ -171,7 +188,7 @@ def parse_upload_metadata(file_storage, form):
     raw_folder = form.get("folder")
     if raw_folder is not None:
         raw_folder = raw_folder.strip() or None
-    if raw_folder and not FOLDER_PATTERN.fullmatch(raw_folder):
+    if raw_folder and not is_valid_upload_folder_name(raw_folder):
         raise MachineUploadError(
             "invalid_metadata",
             "folder may contain only letters, numbers, underscores, and hyphens.",
@@ -194,7 +211,7 @@ def parse_upload_metadata(file_storage, form):
 
     config = _load_config()
     app_config = config.get("app_config", {})
-    default_folder = app_config.get("admin_upload_folder_name", "uploads")
+    default_folder = get_default_upload_folder(config)
     default_private = bool(app_config.get("video_defaults", {}).get("private", True))
 
     return UploadMetadata(

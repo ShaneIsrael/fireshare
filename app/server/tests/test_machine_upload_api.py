@@ -1,5 +1,6 @@
 import io
 import errno
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -35,6 +36,102 @@ class MachineUploadApiTests(MachineApiTestCase):
         self.app.config["MACHINE_API_TOKEN"] = None
         response = self.client.post("/api/v1/uploads")
         self.assertEqual(response.status_code, 503)
+
+    def test_folder_listing_requires_bearer_authentication(self):
+        response = self.client.get("/api/v1/folders")
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.headers["WWW-Authenticate"], "Bearer")
+
+        response = self.client.get(
+            "/api/v1/folders",
+            headers={"Authorization": "Bearer wrong-token"},
+        )
+        self.assertEqual(response.status_code, 401)
+
+        response = self.client.get("/api/v1/folders", headers=self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+
+    def test_folder_listing_returns_configured_default(self):
+        config_path = self.data_dir / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["app_config"]["admin_upload_folder_name"] = "Incoming"
+        config_path.write_text(json.dumps(config), encoding="utf-8")
+
+        response = self.client.get("/api/v1/folders", headers=self.auth_headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["default_folder"], "Incoming")
+        self.assertEqual(response.json["folders"], [])
+
+    def test_folder_listing_rejects_invalid_default_without_path_leakage(self):
+        config_path = self.data_dir / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        invalid_default = str(self.root / "outside")
+        config["app_config"]["admin_upload_folder_name"] = invalid_default
+        config_path.write_text(json.dumps(config), encoding="utf-8")
+
+        response = self.client.get("/api/v1/folders", headers=self.auth_headers)
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json["error"]["code"], "configuration_error")
+        self.assertNotIn(invalid_default, response.get_data(as_text=True))
+
+    def test_folder_listing_is_sorted_and_excludes_non_upload_directories(self):
+        for name in (
+            "Zulu",
+            "clips",
+            "Alpha",
+            ".fireshare-upload-tmp",
+            ".hidden",
+            "derived",
+            "video_links",
+            "image_links",
+            "bad.name",
+            "has space",
+            "x" * 129,
+        ):
+            (self.video_dir / name).mkdir()
+        (self.video_dir / "valid_file").write_text("not a directory", encoding="utf-8")
+
+        response = self.client.get("/api/v1/folders", headers=self.auth_headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json,
+            {
+                "default_folder": "uploads",
+                "folders": [
+                    {"name": "Alpha"},
+                    {"name": "clips"},
+                    {"name": "Zulu"},
+                ],
+            },
+        )
+        self.assertNotIn(str(self.video_dir), response.get_data(as_text=True))
+
+    def test_folder_listing_excludes_directory_links_outside_video_root(self):
+        outside = self.root / "outside"
+        outside.mkdir()
+        linked = self.video_dir / "linked"
+        try:
+            linked.symlink_to(outside, target_is_directory=True)
+        except OSError as exc:
+            self.skipTest(f"Directory symlinks are not available: {exc}")
+
+        response = self.client.get("/api/v1/folders", headers=self.auth_headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["folders"], [])
+
+    def test_folder_listing_handles_empty_and_missing_video_root(self):
+        response = self.client.get("/api/v1/folders", headers=self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["folders"], [])
+
+        self.video_dir.rmdir()
+        response = self.client.get("/api/v1/folders", headers=self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json["folders"], [])
 
     def test_idempotency_key_is_validated_before_file(self):
         response = self.client.post(

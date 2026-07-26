@@ -13,6 +13,8 @@ from .. import logger, util
 from ..machine_upload import (
     MachineUploadError,
     create_upload,
+    get_default_upload_folder,
+    is_valid_upload_folder_name,
     reconcile_job,
     validate_idempotency_key,
 )
@@ -22,6 +24,7 @@ from . import api
 
 JOB_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 MULTIPART_OVERHEAD_BYTES = 8 * 1024 * 1024
+INTERNAL_FOLDER_NAMES = frozenset({"derived", "image_links", "video_links"})
 
 
 def _json_response(payload, status_code, headers=None):
@@ -134,6 +137,52 @@ def _cleanup_request_upload_streams():
                 pass
             except OSError as exc:
                 logger.warning(f"Could not remove a machine upload request file: {exc}")
+
+
+@api.route("/api/v1/folders", methods=["GET"])
+@machine_token_required
+def get_machine_upload_folders():
+    try:
+        default_folder = get_default_upload_folder()
+        video_root = current_app.config["PATHS"]["video"].resolve()
+        try:
+            entries = list(video_root.iterdir())
+        except FileNotFoundError:
+            entries = []
+
+        folders = []
+        for entry in entries:
+            name = entry.name
+            if (
+                name.startswith(".")
+                or name.casefold() in INTERNAL_FOLDER_NAMES
+                or not is_valid_upload_folder_name(name)
+                or not entry.is_dir()
+            ):
+                continue
+            try:
+                entry.resolve().relative_to(video_root)
+            except (OSError, ValueError):
+                continue
+            folders.append({"name": name})
+    except MachineUploadError as exc:
+        return _error_response(exc.code, exc.message, exc.status_code)
+    except OSError:
+        logger.exception("Could not enumerate machine upload folders")
+        return _error_response(
+            "storage_error",
+            "FireShare could not list upload folders.",
+            500,
+        )
+
+    folders.sort(key=lambda folder: (folder["name"].casefold(), folder["name"]))
+    return _json_response(
+        {
+            "default_folder": default_folder,
+            "folders": folders,
+        },
+        200,
+    )
 
 
 @api.route("/api/v1/uploads", methods=["POST"])

@@ -61,6 +61,34 @@ Authorization: Bearer <token>
 Browser cookies do not authenticate machine routes. Missing or invalid credentials return `401`
 with `WWW-Authenticate: Bearer`. If no token is configured, the routes return `503`.
 
+## List upload folders
+
+`GET /api/v1/folders`
+
+```bash
+curl --fail-with-body \
+  -H "Authorization: Bearer <token>" \
+  "https://clips.example.com/api/v1/folders"
+```
+
+The response identifies the configured default and existing top-level upload directories:
+
+```json
+{
+  "default_folder": "uploads",
+  "folders": [
+    {"name": "clips"},
+    {"name": "vice"}
+  ]
+}
+```
+
+Folder names are sorted case-insensitively and contain only letters, numbers, underscores, and
+hyphens. Hidden and internal directories are omitted. The response never includes filesystem paths.
+This list is advisory: clients may still submit a new valid folder name to the upload endpoint, and
+FireShare creates that directory when storing the upload. The configured default is returned even
+when its directory does not exist yet.
+
 ## Publish a video
 
 `POST /api/v1/uploads`
@@ -168,7 +196,7 @@ a matching replay re-ingests it.
 
 | Status | Meaning |
 |---|---|
-| `200` | Existing ready/deduplicated job, or successful status lookup |
+| `200` | Successful folder listing, existing ready/deduplicated job, or status lookup |
 | `202` | New, requeued, or existing nonterminal job |
 | `400` | Malformed header, form data, filename, or metadata |
 | `401` | Missing or invalid token |
