@@ -131,6 +131,7 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
     let bufferTimestamps = []
     let isSourceTransitioning = false
     let sourceTransitionTimer = null
+    let isSeeking = false
 
     const clearStallTimer = () => {
       if (bufferStallTimer) {
@@ -182,8 +183,21 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
       clearTransitionTimer()
     }
 
+    const handleSeeking = () => {
+      isSeeking = true
+      clearStallTimer()
+    }
+
+    const handleSeeked = () => {
+      isSeeking = false
+      clearStallTimer()
+    }
+
     const handleWaiting = () => {
-      if (isSourceTransitioning) return
+      // Seeking to an unbuffered position naturally fires 'waiting' while the
+      // browser loads that range — that's not real network stalling and
+      // shouldn't count toward a quality downgrade.
+      if (isSourceTransitioning || isSeeking) return
 
       const now = Date.now()
       bufferTimestamps.push(now)
@@ -213,7 +227,8 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
     media.addEventListener('waiting', handleWaiting)
     media.addEventListener('playing', handlePlayingOrPause)
     media.addEventListener('pause', handlePlayingOrPause)
-    media.addEventListener('seeked', handlePlayingOrPause)
+    media.addEventListener('seeking', handleSeeking)
+    media.addEventListener('seeked', handleSeeked)
 
     return () => {
       clearStallTimer()
@@ -224,7 +239,8 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
       media.removeEventListener('waiting', handleWaiting)
       media.removeEventListener('playing', handlePlayingOrPause)
       media.removeEventListener('pause', handlePlayingOrPause)
-      media.removeEventListener('seeked', handlePlayingOrPause)
+      media.removeEventListener('seeking', handleSeeking)
+      media.removeEventListener('seeked', handleSeeked)
     }
   }, [media, sources, onSourceChange])
 
