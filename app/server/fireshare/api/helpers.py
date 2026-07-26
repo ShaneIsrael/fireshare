@@ -1,15 +1,10 @@
 import json
 import os
-import re
 from functools import wraps
 from flask import current_app
 from .. import logger
 from ..models import Video
-
-
-def secure_filename(filename):
-    clean = re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F\s]", "-", filename)
-    return clean
+from ..util import secure_filename
 
 
 def add_cache_headers(response, cache_key, max_age=604800):

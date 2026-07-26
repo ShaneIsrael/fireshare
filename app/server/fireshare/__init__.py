@@ -1,10 +1,10 @@
-import os, sys, re, copy, tempfile
+import os, sys, re, copy, tempfile, time
 import os.path
 try:
     import ldap
 except ImportError:
     ldap = None
-from flask import Flask
+from flask import Flask, Request, current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
@@ -60,6 +60,85 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
 db = SQLAlchemy()
 migrate = Migrate()
 
+
+class FireshareRequest(Request):
+    def _get_file_stream(
+        self,
+        total_content_length,
+        content_type,
+        filename=None,
+        content_length=None,
+    ):
+        if self.path != "/api/v1/uploads":
+            return super()._get_file_stream(
+                total_content_length,
+                content_type,
+                filename,
+                content_length,
+            )
+
+        video_root = Path(current_app.config["PATHS"]["video"]).resolve()
+        temp_dir = video_root / ".fireshare-upload-tmp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        stream = tempfile.NamedTemporaryFile(
+            mode="w+b",
+            prefix=".fireshare-",
+            suffix=".machine-upload",
+            dir=temp_dir,
+            delete=False,
+        )
+        stream._fireshare_upload_path = Path(stream.name)
+        streams = getattr(self, "_fireshare_upload_streams", None)
+        if streams is None:
+            streams = []
+            self._fireshare_upload_streams = streams
+        streams.append(stream)
+        return stream
+
+
+def _cleanup_stale_machine_staging(video_root, stale_before):
+    for staging_file in Path(video_root).rglob(".fireshare-*.machine-upload"):
+        try:
+            if staging_file.stat().st_mtime < stale_before:
+                staging_file.unlink()
+                logger.info(f"Removed stale machine upload staging file: {staging_file}")
+        except OSError as e:
+            logger.warning(f"Failed to inspect stale machine upload file {staging_file}: {e}")
+
+
+def _read_machine_api_token():
+    direct_token = os.getenv("MACHINE_API_TOKEN")
+    token_file = os.getenv("MACHINE_API_TOKEN_FILE")
+
+    if direct_token and token_file:
+        raise RuntimeError("Configure only one of MACHINE_API_TOKEN or MACHINE_API_TOKEN_FILE")
+
+    if token_file:
+        try:
+            token = Path(token_file).read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            raise RuntimeError("MACHINE_API_TOKEN_FILE could not be read") from exc
+        if not token:
+            raise RuntimeError("MACHINE_API_TOKEN_FILE must not be empty")
+    else:
+        token = direct_token.strip() if direct_token else None
+
+    if token and len(token) < 32:
+        raise RuntimeError("Machine API token must be at least 32 characters")
+    return token
+
+
+def _positive_int_env(name, default):
+    raw_value = os.getenv(name, str(default))
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{name} must be a positive integer") from exc
+    if value <= 0:
+        raise RuntimeError(f"{name} must be a positive integer")
+    return value
+
+
 def update_config(path):
     logger.debug("Validating configuration file...")
     def combine(dict1, dict2):
@@ -114,6 +193,7 @@ def update_config(path):
 
 def create_app(init_schedule=False):
     app = Flask(__name__, static_url_path='', static_folder='build', template_folder='build')
+    app.request_class = FireshareRequest
     CORS(app, supports_credentials=True)
     if 'DATA_DIRECTORY' not in os.environ:
         raise Exception("DATA_DIRECTORY not found in environment")
@@ -144,6 +224,11 @@ def create_app(init_schedule=False):
     app.config['LDAP_ADMIN_GROUP'] = os.getenv("LDAP_ADMIN_GROUP")
     app.config['DEMO_MODE'] = os.getenv('DEMO_MODE', '').lower() in ('true', '1', 'yes')
     app.config['DEMO_UPLOAD_LIMIT_MB'] = int(os.getenv('DEMO_UPLOAD_LIMIT_MB', '0') or '0')
+    app.config['MACHINE_API_TOKEN'] = _read_machine_api_token()
+    app.config['MACHINE_UPLOAD_MAX_MB'] = _positive_int_env('MACHINE_UPLOAD_MAX_MB', 10240)
+    app.config['MACHINE_UPLOAD_INGEST_TIMEOUT_SECONDS'] = _positive_int_env(
+        'MACHINE_UPLOAD_INGEST_TIMEOUT_SECONDS', 900
+    )
     app.config['ENABLE_TRANSCODING'] = (
         False if app.config['DEMO_MODE']
         else os.getenv('ENABLE_TRANSCODING', '').lower() in ('true', '1', 'yes')
@@ -270,6 +355,8 @@ def create_app(init_schedule=False):
             except OSError as e:
                 logger.warning(f"Failed to remove leftover upload chunk {chunk_file}: {e}")
 
+        _cleanup_stale_machine_staging(paths['video'], time.time() - 86400)
+
     # Ensure game_assets directory exists
     game_assets_dir = paths['data'] / 'game_assets'
     if not game_assets_dir.is_dir():
@@ -357,8 +444,12 @@ def create_app(init_schedule=False):
 
     if init_schedule and os.environ.get('FIRESHARE_START_SCHEDULER') == '1':
         from .schedule import init_schedule as _init_schedule
-        _init_schedule(app.config['SCHEDULED_JOBS_DATABASE_URI'],
-            app.config['MINUTES_BETWEEN_VIDEO_SCANS'])
+        _init_schedule(
+            app,
+            app.config['SCHEDULED_JOBS_DATABASE_URI'],
+            app.config['MINUTES_BETWEEN_VIDEO_SCANS'],
+            machine_uploads_enabled=bool(app.config['MACHINE_API_TOKEN']),
+        )
     
     #Integrations Validation
     if app.config.get('DISCORD_WEBHOOK_URL'):

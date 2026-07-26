@@ -11,6 +11,11 @@ import re
 import threading
 from datetime import datetime
 
+
+def secure_filename(filename):
+    return re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F\s]", "-", filename)
+
+
 # Corruption indicators to detect during video validation
 # These are ffmpeg error messages that indicate file corruption
 VIDEO_CORRUPTION_INDICATORS = [
@@ -172,6 +177,18 @@ def video_id(path: Path, mb=16):
     with path.open('rb', 0) as f:
         file_header = f.read(int(1024*1024*mb))
     return xxhash.xxh3_128_hexdigest(file_header)
+
+
+def public_watch_url(video_id, config, host=None, scheme=None):
+    shareable_domain = config.get("ui_config", {}).get("shareable_link_domain", "").strip()
+    base = shareable_domain or (host or "").strip()
+    if not base:
+        return None
+
+    if not base.startswith(("https://", "http://")):
+        normalized_scheme = scheme if scheme in ("http", "https") else "https"
+        base = f"{normalized_scheme}://{base}"
+    return f"{base.rstrip('/')}/w/{video_id}"
 
 def get_media_info(path):
     try:

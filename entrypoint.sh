@@ -109,8 +109,15 @@ fi
 # ── Nginx ─────────────────────────────────────────────────────────────────────
 section "Nginx"
 FIRESHARE_PORT=${FIRESHARE_PORT:-80}
+MACHINE_UPLOAD_MAX_MB=${MACHINE_UPLOAD_MAX_MB:-10240}
+if ! [[ "$MACHINE_UPLOAD_MAX_MB" =~ ^[0-9]+$ ]] || [ "$MACHINE_UPLOAD_MAX_MB" -le 0 ]; then
+    warn "MACHINE_UPLOAD_MAX_MB must be a positive integer"
+    exit 1
+fi
+MACHINE_UPLOAD_NGINX_MAX_MB=$((MACHINE_UPLOAD_MAX_MB + 8))
 log "Configuring nginx to listen on port ${FIRESHARE_PORT}"
-sed "s/__FIRESHARE_PORT__/${FIRESHARE_PORT}/" \
+sed -e "s/__FIRESHARE_PORT__/${FIRESHARE_PORT}/" \
+    -e "s/__MACHINE_UPLOAD_NGINX_MAX_MB__/${MACHINE_UPLOAD_NGINX_MAX_MB}/" \
     /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 log "Starting nginx"
 nginx -g 'daemon on;'

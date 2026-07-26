@@ -18,6 +18,13 @@ services:
       - ADMIN_PASSWORD=admin
       - SECRET_KEY=replace_this_with_some_random_string
       - MINUTES_BETWEEN_VIDEO_SCANS=5
+      # Machine publishing API (disabled until one token source is configured).
+      # Prefer a read-only Docker secret; see docs/MachineUploadAPI.md.
+      # - MACHINE_API_TOKEN_FILE=/run/secrets/machine_api_token
+      # Direct environment fallback (less private because container metadata can expose it):
+      # - MACHINE_API_TOKEN=
+      - MACHINE_UPLOAD_MAX_MB=10240
+      - MACHINE_UPLOAD_INGEST_TIMEOUT_SECONDS=900
       # Required for game categorization. You can get a free api key at https://www.steamgriddb.com/
       # - STEAMGRIDDB_API_KEY=
       # The location in the video thumbnails are generated. A value between 0-100 where 50 would be the frame in the middle of the video file and 0 would be the first frame of the video.
@@ -40,6 +47,9 @@ services:
       # Optional: inject an analytics tracking script into the frontend. Paste the full <script> tag from your analytics provider (e.g. Umami, Plausible, GoatCounter).
       # - ANALYTICS_TRACKING_SCRIPT=<script defer src="https://your-analytics-instance/script.js" data-website-id="your-id"></script>
 
+    # secrets:
+    #   - machine_api_token
+
     # Uncomment the following lines to enable GPU passthrough for transcoding
     # runtime: nvidia
     # deploy:
@@ -49,3 +59,7 @@ services:
     #         - driver: nvidia
     #           count: 1
     #           capabilities: [gpu]
+
+# secrets:
+#   machine_api_token:
+#     file: ./secrets/machine-api-token

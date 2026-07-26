@@ -11,9 +11,11 @@ from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink, 
 from werkzeug.security import generate_password_hash
 from pathlib import Path
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 import time
 import requests
 import re
+import secrets
 
 from .constants import SUPPORTED_FILE_EXTENSIONS
 
@@ -162,17 +164,10 @@ def send_generic_webhook(webhook_url, video_url=None, custom_payload=None):
         return {"status": "error", "message": str(e)}
 
 def get_public_watch_url(video_id, config, host):
-    shareable_link_domain = config.get("ui_config", {}).get("shareable_link_domain", "")
-    if shareable_link_domain:
-        if not shareable_link_domain.startswith("https://") and not shareable_link_domain.startswith("http://"):
-            shareable_link_domain = f"https://{shareable_link_domain}"
-        return f"{shareable_link_domain}/w/{video_id}"
-    elif host:
-        if not host.startswith("https://") and not host.startswith("http://"):
-            host = f"https://{host}"
-        return f"{host}/w/{video_id}"
-    else:
-        return print("--Unable to post to Discord--\nPlease check that your DOMAIN env variable is set correctly or that you have a shareable link domain set in your Admin settings.")
+    url = util.public_watch_url(video_id, config, host=host)
+    if url:
+        return url
+    return print("--Unable to post to Discord--\nPlease check that your DOMAIN env variable is set correctly or that you have a shareable link domain set in your Admin settings.")
     
 def _get_or_create_media_folder(folder_cache, dirname, media_type):
     """Get or create a MediaFolder for (dirname, media_type), using folder_cache to avoid duplicate queries/inserts."""
@@ -245,6 +240,43 @@ def _reconcile_media_folders(media_type, model, snapshot):
 def cli():
     pass
 
+
+@cli.command("generate-machine-token")
+@click.option(
+    "--output",
+    type=click.Path(path_type=Path, dir_okay=False),
+    help="Write the token to a new owner-only file instead of stdout.",
+)
+def generate_machine_token(output):
+    token = secrets.token_hex(32)
+    if output is None:
+        click.echo(token)
+        return
+
+    try:
+        fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as exc:
+        raise click.ClickException(f"Refusing to overwrite existing file: {output}") from exc
+    except OSError as exc:
+        raise click.ClickException(f"Could not create token file: {output}") from exc
+
+    try:
+        encoded = token.encode("ascii")
+        if os.write(fd, encoded) != len(encoded):
+            raise OSError("Could not write the complete token")
+        os.fsync(fd)
+    except OSError:
+        os.close(fd)
+        try:
+            output.unlink()
+        except OSError:
+            pass
+        raise
+    else:
+        os.close(fd)
+    click.echo(f"Wrote machine API token to {output}", err=True)
+
+
 @cli.command()
 def init_db():
     with create_app().app_context():
@@ -291,9 +323,13 @@ def scan_videos(root):
         
         video_files = []
         skipped_count = 0
+        from .machine_upload import machine_upload_blocks_scan
+
         for f in all_files:
             if CHUNK_FILE_PATTERN.search(f.name):
                 continue  # Skip chunk files silently
+            elif machine_upload_blocks_scan(f):
+                continue  # A machine upload owns this file until core ingestion finishes
             elif f.name.startswith('._'):
                 continue  # Skip macOS sidecar files silently
             elif TRANSCODE_PATTERN.search(f.name):
@@ -493,7 +529,9 @@ def scan_videos(root):
 @click.option("--tag-ids", help="comma-separated custom tag IDs to apply", required=False, default=None)
 @click.option("--game-id", type=int, help="game ID to apply", required=False, default=None)
 @click.option("--title", help="initial title for the video (defaults to filename stem)", required=False, default=None)
-def scan_video(ctx, path, tag_ids, game_id, title):
+@click.option("--private/--public", "private_override", default=None, help="override the configured default privacy")
+@click.option("--machine-job-id", help="internal machine upload job to mark ready", required=False, default=None)
+def scan_video(ctx, path, tag_ids, game_id, title, private_override, machine_job_id):
     with create_app().app_context():
         paths = current_app.config['PATHS']
         domain = current_app.config['DOMAIN']
@@ -569,7 +607,8 @@ def scan_video(ctx, path, tag_ids, game_id, title):
                         os.symlink(src, dst, dir_fd=fd)
                     except FileExistsError:
                         logger.debug(f"{dst} exists already")
-                info = VideoInfo(video_id=v.video_id, title=title or Path(v.path).stem, private=video_config["private"])
+                effective_private = video_config["private"] if private_override is None else private_override
+                info = VideoInfo(video_id=v.video_id, title=title or Path(v.path).stem, private=effective_private)
                 db.session.add(info)
                 db.session.commit()
 
@@ -614,6 +653,22 @@ def scan_video(ctx, path, tag_ids, game_id, title):
                 logger.debug("Syncing metadata")
                 ctx.invoke(sync_metadata, video=video_id)
                 info = VideoInfo.query.filter(VideoInfo.video_id==video_id).one()
+
+                if machine_job_id:
+                    from .machine_upload import mark_job_ready
+
+                    try:
+                        machine_ready = mark_job_ready(machine_job_id)
+                    except OperationalError:
+                        db.session.rollback()
+                        logger.warning(
+                            f"Machine upload job {machine_job_id} could not be marked ready yet"
+                        )
+                    else:
+                        if not machine_ready:
+                            logger.warning(
+                                f"Machine upload job {machine_job_id} was not ready yet"
+                            )
 
                 processed_root = Path(current_app.config['PROCESSED_DIRECTORY'])
                 logger.debug(f"Checking for videos with missing posters...")

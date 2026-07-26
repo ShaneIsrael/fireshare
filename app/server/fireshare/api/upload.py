@@ -41,7 +41,16 @@ def _parse_upload_metadata():
     return tag_ids, game_id, title
 
 
-def _launch_scan_video(save_path, config, tag_ids=None, game_id=None, title=None):
+def _launch_scan_video(
+    save_path,
+    config,
+    tag_ids=None,
+    game_id=None,
+    title=None,
+    private=None,
+    machine_job_id=None,
+    machine_attempt=None,
+):
     """
     Launch scan-video and publish an initial transcoding-running status when
     auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
@@ -58,16 +67,29 @@ def _launch_scan_video(save_path, config, tag_ids=None, game_id=None, title=None
         cmd.append(f"--game-id={game_id}")
     if title:
         cmd.append(f"--title={title}")
+    if private is not None:
+        cmd.append("--private" if private else "--public")
+    if machine_job_id:
+        cmd.append(f"--machine-job-id={machine_job_id}")
     scan_proc = Popen(cmd, shell=False, start_new_session=True)
 
     def reap_and_cleanup():
         try:
-            scan_proc.wait()
+            return_code = scan_proc.wait()
             status = util.read_transcoding_status(data_path)
             if status.get('pid') == scan_proc.pid:
                 util.clear_transcoding_status(data_path)
+            if machine_job_id:
+                from ..machine_upload import finalize_job_after_scan
+
+                with app.app_context():
+                    finalize_job_after_scan(
+                        machine_job_id,
+                        return_code,
+                        machine_attempt,
+                    )
         except Exception as e:
-            logger.debug(f"Scan process cleanup skipped: {e}")
+            logger.warning(f"Scan process cleanup failed: {e}")
 
     threading.Thread(target=reap_and_cleanup, daemon=True).start()
 

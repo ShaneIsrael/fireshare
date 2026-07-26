@@ -490,3 +490,66 @@ class TranscodeJob(db.Model):
     def __repr__(self):
         return "<TranscodeJob id={} video_id={} status={}>".format(self.id, self.video_id, self.status)
 
+
+class MachineUploadJob(db.Model):
+    __tablename__ = "machine_upload_job"
+    __table_args__ = (
+        db.UniqueConstraint("job_id", name="uq_machine_upload_job_job_id"),
+        db.UniqueConstraint("video_id", name="uq_machine_upload_job_video_id"),
+    )
+
+    id                  = db.Column(db.Integer, primary_key=True)
+    job_id              = db.Column(db.String(32), nullable=False, index=True, default=lambda: uuid_lib.uuid4().hex)
+    video_id            = db.Column(db.String(32), nullable=False, index=True)
+    content_sha256      = db.Column(db.String(64), nullable=False)
+    request_fingerprint = db.Column(db.String(64), nullable=False)
+    source_path         = db.Column(db.String(2048), nullable=True)
+    status              = db.Column(db.String(16), nullable=False, default="accepted", index=True)
+    title               = db.Column(db.String(256), nullable=False)
+    folder              = db.Column(db.String(256), nullable=True)
+    game_id             = db.Column(db.Integer, nullable=True)
+    tag_ids_json        = db.Column(db.Text, nullable=False, default="[]")
+    private             = db.Column(db.Boolean, nullable=False)
+    scan_pid            = db.Column(db.Integer, nullable=True)
+    attempt_count       = db.Column(db.Integer, nullable=False, default=1)
+    deduplicated        = db.Column(db.Boolean, nullable=False, default=False)
+    error_code          = db.Column(db.String(64), nullable=True)
+    error_message       = db.Column(db.String(512), nullable=True)
+    created_at          = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at          = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    requests = db.relationship(
+        "MachineUploadRequest",
+        back_populates="job",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def tag_ids(self):
+        try:
+            return json.loads(self.tag_ids_json or "[]")
+        except (TypeError, json.JSONDecodeError):
+            return []
+
+    def __repr__(self):
+        return "<MachineUploadJob {} {} {}>".format(self.job_id, self.video_id, self.status)
+
+
+class MachineUploadRequest(db.Model):
+    __tablename__ = "machine_upload_request"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "idempotency_key",
+            name="uq_machine_upload_request_idempotency_key",
+        ),
+    )
+
+    id              = db.Column(db.Integer, primary_key=True)
+    idempotency_key = db.Column(db.String(128), nullable=False, index=True)
+    job_id          = db.Column(db.Integer, db.ForeignKey("machine_upload_job.id"), nullable=False, index=True)
+    created_at      = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    job = db.relationship("MachineUploadJob", back_populates="requests")
+
+    def __repr__(self):
+        return "<MachineUploadRequest {} job:{}>".format(self.idempotency_key, self.job_id)

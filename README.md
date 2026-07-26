@@ -47,6 +47,7 @@ If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/Sha
 - Folder sharing
 - Mobile device support
 - Uploads (optional, can be restricted)
+- [Token-authenticated machine publishing API](./docs/MachineUploadAPI.md)
 - Video view counting
 - Video cropping
 - Video tags for improved search and categorization
