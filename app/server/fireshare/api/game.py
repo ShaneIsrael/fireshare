@@ -11,7 +11,12 @@ from .. import db, logger
 from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, Image, ImageInfo, ImageGameLink, ImageView
 from ..steamgrid import SteamGridDBClient
 from . import api
-from .helpers import get_steamgriddb_api_key, login_required_unless_public_game_tag
+from .helpers import (
+    cancel_pending_transcode_jobs,
+    delete_video_files,
+    get_steamgriddb_api_key,
+    login_required_unless_public_game_tag,
+)
 
 
 def find_asset_with_extensions(asset_dir, base_name):
@@ -513,25 +518,15 @@ def delete_game(steamgriddb_id):
             link_path = paths['processed'] / 'video_links' / f"{video.video_id}{video.extension}"
             derived_path = paths['processed'] / 'derived' / video.video_id
 
+            cancel_pending_transcode_jobs(video.video_id)
+
             # Delete from database
             VideoGameLink.query.filter_by(video_id=video.video_id).delete()
             VideoView.query.filter_by(video_id=video.video_id).delete()
             VideoInfo.query.filter_by(video_id=video.video_id).delete()
             Video.query.filter_by(video_id=video.video_id).delete()
 
-            # Delete files
-            try:
-                if file_path.exists():
-                    file_path.unlink()
-                    logger.info(f"Deleted video file: {file_path}")
-                if link_path.exists() or link_path.is_symlink():
-                    link_path.unlink()
-                    logger.info(f"Deleted link file: {link_path}")
-                if derived_path.exists():
-                    shutil.rmtree(derived_path)
-                    logger.info(f"Deleted derived directory: {derived_path}")
-            except OSError as e:
-                logger.error(f"Error deleting files for video {video.video_id}: {e}")
+            delete_video_files(video.video_id, file_path, link_path, derived_path)
     else:
         # Just unlink videos from the game
         for link in video_links:

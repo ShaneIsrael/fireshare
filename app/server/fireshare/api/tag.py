@@ -1,4 +1,3 @@
-import shutil
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -10,6 +9,7 @@ from sqlalchemy import func
 from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, VideoGameLink, VideoTagLink, CustomTag
 from . import api
+from .helpers import cancel_pending_transcode_jobs, delete_video_files
 
 
 def _regenerate_boomerang_bg(video_id, extension, processed_directory):
@@ -134,20 +134,13 @@ def delete_tag(tag_id):
             file_path = paths['video'] / video.path
             link_path = paths['processed'] / 'video_links' / f"{video.video_id}{video.extension}"
             derived_path = paths['processed'] / 'derived' / video.video_id
+            cancel_pending_transcode_jobs(video.video_id)
             VideoTagLink.query.filter_by(video_id=video.video_id).delete()
             VideoGameLink.query.filter_by(video_id=video.video_id).delete()
             VideoView.query.filter_by(video_id=video.video_id).delete()
             VideoInfo.query.filter_by(video_id=video.video_id).delete()
             Video.query.filter_by(video_id=video.video_id).delete()
-            try:
-                if file_path.exists():
-                    file_path.unlink()
-                if link_path.exists() or link_path.is_symlink():
-                    link_path.unlink()
-                if derived_path.exists():
-                    shutil.rmtree(derived_path)
-            except OSError as e:
-                logger.error(f"Error deleting files for video {video.video_id}: {e}")
+            delete_video_files(video.video_id, file_path, link_path, derived_path)
     else:
         for link in video_links:
             db.session.delete(link)

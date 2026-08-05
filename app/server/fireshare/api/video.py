@@ -19,7 +19,13 @@ from sqlalchemy.sql import text
 from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, VideoGameLink, VideoTagLink, FolderRule, MediaFolder
 from . import api
-from .helpers import get_video_path, add_cache_headers, add_poster_cache_headers
+from .helpers import (
+    add_cache_headers,
+    add_poster_cache_headers,
+    cancel_pending_transcode_jobs,
+    delete_video_files,
+    get_video_path,
+)
 from .decorators import demo_restrict
 
 
@@ -443,6 +449,8 @@ def delete_video(id):
 
         folder_id = video.folder_id
 
+        cancel_pending_transcode_jobs(id)
+
         VideoInfo.query.filter_by(video_id=id).delete()
         VideoGameLink.query.filter_by(video_id=id).delete()
         VideoTagLink.query.filter_by(video_id=id).delete()
@@ -452,19 +460,7 @@ def delete_video(id):
 
         MediaFolder.cleanup_if_orphaned(folder_id, Video)
 
-        try:
-            if file_path.exists():
-                file_path.unlink()
-                logging.info(f"Deleted video file: {file_path}")
-            if link_path.exists() or link_path.is_symlink():
-                link_path.unlink()
-                logging.info(f"Deleted link file: {link_path}")
-            if derived_path.exists():
-                shutil.rmtree(derived_path)
-                logging.info(f"Deleted derived directory: {derived_path}")
-        except OSError as e:
-            logging.error(f"Error deleting files for video {id}: {e}")
-            logging.error(f"Attempted to delete: file={file_path}, link={link_path}, derived={derived_path}")
+        delete_video_files(id, file_path, link_path, derived_path)
         return Response(status=200)
 
     else:

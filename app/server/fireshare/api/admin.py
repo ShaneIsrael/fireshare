@@ -15,6 +15,7 @@ from werkzeug.security import generate_password_hash
 from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageView, TranscodeJob, MediaFolder
 from . import api
+from .helpers import cancel_pending_transcode_jobs, delete_video_files
 from .transcoding import _is_pid_running
 from .scan import _game_scan_state
 from .decorators import demo_restrict
@@ -404,6 +405,8 @@ def bulk_delete_files():
         folder_id = video.folder_id
 
         try:
+            cancel_pending_transcode_jobs(vid_id)
+
             VideoInfo.query.filter_by(video_id=vid_id).delete()
             VideoGameLink.query.filter_by(video_id=vid_id).delete()
             VideoTagLink.query.filter_by(video_id=vid_id).delete()
@@ -413,15 +416,7 @@ def bulk_delete_files():
 
             MediaFolder.cleanup_if_orphaned(folder_id, Video)
 
-            try:
-                if file_path.exists():
-                    file_path.unlink()
-                if link_path.exists() or link_path.is_symlink():
-                    link_path.unlink()
-                if derived_path.exists():
-                    shutil.rmtree(derived_path)
-            except OSError as e:
-                logging.error(f"Error deleting files for video {vid_id}: {e}")
+            delete_video_files(vid_id, file_path, link_path, derived_path)
 
             results['deleted'].append(vid_id)
         except Exception as e:

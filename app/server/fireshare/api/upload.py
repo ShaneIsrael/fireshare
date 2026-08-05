@@ -13,7 +13,7 @@ from flask_login import login_required
 from .. import logger, util
 from ..constants import SUPPORTED_FILE_TYPES
 from . import api
-from .helpers import secure_filename
+from .helpers import sanitize_upload_folder, secure_filename
 from . import transcoding as _transcoding_mod
 
 
@@ -100,8 +100,8 @@ def public_upload_video():
 
     upload_folder = config['app_config']['public_upload_folder_name']
     if config['app_config'].get('allow_public_folder_selection', False):
-        requested_folder = request.form.get('folder', '').strip()
-        if requested_folder and '/' not in requested_folder and '..' not in requested_folder and ' ' not in requested_folder:
+        requested_folder = sanitize_upload_folder(request.form.get('folder'))
+        if requested_folder:
             upload_folder = requested_folder
 
     if 'file' not in request.files:
@@ -173,8 +173,8 @@ def public_upload_videoChunked():
         return size_err
 
     if config['app_config'].get('allow_public_folder_selection', False):
-        requested_folder = request.form.get('folder', '').strip()
-        if requested_folder and '/' not in requested_folder and '..' not in requested_folder and ' ' not in requested_folder:
+        requested_folder = sanitize_upload_folder(request.form.get('folder'))
+        if requested_folder:
             upload_folder = requested_folder
 
     upload_directory = paths['video'] / upload_folder
@@ -296,8 +296,8 @@ def upload_video():
         configfile.close()
 
     upload_folder = config['app_config']['admin_upload_folder_name']
-    requested_folder = request.form.get('folder', '').strip()
-    if requested_folder and '/' not in requested_folder and '..' not in requested_folder and ' ' not in requested_folder:
+    requested_folder = sanitize_upload_folder(request.form.get('folder'))
+    if requested_folder:
         upload_folder = requested_folder
 
     if 'file' not in request.files:
@@ -340,8 +340,8 @@ def upload_videoChunked():
         configfile.close()
 
     upload_folder = config['app_config']['admin_upload_folder_name']
-    requested_folder = request.form.get('folder', '').strip()
-    if requested_folder and '/' not in requested_folder and '..' not in requested_folder and ' ' not in requested_folder:
+    requested_folder = sanitize_upload_folder(request.form.get('folder'))
+    if requested_folder:
         upload_folder = requested_folder
 
     required_files = ['blob']
