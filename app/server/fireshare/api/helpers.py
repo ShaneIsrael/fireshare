@@ -1,15 +1,130 @@
 import json
 import os
 import re
+import secrets
+import shutil
+import time
 from functools import wraps
 from flask import current_app
-from .. import logger
-from ..models import Video
+from .. import db, logger
+from ..models import TranscodeJob, Video
 
 
 def secure_filename(filename):
     clean = re.sub(r"[/\\?%*:|\"<>\x7F\x00-\x1F\s]", "-", filename)
     return clean
+
+
+# Path separators and control characters are never valid in a folder name. Spaces
+# and punctuation are, because auto-sorted uploads are filed under the game's name
+# ("Zenless Zone Zero"), and rejecting those would silently drop the upload back
+# into the default folder.
+_INVALID_FOLDER_CHARS = re.compile(r"[/\\\x00-\x1F\x7F]")
+
+
+def sanitize_upload_folder(name):
+    """Reduce a user-supplied upload folder to a safe single-level directory name.
+
+    Returns the cleaned name, or None when nothing usable is left and the caller
+    should fall back to the configured default folder.
+    """
+    folder = _INVALID_FOLDER_CHARS.sub('-', name or '').strip()
+    # Leading dots would both escape the media root ("..") and hide the folder from
+    # the upload folder listing, which skips dotfiles.
+    folder = folder.lstrip('.').strip()
+    return folder or None
+
+
+def remove_derived_dir(derived_path, attempts=4, delay=0.25):
+    """Remove a derived/<id> directory, tolerating jobs that are still writing into it.
+
+    Poster generation and ffmpeg transcodes create files under derived/<id> while a
+    delete is in flight, so a plain rmtree can lose the race between its final rmdir
+    and a file created just after the directory was listed, failing with ENOTEMPTY.
+    Retry a few times, then move the tree aside so the original path is freed either
+    way. Anything left behind is reported by the orphaned-derived cleanup in the
+    admin file manager.
+
+    Returns None on success, or an error string when the directory could not be
+    removed or moved aside.
+    """
+    if not derived_path.exists():
+        return None
+
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            shutil.rmtree(derived_path)
+            return None
+        except OSError as e:
+            last_error = e
+            if attempt < attempts - 1:
+                time.sleep(delay)
+
+    staged_path = derived_path.with_name(f"{derived_path.name}.deleting-{secrets.token_hex(4)}")
+    try:
+        derived_path.rename(staged_path)
+    except OSError as e:
+        return f"derived directory {derived_path}: {last_error or e}"
+
+    shutil.rmtree(staged_path, ignore_errors=True)
+    if staged_path.exists():
+        logger.warning(
+            f"Derived directory {derived_path} was still being written to ({last_error}); "
+            f"moved it to {staged_path}, which can be removed via the orphaned derived cleanup"
+        )
+    return None
+
+
+def delete_video_files(video_id, file_path, link_path, derived_path):
+    """Remove every on-disk artifact for a video.
+
+    Each target is deleted independently so that a failure on one - most often the
+    derived directory, which background jobs may still be writing into - does not
+    skip the others. Returns a list of error strings (empty when everything was
+    removed).
+    """
+    errors = []
+
+    try:
+        if file_path.exists():
+            file_path.unlink()
+            logger.info(f"Deleted video file: {file_path}")
+    except OSError as e:
+        errors.append(f"video file {file_path}: {e}")
+
+    try:
+        if link_path.exists() or link_path.is_symlink():
+            link_path.unlink()
+            logger.info(f"Deleted link file: {link_path}")
+    except OSError as e:
+        errors.append(f"link file {link_path}: {e}")
+
+    had_derived = derived_path.exists()
+    derived_error = remove_derived_dir(derived_path)
+    if derived_error:
+        errors.append(derived_error)
+    elif had_derived:
+        logger.info(f"Deleted derived directory: {derived_path}")
+
+    for error in errors:
+        logger.error(f"Error deleting files for video {video_id}: {error}")
+    return errors
+
+
+def cancel_pending_transcode_jobs(video_id):
+    """Drop any queued transcode job for a video that is being deleted.
+
+    A job left in the queue would start ffmpeg for a video that no longer exists,
+    recreating the derived directory we just removed. Left uncommitted so it lands
+    with the caller's own delete transaction.
+    """
+    removed = TranscodeJob.query.filter(
+        TranscodeJob.video_id == video_id,
+        TranscodeJob.status == 'pending',
+    ).delete(synchronize_session=False)
+    if removed:
+        logger.info(f"Clearing {removed} queued transcode job(s) for deleted video {video_id}")
 
 
 def add_cache_headers(response, cache_key, max_age=604800):
