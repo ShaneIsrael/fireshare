@@ -1,5 +1,6 @@
 import logging
 import os
+import posixpath
 import re
 import secrets
 import shutil
@@ -9,6 +10,7 @@ import tempfile
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import unquote
 
 from flask import current_app, jsonify, request, Response, send_file, session
 from flask_login import login_required, current_user
@@ -795,20 +797,53 @@ def nginx_video_auth_admin():
     return '', 403
 
 
+_VIDEO_ID_RE = re.compile(r'^[\w-]+$')
+_CONTENT_VIDEO_RE = re.compile(r'^/_content/video/([\w-]+)\.[a-z0-9]+', re.IGNORECASE)
+_CONTENT_DERIVED_RE = re.compile(r'^/_content/derived/([\w-]+)/', re.IGNORECASE)
+
+
+def _video_id_from_original_uri(original_uri):
+    """
+    Resolve the video id from nginx's X-Original-URI.
+
+    nginx matches its location blocks against the decoded, normalized URI but forwards the
+    raw one in $request_uri, so the URI seen here has to be decoded and normalized the same
+    way before it is parsed — otherwise a request like /_content/vide%6F/<id>.mp4 routes to
+    the file on the nginx side while failing to resolve an id on this side.
+    """
+    path = unquote(original_uri.split('?', 1)[0])
+    if not path.startswith('/'):
+        return None
+    path = posixpath.normpath(path)
+    # normpath drops a meaningful trailing slash, which the derived pattern relies on
+    if original_uri.split('?', 1)[0].endswith('/') and not path.endswith('/'):
+        path += '/'
+    for pattern in (_CONTENT_VIDEO_RE, _CONTENT_DERIVED_RE):
+        m = pattern.match(path)
+        if m:
+            return m.group(1)
+    return None
+
+
 @api.route('/api/video/nginx-auth')
 def nginx_video_auth():
-    """Internal endpoint called by nginx auth_request to gate password-protected video files."""
-    original_uri = request.headers.get('X-Original-URI', '')
-    video_id = None
-    m = re.match(r'^/_content/video/([\w-]+)\.[a-z0-9]+', original_uri)
-    if m:
-        video_id = m.group(1)
+    """
+    Internal endpoint called by nginx auth_request to gate password-protected video files.
+
+    Prefers the id nginx already captured from its own location regex (X-Fireshare-Video-Id),
+    which is the same value it uses to pick the file, so the two cannot disagree. Falls back
+    to parsing the URI, and refuses the request if no id can be resolved — an unresolvable id
+    means the gate cannot do its job, so it must not let the request through.
+    """
+    video_id = request.headers.get('X-Fireshare-Video-Id')
+    if not video_id or not _VIDEO_ID_RE.match(video_id):
+        video_id = _video_id_from_original_uri(request.headers.get('X-Original-URI', ''))
     if not video_id:
-        m = re.match(r'^/_content/derived/([\w-]+)/', original_uri)
-        if m:
-            video_id = m.group(1)
-    if not video_id:
-        return '', 200
+        logger.warning(
+            f"nginx-auth could not resolve a video id for "
+            f"{request.headers.get('X-Original-URI', '')!r}; denying request"
+        )
+        return '', 403
     video_info = VideoInfo.query.filter_by(video_id=video_id).first()
     if not video_info or not video_info.password_hash:
         return '', 200
