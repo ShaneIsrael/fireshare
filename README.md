@@ -298,11 +298,11 @@ See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for a full guide covering in
 
 If you like the project, consider giving it a star. It helps increase visibility and supports continued development.
 
-<a href="https://www.star-history.com/?repos=shaneisrael%2Ffireshare&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#shaneisrael/fireshare&type=date&legend=top-left">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&legend=top-left" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=shaneisrael/fireshare&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=shaneisrael/fireshare&type=date&legend=top-left" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=shaneisrael/fireshare&type=date&legend=top-left" />
   </picture>
 </a>
 
