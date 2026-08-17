@@ -22,7 +22,7 @@ visitors — the whitelist gates authentication only.
 | Variable                               | Description                                                                                   | Default     |
 | -------------------------------------- | --------------------------------------------------------------------------------------------- | ----------- |
 | `LOGIN_IP_WHITELIST`                 | Comma-separated IPs and/or CIDR ranges, IPv4 and IPv6. Unset or empty disables the whitelist. | *(unset)* |
-| `LOGIN_IP_WHITELIST_TRUSTED_PROXIES` | Trusted reverse-proxy hops in front of the app. See[below](#how-the-client-ip-is-determined).  | `1`       |
+| `LOGIN_IP_WHITELIST_TRUSTED_PROXIES` | Trusted reverse-proxy hops in front of the app. See [below](#how-the-client-ip-is-determined).  | `1`       |
 
 ```yaml
 # docker-compose.yml
