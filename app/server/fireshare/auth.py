@@ -173,9 +173,10 @@ def login_mfa():
 @auth.route('/api/mfa/status', methods=['GET'])
 @login_required
 def mfa_status():
+    is_demo = current_app.config.get('DEMO_MODE') and current_user.username == 'demo'
     return jsonify({
         'enabled': bool(current_user.mfa_enabled),
-        'supported': not current_user.ldap,
+        'supported': not current_user.ldap and not is_demo,
     })
 
 @auth.route('/api/mfa/setup', methods=['POST'])

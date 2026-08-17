@@ -140,7 +140,7 @@ in your `docker-compose.yml` / `docker run` command and restart the container.
 If you believe your IP *should* be allowed, check the container logs — every blocked attempt logs
 `Blocked login attempt from non-whitelisted IP <ip>`, showing the address Fireshare derived for you.
 If that address is your reverse proxy rather than your real client IP, adjust
-`LOGIN_IP_WHITELIST_TRUSTED_PROXIES` (see [Security.md](./Security.md#running-behind-an-additional-reverse-proxy)).
+`LOGIN_IP_WHITELIST_TRUSTED_PROXIES` (see [Security.md](./Security.md#how-the-client-ip-is-determined)).
 
 Also note the container **fails to start** if any whitelist entry is malformed — look for
 `FATAL: LOGIN_IP_WHITELIST contains invalid entry` in the logs.
