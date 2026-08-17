@@ -7,6 +7,8 @@
 - [Upload Fails](#upload-fails)
 - [Permission Errors](#permission-errors)
 - [Cannot Log In](#cannot-log-in)
+- [Locked Out by the IP Whitelist](#locked-out-by-the-ip-whitelist)
+- [Locked Out of Two-Factor Authentication (MFA)](#locked-out-of-two-factor-authentication-mfa)
 - [Sessions Expire on Every Restart](#sessions-expire-on-every-restart)
 - [Transcoding Issues](#transcoding-issues)
 - [Open Graph / Link Previews Not Working](#open-graph--link-previews-not-working)
@@ -120,6 +122,43 @@ chown -R 1000:1000 /path/to/data /path/to/processed /path/to/videos
    ```sh
    docker exec fireshare sqlite3 /data/db.sqlite "SELECT username, admin FROM user WHERE admin=1 AND ldap=0;"
    ```
+
+6. **The login page redirects straight to the home page.** A `LOGIN_IP_WHITELIST` is set and your IP
+   is not on it — see [Locked Out by the IP Whitelist](#locked-out-by-the-ip-whitelist).
+
+---
+
+## Locked Out by the IP Whitelist
+
+If `LOGIN_IP_WHITELIST` is set and your IP is not on it (e.g. your home IP changed), the login page
+silently redirects to the home page and login requests return
+`403 — Your IP address is not permitted to log in.`
+
+**Fix:** the whitelist lives entirely in the environment variable. Edit or remove `LOGIN_IP_WHITELIST`
+in your `docker-compose.yml` / `docker run` command and restart the container.
+
+If you believe your IP *should* be allowed, check the container logs — every blocked attempt logs
+`Blocked login attempt from non-whitelisted IP <ip>`, showing the address Fireshare derived for you.
+If that address is your reverse proxy rather than your real client IP, adjust
+`LOGIN_IP_WHITELIST_TRUSTED_PROXIES` (see [Security.md](./Security.md#running-behind-an-additional-reverse-proxy)).
+
+Also note the container **fails to start** if any whitelist entry is malformed — look for
+`FATAL: LOGIN_IP_WHITELIST contains invalid entry` in the logs.
+
+---
+
+## Locked Out of Two-Factor Authentication (MFA)
+
+If you lost access to your authenticator app, disable MFA for the account from inside the container:
+
+```sh
+docker exec fireshare fireshare disable-mfa -u <username>
+```
+
+The account can then log in with just its password and re-enroll MFA from **Settings → Security**.
+
+If valid codes are being rejected, check that the server and phone clocks are accurate — codes are
+only valid within a ±30 second window.
 
 ---
 

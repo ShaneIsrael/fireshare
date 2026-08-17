@@ -21,3 +21,5 @@ apscheduler==3.11.0
 python-ldap==3.4.4
 requests==2.32.3
 rapidfuzz>=3.10.0
+pyotp==2.9.0
+qrcode==8.2

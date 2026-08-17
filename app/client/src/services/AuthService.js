@@ -22,6 +22,21 @@ class AuthService {
     })
     return _loggedInPromise
   }
+  loginMfa(code) {
+    return Api().post('/api/login/mfa', { code })
+  }
+  getMfaStatus() {
+    return Api().get('/api/mfa/status')
+  }
+  setupMfa() {
+    return Api().post('/api/mfa/setup')
+  }
+  confirmMfa(code) {
+    return Api().post('/api/mfa/confirm', { code })
+  }
+  disableMfa(code) {
+    return Api().post('/api/mfa/disable', { code })
+  }
 }
 
 const authService = new AuthService()

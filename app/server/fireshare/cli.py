@@ -269,6 +269,21 @@ def add_user(username, password):
         click.echo(f"Created user {username}")
 
 @cli.command()
+@click.option("--username", "-u", help="Username", required=True)
+def disable_mfa(username):
+    """Disable two-factor authentication for a user (lockout recovery)."""
+    with create_app().app_context():
+        user = User.query.filter_by(username=username).first()
+        if not user:
+            click.echo(f"No user found with username {username}")
+            return
+        user.totp_secret = None
+        user.mfa_enabled = False
+        user.totp_last_used = None
+        db.session.commit()
+        click.echo(f"Disabled two-factor authentication for {username}")
+
+@cli.command()
 @click.option("--root", "-r", help="root video path to scan", required=False)
 def scan_videos(root):
     with create_app().app_context():

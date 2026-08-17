@@ -4,8 +4,9 @@ import LoginForm from '../components/forms/LoginForm'
 import { Navigate } from 'react-router-dom'
 import { DisableDragDrop } from '../components/utils/GlobalDragDropOverlay'
 
-const Login = function ({ authenticated }) {
-  if (authenticated) return <Navigate to="/" />
+const Login = function ({ authenticated, loginAllowed }) {
+  // Non-whitelisted IPs are silently sent home, as if the login page doesn't exist.
+  if (authenticated || loginAllowed === false) return <Navigate to="/" replace />
 
   return (
     <DisableDragDrop>

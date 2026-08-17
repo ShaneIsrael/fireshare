@@ -145,6 +145,7 @@ function MainNavbar({
   authenticated,
   isAdmin,
   latestRelease,
+  loginAllowed,
   page,
   collapsed = false,
   searchable = false,
@@ -528,7 +529,7 @@ function MainNavbar({
               )}
             </Box>
           </LightTooltip>
-        ) : (
+        ) : loginAllowed === false ? null : (
           <LightTooltip arrow title={effectiveOpen ? '' : 'Login'} placement="right">
             <Box
               onClick={() => navigate('/login')}

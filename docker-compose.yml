@@ -17,6 +17,10 @@ services:
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=admin
       - SECRET_KEY=replace_this_with_some_random_string
+      # Optional: only allow logins from these IPs/CIDR ranges (comma separated, IPv4/IPv6). Empty or unset disables the whitelist. See docs/Security.md
+      # - LOGIN_IP_WHITELIST=203.0.113.5,10.0.0.0/8
+      # Number of trusted reverse-proxy hops used to determine the real client IP. The bundled nginx counts as 1; set to 2 when behind an additional reverse proxy (Traefik, NPM, Cloudflare, ...).
+      # - LOGIN_IP_WHITELIST_TRUSTED_PROXIES=1
       - MINUTES_BETWEEN_VIDEO_SCANS=5
       # Required for game categorization. You can get a free api key at https://www.steamgriddb.com/
       # - STEAMGRIDDB_API_KEY=

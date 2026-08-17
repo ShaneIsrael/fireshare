@@ -21,13 +21,41 @@ const inputSx = {
   },
 }
 
+const submitButtonSx = {
+  mt: 1,
+  py: 1.25,
+  borderRadius: '10px',
+  fontSize: 15,
+  fontWeight: 600,
+  textTransform: 'none',
+  bgcolor: '#2684FF',
+  '&:hover': { bgcolor: '#1a6fd4' },
+  '&.Mui-disabled': { bgcolor: 'rgba(38, 132, 255, 0.2)', color: 'rgba(255,255,255,0.3)' },
+}
+
 const LoginForm = function () {
   const demoMode = getSetting('demo_mode')
   const [username, setUsername] = React.useState('')
   const [password, setPassword] = React.useState('')
+  const [step, setStep] = React.useState('credentials')
+  const [code, setCode] = React.useState('')
   const [loading, setLoading] = React.useState(false)
   const [alert, setAlert] = React.useState({ open: false })
   const navigate = useNavigate()
+
+  async function completeLogin() {
+    const config = (await ConfigService.getConfig()).data
+    setSetting('demo_mode', config.demo_mode || false)
+    setSetting('is_demo_user', config.is_demo_user || false)
+    navigate('/')
+  }
+
+  function errorMessage(err) {
+    const data = err.response?.data
+    if (typeof data === 'string' && data) return data
+    if (data?.error) return data.error
+    return 'An unknown error occurred while trying to log in.'
+  }
 
   async function login() {
     if (!username || !password) {
@@ -36,27 +64,63 @@ const LoginForm = function () {
     }
     setLoading(true)
     try {
-      await AuthService.login(username, password)
-      const config = (await ConfigService.getConfig()).data
-      setSetting('demo_mode', config.demo_mode || false)
-      setSetting('is_demo_user', config.is_demo_user || false)
-      navigate('/')
+      const res = await AuthService.login(username, password)
+      if (res.data?.mfa_required) {
+        setStep('mfa')
+        setCode('')
+        setLoading(false)
+        return
+      }
+      await completeLogin()
     } catch (err) {
       const status = err.response?.status
       setAlert({
         type: status === 401 ? 'warning' : 'error',
         message:
-          status === 401 ? err.response.data : 'An unknown error occurred while trying to log in.',
+          status === 401 || status === 403 ? errorMessage(err) : 'An unknown error occurred while trying to log in.',
         open: true,
       })
       setLoading(false)
     }
   }
 
+  async function verifyCode() {
+    if (!code) return
+    setLoading(true)
+    try {
+      await AuthService.loginMfa(code)
+      await completeLogin()
+    } catch (err) {
+      if (err.response?.data?.restart) {
+        setStep('credentials')
+        setPassword('')
+        setCode('')
+      } else {
+        setCode('')
+      }
+      setAlert({ type: 'warning', message: errorMessage(err), open: true })
+      setLoading(false)
+    }
+  }
+
+  function backToSignIn() {
+    setStep('credentials')
+    setPassword('')
+    setCode('')
+    setAlert({})
+  }
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && username && password) {
       e.preventDefault()
       login()
+    }
+  }
+
+  const handleCodeKeyDown = (e) => {
+    if (e.key === 'Enter' && code) {
+      e.preventDefault()
+      verifyCode()
     }
   }
 
@@ -89,14 +153,14 @@ const LoginForm = function () {
           Fireshare
         </Typography>
         <Typography sx={{ fontSize: 13, color: 'rgba(194, 224, 255, 0.5)', fontWeight: 400 }}>
-          Sign in to your account
+          {step === 'mfa' ? 'Two-factor authentication' : 'Sign in to your account'}
         </Typography>
       </Box>
 
       <Divider sx={{ borderColor: 'rgba(194, 224, 255, 0.08)', mb: 3 }} />
 
       {/* Demo mode callout */}
-      {demoMode && (
+      {step === 'credentials' && demoMode && (
         <Box
           sx={{
             display: 'flex',
@@ -129,53 +193,80 @@ const LoginForm = function () {
         </Box>
       )}
 
-      {/* Fields */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <TextField
-          fullWidth
-          id="username"
-          label="Username"
-          variant="outlined"
-          autoFocus
-          autoComplete="username"
-          value={username}
-          onChange={(e) => { setAlert({}); setUsername(e.target.value) }}
-          onKeyDown={handleKeyDown}
-          sx={inputSx}
-        />
-        <TextField
-          fullWidth
-          id="password"
-          label="Password"
-          type="password"
-          variant="outlined"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={handleKeyDown}
-          sx={inputSx}
-        />
-        <Button
-          variant="contained"
-          size="large"
-          fullWidth
-          disabled={!username || !password || loading}
-          onClick={login}
-          sx={{
-            mt: 1,
-            py: 1.25,
-            borderRadius: '10px',
-            fontSize: 15,
-            fontWeight: 600,
-            textTransform: 'none',
-            bgcolor: '#2684FF',
-            '&:hover': { bgcolor: '#1a6fd4' },
-            '&.Mui-disabled': { bgcolor: 'rgba(38, 132, 255, 0.2)', color: 'rgba(255,255,255,0.3)' },
-          }}
-        >
-          {loading ? 'Signing in…' : 'Sign in'}
-        </Button>
-      </Box>
+      {step === 'credentials' ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            fullWidth
+            id="username"
+            label="Username"
+            variant="outlined"
+            autoFocus
+            autoComplete="username"
+            value={username}
+            onChange={(e) => { setAlert({}); setUsername(e.target.value) }}
+            onKeyDown={handleKeyDown}
+            sx={inputSx}
+          />
+          <TextField
+            fullWidth
+            id="password"
+            label="Password"
+            type="password"
+            variant="outlined"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={handleKeyDown}
+            sx={inputSx}
+          />
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            disabled={!username || !password || loading}
+            onClick={login}
+            sx={submitButtonSx}
+          >
+            {loading ? 'Signing in…' : 'Sign in'}
+          </Button>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Typography sx={{ fontSize: 13, color: 'rgba(194, 224, 255, 0.5)', textAlign: 'center' }}>
+            Enter the 6-digit code from your authenticator app.
+          </Typography>
+          <TextField
+            fullWidth
+            id="mfa-code"
+            label="Authentication code"
+            variant="outlined"
+            autoFocus
+            autoComplete="one-time-code"
+            inputProps={{ inputMode: 'numeric', maxLength: 6, style: { letterSpacing: '0.3em', textAlign: 'center' } }}
+            value={code}
+            onChange={(e) => { setAlert({}); setCode(e.target.value.replace(/\D/g, '')) }}
+            onKeyDown={handleCodeKeyDown}
+            sx={inputSx}
+          />
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            disabled={!code || loading}
+            onClick={verifyCode}
+            sx={submitButtonSx}
+          >
+            {loading ? 'Verifying…' : 'Verify'}
+          </Button>
+          <Button
+            fullWidth
+            onClick={backToSignIn}
+            sx={{ textTransform: 'none', color: 'rgba(194, 224, 255, 0.5)', fontSize: 13 }}
+          >
+            Back to sign in
+          </Button>
+        </Box>
+      )}
     </Box>
   )
 }
