@@ -114,7 +114,7 @@ const CompactVideoCard = ({
 
   const cardRef = React.useRef(null)
   const isTouchDevice = React.useRef(
-    typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0),
+    typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches
   )
 
   React.useEffect(() => {
