@@ -423,6 +423,9 @@ const VideoModal = ({
     if (!open) {
       clearInterval(cropPollRef.current)
       setCropProcessing(false)
+      // Drop the player wrapper so the unmounted <video> element it references
+      // can be garbage collected along with its decoder resources.
+      playerRef.current = null
     }
   }, [open])
 

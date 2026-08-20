@@ -183,6 +183,13 @@ def _get_or_create_media_folder(folder_cache, dirname, media_type):
         db.session.add(folder)
         db.session.flush()
         logger.info(f"Created MediaFolder '{dirname}' (media_type={media_type})")
+    elif not folder.available:
+        # A folder emptied by a previous scan is marked unavailable and never
+        # revived elsewhere, which would hide it again as soon as new media lands in it.
+        folder.available = True
+        folder.updated_at = datetime.utcnow()
+        db.session.flush()
+        logger.info(f"Reactivated MediaFolder '{dirname}' (media_type={media_type})")
     folder_cache[key] = folder
     return folder
 
@@ -591,7 +598,13 @@ def scan_video(ctx, path, tag_ids, game_id, title, private_override, machine_job
                 created_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                 updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                 recorded_at = util.extract_date_from_file(video_file)
-                v = Video(video_id=video_id, extension=video_file.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at, recorded_at=recorded_at)
+                # Assign the containing folder the same way scan_videos does, so an
+                # upload sorted into a game folder shows up under that folder right
+                # away instead of waiting for the next full scan.
+                dirname = os.path.dirname(path)
+                top_level = dirname.split(os.sep)[0] if dirname else None
+                folder = _get_or_create_media_folder({}, top_level, "video") if top_level else None
+                v = Video(video_id=video_id, extension=video_file.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at, recorded_at=recorded_at, folder_id=folder.id if folder else None)
                 logger.info(f"Adding new Video {video_id} at {str(path)} (created {created_at.isoformat()}, updated {updated_at.isoformat()}, recorded {recorded_at.isoformat() if recorded_at else 'N/A'})")
                 db.session.add(v)
                 fd = os.open(str(video_links.absolute()), os.O_DIRECTORY)

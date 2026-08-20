@@ -302,6 +302,11 @@ const CompactVideoCard = ({
   }
 
   const handleMouseDown = (e) => {
+    if (editMode && e.shiftKey) {
+      // Keep shift-click range selection from extending the native text selection
+      e.preventDefault()
+      return
+    }
     if (e.button === 1) {
       window.open(`${PURL}${video.video_id}`, '_blank')
     }
@@ -480,9 +485,9 @@ const CompactVideoCard = ({
           />
           <motion.div
             style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}
-            onClick={() => {
+            onClick={(e) => {
               if (editMode) {
-                onSelect?.(video.video_id)
+                onSelect?.(video.video_id, e.shiftKey)
                 return
               }
               if (isLocked) {

@@ -16,7 +16,7 @@ from sqlalchemy.sql import text
 from .. import db, logger, util
 from ..models import Image, ImageInfo, ImageView, ImageGameLink, ImageTagLink, GameMetadata, MediaFolder
 from . import api
-from .helpers import secure_filename
+from .helpers import sanitize_upload_folder, secure_filename
 from .decorators import demo_restrict
 
 
@@ -60,8 +60,8 @@ def upload_image():
         return Response(status=500, response='Invalid config file.')
 
     upload_folder = config['app_config'].get('admin_upload_folder_name', 'uploads')
-    requested_folder = request.form.get('folder', '').strip()
-    if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
+    requested_folder = sanitize_upload_folder(request.form.get('folder'))
+    if requested_folder:
         upload_folder = requested_folder
 
     if 'file' not in request.files:
@@ -121,9 +121,9 @@ def upload_image_public():
         return Response(status=401)
 
     upload_folder = config['app_config'].get('public_upload_folder_name', 'public uploads')
-    requested_folder = request.form.get('folder', '').strip()
-    if requested_folder and '/' not in requested_folder and '..' not in requested_folder:
-        if config['app_config'].get('allow_public_folder_selection', False):
+    if config['app_config'].get('allow_public_folder_selection', False):
+        requested_folder = sanitize_upload_folder(request.form.get('folder'))
+        if requested_folder:
             upload_folder = requested_folder
 
     if 'file' not in request.files:

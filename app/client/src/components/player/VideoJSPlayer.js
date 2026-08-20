@@ -70,6 +70,22 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
     }
   }, [media, playerWrapper])
 
+  // --- teardown: release the media element's decoder/buffers on unmount ------
+  // React only removes the <video> node from the DOM; without an explicit src
+  // detach Chrome keeps the demuxer and hardware decoder pinned until GC,
+  // which accumulates across open/close cycles and can crash the GPU process.
+  useEffect(() => {
+    if (!media) return
+    return () => {
+      // isConnected is still true during StrictMode's simulated unmount —
+      // only tear down once the element has really left the DOM.
+      if (media.isConnected) return
+      media.pause()
+      media.removeAttribute('src')
+      media.load()
+    }
+  }, [media])
+
   // --- startTime: seek to the requested position once the player is ready ----
   useEffect(() => {
     if (!media || !startTime || startTimeApplied.current) return
@@ -131,6 +147,7 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
     let bufferTimestamps = []
     let isSourceTransitioning = false
     let sourceTransitionTimer = null
+    let isSeeking = false
 
     const clearStallTimer = () => {
       if (bufferStallTimer) {
@@ -182,8 +199,21 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
       clearTransitionTimer()
     }
 
+    const handleSeeking = () => {
+      isSeeking = true
+      clearStallTimer()
+    }
+
+    const handleSeeked = () => {
+      isSeeking = false
+      clearStallTimer()
+    }
+
     const handleWaiting = () => {
-      if (isSourceTransitioning) return
+      // Seeking to an unbuffered position naturally fires 'waiting' while the
+      // browser loads that range — that's not real network stalling and
+      // shouldn't count toward a quality downgrade.
+      if (isSourceTransitioning || isSeeking) return
 
       const now = Date.now()
       bufferTimestamps.push(now)
@@ -213,7 +243,8 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
     media.addEventListener('waiting', handleWaiting)
     media.addEventListener('playing', handlePlayingOrPause)
     media.addEventListener('pause', handlePlayingOrPause)
-    media.addEventListener('seeked', handlePlayingOrPause)
+    media.addEventListener('seeking', handleSeeking)
+    media.addEventListener('seeked', handleSeeked)
 
     return () => {
       clearStallTimer()
@@ -224,7 +255,8 @@ function PlayerEffects({ sources, onSourceChange, onTimeUpdate, onReady, startTi
       media.removeEventListener('waiting', handleWaiting)
       media.removeEventListener('playing', handlePlayingOrPause)
       media.removeEventListener('pause', handlePlayingOrPause)
-      media.removeEventListener('seeked', handlePlayingOrPause)
+      media.removeEventListener('seeking', handleSeeking)
+      media.removeEventListener('seeked', handleSeeked)
     }
   }, [media, sources, onSourceChange])
 

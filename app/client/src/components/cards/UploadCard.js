@@ -96,18 +96,18 @@ function LogoProgress({ progress, size = 44 }) {
 }
 
 const UploadCard = React.forwardRef(function UploadCard(
-  { authenticated, handleAlert, mini, onUploadComplete, onProgress, dropOnly = false },
+  { authenticated, handleAlert, mini, onUploadComplete, dropOnly = false },
   ref,
 ) {
-  const [selectedFile, setSelectedFile] = React.useState()
-  const [isSelected, setIsSelected] = React.useState(false)
-  const [progress, setProgress] = React.useState(0)
-  const [uploadRate, setUploadRate] = React.useState()
+  // Upload queue — supports multiple concurrent uploads, each with its own progress
+  const [uploadQueue, setUploadQueue] = React.useState([])
+  const startedUploadsRef = React.useRef(new Set())
   const uiConfig = getSetting('ui_config')
-  const lastProgressUpdate = React.useRef(0)
 
   // Pre-upload metadata dialog
-  const [pendingFile, setPendingFile] = React.useState(null)
+  const [pendingFiles, setPendingFiles] = React.useState([])
+  // Per-file editable display titles, parallel to pendingFiles (batch uploads only)
+  const [pendingTitles, setPendingTitles] = React.useState([])
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [allGames, setAllGames] = React.useState([])
   const [allTags, setAllTags] = React.useState([])
@@ -128,17 +128,20 @@ const UploadCard = React.forwardRef(function UploadCard(
   const [previewPlayable, setPreviewPlayable] = React.useState(false)
   const [availableFolders, setAvailableFolders] = React.useState([])
   const [selectedFolder, setSelectedFolder] = React.useState('')
-  // Stored metadata to attach on next upload
-  const pendingMetadata = React.useRef({ tag_ids: null, game_id: null, folder: null })
-  const imageThumbnailUrlRef = React.useRef(null)
   const previewUrlRef = React.useRef(null)
+
+  const intakeFiles = (files) => {
+    const accepted = (files || []).filter((f) => checkUploadLimit(f, handleAlert))
+    if (accepted.length === 0) return
+    openMetadataDialog(accepted)
+  }
 
   React.useImperativeHandle(ref, () => ({
     openFile(file) {
-      if (!file || !checkUploadLimit(file, handleAlert)) return
-      setProgress(0)
-      lastProgressUpdate.current = 0
-      openMetadataDialog(file)
+      intakeFiles(file ? [file] : [])
+    },
+    openFiles(files) {
+      intakeFiles(files)
     },
   }))
 
@@ -199,8 +202,9 @@ const UploadCard = React.forwardRef(function UploadCard(
     video.load()
   }
 
-  const openMetadataDialog = (file) => {
-    setPendingFile(file)
+  const openMetadataDialog = (files) => {
+    setPendingFiles(files)
+    setPendingTitles(files.map((f) => f.name.replace(/\.[^/.]+$/, '')))
     setSelectedGame(null)
     setSelectedTags([])
     setTagInput('')
@@ -211,8 +215,8 @@ const UploadCard = React.forwardRef(function UploadCard(
     setEditingTitle(false)
     setTitleDraft('')
 
-    createPreviewUrl(file)
-    extractThumbnail(file)
+    createPreviewUrl(files[0])
+    extractThumbnail(files[0])
     const foldersFetch = authenticated
       ? VideoService.getUploadFolders()
       : uiConfig?.allow_public_folder_selection
@@ -268,25 +272,30 @@ const UploadCard = React.forwardRef(function UploadCard(
         return res.data
       }),
     )
-    pendingMetadata.current = {
+    const metadata = {
       tag_ids: resolvedTags.length ? resolvedTags.map((t) => t.id).join(',') : null,
       game_id: selectedGame ? selectedGame.id : null,
       folder: (uploadToGameFolder && selectedGame ? selectedGame.name : selectedFolder) || null,
-      title: titleInput.trim() || null,
     }
+    const isBatch = pendingFiles.length > 1
+    const items = pendingFiles.map((file, idx) => ({
+      id: `${Date.now()}-${idx}-${file.name}`,
+      file,
+      // Single file uses the big inline title; batches use the per-file title inputs
+      metadata: { ...metadata, title: (isBatch ? pendingTitles[idx]?.trim() : titleInput.trim()) || null },
+      progress: 0,
+      rate: null,
+      status: 'queued',
+    }))
     setDialogOpen(false)
-    setSelectedFile(pendingFile)
-    setIsSelected(true)
-    setPendingFile(null)
-    if (imageThumbnailUrlRef.current) {
-      URL.revokeObjectURL(imageThumbnailUrlRef.current)
-      imageThumbnailUrlRef.current = null
-    }
+    setPendingFiles([])
+    setUploadQueue((prev) => [...prev, ...items])
+    if (isBatch) clearPreviewUrl()
   }
 
   const handleDialogCancel = () => {
     setDialogOpen(false)
-    setPendingFile(null)
+    setPendingFiles([])
     setSelectedGame(null)
     setSelectedTags([])
     setTagInput('')
@@ -297,10 +306,6 @@ const UploadCard = React.forwardRef(function UploadCard(
     setEditingTitle(false)
     setThumbnail(null)
     setThumbnailReady(false)
-    if (imageThumbnailUrlRef.current) {
-      URL.revokeObjectURL(imageThumbnailUrlRef.current)
-      imageThumbnailUrlRef.current = null
-    }
     clearPreviewUrl()
   }
 
@@ -359,50 +364,19 @@ const UploadCard = React.forwardRef(function UploadCard(
   }
 
   const changeHandler = (event) => {
-    const file = event.target.files[0]
-    if (!file || !checkUploadLimit(file, handleAlert)) return
-    setProgress(0)
-    lastProgressUpdate.current = 0
-    openMetadataDialog(file)
+    intakeFiles(Array.from(event.target.files || []))
+    // Allow re-selecting the same file(s) later
+    event.target.value = ''
   }
 
-  const uploadProgress = (progress, rate) => {
-    if (progress <= 1 && progress >= 0) {
-      const now = Date.now()
-      if (progress === 1 || now - lastProgressUpdate.current >= 1000) {
-        lastProgressUpdate.current = now
-        setProgress(progress)
-        setUploadRate(() => ({ ...rate }))
-        onProgress?.(progress, rate)
-      }
-    }
-  }
-
-  const uploadProgressChunked = (progress, progressTotal, rate) => {
-    const now = Date.now()
-    const stale = now - lastProgressUpdate.current >= 1000
-    if (progressTotal <= 1 && progressTotal >= 0) {
-      if (progressTotal === 1 || stale) {
-        lastProgressUpdate.current = now
-        setProgress(progressTotal)
-        setUploadRate(() => ({ ...rate }))
-        onProgress?.(progressTotal, rate)
-      }
-    } else if (progress <= 1 && progress >= 0 && (progress === 1 || stale)) {
-      lastProgressUpdate.current = now
-      setProgress(progress)
-      setUploadRate(() => ({ ...rate }))
-      onProgress?.(progress, rate)
-    }
+  const updateQueueItem = (id, patch) => {
+    setUploadQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }
 
   // Function to handle the drop event
   const dropHandler = (event) => {
     event.preventDefault()
-    const file = event.dataTransfer.files[0]
-    if (!file || !checkUploadLimit(file, handleAlert)) return
-    setProgress(0)
-    openMetadataDialog(file)
+    intakeFiles(Array.from(event.dataTransfer.files || []))
   }
 
   // Prevent default behavior for drag events to enable dropping files
@@ -410,132 +384,180 @@ const UploadCard = React.forwardRef(function UploadCard(
     event.preventDefault()
   }
 
-  React.useEffect(() => {
-    if (!selectedFile) return
-
+  const runUpload = async (item) => {
+    const { file, metadata } = item
     const chunkSize = 90 * 1024 * 1024 // 90MB chunk size
-    const { tag_ids, game_id, folder, title } = pendingMetadata.current
+    const { tag_ids, game_id, folder, title } = metadata
 
-    async function upload() {
-      const formData = new FormData()
-      formData.append('file', selectedFile)
+    // Per-item throttled progress reporting
+    let lastUpdate = 0
+    const reportProgress = (progress, rate) => {
+      if (progress < 0 || progress > 1) return
+      const now = Date.now()
+      if (progress === 1 || now - lastUpdate >= 1000) {
+        lastUpdate = now
+        updateQueueItem(item.id, {
+          progress,
+          rate: rate ? { ...rate } : null,
+          status: progress >= 1 ? 'processing' : 'uploading',
+        })
+      }
+    }
+    const reportProgressChunked = (progress, progressTotal, rate) => {
+      if (progressTotal >= 0 && progressTotal <= 1) reportProgress(progressTotal, rate)
+      else reportProgress(progress, rate)
+    }
+
+    const appendMetadata = (formData) => {
       if (tag_ids) formData.append('tag_ids', tag_ids)
       if (game_id) formData.append('game_id', game_id)
       if (folder) formData.append('folder', folder)
       if (title) formData.append('title', title)
-      try {
-        if (authenticated) {
-          await VideoService.upload(formData, uploadProgress)
-        } else {
-          await VideoService.publicUpload(formData, uploadProgress)
-        }
-        handleAlert({
-          type: 'success',
-          message: 'Your upload will be available in a few seconds.',
-          autohideDuration: 3500,
-          open: true,
-        })
-        if (onUploadComplete) onUploadComplete()
-      } catch (err) {
-        handleAlert({
-          type: 'error',
-          message: `An error occurred while uploading your video.`,
-          open: true,
-        })
-      }
-      setProgress(0)
-      setUploadRate(null)
-      setIsSelected(false)
-      setSelectedFile(null)
-      setThumbnail(null)
-      setThumbnailReady(false)
-      clearPreviewUrl()
     }
 
-    async function uploadChunked() {
-      if (!selectedFile) return
+    try {
+      if (file.size > chunkSize) {
+        const totalChunks = Math.ceil(file.size / chunkSize)
 
-      const totalChunks = Math.ceil(selectedFile.size / chunkSize)
-
-      const fileInfo = `${selectedFile.name}-${selectedFile.size}-${selectedFile.lastModified}`
-      let checksum
-      if (crypto.subtle) {
-        checksum = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fileInfo)).then((buf) =>
-          Array.from(new Uint8Array(buf))
-            .map((b) => b.toString(16).padStart(2, '0'))
-            .join(''),
-        )
-      } else {
-        // Fallback for non-secure contexts (plain HTTP over network IP).
-        // A simple hash is sufficient here — it only correlates upload chunks.
-        let h = 0
-        for (let i = 0; i < fileInfo.length; i++) {
-          h = (Math.imul(31, h) + fileInfo.charCodeAt(i)) | 0
+        const fileInfo = `${file.name}-${file.size}-${file.lastModified}`
+        let checksum
+        if (crypto.subtle) {
+          checksum = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fileInfo)).then((buf) =>
+            Array.from(new Uint8Array(buf))
+              .map((b) => b.toString(16).padStart(2, '0'))
+              .join(''),
+          )
+        } else {
+          // Fallback for non-secure contexts (plain HTTP over network IP).
+          // A simple hash is sufficient here — it only correlates upload chunks.
+          let h = 0
+          for (let i = 0; i < fileInfo.length; i++) {
+            h = (Math.imul(31, h) + fileInfo.charCodeAt(i)) | 0
+          }
+          checksum = (h >>> 0).toString(16).padStart(8, '0')
         }
-        checksum = (h >>> 0).toString(16).padStart(8, '0')
-      }
 
-      try {
         for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
           const start = chunkIndex * chunkSize
-          const end = Math.min(start + chunkSize, selectedFile.size)
-          const chunk = selectedFile.slice(start, end)
+          const end = Math.min(start + chunkSize, file.size)
+          const chunk = file.slice(start, end)
 
           const formData = new FormData()
-          formData.append('blob', chunk, selectedFile.name)
+          formData.append('blob', chunk, file.name)
           formData.append('chunkPart', chunkIndex + 1)
           formData.append('totalChunks', totalChunks)
           formData.append('checkSum', checksum)
-          formData.append('fileName', selectedFile.name)
-          formData.append('fileSize', selectedFile.size.toString())
-          formData.append('lastModified', selectedFile.lastModified.toString())
-          formData.append('fileType', selectedFile.type)
-          if (tag_ids) formData.append('tag_ids', tag_ids)
-          if (game_id) formData.append('game_id', game_id)
-          if (folder) formData.append('folder', folder)
-          if (title) formData.append('title', title)
+          formData.append('fileName', file.name)
+          formData.append('fileSize', file.size.toString())
+          formData.append('lastModified', file.lastModified.toString())
+          formData.append('fileType', file.type)
+          appendMetadata(formData)
 
           authenticated
-            ? await VideoService.uploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
-            : await VideoService.publicUploadChunked(formData, uploadProgressChunked, selectedFile.size, start)
+            ? await VideoService.uploadChunked(formData, reportProgressChunked, file.size, start)
+            : await VideoService.publicUploadChunked(formData, reportProgressChunked, file.size, start)
         }
+      } else {
+        const formData = new FormData()
+        formData.append('file', file)
+        appendMetadata(formData)
+        if (authenticated) {
+          await VideoService.upload(formData, reportProgress)
+        } else {
+          await VideoService.publicUpload(formData, reportProgress)
+        }
+      }
+      updateQueueItem(item.id, { status: 'done', progress: 1 })
+      if (onUploadComplete) onUploadComplete()
+    } catch (err) {
+      updateQueueItem(item.id, { status: 'error' })
+      handleAlert({
+        type: 'error',
+        message: `An error occurred while uploading ${file.name}.`,
+        open: true,
+      })
+    }
+  }
 
+  const MAX_CONCURRENT_UPLOADS = 3
+
+  React.useEffect(() => {
+    if (uploadQueue.length === 0) return
+
+    // Start queued uploads up to the concurrency limit
+    const active = uploadQueue.filter((i) => i.status === 'uploading' || i.status === 'processing').length
+    let slots = MAX_CONCURRENT_UPLOADS - active
+    for (const item of uploadQueue) {
+      if (slots <= 0) break
+      if (item.status !== 'queued' || startedUploadsRef.current.has(item.id)) continue
+      startedUploadsRef.current.add(item.id)
+      slots--
+      updateQueueItem(item.id, { status: 'uploading' })
+      runUpload(item)
+    }
+
+    // Once every upload has finished, show a single summary alert and reset the card
+    if (uploadQueue.every((i) => i.status === 'done' || i.status === 'error')) {
+      const succeeded = uploadQueue.filter((i) => i.status === 'done').length
+      const failed = uploadQueue.length - succeeded
+      if (succeeded > 0) {
         handleAlert({
-          type: 'success',
-          message: 'Your upload will be available in a few seconds.',
+          type: failed > 0 ? 'warning' : 'success',
+          message:
+            failed > 0
+              ? `${succeeded} of ${uploadQueue.length} uploads succeeded — ${failed} failed.`
+              : succeeded === 1
+                ? 'Your upload will be available in a few seconds.'
+                : `${succeeded} uploads will be available in a few seconds.`,
           autohideDuration: 3500,
           open: true,
         })
-        if (onUploadComplete) onUploadComplete()
-      } catch (err) {
-        handleAlert({
-          type: 'error',
-          message: `An error occurred while uploading your video.`,
-          open: true,
-        })
       }
-
-      setProgress(0)
-      setUploadRate(null)
-      setIsSelected(false)
-      setSelectedFile(null)
+      startedUploadsRef.current.clear()
+      setUploadQueue([])
       setThumbnail(null)
       setThumbnailReady(false)
       clearPreviewUrl()
     }
-
-    if (selectedFile.size > chunkSize) {
-      uploadChunked()
-    } else {
-      upload()
-    }
     // eslint-disable-next-line
-  }, [selectedFile])
+  }, [uploadQueue])
 
-  const filenameStem = pendingFile ? pendingFile.name.replace(/\.[^/.]+$/, '') : ''
+  const isBatchPending = pendingFiles.length > 1
+  const filenameStem = pendingFiles[0] ? pendingFiles[0].name.replace(/\.[^/.]+$/, '') : ''
   const displayTitle = titleInput || filenameStem || 'Untitled'
 
-  const inlineTitleEl = (
+  // Derived upload state across the whole queue
+  const isUploading = uploadQueue.length > 0
+  const totalQueueBytes = uploadQueue.reduce((sum, i) => sum + i.file.size, 0)
+  const loadedQueueBytes = uploadQueue.reduce(
+    // Anything past the uploading stage (processing, done, or failed) counts as fully transferred
+    (sum, i) =>
+      sum + (i.status === 'queued' || i.status === 'uploading' ? i.progress * i.file.size : i.file.size),
+    0,
+  )
+  const aggregateProgress = totalQueueBytes > 0 ? Math.min(loadedQueueBytes / totalQueueBytes, 1) : 0
+  const finishedCount = uploadQueue.filter((i) => i.status === 'done' || i.status === 'error').length
+  const allSent = isUploading && uploadQueue.every((i) => i.status !== 'queued' && i.status !== 'uploading')
+  const singleUpload = uploadQueue.length === 1 ? uploadQueue[0] : null
+
+  const inlineTitleEl = isBatchPending ? (
+    <Box sx={{ mb: 2 }}>
+      <Typography
+        sx={{
+          fontWeight: 800,
+          fontSize: 22,
+          lineHeight: 1.3,
+          color: 'white',
+          fontFamily: '"Montserrat",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
+        }}
+      >
+        {pendingFiles.length} videos
+      </Typography>
+      <Typography sx={{ fontSize: 12, color: '#FFFFFF66', mt: 0.25 }}>
+        Game, folder and tags below will be applied to all {pendingFiles.length} videos.
+      </Typography>
+    </Box>
+  ) : (
     <Box sx={{ mb: 2 }}>
       {editingTitle ? (
         <input
@@ -605,6 +627,81 @@ const UploadCard = React.forwardRef(function UploadCard(
     </Box>
   )
 
+  const updatePendingTitle = (idx, value) => {
+    setPendingTitles((prev) => {
+      const next = [...prev]
+      next[idx] = value
+      return next
+    })
+  }
+
+  const pendingFilesCaption = isBatchPending ? (
+    <Box sx={{ mt: 1.25 }}>
+      <Typography sx={{ ...labelSx, mb: 0.75 }}>Titles</Typography>
+      <Box
+        sx={{
+          maxHeight: 150,
+          overflowY: 'auto',
+          pr: 0.5,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.75,
+          '&::-webkit-scrollbar': { width: 4 },
+          '&::-webkit-scrollbar-track': { background: 'transparent' },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(194, 224, 255, 0.15)',
+            borderRadius: 2,
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: 'rgba(194, 224, 255, 0.3)',
+          },
+        }}
+      >
+        {pendingFiles.map((f, idx) => (
+          <Box
+            key={`${f.name}-${idx}`}
+            component="input"
+            value={pendingTitles[idx] ?? ''}
+            placeholder={f.name.replace(/\.[^/.]+$/, '')}
+            onChange={(e) => updatePendingTitle(idx, e.target.value)}
+            maxLength={200}
+            title={f.name}
+            sx={{
+              width: '100%',
+              boxSizing: 'border-box',
+              background: '#FFFFFF0D',
+              border: '1px solid #FFFFFF14',
+              borderRadius: '6px',
+              outline: 'none',
+              color: 'white',
+              fontSize: 12.5,
+              lineHeight: 1.4,
+              padding: '5px 8px',
+              fontFamily: 'inherit',
+              transition: 'border-color 0.15s, background 0.15s',
+              '&::placeholder': { color: '#FFFFFF4D' },
+              '&:focus': { borderColor: '#2684FF80', background: '#FFFFFF14' },
+            }}
+          />
+        ))}
+      </Box>
+    </Box>
+  ) : (
+    <Typography
+      sx={{
+        mt: 1,
+        fontSize: 11,
+        color: '#FFFFFF4D',
+        textAlign: 'center',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {pendingFiles[0]?.name}
+    </Typography>
+  )
+
   const renderLocalVideoPreview = (sx = {}) =>
     previewUrl && previewPlayable ? (
       <Box
@@ -642,7 +739,7 @@ const UploadCard = React.forwardRef(function UploadCard(
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#2684FF', fontSize: 24, flexShrink: 0 }} />
-            <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
+            <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>{isBatchPending ? `Upload ${pendingFiles.length} Videos` : 'Upload Video'}</Typography>
           </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: '16px !important', px: 3 }}>
@@ -697,19 +794,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                   </Box>
                 )}
               </Box>
-              <Typography
-                sx={{
-                  mt: 1,
-                  fontSize: 11,
-                  color: '#FFFFFF4D',
-                  textAlign: 'center',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {pendingFile?.name}
-              </Typography>
+              {pendingFilesCaption}
             </Box>
 
             {/* Form fields — right column */}
@@ -914,12 +999,12 @@ const UploadCard = React.forwardRef(function UploadCard(
             sx={{
               position: 'relative',
               borderRadius: '13px',
-              padding: progress > 0 ? '2px' : '0px',
+              padding: isUploading ? '2px' : '0px',
               overflow: 'hidden',
               transition: 'padding 0.2s',
               '&::before': {
                 content: '""',
-                display: progress > 0 ? 'block' : 'none',
+                display: isUploading ? 'block' : 'none',
                 position: 'absolute',
                 inset: '-100%',
                 background: 'conic-gradient(#BC00E6DF, #FF3729D9, #0084ff, #BC00E6DF)',
@@ -931,23 +1016,25 @@ const UploadCard = React.forwardRef(function UploadCard(
               sx={{
                 position: 'relative',
                 width: '100%',
-                height: mini ? '56px' : '90px',
+                // Grow to fit the per-file list when uploading multiple videos
+                height: mini ? '56px' : uploadQueue.length > 1 ? 'auto' : '90px',
+                minHeight: mini ? '56px' : '90px',
                 cursor: 'pointer',
                 background: '#001224',
                 overflow: 'hidden',
                 border: '2px solid',
-                borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.25)',
+                borderColor: isUploading ? 'transparent' : 'rgba(38, 132, 255, 0.25)',
                 borderRadius: '12px',
                 transition: 'border-color 0.2s, background 0.2s',
                 '&:hover': {
-                  borderColor: progress > 0 ? 'transparent' : 'rgba(38, 132, 255, 0.5)',
-                  background: progress > 0 ? 'rgb(0, 32, 73)' : 'rgba(38, 132, 255, 0.1)',
+                  borderColor: isUploading ? 'transparent' : 'rgba(38, 132, 255, 0.5)',
+                  background: isUploading ? 'rgb(0, 32, 73)' : 'rgba(38, 132, 255, 0.1)',
                 },
               }}
               onDrop={dropHandler}
               onDragOver={dragOverHandler}
             >
-              {progress > 0 && !mini && previewUrl && previewPlayable && (
+              {isUploading && !mini && previewUrl && previewPlayable && (
                 <>
                   {renderLocalVideoPreview({
                     position: 'absolute',
@@ -972,16 +1059,16 @@ const UploadCard = React.forwardRef(function UploadCard(
                   justifyContent="center"
                   spacing={0.5}
                 >
-                  {!isSelected && (
-                    <Input
-                      id="icon-button-file"
-                      accept="video/mp4,video/webm,video/mov"
-                      type="file"
-                      name="file"
-                      onChange={changeHandler}
-                    />
-                  )}
-                  {progress === 0 && !mini && (
+                  <Input
+                    id="icon-button-file"
+                    accept="video/mp4,video/webm,video/mov"
+                    type="file"
+                    name="file"
+                    multiple
+                    onChange={changeHandler}
+                  />
+
+                  {!isUploading && !mini && (
                     <>
                       <CloudUploadIcon sx={{ fontSize: 32, color: '#fff' }} />
                       <Typography sx={{ fontSize: 12, color: '#ffffff77', fontWeight: 500, letterSpacing: 0.2 }}>
@@ -989,36 +1076,134 @@ const UploadCard = React.forwardRef(function UploadCard(
                       </Typography>
                     </>
                   )}
-                  {progress === 0 && mini && <CloudUploadIcon sx={{ fontSize: 20, color: '#fff' }} />}
-                  {progress > 0 && (
+                  {!isUploading && mini && <CloudUploadIcon sx={{ fontSize: 20, color: '#fff' }} />}
+                  {isUploading && (
                     <>
                       {!mini ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', px: 2 }}>
-                          <LogoProgress progress={progress} size={48} />
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography
+                        <Box sx={{ width: '100%', px: 2, py: uploadQueue.length > 1 ? 1.5 : 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <LogoProgress
+                              progress={singleUpload ? singleUpload.progress : aggregateProgress}
+                              size={48}
+                            />
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography
+                                sx={{
+                                  fontWeight: 700,
+                                  fontSize: 14,
+                                  color: 'white',
+                                  lineHeight: 1.3,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {allSent
+                                  ? 'Processing...'
+                                  : `Uploading ${(100 * (singleUpload ? singleUpload.progress : aggregateProgress)).toFixed(0)}%`}
+                              </Typography>
+                              <Typography
+                                sx={{ fontSize: 11, color: '#FFFFFFAA', lineHeight: 1.3, whiteSpace: 'nowrap' }}
+                              >
+                                {allSent
+                                  ? 'Please wait...'
+                                  : singleUpload
+                                    ? singleUpload.rate
+                                      ? `${numberFormat.format(singleUpload.rate.loaded.toFixed(0))} / ${numberFormat.format(singleUpload.rate.total.toFixed(0))} MB`
+                                      : 'Starting...'
+                                    : `${finishedCount} of ${uploadQueue.length} complete`}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          {uploadQueue.length > 1 && (
+                            <Box
                               sx={{
-                                fontWeight: 700,
-                                fontSize: 14,
-                                color: 'white',
-                                lineHeight: 1.3,
-                                whiteSpace: 'nowrap',
+                                mt: 1.25,
+                                maxHeight: 132,
+                                overflowY: 'auto',
+                                pr: 0.5,
+                                '&::-webkit-scrollbar': { width: 4 },
+                                '&::-webkit-scrollbar-track': { background: 'transparent' },
+                                '&::-webkit-scrollbar-thumb': {
+                                  background: 'rgba(194, 224, 255, 0.15)',
+                                  borderRadius: 2,
+                                },
+                                '&::-webkit-scrollbar-thumb:hover': {
+                                  background: 'rgba(194, 224, 255, 0.3)',
+                                },
                               }}
                             >
-                              {progress < 1 ? `Uploading ${(100 * progress).toFixed(0)}%` : 'Processing...'}
-                            </Typography>
-                            <Typography
-                              sx={{ fontSize: 11, color: '#FFFFFFAA', lineHeight: 1.3, whiteSpace: 'nowrap' }}
-                            >
-                              {progress < 1
-                                ? `${numberFormat.format(uploadRate.loaded.toFixed(0))} / ${numberFormat.format(uploadRate.total.toFixed(0))} MB`
-                                : 'Please wait...'}
-                            </Typography>
-                          </Box>
+                              {uploadQueue.map((item) => (
+                                <Box key={item.id} sx={{ mb: 0.75 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography
+                                      sx={{
+                                        flex: 1,
+                                        minWidth: 0,
+                                        fontSize: 10.5,
+                                        color: '#FFFFFF99',
+                                        textAlign: 'left',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        lineHeight: 1.4,
+                                      }}
+                                    >
+                                      {item.file.name}
+                                    </Typography>
+                                    <Typography
+                                      sx={{
+                                        fontSize: 10.5,
+                                        fontWeight: 700,
+                                        lineHeight: 1.4,
+                                        flexShrink: 0,
+                                        color:
+                                          item.status === 'error'
+                                            ? '#FF6B6B'
+                                            : item.status === 'done'
+                                              ? '#6BFF95'
+                                              : '#FFFFFFCC',
+                                      }}
+                                    >
+                                      {item.status === 'queued'
+                                        ? 'Queued'
+                                        : item.status === 'processing'
+                                          ? 'Processing'
+                                          : item.status === 'done'
+                                            ? 'Done'
+                                            : item.status === 'error'
+                                              ? 'Failed'
+                                              : `${(100 * item.progress).toFixed(0)}%`}
+                                    </Typography>
+                                  </Box>
+                                  <Box
+                                    sx={{
+                                      mt: 0.4,
+                                      height: '3px',
+                                      borderRadius: '2px',
+                                      bgcolor: '#FFFFFF1A',
+                                      overflow: 'hidden',
+                                    }}
+                                  >
+                                    <Box
+                                      sx={{
+                                        height: '100%',
+                                        width: `${(100 * (item.status === 'done' || item.status === 'processing' ? 1 : item.progress)).toFixed(1)}%`,
+                                        borderRadius: '2px',
+                                        background:
+                                          item.status === 'error'
+                                            ? '#FF6B6B'
+                                            : 'linear-gradient(90deg, #BC00E6, #FF2E80, #FF6B00)',
+                                        transition: 'width 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)',
+                                      }}
+                                    />
+                                  </Box>
+                                </Box>
+                              ))}
+                            </Box>
+                          )}
                         </Box>
                       ) : (
                         <Typography sx={{ fontWeight: 700, fontSize: 12, color: 'white' }}>
-                          {progress < 1 ? `${(100 * progress).toFixed(0)}%` : '100%'}
+                          {aggregateProgress < 1 ? `${(100 * aggregateProgress).toFixed(0)}%` : '100%'}
                         </Typography>
                       )}
                     </>
@@ -1035,7 +1220,7 @@ const UploadCard = React.forwardRef(function UploadCard(
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#fff', fontSize: 24, flexShrink: 0 }} />
-            <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>Upload Video</Typography>
+            <Typography sx={{ ...dialogTitleSx, fontSize: 16 }}>{isBatchPending ? `Upload ${pendingFiles.length} Videos` : 'Upload Video'}</Typography>
           </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: '16px !important', px: 3 }}>
@@ -1090,19 +1275,7 @@ const UploadCard = React.forwardRef(function UploadCard(
                   </Box>
                 )}
               </Box>
-              <Typography
-                sx={{
-                  mt: 1,
-                  fontSize: 11,
-                  color: '#FFFFFF4D',
-                  textAlign: 'center',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {pendingFile?.name}
-              </Typography>
+              {pendingFilesCaption}
             </Box>
 
             {/* Form fields — right column */}

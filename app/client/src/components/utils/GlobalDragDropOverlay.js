@@ -76,9 +76,9 @@ export default function GlobalDragDropOverlay({ children }) {
       if (imageFiles.length > 0 && registeredImageCardRef.current) {
         registeredImageCardRef.current.openFiles(imageFiles)
       } else if (videoFiles.length > 0 && registeredCardRef.current) {
-        registeredCardRef.current.openFile(videoFiles[0])
+        registeredCardRef.current.openFiles(videoFiles)
       } else if (files.length > 0 && registeredCardRef.current) {
-        registeredCardRef.current.openFile(files[0])
+        registeredCardRef.current.openFiles(files)
       }
     }
 
