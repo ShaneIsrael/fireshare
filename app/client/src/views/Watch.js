@@ -9,7 +9,7 @@ import LockIcon from '@mui/icons-material/Lock'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import { VideoService, GameService } from '../services'
-import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoSources } from '../common/utils'
+import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoSources, getVideoMimeType } from '../common/utils'
 import VideoJSPlayer from '../components/player/VideoJSPlayer'
 
 const URL = getUrl()
@@ -209,7 +209,7 @@ const Watch = ({ authenticated }) => {
       <Helmet>
         <title>{details?.info?.title}</title>
         <meta name="description" value={details?.info?.description}></meta>
-        <meta property="og:type" value="video" />
+        <meta property="og:type" value="video.other" />
         <meta property="og:url" value={window.location.href} />
         <meta property="og:title" value={details?.info?.title} />
         {details?.info?.description && <meta property="og:description" value={details?.info?.description} />}
@@ -224,6 +224,7 @@ const Watch = ({ authenticated }) => {
                   : `${URL}/api/video?id=${id}`
               }
             />
+            <meta property="og:video:type" value={getVideoMimeType(details?.extension)} />
             <meta property="og:video:width" value={details?.info?.width} />
             <meta property="og:video:height" value={details?.info?.height} />
           </>

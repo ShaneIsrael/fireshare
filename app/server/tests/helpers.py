@@ -12,6 +12,11 @@ from fireshare import FireshareRequest, db
 from fireshare.api import api
 from fireshare.constants import DEFAULT_CONFIG
 
+# The api blueprint's template folder resolves relative to fireshare/api/, which has no
+# templates dir; production points TEMPLATE_PATH at the real one. Point the test app at it
+# directly so views that render templates (e.g. the /w/<id> share page) work under test.
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "fireshare" / "templates"
+
 
 class MachineApiTestCase(unittest.TestCase):
     token = "a" * 64
@@ -41,7 +46,7 @@ class MachineApiTestCase(unittest.TestCase):
             encoding="utf-8",
         )
 
-        self.app = Flask(__name__)
+        self.app = Flask(__name__, template_folder=str(TEMPLATES_DIR))
         self.app.request_class = FireshareRequest
         self.app.config.update(
             TESTING=True,

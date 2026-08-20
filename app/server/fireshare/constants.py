@@ -45,3 +45,14 @@ DEFAULT_CONFIG = {
 
 SUPPORTED_FILE_TYPES = ['mp4', 'm4v', 'mov', 'webm']
 SUPPORTED_FILE_EXTENSIONS = ['.mp4', '.m4v', '.mov', '.webm']
+
+# MIME types advertised to OpenGraph consumers via og:video:type. Discord and Slack
+# require the tag to render an inline player; without it they fall back to a link card.
+VIDEO_MIME_TYPES = {
+    '.mp4': 'video/mp4',
+    '.m4v': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.webm': 'video/webm',
+    '.mkv': 'video/x-matroska',
+}
+DEFAULT_VIDEO_MIME_TYPE = 'video/mp4'

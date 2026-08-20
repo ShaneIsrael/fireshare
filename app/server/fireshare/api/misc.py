@@ -10,6 +10,7 @@ from flask_login import login_required, current_user
 from .. import db, logger
 from ..models import Video, VideoInfo
 from ..cli import send_discord_webhook, send_generic_webhook
+from ..constants import DEFAULT_VIDEO_MIME_TYPE, VIDEO_MIME_TYPES
 from . import api
 from .decorators import demo_restrict
 
@@ -84,6 +85,16 @@ def _fetch_release_notes():
     return releases[0] if releases else None
 
 
+def video_mime_type(extension):
+    """Map a video file extension to the MIME type advertised as og:video:type."""
+    if not extension:
+        return DEFAULT_VIDEO_MIME_TYPE
+    ext = extension.strip().lower()
+    if not ext.startswith('.'):
+        ext = f'.{ext}'
+    return VIDEO_MIME_TYPES.get(ext, DEFAULT_VIDEO_MIME_TYPE)
+
+
 @api.route('/w/<video_id>')
 def video_metadata(video_id):
     video = Video.query.filter_by(video_id=video_id).first()
@@ -92,7 +103,7 @@ def video_metadata(video_id):
         derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
         poster_file = "custom_poster.webp" if (derived_dir / "custom_poster.webp").exists() else "poster.jpg"
         password_protected = bool(video.info and video.info.password_hash)
-        return render_template('metadata.html', video=video.json(), domain=domain, poster_file=poster_file, password_protected=password_protected)
+        return render_template('metadata.html', video=video.json(), domain=domain, poster_file=poster_file, password_protected=password_protected, video_mime_type=video_mime_type(video.extension))
     else:
         return redirect('{}/watch/{}'.format(domain, video_id), code=302)
 

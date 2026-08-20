@@ -199,6 +199,25 @@ export const getImageUrl = (imageId) => {
 }
 
 /**
+ * Maps a video file extension to its MIME type, for the og:video:type meta tag.
+ * Mirrors VIDEO_MIME_TYPES in app/server/fireshare/constants.py.
+ * @param {string} extension - Video file extension (e.g. '.mp4', 'webm')
+ * @returns {string} MIME type, defaulting to video/mp4
+ */
+export const getVideoMimeType = (extension) => {
+  const mimeTypes = {
+    '.mp4': 'video/mp4',
+    '.m4v': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.webm': 'video/webm',
+    '.mkv': 'video/x-matroska',
+  }
+  if (!extension) return 'video/mp4'
+  const ext = extension.trim().toLowerCase()
+  return mimeTypes[ext.startsWith('.') ? ext : `.${ext}`] || 'video/mp4'
+}
+
+/**
  * Generates video sources array for Video.js player with quality options
  * Defaults to original quality, with 720p and 1080p as alternatives
  * @param {string} videoId - The video ID
