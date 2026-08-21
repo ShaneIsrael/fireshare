@@ -21,6 +21,8 @@ services:
       # - LOGIN_IP_WHITELIST=203.0.113.5,10.0.0.0/8
       # Number of trusted reverse-proxy hops used to determine the real client IP. The bundled nginx counts as 1; set to 2 when behind an additional reverse proxy (Traefik, NPM, Cloudflare, ...).
       # - LOGIN_IP_WHITELIST_TRUSTED_PROXIES=1
+      # How often the video library is scanned for new or removed files. Set to 0 to disable
+      # the automatic scan entirely and only scan on demand from the admin panel.
       - MINUTES_BETWEEN_VIDEO_SCANS=5
       # Required for game categorization. You can get a free api key at https://www.steamgriddb.com/
       # - STEAMGRIDDB_API_KEY=

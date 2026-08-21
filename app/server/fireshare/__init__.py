@@ -197,7 +197,15 @@ def create_app(init_schedule=False):
     }
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/jobs.sqlite'
     app.config['INIT_SCHEDULE'] = init_schedule
-    app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = int(os.getenv('MINUTES_BETWEEN_VIDEO_SCANS', '5'))
+    # `0` disables the automatic scan entirely; negatives are treated the same.
+    # An unparseable value falls back to the default rather than silently disabling scans.
+    raw_scan_interval = os.getenv('MINUTES_BETWEEN_VIDEO_SCANS', '5').strip() or '5'
+    try:
+        app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = max(int(raw_scan_interval), 0)
+    except ValueError:
+        logger.warning(f"MINUTES_BETWEEN_VIDEO_SCANS={raw_scan_interval!r} is not a valid integer, "
+                       "falling back to 5. Set it to 0 to disable the automatic scan.")
+        app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = 5
     app.config['WARNINGS'] = []
 
     if (app.config['ADMIN_PASSWORD'] and app.config['ADMIN_USERNAME'] == "admin") and app.config["DISABLE_ADMINCREATE"] == False and not app.config['LDAP_ENABLE']:

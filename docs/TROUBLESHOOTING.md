@@ -26,6 +26,8 @@ Videos are discovered by a background scan that runs every `MINUTES_BETWEEN_VIDE
 
 1. **Wait for the next scan.** The scan runs on an interval; new files won't appear instantly.
 
+   If `MINUTES_BETWEEN_VIDEO_SCANS` is set to `0`, the automatic scan is disabled and new files will never appear on their own — trigger a scan manually from the admin panel, or set the variable back to a positive number and restart the container. The startup logs say which mode you're in.
+
 2. **Check that your video directory is mounted correctly.** The container expects source videos at `/videos`. Confirm the volume is mapped in your `docker-compose.yml` or `docker run` command:
    ```yaml
    - /path/to/your/clips:/videos
