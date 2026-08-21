@@ -4,6 +4,7 @@ try:
     import ldap
 except ImportError:
     ldap = None
+from . import ldap_util
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -25,6 +26,15 @@ formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
+
+def env_bool(name, default=False):
+    """Read a boolean env var. An explicitly falsy value ("false", "0", "no") turns the
+    feature off — bool(os.getenv(...)) treated *any* value, including "false", as on."""
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == '':
+        return default
+    return raw.strip().lower() in ('true', '1', 'yes', 'on')
+
 
 # Configure SQLite for better concurrency
 @event.listens_for(Engine, "connect")
@@ -133,10 +143,12 @@ def create_app(init_schedule=False):
     app.config['IMAGE_DIRECTORY'] = os.getenv('IMAGE_DIRECTORY')
     app.config['ADMIN_USERNAME'] = os.getenv('ADMIN_USERNAME')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
-    app.config['DISABLE_ADMINCREATE'] = bool(os.getenv("DISABLE_ADMINCREATE"))
-    app.config['LDAP_ENABLE'] = bool(os.getenv("LDAP_ENABLE"))
+    app.config['DISABLE_ADMINCREATE'] = env_bool("DISABLE_ADMINCREATE")
+    app.config['LDAP_ENABLE'] = env_bool("LDAP_ENABLE")
     app.config['LDAP_URL'] = os.getenv("LDAP_URL")
-    app.config['LDAP_STARTLS'] = bool(os.getenv("LDAP_STARTLS"))
+    app.config['LDAP_STARTLS'] = env_bool("LDAP_STARTLS")
+    app.config['LDAP_TLS_CACERT'] = os.getenv("LDAP_TLS_CACERT")
+    app.config['LDAP_TLS_REQCERT'] = os.getenv("LDAP_TLS_REQCERT")
     app.config['LDAP_BASEDN'] = os.getenv("LDAP_BASEDN")
     app.config['LDAP_BINDDN'] = os.getenv("LDAP_BINDDN")
     app.config['LDAP_PASSWORD'] = os.getenv("LDAP_PASSWORD")
@@ -154,6 +166,22 @@ def create_app(init_schedule=False):
     )
     app.config['SERVE_GAME_ASSETS_NGINX'] = os.getenv('ENVIRONMENT', '') == 'production'
     app.config['TRANSCODE_TIMEOUT'] = int(os.getenv('TRANSCODE_TIMEOUT', '7200'))  # Default: 2 hours
+
+    from .ip_whitelist import parse_ip_whitelist
+    app.config['LOGIN_IP_WHITELIST'] = parse_ip_whitelist(os.getenv('LOGIN_IP_WHITELIST', ''))
+    # In the container the bundled nginx is one trusted hop in front of gunicorn; in dev
+    # Flask is exposed directly, so client-supplied X-Forwarded-For must be ignored.
+    _default_hops = '1' if os.getenv('ENVIRONMENT', '') == 'production' else '0'
+    try:
+        app.config['LOGIN_IP_WHITELIST_TRUSTED_PROXIES'] = int(os.getenv('LOGIN_IP_WHITELIST_TRUSTED_PROXIES') or _default_hops)
+    except ValueError:
+        logger.error("FATAL: LOGIN_IP_WHITELIST_TRUSTED_PROXIES must be an integer")
+        sys.exit(1)
+    if app.config['LOGIN_IP_WHITELIST'] is not None:
+        logger.info(
+            f"Login IP whitelist active with {len(app.config['LOGIN_IP_WHITELIST'])} "
+            f"entries ({app.config['LOGIN_IP_WHITELIST_TRUSTED_PROXIES']} trusted proxy hops)"
+        )
 
     #Integrations
     app.config['DISCORD_WEBHOOK_URL'] = os.getenv('DISCORD_WEBHOOK_URL', '')
@@ -181,7 +209,15 @@ def create_app(init_schedule=False):
     }
     app.config['SCHEDULED_JOBS_DATABASE_URI'] = f'sqlite:///{app.config["DATA_DIRECTORY"]}/jobs.sqlite'
     app.config['INIT_SCHEDULE'] = init_schedule
-    app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = int(os.getenv('MINUTES_BETWEEN_VIDEO_SCANS', '5'))
+    # `0` disables the automatic scan entirely; negatives are treated the same.
+    # An unparseable value falls back to the default rather than silently disabling scans.
+    raw_scan_interval = os.getenv('MINUTES_BETWEEN_VIDEO_SCANS', '5').strip() or '5'
+    try:
+        app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = max(int(raw_scan_interval), 0)
+    except ValueError:
+        logger.warning(f"MINUTES_BETWEEN_VIDEO_SCANS={raw_scan_interval!r} is not a valid integer, "
+                       "falling back to 5. Set it to 0 to disable the automatic scan.")
+        app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = 5
     app.config['WARNINGS'] = []
 
     if (app.config['ADMIN_PASSWORD'] and app.config['ADMIN_USERNAME'] == "admin") and app.config["DISABLE_ADMINCREATE"] == False and not app.config['LDAP_ENABLE']:
@@ -329,10 +365,34 @@ def create_app(init_schedule=False):
         if not app.config["LDAP_URL"] or not app.config["LDAP_BINDDN"] or not app.config["LDAP_BASEDN"] or not app.config["LDAP_USER_FILTER"]:
             app.logger.error("Missing parameters for LDAP")
             exit(1)
-        app.ldap_conn = ldap.initialize(app.config["LDAP_URL"])
-        app.ldap_conn.protocol_version = ldap.VERSION3
-        app.ldap_conn.simple_bind_s(app.config["LDAP_BINDDN"] + "," + app.config["LDAP_BASEDN"], app.config["LDAP_PASSWORD"])
-        app.logger.info("LDAP connection successful")
+
+        app.ldap_conn = None
+        try:
+            conn, tls = ldap_util.connect(app.config)
+            ldap_util.bind(conn, app.config)
+            app.ldap_conn = conn
+        except ldap_util.LdapConfigError as e:
+            # Bad LDAP_TLS_* configuration — no amount of retrying fixes this.
+            app.logger.error(str(e))
+            exit(1)
+        except ldap.LDAPError as e:
+            # Keep serving so local accounts can still log in; each login retries the bind.
+            failure = "LDAP connection failed: " + ldap_util.describe_error(e, app.config)
+            app.logger.error(failure)
+            app.config['WARNINGS'].append(
+                "LDAP is enabled but Fireshare could not connect to the LDAP server. "
+                "Check the server logs for details."
+            )
+        else:
+            if tls.get('cacert'):
+                app.logger.info("LDAP TLS verifying against %s", tls['cacert'])
+            if tls.get('reqcert'):
+                app.logger.info("LDAP TLS certificate checking set to %s", tls['reqcert'])
+            if tls.get('unsupported'):
+                app.logger.warning("This build of python-ldap ignores %s; it verifies against "
+                                   "the platform's own trust store instead.",
+                                   ', '.join(tls['unsupported']))
+            app.logger.info("LDAP connection successful")
     
     login_manager = LoginManager()
     login_manager.init_app(app)

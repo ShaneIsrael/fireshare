@@ -54,6 +54,8 @@ If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/Sha
 - [Notifications to Discord and others](./docs/Notifications.md)
 - RSS feed for new public videos
 - [LDAP support](./docs/LDAP.md)
+- [Two-factor authentication (TOTP authenticator apps)](./docs/Security.md#two-factor-authentication-mfa)
+- [Login IP whitelisting](./docs/Security.md#login-ip-whitelist)
 
 ## Supported Video Formats
 
@@ -191,6 +193,11 @@ Use the lite image by appending `-lite` to your tag:
 ### LDAP
 
 See [LDAP.md](./docs/LDAP.md) for setup instructions.
+
+### Security (IP Whitelist & Two-Factor Authentication)
+
+Fireshare can restrict logins to a whitelist of IP addresses/CIDR ranges and supports TOTP two-factor
+authentication with any authenticator app. See [Security.md](./docs/Security.md) for setup instructions.
 
 ### Transcoding (Optional)
 

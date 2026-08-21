@@ -7,6 +7,8 @@
 - [Upload Fails](#upload-fails)
 - [Permission Errors](#permission-errors)
 - [Cannot Log In](#cannot-log-in)
+- [Locked Out by the IP Whitelist](#locked-out-by-the-ip-whitelist)
+- [Locked Out of Two-Factor Authentication (MFA)](#locked-out-of-two-factor-authentication-mfa)
 - [Sessions Expire on Every Restart](#sessions-expire-on-every-restart)
 - [Transcoding Issues](#transcoding-issues)
 - [Open Graph / Link Previews Not Working](#open-graph--link-previews-not-working)
@@ -23,6 +25,8 @@
 Videos are discovered by a background scan that runs every `MINUTES_BETWEEN_VIDEO_SCANS` minutes (default: 5). If a video is not showing up:
 
 1. **Wait for the next scan.** The scan runs on an interval; new files won't appear instantly.
+
+   If `MINUTES_BETWEEN_VIDEO_SCANS` is set to `0`, the automatic scan is disabled and new files will never appear on their own — trigger a scan manually from the admin panel, or set the variable back to a positive number and restart the container. The startup logs say which mode you're in.
 
 2. **Check that your video directory is mounted correctly.** The container expects source videos at `/videos`. Confirm the volume is mapped in your `docker-compose.yml` or `docker run` command:
    ```yaml
@@ -121,6 +125,43 @@ chown -R 1000:1000 /path/to/data /path/to/processed /path/to/videos
    docker exec fireshare sqlite3 /data/db.sqlite "SELECT username, admin FROM user WHERE admin=1 AND ldap=0;"
    ```
 
+6. **The login page redirects straight to the home page.** A `LOGIN_IP_WHITELIST` is set and your IP
+   is not on it — see [Locked Out by the IP Whitelist](#locked-out-by-the-ip-whitelist).
+
+---
+
+## Locked Out by the IP Whitelist
+
+If `LOGIN_IP_WHITELIST` is set and your IP is not on it (e.g. your home IP changed), the login page
+silently redirects to the home page and login requests return
+`403 — Your IP address is not permitted to log in.`
+
+**Fix:** the whitelist lives entirely in the environment variable. Edit or remove `LOGIN_IP_WHITELIST`
+in your `docker-compose.yml` / `docker run` command and restart the container.
+
+If you believe your IP *should* be allowed, check the container logs — every blocked attempt logs
+`Blocked login attempt from non-whitelisted IP <ip>`, showing the address Fireshare derived for you.
+If that address is your reverse proxy rather than your real client IP, adjust
+`LOGIN_IP_WHITELIST_TRUSTED_PROXIES` (see [Security.md](./Security.md#how-the-client-ip-is-determined)).
+
+Also note the container **fails to start** if any whitelist entry is malformed — look for
+`FATAL: LOGIN_IP_WHITELIST contains invalid entry` in the logs.
+
+---
+
+## Locked Out of Two-Factor Authentication (MFA)
+
+If you lost access to your authenticator app, disable MFA for the account from inside the container:
+
+```sh
+docker exec fireshare fireshare disable-mfa -u <username>
+```
+
+The account can then log in with just its password and re-enroll MFA from **Settings → Security**.
+
+If valid codes are being rejected, check that the server and phone clocks are accurate — codes are
+only valid within a ±30 second window.
+
 ---
 
 ## Sessions Expire on Every Restart
@@ -205,7 +246,8 @@ See [LDAP.md](./LDAP.md) for full setup instructions.
 
 Common issues:
 
-- **`LDAP_ENABLE`** must be set to `true` along with all connection variables (`LDAP_URL`, `LDAP_BINDDN`, `LDAP_PASSWORD`, `LDAP_BASEDN`, `LDAP_USER_FILTER`).
+- **`LDAP_ENABLE`** must be set to `true` along with all connection variables (`LDAP_URL`, `LDAP_BINDDN`, `LDAP_PASSWORD`, `LDAP_BASEDN`, `LDAP_USER_FILTER`). To turn LDAP off, set it to `false` or remove it.
+- **`ldap.SERVER_DOWN: Can't contact LDAP server` on an `ldaps://` URL** is usually a certificate problem, not a network one — OpenLDAP reports both the same way. See [TLS in LDAP.md](./LDAP.md#tls-ldaps-and-starttls). Fireshare verifies against the system CA bundle by default; use `LDAP_TLS_CACERT` for a private or self-signed CA.
 - **User filter format:** Use `{input}` as a placeholder for the username entered at login. Example: `uid={input}`.
 - **Admin group not working:** Admin group membership is determined via the `memberOf` attribute in LDAP. Ensure your LDAP server populates `memberOf` and that `LDAP_ADMIN_GROUP` matches the full DN of the group.
 - **LDAP users appearing as non-admin:** If a user was previously created as a local user before LDAP was enabled, they may have incorrect flags. The LDAP login flow sets the `ldap=true` flag on the user record after first LDAP login.

@@ -200,7 +200,7 @@ const CompactImageCard = ({
               <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'white', fontFamily: 'monospace' }}>
                 {viewCount}
               </Typography>
-              <VisibilityIcon sx={{ fontSize: 18, color: 'white' }} />
+              <VisibilityIcon sx={{ fontSize: 18, color: privateView ? '#FF6B6B' : 'white' }} />
             </Box>
           </Box>
 

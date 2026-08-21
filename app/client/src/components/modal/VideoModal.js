@@ -98,6 +98,28 @@ const actionBtnSx = {
 
 const SIDEBAR_WIDTH = 'clamp(280px, 24vw, 420px)'
 
+// Viewport inset around the modal on the side-by-side layout.
+const MODAL_PAD = 96
+// Short viewports (a phone held in landscape) can't spare 96px per side — the
+// video ends up a sliver — so they get a much smaller inset.
+const MODAL_PAD_SHORT = 24
+const SHORT_MD = '@media (min-width: 900px) and (max-height: 620px)'
+// Narrow *and* short: too little height to stack the video above the info
+// panel, so lay them out side by side like the desktop layout.
+const NARROW_SHORT = '@media (max-width: 899.95px) and (max-height: 620px)'
+// Cap for the stacked layout so the info panel — and with it the close button,
+// share actions and suggestions — always stays on screen for portrait videos.
+const STACKED_VIDEO_MAX_H = '60dvh'
+
+/**
+ * Video box dimensions for the side-by-side layout: the largest box with the
+ * video's aspect ratio that fits the viewport minus the inset and the sidebar.
+ */
+const sideBySideVideo = (ar, pad) => {
+  const h = `min(calc((100vw - ${2 * pad}px - ${SIDEBAR_WIDTH}) / ${ar}), calc(100dvh - ${2 * pad}px))`
+  return { h, w: `calc((${h}) * ${ar})` }
+}
+
 const timeInputStyle = {
   background: '#FFFFFF0D',
   border: '1px solid #FFFFFF26',
@@ -699,12 +721,10 @@ const VideoModal = ({
 
   if (!vid) return null
 
-  // Video aspect ratio — drives the modal height via CSS min().
+  // Video aspect ratio — drives the modal size via CSS min().
   const ar = Number(((vid?.info?.width || 16) / (vid?.info?.height || 9)).toFixed(6))
-  // Height: fit within viewport (minus 96px padding each side) and available width minus sidebar.
-  const videoH_css = `min(calc((100vw - 192px - clamp(280px, 24vw, 420px)) / ${ar}), calc(100vh - 192px))`
-  // Width: height × aspect ratio.
-  const videoW_css = `calc((${videoH_css}) * ${ar})`
+  const videoBox = sideBySideVideo(ar, MODAL_PAD)
+  const videoBoxShort = sideBySideVideo(ar, MODAL_PAD_SHORT)
 
   return (
     <>
@@ -728,7 +748,8 @@ const VideoModal = ({
             alignItems: { xs: 'flex-start', md: 'center' },
             justifyContent: 'center',
             // Full-screen on small viewports, padded on desktop
-            p: { xs: 0, md: '96px' },
+            p: { xs: 0, md: `${MODAL_PAD}px` },
+            [SHORT_MD]: { p: `${MODAL_PAD_SHORT}px` },
             overflowY: { xs: 'hidden', md: 'unset' },
           }}
           onClick={(e) => {
@@ -749,7 +770,8 @@ const VideoModal = ({
                 bgcolor: '#020D1A',
                 display: 'flex',
                 flexDirection: 'column',
-                width: { xs: '100%', md: `calc(${videoW_css} + ${SIDEBAR_WIDTH})` },
+                width: { xs: '100%', md: `calc(${videoBox.w} + ${SIDEBAR_WIDTH})` },
+                [SHORT_MD]: { width: `calc(${videoBoxShort.w} + ${SIDEBAR_WIDTH})` },
                 height: { xs: '100dvh', md: 'auto' },
                 maxHeight: { xs: '100dvh', md: '100%' },
                 maxWidth: '100%',
@@ -760,7 +782,9 @@ const VideoModal = ({
                 sx={{
                   display: 'flex',
                   flexDirection: { xs: 'column', md: 'row' },
-                  height: { xs: '100%', md: videoH_css },
+                  height: { xs: '100%', md: videoBox.h },
+                  [SHORT_MD]: { height: videoBoxShort.h },
+                  [NARROW_SHORT]: { flexDirection: 'row' },
                   overflow: 'hidden',
                 }}
               >
@@ -770,10 +794,14 @@ const VideoModal = ({
                     position: 'relative',
                     flexShrink: 0,
                     bgcolor: '#020D1A',
-                    // Desktop: explicit dimensions from CSS; mobile: 100% wide, AR height.
-                    width: { xs: '100%', md: videoW_css },
-                    height: { xs: 'auto', md: '100%' },
-                    aspectRatio: { xs: `${vid?.info?.width || 16} / ${vid?.info?.height || 9}`, md: 'initial' },
+                    // Stacked: full width at the video's aspect ratio, capped in height
+                    // so the info panel below it always stays on screen.
+                    // Side-by-side: explicit dimensions from CSS.
+                    width: { xs: '100%', md: videoBox.w },
+                    height: { xs: `min(calc(100vw / ${ar}), ${STACKED_VIDEO_MAX_H})`, md: '100%' },
+                    [SHORT_MD]: { width: videoBoxShort.w },
+                    // Fill whatever is left beside the sidebar; the video letterboxes itself.
+                    [NARROW_SHORT]: { flex: 1, minWidth: 0, width: 'auto', height: '100%' },
                     // Override VideoJS default 8px border-radius responsively
                     '& > div': {
                       borderRadius: {
@@ -834,6 +862,12 @@ const VideoModal = ({
                     bgcolor: '#041223',
                     borderLeft: { md: '1px solid #FFFFFF14' },
                     borderTop: { xs: '1px solid #FFFFFF14', md: 'none' },
+                    [NARROW_SHORT]: {
+                      width: SIDEBAR_WIDTH,
+                      flex: 'none',
+                      borderLeft: '1px solid #FFFFFF14',
+                      borderTop: 'none',
+                    },
                     overflow: 'hidden',
                   }}
                 >

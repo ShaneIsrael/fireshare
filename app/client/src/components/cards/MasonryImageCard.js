@@ -195,7 +195,7 @@ const MasonryImageCard = ({
             <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'white', fontFamily: 'monospace' }}>
               {viewCount}
             </Typography>
-            <VisibilityIcon sx={{ fontSize: 20, color: 'white' }} />
+            <VisibilityIcon sx={{ fontSize: 20, color: privateView ? '#FF6B6B' : 'white' }} />
           </Box>
 
           {/* Visibility toggle - shows on hover */}

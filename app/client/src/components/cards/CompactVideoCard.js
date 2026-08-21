@@ -114,7 +114,7 @@ const CompactVideoCard = ({
 
   const cardRef = React.useRef(null)
   const isTouchDevice = React.useRef(
-    typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0),
+    typeof window !== 'undefined' && window.matchMedia('(hover: none) and (pointer: coarse)').matches
   )
 
   React.useEffect(() => {
@@ -605,7 +605,7 @@ const CompactVideoCard = ({
                 <Typography sx={{ fontWeight: 600, fontSize: 14, color: 'white', fontFamily: 'monospace' }}>
                   {viewCount}
                 </Typography>
-                <VisibilityIcon sx={{ fontSize: 18, color: 'white' }} />
+                <VisibilityIcon sx={{ fontSize: 18, color: privateView ? '#FF6B6B' : 'white' }} />
               </Box>
             </Box>
 

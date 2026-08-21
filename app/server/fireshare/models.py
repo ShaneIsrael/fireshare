@@ -11,6 +11,9 @@ class User(UserMixin, db.Model):
     admin = db.Column(db.Boolean, default=True)
     ldap = db.Column(db.Boolean, default=False)
     last_seen_version = db.Column(db.String(32), nullable=True)
+    totp_secret = db.Column(db.String(64), nullable=True)
+    mfa_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    totp_last_used = db.Column(db.Integer, nullable=True)  # last accepted 30s TOTP timestep, blocks code replay
 
 class Video(db.Model):
     __tablename__ = "video"
