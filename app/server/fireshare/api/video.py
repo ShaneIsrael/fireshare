@@ -3,9 +3,10 @@ import os
 import posixpath
 import re
 import secrets
+import shlex
 import shutil
 import time as _time
-import subprocess
+from subprocess import run as subprocess_run
 import tempfile
 import threading
 from datetime import datetime, timedelta
@@ -672,7 +673,7 @@ def upload_custom_poster(video_id):
     if file.content_type not in allowed_types:
         return jsonify({'message': 'Invalid file type. Allowed: JPEG, PNG, WebP'}), 400
 
-    derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
+    derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", shlex.quote(video_id))
     if not derived_dir.exists():
         return jsonify({'message': 'Video derived directory not found'}), 404
 
@@ -680,16 +681,23 @@ def upload_custom_poster(video_id):
     suffix = ext_map.get(file.content_type, '.jpg')
 
     tmp_fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+    tmp_out_fd, tmp_out_path = tempfile.mkstemp(suffix='.webp')
     os.close(tmp_fd)
+    os.close(tmp_out_fd)
     try:
         file.save(tmp_path)
         custom_poster_path = derived_dir / "custom_poster.webp"
-        cmd = ['ffmpeg', '-y', '-i', tmp_path, str(custom_poster_path)]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        cmd = ['ffmpeg', '-y', '-i', tmp_path, tmp_out_path]
+        result = subprocess.run(cmd, capture_output=True, text=True, shell=False)
         if result.returncode != 0:
             current_app.logger.error("ffmpeg failed for custom poster: %s", result.stderr)
+        else:
+            shutil.move(tmp_out_path, str(custom_poster_path))
     finally:
-        os.unlink(tmp_path)
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        if os.path.exists(tmp_out_path):
+            os.unlink(tmp_out_path)
 
     if not custom_poster_path.exists():
         return jsonify({'message': 'Failed to process image'}), 500
