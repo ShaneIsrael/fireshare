@@ -4,6 +4,7 @@ try:
     import ldap
 except ImportError:
     ldap = None
+from . import ldap_util
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -25,6 +26,15 @@ formatter = logging.Formatter('%(asctime)s %(levelname)-7s %(module)s.%(funcName
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
+
+def env_bool(name, default=False):
+    """Read a boolean env var. An explicitly falsy value ("false", "0", "no") turns the
+    feature off — bool(os.getenv(...)) treated *any* value, including "false", as on."""
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == '':
+        return default
+    return raw.strip().lower() in ('true', '1', 'yes', 'on')
+
 
 # Configure SQLite for better concurrency
 @event.listens_for(Engine, "connect")
@@ -133,10 +143,12 @@ def create_app(init_schedule=False):
     app.config['IMAGE_DIRECTORY'] = os.getenv('IMAGE_DIRECTORY')
     app.config['ADMIN_USERNAME'] = os.getenv('ADMIN_USERNAME')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
-    app.config['DISABLE_ADMINCREATE'] = bool(os.getenv("DISABLE_ADMINCREATE"))
-    app.config['LDAP_ENABLE'] = bool(os.getenv("LDAP_ENABLE"))
+    app.config['DISABLE_ADMINCREATE'] = env_bool("DISABLE_ADMINCREATE")
+    app.config['LDAP_ENABLE'] = env_bool("LDAP_ENABLE")
     app.config['LDAP_URL'] = os.getenv("LDAP_URL")
-    app.config['LDAP_STARTLS'] = bool(os.getenv("LDAP_STARTLS"))
+    app.config['LDAP_STARTLS'] = env_bool("LDAP_STARTLS")
+    app.config['LDAP_TLS_CACERT'] = os.getenv("LDAP_TLS_CACERT")
+    app.config['LDAP_TLS_REQCERT'] = os.getenv("LDAP_TLS_REQCERT")
     app.config['LDAP_BASEDN'] = os.getenv("LDAP_BASEDN")
     app.config['LDAP_BINDDN'] = os.getenv("LDAP_BINDDN")
     app.config['LDAP_PASSWORD'] = os.getenv("LDAP_PASSWORD")
@@ -353,10 +365,34 @@ def create_app(init_schedule=False):
         if not app.config["LDAP_URL"] or not app.config["LDAP_BINDDN"] or not app.config["LDAP_BASEDN"] or not app.config["LDAP_USER_FILTER"]:
             app.logger.error("Missing parameters for LDAP")
             exit(1)
-        app.ldap_conn = ldap.initialize(app.config["LDAP_URL"])
-        app.ldap_conn.protocol_version = ldap.VERSION3
-        app.ldap_conn.simple_bind_s(app.config["LDAP_BINDDN"] + "," + app.config["LDAP_BASEDN"], app.config["LDAP_PASSWORD"])
-        app.logger.info("LDAP connection successful")
+
+        app.ldap_conn = None
+        try:
+            conn, tls = ldap_util.connect(app.config)
+            ldap_util.bind(conn, app.config)
+            app.ldap_conn = conn
+        except ldap_util.LdapConfigError as e:
+            # Bad LDAP_TLS_* configuration — no amount of retrying fixes this.
+            app.logger.error(str(e))
+            exit(1)
+        except ldap.LDAPError as e:
+            # Keep serving so local accounts can still log in; each login retries the bind.
+            failure = "LDAP connection failed: " + ldap_util.describe_error(e, app.config)
+            app.logger.error(failure)
+            app.config['WARNINGS'].append(
+                "LDAP is enabled but Fireshare could not connect to the LDAP server. "
+                "Check the server logs for details."
+            )
+        else:
+            if tls.get('cacert'):
+                app.logger.info("LDAP TLS verifying against %s", tls['cacert'])
+            if tls.get('reqcert'):
+                app.logger.info("LDAP TLS certificate checking set to %s", tls['reqcert'])
+            if tls.get('unsupported'):
+                app.logger.warning("This build of python-ldap ignores %s; it verifies against "
+                                   "the platform's own trust store instead.",
+                                   ', '.join(tls['unsupported']))
+            app.logger.info("LDAP connection successful")
     
     login_manager = LoginManager()
     login_manager.init_app(app)

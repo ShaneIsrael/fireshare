@@ -18,22 +18,40 @@ try:
     import ldap
 except ImportError:
     ldap = None
+from . import ldap_util
+
+def _ldap_search(app, formatted):
+    """Search for the user, reopening the connection once if the cached one went stale.
+
+    The service bind is made at startup and reused, so an LDAP server restart or an idle
+    timeout would otherwise break every login until Fireshare itself was restarted.
+    """
+    for attempt in (1, 2):
+        try:
+            conn = ldap_util.get_connection(app)
+            return conn.search_ext_s(
+                app.config["LDAP_BASEDN"],
+                ldap.SCOPE_SUBTREE,
+                filterstr=formatted,
+                attrlist=['memberOf']
+            )
+        except ldap.SERVER_DOWN:
+            ldap_util.reset_connection(app)
+            if attempt == 2:
+                raise
+
 
 def auth_user_ldap(username, password):
-    formatted = current_app.config["LDAP_USER_FILTER"].format(
+    app = current_app._get_current_object()
+    formatted = app.config["LDAP_USER_FILTER"].format(
         input=username,
-        basedn=current_app.config["LDAP_BASEDN"]
+        basedn=app.config["LDAP_BASEDN"]
     )
     current_app.logger.debug("authenticating %s", username)
     current_app.logger.debug("formatted LDAP query: %s", formatted)
     
     try:
-        out = current_app.ldap_conn.search_ext_s(
-            current_app.config["LDAP_BASEDN"],
-            ldap.SCOPE_SUBTREE,
-            filterstr=formatted,
-            attrlist=['memberOf']
-        )
+        out = _ldap_search(app, formatted)
         current_app.logger.debug("LDAP search result: %s", out)
 
         if out:
@@ -56,20 +74,31 @@ def auth_user_ldap(username, password):
 
             current_app.logger.debug("user search yielded result")
 
-            conn2 = ldap.initialize(current_app.config["LDAP_URL"])
+            # Same TLS setup as the service connection, otherwise the user bind would
+            # be the one connection with no CA configured.
+            conn2, _ = ldap_util.connect(app.config)
             current_app.logger.debug("checking credentials")
             try:
                 conn2.bind_s(dn, password)
                 current_app.logger.debug("authorized user")
-                conn2.unbind_s()
                 return True, admin
             except ldap.INVALID_CREDENTIALS:
                 current_app.logger.debug("not authorized user")
                 return False, False
+            finally:
+                # Including the wrong-password path, which used to leak the connection.
+                try:
+                    conn2.unbind_s()
+                except Exception:
+                    pass
         else:
             current_app.logger.debug("user search yielded no results")
             return False, False
 
+    except ldap.LDAPError as e:
+        current_app.logger.error('LDAP authentication error: %s', ldap_util.describe_error(e, app.config))
+        current_app.logger.debug("failure at block1", exc_info=True)
+        return False, False
     except Exception:
         current_app.logger.exception('LDAP authentication error')
         current_app.logger.debug("failure at block1")

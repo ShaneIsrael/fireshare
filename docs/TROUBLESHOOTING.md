@@ -246,7 +246,8 @@ See [LDAP.md](./LDAP.md) for full setup instructions.
 
 Common issues:
 
-- **`LDAP_ENABLE`** must be set to `true` along with all connection variables (`LDAP_URL`, `LDAP_BINDDN`, `LDAP_PASSWORD`, `LDAP_BASEDN`, `LDAP_USER_FILTER`).
+- **`LDAP_ENABLE`** must be set to `true` along with all connection variables (`LDAP_URL`, `LDAP_BINDDN`, `LDAP_PASSWORD`, `LDAP_BASEDN`, `LDAP_USER_FILTER`). To turn LDAP off, set it to `false` or remove it.
+- **`ldap.SERVER_DOWN: Can't contact LDAP server` on an `ldaps://` URL** is usually a certificate problem, not a network one — OpenLDAP reports both the same way. See [TLS in LDAP.md](./LDAP.md#tls-ldaps-and-starttls). Fireshare verifies against the system CA bundle by default; use `LDAP_TLS_CACERT` for a private or self-signed CA.
 - **User filter format:** Use `{input}` as a placeholder for the username entered at login. Example: `uid={input}`.
 - **Admin group not working:** Admin group membership is determined via the `memberOf` attribute in LDAP. Ensure your LDAP server populates `memberOf` and that `LDAP_ADMIN_GROUP` matches the full DN of the group.
 - **LDAP users appearing as non-admin:** If a user was previously created as a local user before LDAP was enabled, they may have incorrect flags. The LDAP login flow sets the `ldap=true` flag on the user record after first LDAP login.
