@@ -155,6 +155,22 @@ def create_app(init_schedule=False):
     app.config['SERVE_GAME_ASSETS_NGINX'] = os.getenv('ENVIRONMENT', '') == 'production'
     app.config['TRANSCODE_TIMEOUT'] = int(os.getenv('TRANSCODE_TIMEOUT', '7200'))  # Default: 2 hours
 
+    from .ip_whitelist import parse_ip_whitelist
+    app.config['LOGIN_IP_WHITELIST'] = parse_ip_whitelist(os.getenv('LOGIN_IP_WHITELIST', ''))
+    # In the container the bundled nginx is one trusted hop in front of gunicorn; in dev
+    # Flask is exposed directly, so client-supplied X-Forwarded-For must be ignored.
+    _default_hops = '1' if os.getenv('ENVIRONMENT', '') == 'production' else '0'
+    try:
+        app.config['LOGIN_IP_WHITELIST_TRUSTED_PROXIES'] = int(os.getenv('LOGIN_IP_WHITELIST_TRUSTED_PROXIES') or _default_hops)
+    except ValueError:
+        logger.error("FATAL: LOGIN_IP_WHITELIST_TRUSTED_PROXIES must be an integer")
+        sys.exit(1)
+    if app.config['LOGIN_IP_WHITELIST'] is not None:
+        logger.info(
+            f"Login IP whitelist active with {len(app.config['LOGIN_IP_WHITELIST'])} "
+            f"entries ({app.config['LOGIN_IP_WHITELIST_TRUSTED_PROXIES']} trusted proxy hops)"
+        )
+
     #Integrations
     app.config['DISCORD_WEBHOOK_URL'] = os.getenv('DISCORD_WEBHOOK_URL', '')
     app.config['GENERIC_WEBHOOK_URL'] = os.getenv('GENERIC_WEBHOOK_URL', '')

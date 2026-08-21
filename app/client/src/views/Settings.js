@@ -43,6 +43,7 @@ import { ConfigService, VideoService, GameService, ImageService } from '../servi
 import { setSetting, getSetting } from '../common/utils'
 import LightTooltip from '../components/ui/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
+import SecuritySettings from '../components/settings/SecuritySettings'
 
 import _ from 'lodash'
 import { WarningService, adminSSE } from '../services'
@@ -530,6 +531,7 @@ const Settings = () => {
               <option value={3}>Transcoding</option>
               <option value={4}>Folder Rules</option>
               <option value={5}>Actions</option>
+              <option value={6}>Security</option>
             </NativeSelect>
           </FormControl>
         ) : (
@@ -557,6 +559,7 @@ const Settings = () => {
             <Tab label="Transcoding" />
             <Tab label="Folder Rules" />
             <Tab label="Actions" />
+            <Tab label="Security" />
           </Tabs>
         )}
 
@@ -1536,10 +1539,13 @@ const Settings = () => {
                   </Button>
                 </Stack>
               )}
+
+              {/* Security */}
+              {activeTab === 6 && <SecuritySettings />}
             </Box>
 
             {/* Save button pinned to bottom */}
-            {activeTab !== 4 && activeTab !== 5 && (
+            {activeTab !== 4 && activeTab !== 5 && activeTab !== 6 && (
               <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
                 <Divider sx={{ mb: 2 }} />
                 <Tooltip title={demoMode ? 'Settings cannot be changed in demo mode' : ''} placement="top">
