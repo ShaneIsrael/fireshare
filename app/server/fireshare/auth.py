@@ -43,6 +43,12 @@ def _ldap_search(app, formatted):
 
 def auth_user_ldap(username, password):
     app = current_app._get_current_object()
+    # bind_s with an empty password is an unauthenticated bind, which many directories
+    # answer with success rather than INVALID_CREDENTIALS. Without this guard any
+    # username the filter resolves would authorize, no password needed.
+    if not password:
+        current_app.logger.debug("rejecting LDAP login with an empty password")
+        return False, False
     formatted = app.config["LDAP_USER_FILTER"].format(
         input=ldap.filter.escape_filter_chars(username),
         basedn=app.config["LDAP_BASEDN"]
