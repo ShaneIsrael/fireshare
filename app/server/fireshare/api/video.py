@@ -679,20 +679,30 @@ def upload_custom_poster(video_id):
     ext_map = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'}
     suffix = ext_map.get(file.content_type, '.jpg')
 
+    custom_poster_path = derived_dir / "custom_poster.webp"
     tmp_fd, tmp_path = tempfile.mkstemp(suffix=suffix)
     os.close(tmp_fd)
+    # Stage the conversion inside derived_dir so a failed ffmpeg run can't leave a
+    # corrupt custom_poster.webp behind, and so the swap is an atomic same-filesystem rename.
+    out_fd, out_path = tempfile.mkstemp(suffix='.webp', dir=derived_dir)
+    os.close(out_fd)
     try:
         file.save(tmp_path)
-        custom_poster_path = derived_dir / "custom_poster.webp"
-        cmd = ['ffmpeg', '-y', '-i', tmp_path, str(custom_poster_path)]
+        cmd = ['ffmpeg', '-y', '-i', tmp_path, out_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             current_app.logger.error("ffmpeg failed for custom poster: %s", result.stderr)
+            return jsonify({'message': 'Failed to process image'}), 500
+        if not os.path.getsize(out_path):
+            current_app.logger.error("ffmpeg produced an empty custom poster for %s", video_id)
+            return jsonify({'message': 'Failed to process image'}), 500
+        # mkstemp creates 0600; nginx serves this file directly and runs as its own user
+        os.chmod(out_path, 0o644)
+        os.replace(out_path, custom_poster_path)
     finally:
         os.unlink(tmp_path)
-
-    if not custom_poster_path.exists():
-        return jsonify({'message': 'Failed to process image'}), 500
+        if os.path.exists(out_path):
+            os.unlink(out_path)
 
     return Response(status=200)
 
