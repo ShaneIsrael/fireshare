@@ -15,7 +15,7 @@ from .api.decorators import demo_restrict
 from .ip_whitelist import login_ip_required, get_client_ip, is_ip_permitted
 from datetime import datetime, timezone
 try:
-    import ldap
+    import ldap, ldap.filter
 except ImportError:
     ldap = None
 from . import ldap_util
@@ -44,7 +44,7 @@ def _ldap_search(app, formatted):
 def auth_user_ldap(username, password):
     app = current_app._get_current_object()
     formatted = app.config["LDAP_USER_FILTER"].format(
-        input=username,
+        input=ldap.filter.escape_filter_chars(username),
         basedn=app.config["LDAP_BASEDN"]
     )
     current_app.logger.debug("authenticating %s", username)
