@@ -84,15 +84,19 @@ def update_game_asset(steamgriddb_id):
     if not url:
         return Response(status=400, response='url is required.')
 
-    from urllib.parse import urlparse
+    # Validate with urllib3's parser (the one requests uses to connect), not
+    # urllib.parse — the two disagree on backslash handling, which lets a URL
+    # like https://127.0.0.1\@cdn.steamgriddb.com pass an urlparse hostname
+    # check while requests actually connects to 127.0.0.1 (SSRF).
+    from urllib3.util import parse_url
     _ALLOWED_STEAMGRIDDB_HOSTS = {
         'cdn2.steamgriddb.com',
         'cdn.steamgriddb.com',
         'steamgriddb.com',
     }
     try:
-        parsed = urlparse(url)
-        if parsed.scheme not in ('https',) or parsed.hostname not in _ALLOWED_STEAMGRIDDB_HOSTS:
+        parsed = parse_url(url)
+        if parsed.scheme not in ('https',) or parsed.host not in _ALLOWED_STEAMGRIDDB_HOSTS:
             return Response(status=400, response='url must be a SteamGridDB asset URL.')
     except Exception:
         return Response(status=400, response='Invalid url.')
