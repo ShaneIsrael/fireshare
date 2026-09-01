@@ -1,0 +1,96 @@
+name: Bug report
+description: Create a report to help us improve
+labels: [bug]
+assignees:
+  - ShaneIsrael
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # READ FIRST
+
+        If this is a **TrueNAS** related issue, READ BEFORE POSTING.
+
+        I cannot help with TrueNAS related issues. Every single TrueNAS issue that has been posted here has been due to you (the user) not understanding how to properly configure TrueNAS and I am unable to help with that.
+
+        ONLY post a TrueNAS related issue here after having posted on an actual TrueNAS help forum/subreddit/etc. And only then, if they are unable to help solve your issue.
+
+  - type: checkboxes
+    id: acknowledgment
+    attributes:
+      label: Acknowledgment
+      options:
+        - label: I have read the warning above and understand that TrueNAS configuration issues posted without a prior TrueNAS forum post will be closed and I will be banned.
+          required: true
+
+  - type: dropdown
+    id: truenas
+    attributes:
+      label: Is this related to TrueNAS?
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+
+  - type: input
+    id: truenas-link
+    attributes:
+      label: TrueNAS forum post link
+      description: If you answered YES above, provide a link to your TrueNAS help forum post about this issue. If no link is provided, you will be banned from the Fireshare GitHub.
+      placeholder: https://forums.truenas.com/t/...
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: To Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem.
+
+  - type: input
+    id: version
+    attributes:
+      label: Fireshare version
+      placeholder: e.g. Fireshare Lite 1.7.9
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: e.g. chrome, safari, firefox
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
