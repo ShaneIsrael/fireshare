@@ -9,10 +9,18 @@ assignees: ShaneIsrael
 
 # READ FIRST 
 
-If this is an issue with installation and setup on **TrueNAS...** STOP.
+If this is a **TrueNAS...** related issue READ BEFORE POSTING.
 
-I cannot help with TrueNAS related issues. I do not have any experience with TrueNAS and the Fireshare TrueNAS app was not configured by me. Request assistance on a TrueNAS community forum. Issues related to TrueNAS will be closed without comment.
+I cannot help with TrueNAS related issues. Every single TrueNAS issue that has been posted here has been due to you (the user) not understanding how to properly configure TrueNAS and I am unable to help with that.
+
+ONLY post a TrueNAS related issue here after having posted on an actual TrueNAS help forum/subreddit/etc. And only then, if they are unable to help solve your issue.
 ______________
+
+**Is this relayed to TrueNAS**
+Yes / No
+
+**If YES. Please provide a link to your TrueNAS help forum post about this issue**
+If no link is provided, you will be banned from the Fireshare GitHub.
 
 **Describe the bug**
 A clear and concise description of what the bug is.
