@@ -1,0 +1,59 @@
+name: Feature request
+description: Suggest an idea for Fireshare
+labels: [enhancement]
+assignees:
+  - ShaneIsrael
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an idea! This form is for **feature requests only**.
+
+        Bug reports belong in the Bug report form. TrueNAS installation/configuration
+        problems are not feature requests and will be closed (and you will be banned) — see the Bug report form
+        for the TrueNAS policy.
+
+  - type: checkboxes
+    id: acknowledgment
+    attributes:
+      label: Acknowledgment
+      options:
+        - label: This is a feature request, not a bug report or a TrueNAS/setup support question. I understand that support questions disguised as feature requests will be closed and I will be banned.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear and concise description of what the problem is.
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear and concise description of what you want to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered
+      description: Any alternative solutions or features you've considered, or how you work around this today.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other context or screenshots about the feature request here.
+
+  - type: checkboxes
+    id: expectations
+    attributes:
+      label: Expectations
+      options:
+        - label: I understand that feature requests are simply that — requests. They may not receive a response, and may be declined or go unimplemented without any reason given.
+          required: true
