@@ -100,7 +100,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-*
+          pattern: digests-linux-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -334,7 +334,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: manual-digests-*
+          pattern: manual-digests-linux-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
