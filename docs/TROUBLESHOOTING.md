@@ -194,8 +194,8 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 ### GPU transcoding not working
 
 1. Confirm your GPU supports NVENC. GTX 1050 or newer is required for H.264; RTX 40 series for AV1.
-2. On **Unraid**, you must add `--gpus=all` to Extra Parameters and set `NVIDIA_DRIVER_CAPABILITIES=all`.
-3. On standard Docker, add `runtime: nvidia` or `--gpus all` to your compose/run command.
+2. Make sure the container has GPU access. On standard Docker add `runtime: nvidia` or `--gpus all` to your compose file or run command. On **Unraid** add `--gpus=all` to Extra Parameters. The host needs the NVIDIA driver and NVIDIA Container Toolkit installed (on Unraid, the "NVIDIA Driver" plugin).
+3. Check `NVIDIA_DRIVER_CAPABILITIES`. The NVIDIA Container Toolkit only mounts the NVENC library (`libnvidia-encode.so.1`) when this variable includes `video`. The image defaults to `compute,utility,video`; if you override it, keep `video` or use `all`. Older images defaulted to `compute,utility`, so on those you must set it yourself. The telltale sign of this problem is `nvidia-smi` working inside the container while the logs say NVENC is not available to ffmpeg.
 4. If GPU encoding fails, Fireshare automatically falls back to CPU encoding. Check logs to see which encoder is being used.
 
 ### Encoder fallback order

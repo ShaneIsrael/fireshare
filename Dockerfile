@@ -188,6 +188,11 @@ ENV ADMIN_PASSWORD=admin
 ENV ANALYTICS_TRACKING_SCRIPT=""
 ENV TZ=UTC
 ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+# The NVIDIA Container Toolkit only mounts the NVENC/NVDEC libraries when the
+# "video" driver capability is requested. The CUDA base image defaults to
+# "compute,utility", which leaves ffmpeg without libnvidia-encode.so.1 and
+# silently forces CPU transcoding. Users may still override this at run time.
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 ENV PATH=/opt/python3.14/bin:/usr/local/bin:$PATH
 
 EXPOSE 80

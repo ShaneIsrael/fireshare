@@ -210,9 +210,21 @@ ENABLE_TRANSCODING=true
 TRANSCODE_GPU=true   # optional, NVIDIA only
 ```
 
-CPU transcoding works out of the box. For NVIDIA GPU transcoding, you only need an NVIDIA GPU on the host. The image handles drivers and toolkit.
+CPU transcoding works out of the box. For NVIDIA GPU transcoding you need three things: an NVIDIA GPU with NVENC support, the NVIDIA driver and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host, and the container started with GPU access (`--gpus all` or `runtime: nvidia`).
+
+The image ships with `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is what makes the NVIDIA Container Toolkit mount the NVENC libraries into the container. You do not need to set it yourself. If you do override it, it must include `video` (or be `all`), otherwise `nvidia-smi` will work inside the container but ffmpeg will have no NVENC encoder and Fireshare will fall back to CPU transcoding.
 
 **GPU requirements:** NVIDIA GPU with NVENC support.
+
+#### Docker / Docker Compose Setup
+
+1. Install the NVIDIA driver and NVIDIA Container Toolkit on the host.
+2. In `docker-compose.yml`, uncomment either `runtime: nvidia` or the `deploy.resources.reservations.devices` block (or pass `--gpus all` to `docker run`).
+3. Set:
+   ```
+   ENABLE_TRANSCODING=true
+   TRANSCODE_GPU=true
+   ```
 
 #### Unraid Setup
 
@@ -223,6 +235,7 @@ CPU transcoding works out of the box. For NVIDIA GPU transcoding, you only need 
    TRANSCODE_GPU=true
    NVIDIA_DRIVER_CAPABILITIES=all
    ```
+   `NVIDIA_DRIVER_CAPABILITIES` is optional on current images, which already default to `compute,utility,video`. It is required on older images, and harmless to keep.
 3. Add `--gpus=all` to "Extra Parameters".
 
 #### Encoder Selection
