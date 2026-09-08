@@ -32,7 +32,7 @@ import TagChip from '../components/ui/TagChip'
 import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
 import OutlinedIconButton from '../components/ui/OutlinedIconButton'
 import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
-import { SORT_OPTIONS } from '../common/constants'
+import { SORT_OPTIONS, PRIVACY_OPTIONS } from '../common/constants'
 import { inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
 const Dashboard = ({
@@ -51,6 +51,7 @@ const Dashboard = ({
   const [folderList, setFolderList] = React.useState([])
   const [loading, setLoading] = React.useState(true)
   const [dateSortOrder, setDateSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
+  const [privacyFilter, setPrivacyFilter] = React.useState(PRIVACY_OPTIONS[0])
 
   const [alert, setAlert] = React.useState({ open: false })
 
@@ -191,17 +192,22 @@ const Dashboard = ({
 
   // Get the filtered videos based on folder selection
   const displayVideos = React.useMemo(() => {
-    if (folder.value === 'All Videos') {
-      return filteredVideos
-    }
-    return filteredVideos?.filter(
-      (v) =>
-        v.path
-          .split('/')
-          .slice(0, -1)
-          .filter((f) => f !== '')[0] === folder.value,
-    )
-  }, [filteredVideos, folder])
+    if (!filteredVideos) return filteredVideos
+
+    const folderFiltered =
+      folder.value === 'All Videos'
+        ? filteredVideos
+        : filteredVideos.filter(
+            (v) => 
+              v.path
+                .split('/')
+                .slice(0, -1)
+                .filter((f) => f !== '')[0] === folder.value,
+          )
+
+    if (privacyFilter.value === 'all') return folderFiltered
+    return folderFiltered.filter((v) => v.info?.private === (privacyFilter.value === 'private'))
+  }, [filteredVideos, folder, privacyFilter])
 
   // Sort videos by recorded date or views
   const sortedVideos = React.useMemo(() => {
@@ -504,6 +510,20 @@ const Dashboard = ({
                     isSearchable={false}
                   />
                 </Box>
+                {authenticated && (
+                  <Box sx={{ minWidth: { xs: 110, sm: 130 } }}>
+                    <Select
+                      value={privacyFilter}
+                      options={PRIVACY_OPTIONS}
+                      onChange={setPrivacyFilter}
+                      styles={selectFolderTheme}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      blurInputOnSelect
+                      isSearchable={false}
+                    />
+                  </Box>
+                )}
               </Box>
             )}
             {authenticated && (

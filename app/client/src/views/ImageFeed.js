@@ -28,7 +28,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
 import OutlinedIconButton from '../components/ui/OutlinedIconButton'
 import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
-import { SORT_OPTIONS } from '../common/constants'
+import { SORT_OPTIONS, PRIVACY_OPTIONS } from '../common/constants'
 
 const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded, onImageFolderChange, showFolderDropdown, uploadTick }) => {
   const [images, setImages] = React.useState([])
@@ -39,6 +39,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   const [alert, setAlert] = React.useState({ open: false })
   const [modalImage, setModalImage] = React.useState(null)
   const [sortOrder, setSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
+  const [privacyFilter, setPrivacyFilter] = React.useState(PRIVACY_OPTIONS[0])
   const [randomized, setRandomized] = React.useState(false)
   const [randomizedImages, setRandomizedImages] = React.useState([])
   const [randomizeKey, setRandomizeKey] = React.useState(0)
@@ -159,17 +160,22 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   }, [folder.value])
 
   const displayImages = React.useMemo(() => {
-    if (folder.value === 'All Images') {
-      return filteredImages
-    }
-    return filteredImages?.filter(
-      (img) =>
-        img.path
-          .split('/')
-          .slice(0, -1)
-          .filter((f) => f !== '')[0] === folder.value,
-    )
-  }, [filteredImages, folder])
+    if (!filteredImages) return filteredImages
+
+    const folderFiltered =
+      folder.value === 'All Images'
+        ? filteredImages
+        : filteredImages.filter(
+            (img) =>
+              img.path
+                .split('/')
+                .slice(0, -1)
+                .filter((f) => f !== '')[0] === folder.value,
+          )
+
+    if (privacyFilter.value === 'all') return folderFiltered
+    return folderFiltered.filter((img) => img.info?.private === (privacyFilter.value === 'private'))
+  }, [filteredImages, folder, privacyFilter])
 
   const sortedImages = React.useMemo(() => {
     if (!displayImages) return []
@@ -195,6 +201,13 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
 
   const handleSortChange = (option) => {
     setSortOrder(option)
+    setRandomized(false)
+    setSortKey((k) => k + 1)
+    window.scrollTo({ top: 0 })
+  }
+
+  const handlePrivacyChange = (option) => {
+    setPrivacyFilter(option)
     setRandomized(false)
     setSortKey((k) => k + 1)
     window.scrollTo({ top: 0 })
@@ -333,6 +346,20 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                     isSearchable={false}
                   />
                 </Box>
+                {authenticated && (
+                  <Box sx={{ minWidth: { xs: 110, sm: 130 } }}>
+                    <Select
+                      value={privacyFilter}
+                      options={PRIVACY_OPTIONS}
+                      onChange={handlePrivacyChange}
+                      styles={selectFolderTheme}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      blurInputOnSelect
+                      isSearchable={false}
+                    />
+                  </Box>
+                )}
                 <IconButton
                   onClick={handleRandomize}
                   title="Randomize order"
