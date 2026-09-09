@@ -32,6 +32,7 @@ import { UserService } from '../services'
 import VideoCards from '../components/cards/VideoCards'
 import ImageCards from '../components/cards/ImageCards'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
+import EditImageModal from '../components/modal/EditImageModal'
 import UserAvatar, { gradientFor } from '../components/user/UserAvatar'
 import { dialogPaperSx, dialogTitleSx, inputSx, helperTextSx } from '../common/modalStyles'
 
@@ -76,6 +77,9 @@ const Profile = ({ authenticated }) => {
   const [videos, setVideos] = React.useState(null)
   const [images, setImages] = React.useState(null)
   const [alert, setAlert] = React.useState({ open: false })
+  // ImageCards has no modal of its own (unlike VideoCards), so the viewer is
+  // owned here, the same way ImageFeed owns it.
+  const [modalImage, setModalImage] = React.useState(null)
 
   const [editOpen, setEditOpen] = React.useState(false)
   const [displayNameDraft, setDisplayNameDraft] = React.useState('')
@@ -116,6 +120,48 @@ const Profile = ({ authenticated }) => {
         .catch(() => setImages([]))
     }
   }, [tab, profile, username, videos, images])
+
+  const handleImageOpen = React.useCallback((image) => {
+    setModalImage(image)
+  }, [])
+
+  const handleImageNext = React.useCallback(() => {
+    setModalImage((cur) => {
+      if (!cur || !images) return cur
+      const i = images.findIndex((img) => img.image_id === cur.image_id)
+      return i >= 0 && i < images.length - 1 ? images[i + 1] : cur
+    })
+  }, [images])
+
+  const handleImagePrev = React.useCallback(() => {
+    setModalImage((cur) => {
+      if (!cur || !images) return cur
+      const i = images.findIndex((img) => img.image_id === cur.image_id)
+      return i > 0 ? images[i - 1] : cur
+    })
+  }, [images])
+
+  const handleImageModalClose = (update) => {
+    if (update && modalImage) {
+      setImages((prev) =>
+        (prev || []).map((img) =>
+          img.image_id !== modalImage.image_id
+            ? img
+            : {
+                ...img,
+                info: {
+                  ...img.info,
+                  ...(update.title !== undefined && { title: update.title }),
+                  ...(update.private !== undefined && { private: update.private }),
+                },
+                ...(update.game !== undefined && { game: update.game }),
+                ...(update.created_at !== undefined && { created_at: update.created_at }),
+              },
+        ),
+      )
+    }
+    setModalImage(null)
+  }
 
   const openEdit = () => {
     setDisplayNameDraft(profile.display_name || '')
@@ -232,6 +278,16 @@ const Profile = ({ authenticated }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
+
+      <EditImageModal
+        open={Boolean(modalImage)}
+        onClose={handleImageModalClose}
+        image={modalImage}
+        alertHandler={setAlert}
+        authenticated={authenticated}
+        onNext={handleImageNext}
+        onPrev={handleImagePrev}
+      />
 
       <input
         ref={fileInputRef}
@@ -496,7 +552,14 @@ const Profile = ({ authenticated }) => {
               <CircularProgress />
             </Box>
           ) : (
-            <ImageCards images={images} authenticated={authenticated} size={300} hideUploader />
+            <ImageCards
+              images={images}
+              authenticated={authenticated}
+              feedView={!authenticated}
+              size={300}
+              onImageOpen={handleImageOpen}
+              hideUploader
+            />
           ))}
       </Box>
 
