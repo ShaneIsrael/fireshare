@@ -46,7 +46,7 @@ import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { UserService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import UserAvatar from '../user/UserAvatar'
-import { dialogPaperSx, dialogTitleSx, inputSx, helperTextSx } from '../../common/modalStyles'
+import { dialogPaperSx, dialogTitleSx, inputSx, helperTextSx, switchLabelSx } from '../../common/modalStyles'
 
 const PASSWORD_MIN = 8
 
@@ -666,7 +666,7 @@ const UserManagement = () => {
                         />
                       }
                       label={
-                        <Typography sx={{ fontSize: 12.5 }}>
+                        <Typography sx={{ fontSize: 12.5, ...switchLabelSx }}>
                           Make them choose a new password at first sign-in
                         </Typography>
                       }
@@ -729,7 +729,7 @@ const UserManagement = () => {
                     onChange={(e) => setEditUser((u) => ({ ...u, admin: e.target.checked }))}
                   />
                 }
-                label={<Typography sx={{ fontSize: 13.5 }}>Administrator</Typography>}
+                label={<Typography sx={{ fontSize: 13.5, ...switchLabelSx }}>Administrator</Typography>}
               />
               {blockedReason(editUser, 'demote') && editUser.admin && (
                 <Alert severity="info" sx={{ fontSize: 12.5 }}>
@@ -816,7 +816,7 @@ const UserManagement = () => {
                 <Switch checked={requireChange} onChange={(e) => setRequireChange(e.target.checked)} />
               }
               label={
-                <Typography sx={{ fontSize: 12.5 }}>
+                <Typography sx={{ fontSize: 12.5, ...switchLabelSx }}>
                   Make them choose a new one at next sign-in
                 </Typography>
               }
