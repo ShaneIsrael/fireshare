@@ -28,7 +28,7 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
 import OutlinedIconButton from '../components/ui/OutlinedIconButton'
 import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
-import { SORT_OPTIONS, PRIVACY_OPTIONS } from '../common/constants'
+import { SORT_OPTIONS, PRIVACY_OPTIONS, SORT_SELECT_WIDTH, PRIVACY_SELECT_WIDTH } from '../common/constants'
 
 const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded, onImageFolderChange, showFolderDropdown, uploadTick }) => {
   const [images, setImages] = React.useState([])
@@ -334,7 +334,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                     />
                   </Box>
                 )}
-                <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                <Box sx={{ minWidth: SORT_SELECT_WIDTH }}>
                   <Select
                     value={sortOrder}
                     options={SORT_OPTIONS}
@@ -347,7 +347,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
                   />
                 </Box>
                 {authenticated && (
-                  <Box sx={{ minWidth: { xs: 110, sm: 130 } }}>
+                  <Box sx={{ minWidth: PRIVACY_SELECT_WIDTH }}>
                     <Select
                       value={privacyFilter}
                       options={PRIVACY_OPTIONS}

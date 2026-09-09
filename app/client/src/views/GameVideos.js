@@ -34,7 +34,7 @@ import GameSearch from '../components/game/GameSearch'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import EditGameAssetsModal from '../components/modal/EditGameAssetsModal'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
-import { SORT_OPTIONS } from '../common/constants'
+import { SORT_OPTIONS, SORT_SELECT_WIDTH } from '../common/constants'
 import { sortSelectTheme as selectSortTheme } from '../common/reactSelectThemes'
 
 const PAGE_SIZE = 48
@@ -392,7 +392,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
+              <Box sx={{ minWidth: SORT_SELECT_WIDTH, flexShrink: 0 }}>
                 <Select
                   value={sortOrder}
                   options={SORT_OPTIONS}
