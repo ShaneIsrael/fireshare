@@ -53,6 +53,8 @@ If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/Sha
 - Open Graph metadata for rich link previews
 - [Notifications to Discord and others](./docs/Notifications.md)
 - RSS feed for new public videos
+- [Multiple users with per-user permissions](./docs/Users.md)
+- [Shareable user profiles for uploads](./docs/Users.md#profiles)
 - [LDAP support](./docs/LDAP.md)
 - [Two-factor authentication (TOTP authenticator apps)](./docs/Security.md#two-factor-authentication-mfa)
 - [Login IP whitelisting](./docs/Security.md#login-ip-whitelist)

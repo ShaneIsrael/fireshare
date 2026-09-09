@@ -8,11 +8,13 @@ import threading
 from subprocess import Popen
 
 from flask import current_app, jsonify, request, Response
-from flask_login import login_required
+from flask_login import login_required, current_user
 
 from .. import logger, util
 from ..constants import SUPPORTED_FILE_TYPES
+from .. import permissions as P
 from . import api
+from .decorators import require_perm
 from .helpers import sanitize_upload_folder, secure_filename
 from . import transcoding as _transcoding_mod
 
@@ -41,7 +43,12 @@ def _parse_upload_metadata():
     return tag_ids, game_id, title
 
 
-def _launch_scan_video(save_path, config, tag_ids=None, game_id=None, title=None):
+def _current_uploader_id():
+    """The id to attribute an upload to, or None for an anonymous public upload."""
+    return current_user.id if current_user.is_authenticated else None
+
+
+def _launch_scan_video(save_path, config, tag_ids=None, game_id=None, title=None, uploaded_by=None):
     """
     Launch scan-video and publish an initial transcoding-running status when
     auto-transcode is enabled so SSE subscribers can reflect upload-triggered work.
@@ -58,6 +65,8 @@ def _launch_scan_video(save_path, config, tag_ids=None, game_id=None, title=None
         cmd.append(f"--game-id={game_id}")
     if title:
         cmd.append(f"--title={title}")
+    if uploaded_by is not None:
+        cmd.append(f"--uploaded-by={int(uploaded_by)}")
     scan_proc = Popen(cmd, shell=False, start_new_session=True)
 
     def reap_and_cleanup():
@@ -128,7 +137,8 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    _launch_scan_video(save_path, config, *_parse_upload_metadata())
+    _launch_scan_video(save_path, config, *_parse_upload_metadata(),
+                       uploaded_by=_current_uploader_id())
     return Response(status=201)
 
 
@@ -225,7 +235,8 @@ def public_upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
-    _launch_scan_video(save_path, config, *_parse_upload_metadata())
+    _launch_scan_video(save_path, config, *_parse_upload_metadata(),
+                       uploaded_by=_current_uploader_id())
     return Response(status=201)
 
 
@@ -285,7 +296,7 @@ def get_public_upload_folders():
 
 
 @api.route('/api/upload', methods=['POST'])
-@login_required
+@require_perm(P.UPLOAD)
 def upload_video():
     paths = current_app.config['PATHS']
     with open(paths['data'] / 'config.json', 'r') as configfile:
@@ -324,12 +335,13 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
-    _launch_scan_video(save_path, config, *_parse_upload_metadata())
+    _launch_scan_video(save_path, config, *_parse_upload_metadata(),
+                       uploaded_by=_current_uploader_id())
     return Response(status=201)
 
 
 @api.route('/api/uploadChunked', methods=['POST'])
-@login_required
+@require_perm(P.UPLOAD)
 def upload_videoChunked():
     paths = current_app.config['PATHS']
     with open(paths['data'] / 'config.json', 'r') as configfile:
@@ -427,5 +439,6 @@ def upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
-    _launch_scan_video(save_path, config, *_parse_upload_metadata())
+    _launch_scan_video(save_path, config, *_parse_upload_metadata(),
+                       uploaded_by=_current_uploader_id())
     return Response(status=201)

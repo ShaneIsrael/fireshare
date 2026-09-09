@@ -20,6 +20,7 @@ from sqlalchemy.sql import text
 
 from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, VideoGameLink, VideoTagLink, FolderRule, MediaFolder
+from .. import permissions as P
 from . import api
 from .helpers import (
     add_cache_headers,
@@ -27,8 +28,9 @@ from .helpers import (
     cancel_pending_transcode_jobs,
     delete_video_files,
     get_video_path,
+    viewer_sees_private,
 )
-from .decorators import demo_restrict
+from .decorators import demo_restrict, require_perm
 
 
 def _stream_video_file(video_path):
@@ -176,10 +178,14 @@ def get_videos():
     if sort not in allowed_sorts:
         return jsonify({"error": "Invalid sort parameter"}), 400
 
+    query = Video.query.join(VideoInfo)
+    if not viewer_sees_private():
+        query = query.filter(VideoInfo.private.is_(False))
+
     if "views" in sort:
-        videos = Video.query.join(VideoInfo).all()
+        videos = query.all()
     else:
-        videos = Video.query.join(VideoInfo).order_by(text(sort)).all()
+        videos = query.order_by(text(sort)).all()
 
     videos_json = []
     for v in videos:
@@ -202,8 +208,13 @@ def get_videos():
 @login_required
 def get_random_video():
     import random
-    row_count = Video.query.count()
-    random_video = Video.query.offset(int(row_count * random.random())).first()
+    query = Video.query.join(VideoInfo)
+    if not viewer_sees_private():
+        query = query.filter(VideoInfo.private.is_(False))
+    row_count = query.count()
+    if not row_count:
+        return Response(status=404, response='No videos available.')
+    random_video = query.offset(int(row_count * random.random())).first()
     current_app.logger.info(f"Fetched random video {random_video.video_id}: {random_video.info.title}")
     vjson = random_video.json()
     vjson["view_count"] = VideoView.count(random_video.video_id)
@@ -238,7 +249,7 @@ def get_video_suggestions():
     if not current_video:
         return Response(status=404, response='Video not found.')
 
-    authenticated = current_user.is_authenticated
+    authenticated = viewer_sees_private()
 
     def base_query():
         query = Video.query.join(VideoInfo).filter(
@@ -407,7 +418,7 @@ def get_video_dates():
         Video.available.is_(True)
     )
 
-    if not current_user.is_authenticated:
+    if not viewer_sees_private():
         query = query.filter(VideoInfo.private.is_(False))
 
     dates = query.distinct().order_by(func.date(Video.recorded_at).desc()).all()
@@ -428,7 +439,7 @@ def get_videos_by_date(date):
         Video.available.is_(True)
     )
 
-    if not current_user.is_authenticated:
+    if not viewer_sees_private():
         query = query.filter(VideoInfo.private.is_(False))
 
     videos = query.order_by(Video.recorded_at.desc()).all()
@@ -437,10 +448,12 @@ def get_videos_by_date(date):
 
 
 @api.route('/api/video/delete/<id>', methods=["DELETE"])
-@login_required
+@require_perm(P.DELETE_OWN, P.DELETE_ANY)
 @demo_restrict
 def delete_video(id):
     video = Video.query.filter_by(video_id=id).first()
+    if video and not current_user.can_modify(video, 'delete'):
+        return Response(status=403, response='You can only delete your own uploads.')
     if video:
         logging.info(f"Deleting video: {video.video_id}")
 
@@ -470,9 +483,12 @@ def delete_video(id):
 
 
 @api.route('/api/video/move/<id>', methods=['POST'])
-@login_required
+@require_perm(P.EDIT_OWN, P.EDIT_ANY)
 @demo_restrict
 def move_video(id):
+    _mv = Video.query.filter_by(video_id=id).first()
+    if _mv and not current_user.can_modify(_mv, 'edit'):
+        return Response(status=403, response='You can only move your own uploads.')
     video = Video.query.filter_by(video_id=id).first()
     if not video:
         return Response(status=404, response=f"A video with id: {id}, does not exist.")
@@ -550,6 +566,11 @@ def handle_video_details(id):
     if request.method == 'PUT':
         if not current_user.is_authenticated:
             return Response(response='You do not have access to this resource.', status=401)
+        # GET stays public (link sharing); only the update path is permission-gated,
+        # so the gate lives here rather than on the route decorator.
+        video = Video.query.filter_by(video_id=id).first()
+        if video and not current_user.can_modify(video, 'edit'):
+            return Response(status=403, response='You can only edit your own uploads.')
         video_info = VideoInfo.query.filter_by(video_id=id).first()
         if video_info:
             # Handle recorded_at separately since it's on Video model, not VideoInfo
@@ -660,8 +681,11 @@ def get_video_poster():
 
 
 @api.route('/api/video/<video_id>/poster/custom', methods=['POST'])
-@login_required
+@require_perm(P.EDIT_OWN, P.EDIT_ANY)
 def upload_custom_poster(video_id):
+    _v = Video.query.filter_by(video_id=video_id).first()
+    if _v and not current_user.can_modify(_v, 'edit'):
+        return Response(status=403, response='You can only edit your own uploads.')
     if 'file' not in request.files:
         return jsonify({'message': 'No file provided'}), 400
     file = request.files['file']
@@ -708,8 +732,11 @@ def upload_custom_poster(video_id):
 
 
 @api.route('/api/video/<video_id>/poster/custom', methods=['DELETE'])
-@login_required
+@require_perm(P.EDIT_OWN, P.EDIT_ANY)
 def delete_custom_poster(video_id):
+    _v = Video.query.filter_by(video_id=video_id).first()
+    if _v and not current_user.can_modify(_v, 'edit'):
+        return Response(status=403, response='You can only edit your own uploads.')
     derived_dir = Path(current_app.config["PROCESSED_DIRECTORY"], "derived", video_id)
     custom_poster_path = derived_dir / "custom_poster.webp"
     if custom_poster_path.exists():
@@ -801,14 +828,40 @@ def unlock_video(video_id):
 
 @api.route('/api/video/nginx-auth-admin')
 def nginx_video_auth_admin():
-    """Internal endpoint called by nginx auth_request to gate the raw (uncropped) video path."""
-    if current_user.is_authenticated:
-        return '', 200
-    return '', 403
+    """Internal endpoint called by nginx auth_request to gate the raw (uncropped) video path.
+
+    /_content/video-raw/ serves the full uncut original, which only the crop
+    editor asks for, so this is an editing capability rather than a viewing one.
+    The id is resolved from the URI so the answer can honour ownership: a user
+    with edit_own gets the raw file for their own uploads and nothing else.
+    """
+    if not current_user.is_authenticated:
+        return '', 403
+
+    video_id = request.headers.get('X-Fireshare-Video-Id')
+    if not video_id or not _VIDEO_ID_RE.match(video_id):
+        video_id = _video_id_from_original_uri(request.headers.get('X-Original-URI', ''))
+
+    if not video_id:
+        # An unresolvable id means the gate cannot do its job, so it must not
+        # let the request through — same stance as nginx_video_auth below.
+        logger.warning(
+            "nginx-auth-admin could not resolve a video id for "
+            f"{request.headers.get('X-Original-URI', '')!r}; denying request"
+        )
+        return '', 403
+
+    video = Video.query.filter_by(video_id=video_id).first()
+    if not video:
+        return '', 403
+    if not current_user.can_modify(video, 'edit'):
+        return '', 403
+    return '', 200
 
 
 _VIDEO_ID_RE = re.compile(r'^[\w-]+$')
 _CONTENT_VIDEO_RE = re.compile(r'^/_content/video/([\w-]+)\.[a-z0-9]+', re.IGNORECASE)
+_CONTENT_VIDEO_RAW_RE = re.compile(r'^/_content/video-raw/([\w-]+)\.[a-z0-9]+', re.IGNORECASE)
 _CONTENT_DERIVED_RE = re.compile(r'^/_content/derived/([\w-]+)/', re.IGNORECASE)
 
 
@@ -828,7 +881,7 @@ def _video_id_from_original_uri(original_uri):
     # normpath drops a meaningful trailing slash, which the derived pattern relies on
     if original_uri.split('?', 1)[0].endswith('/') and not path.endswith('/'):
         path += '/'
-    for pattern in (_CONTENT_VIDEO_RE, _CONTENT_DERIVED_RE):
+    for pattern in (_CONTENT_VIDEO_RE, _CONTENT_VIDEO_RAW_RE, _CONTENT_DERIVED_RE):
         m = pattern.match(path)
         if m:
             return m.group(1)
@@ -890,7 +943,7 @@ def get_video():
 
 
 @api.route('/api/videos/corrupt', methods=["GET"])
-@login_required
+@require_perm(P.MANAGE_LIBRARY)
 def get_corrupt_videos():
     """Get a list of all videos marked as corrupt"""
     from fireshare.cli import get_all_corrupt_videos
@@ -923,7 +976,7 @@ def get_corrupt_videos():
 
 
 @api.route('/api/videos/<video_id>/corrupt', methods=["DELETE"])
-@login_required
+@require_perm(P.MANAGE_LIBRARY)
 def clear_corrupt_status(video_id):
     """Clear the corrupt status for a specific video so it can be retried"""
     from fireshare.cli import clear_video_corrupt, is_video_corrupt
@@ -936,7 +989,7 @@ def clear_corrupt_status(video_id):
 
 
 @api.route('/api/videos/corrupt/clear-all', methods=["DELETE"])
-@login_required
+@require_perm(P.MANAGE_LIBRARY)
 def clear_all_corrupt_status():
     """Clear the corrupt status for all videos so they can be retried"""
     from fireshare.cli import clear_all_corrupt_videos

@@ -20,6 +20,9 @@ const VideoCards = ({
   selectedVideos = new Set(),
   onVideoSelect,
   removeOnMove = false,
+  // Suppressed on a profile page, where every card has the same uploader and the
+  // byline would just repeat the page's own heading.
+  hideUploader = false,
 }) => {
   const [vids, setVideos] = React.useState(videos)
   const [alert, setAlert] = React.useState({ open: false })
@@ -193,6 +196,7 @@ const VideoCards = ({
                   onSelect={onVideoSelect}
                   onRemoveFromView={handleDelete}
                   removeOnMove={removeOnMove}
+                  hideUploader={hideUploader}
                 />
               </motion.div>
             ))}

@@ -11,6 +11,7 @@ import { ImageService } from '../../services'
 import DeleteImageModal from '../modal/DeleteImageModal'
 import CheckIcon from '@mui/icons-material/Check'
 import TagChip from '../ui/TagChip'
+import UploaderMention from '../user/UploaderMention'
 
 const IMAGE_VERSION = Date.now()
 
@@ -23,6 +24,7 @@ const MasonryImageCard = ({
   editMode = false,
   selected = false,
   onSelect,
+  hideUploader = false,
 }) => {
   const [hover, setHover] = React.useState(false)
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
@@ -322,14 +324,19 @@ const MasonryImageCard = ({
                   {image.game.name}
                 </Typography>
               )}
-              {image.created_at && (
-                <Typography sx={{ fontSize: 12, color: '#FFFFFF80', mt: 0.25 }}>
-                  {new Date(image.created_at).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </Typography>
+              {(image.created_at || (image.uploader && !hideUploader)) && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25, minWidth: 0 }}>
+                  {image.created_at && (
+                    <Typography sx={{ fontSize: 12, color: '#FFFFFF80', flexShrink: 0 }}>
+                      {new Date(image.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </Typography>
+                  )}
+                  {!hideUploader && <UploaderMention uploader={image.uploader} size={16} sx={{ ml: 'auto' }} />}
+                </Box>
               )}
             </Box>
           </Box>

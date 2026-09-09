@@ -10,6 +10,7 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
+from . import permissions as fs_permissions
 from .api.misc import _get_local_version, _fetch_release_notes
 from .api.decorators import demo_restrict
 from .ip_whitelist import login_ip_required, get_client_ip, is_ip_permitted
@@ -141,14 +142,28 @@ def _verify_totp(user, code):
             return step
     return None
 
+def _record_login(user):
+    user.last_login_at = datetime.utcnow()
+    db.session.commit()
+
+
 @auth.route('/api/login', methods=['POST'])
 @login_ip_required
 def login():
-    username = request.json['username']
-    password = request.json['password']
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return Response(response="Invalid request", status=400)
+    username = body.get('username')
+    password = body.get('password')
+    if not isinstance(username, str) or not isinstance(password, str):
+        return Response(response="Invalid username or password", status=401)
+
     user = User.query.filter_by(username=username, ldap=False).first()
 
-    if user and check_password_hash(user.password, password):
+    # A user awaiting an invite has no password hash, and a disabled account must
+    # not authenticate at all. Both are reported as ordinary credential failures
+    # so the response never distinguishes them from a wrong password.
+    if user and user.password and not user.disabled and check_password_hash(user.password, password):
         if user.mfa_enabled and user.totp_secret:
             session['mfa_pending_user_id'] = user.id
             session['mfa_pending_at'] = time.time()
@@ -156,6 +171,7 @@ def login():
             return jsonify({'mfa_required': True})
         _clear_mfa_pending()
         login_user(user, remember=True)
+        _record_login(user)
         return Response(status=200)
 
     if current_app.config["LDAP_ENABLE"]:
@@ -163,15 +179,28 @@ def login():
         if authorised:
             userobj = User.query.filter_by(username=username, ldap=True).first()
             if not userobj:
-                userobj = User(username=username, ldap=True, admin=admin)
+                # Auto-provisioned directory accounts get the curator preset, which
+                # is everything a signed-in user could do before permissions
+                # existed. An admin can narrow it afterwards in Settings > Users.
+                userobj = User(
+                    username=username,
+                    ldap=True,
+                    admin=admin,
+                    permissions=fs_permissions.serialize_permissions(
+                        fs_permissions.PRESETS['curator']
+                    ),
+                    created_at=datetime.utcnow(),
+                )
                 db.session.add(userobj)
                 db.session.commit()
+            if userobj.disabled:
+                return Response(response="Invalid username or password", status=401)
             if userobj.admin != admin:
-                row = db.session.query(User).filter_by(id=userobj.id).first()
-                row.admin = admin
+                userobj.admin = admin
                 db.session.commit()
             _clear_mfa_pending()
             login_user(userobj, remember=True)
+            _record_login(userobj)
             return Response(status=200)
 
     return Response(response="Invalid username or password", status=401)
@@ -189,7 +218,7 @@ def login_mfa():
         return jsonify({'error': 'Login session expired. Please sign in again.', 'restart': True}), 401
 
     user = db.session.get(User, pending_user_id)
-    if not user or not user.mfa_enabled or not user.totp_secret:
+    if not user or user.disabled or not user.mfa_enabled or not user.totp_secret:
         _clear_mfa_pending()
         return jsonify({'error': 'Login session expired. Please sign in again.', 'restart': True}), 401
 
@@ -200,6 +229,7 @@ def login_mfa():
         return jsonify({'error': 'Invalid authentication code.'}), 401
 
     user.totp_last_used = matched_step
+    user.last_login_at = datetime.utcnow()
     db.session.commit()
     _clear_mfa_pending()
     login_user(user, remember=True)
@@ -270,23 +300,9 @@ def mfa_disable():
     db.session.commit()
     return jsonify({'enabled': False})
 
-@auth.route('/api/signup', methods=['POST'])
-@login_required
-@demo_restrict
-def signup():
-    username = request.json['username']
-    password = request.json['password']
-
-    user = User.query.filter_by(username=username).first()
-    
-    if user:
-        return Response(response="User already exists.", status=400)
-
-    new_user = User(username=username, password=generate_password_hash(password, method='pbkdf2:sha256'))
-    db.session.add(new_user)
-    db.session.commit()
-
-    return Response(status=200)
+# /api/signup was removed in favour of POST /api/admin/users. It was gated only by
+# @login_required while User.admin defaulted to True, so any signed-in non-admin
+# could create an administrator account.
 
 @auth.route('/api/loggedin', methods=['GET'])
 def loggedin():
@@ -319,6 +335,16 @@ def loggedin():
     return jsonify({
         'authenticated': True,
         'admin': current_user.admin,
+        'username': current_user.username,
+        'display_name': current_user.display_name,
+        'name': current_user.name,
+        'avatar_url': current_user.avatar_url(),
+        # Admins bypass every check, so the client is handed the full grantable set
+        # rather than an empty list it would have to special-case.
+        'permissions': (list(fs_permissions.GRANTABLE_PERMISSIONS) if current_user.admin
+                        else sorted(current_user.granted_permissions)),
+        'must_change_password': bool(current_user.must_change_password),
+        'ldap': bool(current_user.ldap),
         'latest_release': latest_release,
         'login_allowed': login_allowed,
     })

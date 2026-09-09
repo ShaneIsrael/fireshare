@@ -1,4 +1,5 @@
 export { default as AuthService } from './AuthService'
+export { default as UserService } from './UserService'
 export { default as TagService } from './TagService'
 export { default as VideoService } from './VideoService'
 export { default as ImageService } from './ImageService'

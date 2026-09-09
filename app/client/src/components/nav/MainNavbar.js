@@ -48,6 +48,7 @@ import UploadCard from '../cards/UploadCard'
 import ImageUploadCard from '../cards/ImageUploadCard'
 import { RegisterUploadCardContext, RegisterImageUploadCardContext } from '../utils/GlobalDragDropOverlay'
 import Select from 'react-select'
+import PersonIcon from '@mui/icons-material/Person'
 import VersionBox from './VersionBox'
 import ReleaseNotesDialog from '../modal/ReleaseNotesDialog'
 
@@ -62,7 +63,7 @@ const allPages = [
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
   { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
   { title: 'Folders', icon: <FolderCopyIcon />, href: '/folders', private: false },
-  { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true },
+  { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, perm: 'manage_library' },
   { title: 'Settings', icon: <SettingsIcon />, href: '/settings', private: true },
 ]
 
@@ -144,6 +145,9 @@ const AppBar = styled(MuiAppBar, {
 function MainNavbar({
   authenticated,
   isAdmin,
+  currentUser,
+  permissions = [],
+  can = () => false,
   latestRelease,
   loginAllowed,
   page,
@@ -243,8 +247,22 @@ function MainNavbar({
     return () => window.removeEventListener('ui_config_updated', handleUiConfigUpdate)
   }, [])
 
-  const pages = allPages.filter((p) => {
+  const withProfile = React.useMemo(() => {
+    if (!currentUser?.username) return allPages
+    const insertAt = allPages.findIndex((p) => p.href === '/files')
+    const entry = {
+      title: 'My Profile',
+      icon: <PersonIcon />,
+      href: `/profile/${currentUser.username}`,
+      matchPage: '/profile',
+      private: true,
+    }
+    return [...allPages.slice(0, insertAt), entry, ...allPages.slice(insertAt)]
+  }, [currentUser?.username])
+
+  const pages = withProfile.filter((p) => {
     if (p.adminOnly && !isAdmin) return false
+    if (p.perm && !can(p.perm)) return false
     if (p.href === '/' && uiConfig.show_videos === false) return false
     if (p.href === '/images' && uiConfig.show_images === false) return false
     if (p.href === '/games' && uiConfig.show_games === false) return false
@@ -448,7 +466,7 @@ function MainNavbar({
                   {p.href === '/files' && <Divider sx={{ mb: 1, width: '100%' }} />}
                   <ListItem disablePadding sx={{ px: 1 }}>
                     <ListItemButton
-                      selected={page === p.href}
+                      selected={page === (p.matchPage || p.href)}
                       onClick={() => navigate(p.href)}
                       sx={{ height: 50, mb: p.href !== '/settings' ? 1 : 0 }}
                     >
@@ -468,16 +486,19 @@ function MainNavbar({
           })}
         </List>
         <Divider />
+        {/* A signed-in account without the upload permission has no more upload
+            rights than a visitor, so it is handed the public upload path — which
+            still appears only when public uploads are enabled. */}
         <UploadCard
           ref={registerUploadCard}
-          authenticated={authenticated}
+          authenticated={authenticated && can('upload')}
           handleAlert={memoizedHandleAlert}
           mini={!effectiveOpen}
           onUploadComplete={() => setUploadTick((t) => t + 1)}
         />
         <ImageUploadCard
           ref={registerImageUploadCard}
-          authenticated={authenticated}
+          authenticated={authenticated && can('upload')}
           handleAlert={memoizedHandleAlert}
           mini={!effectiveOpen}
           onUploadComplete={() => setUploadTick((t) => t + 1)}
@@ -788,6 +809,9 @@ function MainNavbar({
         {React.cloneElement(children, {
           authenticated,
           isAdmin,
+          currentUser,
+          permissions,
+          can,
           searchText,
           cardSize: CARD_SIZE,
           selectedFolder: effectiveFolder,

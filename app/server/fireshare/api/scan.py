@@ -12,9 +12,10 @@ from flask_login import login_required, current_user
 from .. import db, logger, util
 from ..constants import DEFAULT_CONFIG
 from ..models import Video, VideoInfo, VideoGameLink, GameMetadata, FolderRule, Image, ImageGameLink, ImageFolderRule, MediaFolder
+from .. import permissions as P
 from . import api
 from .helpers import get_steamgriddb_api_key
-from .decorators import demo_restrict
+from .decorators import demo_restrict, require_perm
 
 
 # Cache for folder-size endpoint — recomputed at most once per minute
@@ -86,7 +87,7 @@ def folder_size():
 
 
 @api.route('/api/manual/scan')
-@login_required
+@require_perm(P.MANAGE_LIBRARY)
 @demo_restrict
 def manual_scan():
     current_app.logger.info(f"Executed manual scan")
@@ -95,7 +96,7 @@ def manual_scan():
 
 
 @api.route('/api/manual/scan-images')
-@login_required
+@require_perm(P.MANAGE_LIBRARY)
 @demo_restrict
 def manual_scan_images():
     current_app.logger.info(f"Executed manual image scan")
@@ -104,7 +105,7 @@ def manual_scan_images():
 
 
 @api.route('/api/manual/scan-dates')
-@login_required
+@require_perm(P.MANAGE_LIBRARY)
 @demo_restrict
 def manual_scan_dates():
     """Extract recording dates from filenames for videos missing recorded_at"""
@@ -136,7 +137,7 @@ def manual_scan_dates():
 
 
 @api.route('/api/manual/rescan-dates')
-@login_required
+@require_perm(P.MANAGE_LIBRARY)
 @demo_restrict
 def manual_rescan_dates():
     """Re-extract and overwrite recorded_at for all videos and created_at for all images."""
@@ -194,7 +195,7 @@ def _get_or_create_media_folder(folder_cache, dirname, media_type):
 
 
 @api.route('/api/manual/scan-folders')
-@login_required
+@require_perm(P.MANAGE_LIBRARY)
 @demo_restrict
 def manual_scan_folders():
     """Re-derive top-level folder assignments for all videos/images and clean up orphaned folders."""
@@ -267,7 +268,7 @@ def get_folder_suggestions():
 
 
 @api.route('/api/folder-suggestions/<path:folder_name>/dismiss', methods=['POST'])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 def dismiss_folder_suggestion(folder_name):
     """Dismiss a folder suggestion"""
     from fireshare.cli import _load_suggestions, _save_suggestions
@@ -341,7 +342,7 @@ def get_folder_rules():
 
 
 @api.route('/api/folder-rules', methods=['POST'])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 @demo_restrict
 def create_folder_rule():
     """Create a folder rule and backfill existing untagged videos"""
@@ -419,7 +420,7 @@ def create_folder_rule():
 
 
 @api.route('/api/folder-rules/<int:rule_id>', methods=['DELETE'])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 @demo_restrict
 def delete_folder_rule(rule_id):
     """Delete a folder rule, optionally unlinking videos"""
@@ -498,7 +499,7 @@ def get_image_folder_rules():
 
 
 @api.route('/api/image-folder-rules', methods=['POST'])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 @demo_restrict
 def create_image_folder_rule():
     """Create an image folder rule and backfill existing untagged images"""
@@ -550,7 +551,7 @@ def create_image_folder_rule():
 
 
 @api.route('/api/image-folder-rules/<int:rule_id>', methods=['DELETE'])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 @demo_restrict
 def delete_image_folder_rule(rule_id):
     """Delete an image folder rule, optionally unlinking images"""
@@ -578,7 +579,7 @@ def delete_image_folder_rule(rule_id):
 
 
 @api.route('/api/manual/scan-games')
-@login_required
+@require_perm(P.MANAGE_GAMES)
 @demo_restrict
 def manual_scan_games():
     """Start game scan in background thread"""

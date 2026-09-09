@@ -401,7 +401,16 @@ def create_app(init_schedule=False):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        try:
+            user = db.session.get(User, int(user_id))
+        except (TypeError, ValueError):
+            return None
+        # Refusing to load a disabled account is what actually ends its access:
+        # it invalidates live sessions and "remember me" cookies immediately,
+        # rather than leaving the user signed in until their session expires.
+        if user is None or user.disabled:
+            return None
+        return user
 
     # blueprint for auth routes in our app
     from .auth import auth as auth_blueprint
@@ -487,26 +496,68 @@ def create_app(init_schedule=False):
         from werkzeug.security import generate_password_hash, check_password_hash
         from .models import User as _User
         try:
-            admin = _User.query.filter_by(admin=True, ldap=False).first()
+            from datetime import datetime as _datetime
+
+            # ADMIN_USERNAME / ADMIN_PASSWORD are re-applied on every boot, so the
+            # account they own has to be identified unambiguously. Once a second
+            # administrator exists, "the first local admin" is an arbitrary row and
+            # this logic could rewrite the wrong person's credentials, so the
+            # bootstrap account is pinned with env_managed instead.
+            admin = _User.query.filter_by(env_managed=True).first()
+            if not admin:
+                # Pre-upgrade install, or one where the pin was lost: adopt the
+                # lowest-id local admin, which is the account the bootstrap created.
+                admin = (_User.query
+                         .filter_by(admin=True, ldap=False)
+                         .order_by(_User.id)
+                         .first())
+                if admin:
+                    admin.env_managed = True
+                    db.session.commit()
+
             if not admin and not app.config['DISABLE_ADMINCREATE']:
                 username = app.config['ADMIN_USERNAME'] or 'admin'
-                admin_user = _User(username=username, password=generate_password_hash(app.config['ADMIN_PASSWORD'] or 'admin', method='pbkdf2:sha256'), admin=True)
+                admin_user = _User(
+                    username=username,
+                    password=generate_password_hash(app.config['ADMIN_PASSWORD'] or 'admin', method='pbkdf2:sha256'),
+                    admin=True,
+                    env_managed=True,
+                    created_at=_datetime.utcnow(),
+                )
                 db.session.add(admin_user)
                 db.session.commit()
             if admin:
+                # The env-managed account must stay usable as an administrator;
+                # a demotion here would lock the operator out of their own instance.
+                if not admin.admin or admin.disabled:
+                    admin.admin = True
+                    admin.disabled = False
+                    db.session.commit()
                 if app.config['ADMIN_PASSWORD']:
                     try:
-                        password_mismatch = not check_password_hash(admin.password, app.config['ADMIN_PASSWORD'])
+                        password_mismatch = not check_password_hash(admin.password or '', app.config['ADMIN_PASSWORD'])
                     except ValueError:
                         password_mismatch = True  # old hash format (sha256), force reset to pbkdf2:sha256
                     if password_mismatch:
-                        row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
-                        row.password = generate_password_hash(app.config['ADMIN_PASSWORD'], method='pbkdf2:sha256')
+                        admin.password = generate_password_hash(app.config['ADMIN_PASSWORD'], method='pbkdf2:sha256')
+                        admin.must_change_password = False
                         db.session.commit()
                 if app.config['ADMIN_USERNAME'] and admin.username != app.config['ADMIN_USERNAME']:
-                    row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
-                    row.username = app.config['ADMIN_USERNAME']
-                    db.session.commit()
+                    # Only rename when the target name is free, otherwise the unique
+                    # constraint would abort startup.
+                    clash = (_User.query
+                             .filter(_User.username == app.config['ADMIN_USERNAME'],
+                                     _User.id != admin.id)
+                             .first())
+                    if clash:
+                        logger.error(
+                            f"Cannot apply ADMIN_USERNAME={app.config['ADMIN_USERNAME']!r}: another "
+                            f"account already uses that username. Leaving the admin account as "
+                            f"{admin.username!r}."
+                        )
+                    else:
+                        admin.username = app.config['ADMIN_USERNAME']
+                        db.session.commit()
             # Remove the non-admin demo account when DEMO_MODE is off.
             if not app.config['DEMO_MODE']:
                 stale_demo = _User.query.filter_by(username='demo', admin=False).first()

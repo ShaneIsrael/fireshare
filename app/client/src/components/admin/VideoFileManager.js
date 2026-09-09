@@ -34,6 +34,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import FolderIcon from '@mui/icons-material/Folder'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import LockIcon from '@mui/icons-material/Lock'
+import PersonIcon from '@mui/icons-material/Person'
 import LockOpenIcon from '@mui/icons-material/LockOpen'
 import ContentCutIcon from '@mui/icons-material/ContentCut'
 import VideoSettingsIcon from '@mui/icons-material/VideoSettings'
@@ -431,6 +432,9 @@ export default function VideoFileManager({ setAlert }) {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false)
   const [orphanDialogOpen, setOrphanDialogOpen] = useState(false)
   const [setPasswordDialogOpen, setSetPasswordDialogOpen] = useState(false)
+  const [uploaderDialogOpen, setUploaderDialogOpen] = useState(false)
+  const [uploaderChoice, setUploaderChoice] = useState(null)
+  const [uploaderOptions, setUploaderOptions] = useState([])
   const [removePasswordDialogOpen, setRemovePasswordDialogOpen] = useState(false)
   const [bulkPasswordInput, setBulkPasswordInput] = useState('')
   const [colVisAnchor, setColVisAnchor] = useState(null)
@@ -750,6 +754,23 @@ export default function VideoFileManager({ setAlert }) {
     if (ok) setRemoveCropDialogOpen(false)
   }
 
+  useEffect(() => {
+    if (!uploaderDialogOpen) return
+    Api()
+      .get('/api/admin/uploaders')
+      .then((res) => setUploaderOptions(res.data.users || []))
+      .catch(() => setUploaderOptions([]))
+  }, [uploaderDialogOpen])
+
+  const handleSetUploader = async () => {
+    const ok = await runBulkAction(
+      '/api/admin/files/bulk-set-uploader',
+      { video_ids: [...selected], username: uploaderChoice },
+      uploaderChoice ? `Attributed to ${uploaderChoice}` : 'Uploader cleared',
+    )
+    if (ok) setUploaderDialogOpen(false)
+  }
+
   const handleSetPrivacy = async (isPrivate) => {
     await runBulkAction(
       '/api/admin/files/bulk-set-privacy',
@@ -944,6 +965,26 @@ export default function VideoFileManager({ setAlert }) {
                   </IconButton>
                 </span>
               </Tooltip>
+              <Tooltip title="Set uploader">
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={onlyEmptyFoldersSelected}
+                    onClick={() => {
+                      setUploaderChoice(null)
+                      setUploaderDialogOpen(true)
+                    }}
+                    sx={{
+                      border: '1px solid #3399FF44',
+                      borderRadius: 1,
+                      color: '#7FBFFF',
+                      '&:hover': { bgcolor: '#3399FF12' },
+                    }}
+                  >
+                    <PersonIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
               <Tooltip title="Rename">
                 <span>
                   <IconButton
@@ -1111,6 +1152,28 @@ export default function VideoFileManager({ setAlert }) {
                       }}
                     >
                       Move
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title="Attribute selected files to a user">
+                  <span>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={onlyEmptyFoldersSelected}
+                      startIcon={<PersonIcon />}
+                      onClick={() => {
+                        setUploaderChoice(null)
+                        setUploaderDialogOpen(true)
+                      }}
+                      sx={{
+                        textTransform: 'none',
+                        borderColor: '#3399FF44',
+                        color: '#7FBFFF',
+                        '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
+                      }}
+                    >
+                      Uploader
                     </Button>
                   </span>
                 </Tooltip>
@@ -2199,6 +2262,55 @@ export default function VideoFileManager({ setAlert }) {
             sx={{ textTransform: 'none' }}
           >
             {actionLoading ? 'Applying…' : 'Apply'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Set Uploader modal ── */}
+      <Dialog
+        open={uploaderDialogOpen}
+        onClose={() => !actionLoading && setUploaderDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: dialogPaperSx }}
+      >
+        <DialogTitle sx={dialogTitleSx}>Set uploader</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#FFFFFFAA', fontSize: 13.5, mb: 2 }}>
+            Attribute {selected.size} selected item{selected.size === 1 ? '' : 's'} to an account.
+            This is how library content indexed from disk gets an owner, so it appears on their
+            profile and comes under their edit and delete permissions.
+          </DialogContentText>
+          <Select
+            options={[
+              { value: null, label: 'No uploader (unattributed)' },
+              ...uploaderOptions.map((u) => ({
+                value: u.username,
+                label: u.name === u.username ? `@${u.username}` : `${u.name} (@${u.username})`,
+              })),
+            ]}
+            value={
+              uploaderChoice === null
+                ? { value: null, label: 'No uploader (unattributed)' }
+                : uploaderOptions
+                    .filter((u) => u.username === uploaderChoice)
+                    .map((u) => ({
+                      value: u.username,
+                      label: u.name === u.username ? `@${u.username}` : `${u.name} (@${u.username})`,
+                    }))[0] || null
+            }
+            onChange={(opt) => setUploaderChoice(opt ? opt.value : null)}
+            styles={selectFolderTheme}
+            menuPortalTarget={document.body}
+            placeholder="Choose an account..."
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setUploaderDialogOpen(false)} disabled={actionLoading} sx={{ color: '#B2BAC2' }}>
+            Cancel
+          </Button>
+          <Button onClick={handleSetUploader} variant="contained" disabled={actionLoading}>
+            {actionLoading ? 'Applying...' : 'Apply'}
           </Button>
         </DialogActions>
       </Dialog>

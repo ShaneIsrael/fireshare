@@ -44,6 +44,8 @@ import { setSetting, getSetting } from '../common/utils'
 import LightTooltip from '../components/ui/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 import SecuritySettings from '../components/settings/SecuritySettings'
+import ChangePassword from '../components/settings/ChangePassword'
+import UserManagement from '../components/settings/UserManagement'
 
 import _ from 'lodash'
 import { WarningService, adminSSE } from '../services'
@@ -71,7 +73,22 @@ const jsonPlaceholder = `#Example JSON Data:
   "type": "info" 
 }`
 
-const Settings = () => {
+// Server configuration panes are administrator-only. Folder Rules and Actions
+// follow the permission that governs the routes they drive, so a curator holding
+// manage_games / manage_library can reach them. Security is open to everyone,
+// because that is where any account manages its own password and 2FA.
+const TAB_DEFS = [
+  { key: 'general', label: 'General', mobileLabel: 'Privacy & Upload', admin: true },
+  { key: 'sidebar', label: 'Sidebar', mobileLabel: 'Sidebar', admin: true },
+  { key: 'integrations', label: 'Integrations', mobileLabel: 'Integrations', admin: true },
+  { key: 'transcoding', label: 'Transcoding', mobileLabel: 'Transcoding', admin: true },
+  { key: 'folders', label: 'Folder Rules', mobileLabel: 'Folder Rules', perm: 'manage_games' },
+  { key: 'actions', label: 'Actions', mobileLabel: 'Actions', perm: 'manage_library' },
+  { key: 'users', label: 'Users', mobileLabel: 'Users', admin: true },
+  { key: 'security', label: 'Security', mobileLabel: 'Security' },
+]
+
+const Settings = ({ isAdmin, currentUser, can = () => false }) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const demoMode = getSetting('is_demo_user')
@@ -83,7 +100,27 @@ const Settings = () => {
   const [webhookUrl, setWebhookUrl] = React.useState('')
   const [webhookJson, setWebhookJson] = React.useState('') //needed?
   const [showSteamGridKey, setShowSteamGridKey] = React.useState(false)
-  const [activeTab, setActiveTab] = React.useState(0)
+  const visibleTabs = React.useMemo(
+    () =>
+      TAB_DEFS.filter((t) => {
+        if (t.admin) return Boolean(isAdmin)
+        if (t.perm) return Boolean(isAdmin) || can(t.perm)
+        return true
+      }),
+    [isAdmin, can],
+  )
+
+  // Keyed rather than indexed: an index would point at a different pane
+  // depending on which tabs this account is allowed to see.
+  const [activeTab, setActiveTab] = React.useState(() => (isAdmin ? 'general' : 'security'))
+
+  // If the visible set changes under us (permissions refreshed), fall back to a
+  // tab that still exists instead of rendering an empty panel.
+  React.useEffect(() => {
+    if (visibleTabs.length && !visibleTabs.some((t) => t.key === activeTab)) {
+      setActiveTab(visibleTabs[0].key)
+    }
+  }, [visibleTabs, activeTab])
   const [transcodingStatus, setTranscodingStatus] = React.useState({
     enabled: false,
     gpu_enabled: false,
@@ -199,7 +236,7 @@ const Settings = () => {
   }, [])
 
   React.useEffect(() => {
-    if (activeTab === 4) {
+    if (activeTab === 'folders') {
       Promise.all([GameService.getFolderRules(), GameService.getImageFolderRules()])
         .then(([res, imgRes]) => {
           setFolderRules(res.data)
@@ -480,7 +517,7 @@ const Settings = () => {
                 href="#steamgrid-settings"
                 onClick={(e) => {
                   e.preventDefault()
-                  setActiveTab(3)
+                  setActiveTab('transcoding')
                   setTimeout(() => {
                     document
                       .getElementById('steamgrid-api-key-field')
@@ -517,7 +554,7 @@ const Settings = () => {
           <FormControl fullWidth sx={{ px: 2, pt: 2, pb: 1, flexShrink: 0 }}>
             <NativeSelect
               value={activeTab}
-              onChange={(e) => setActiveTab(Number(e.target.value))}
+              onChange={(e) => setActiveTab(e.target.value)}
               sx={{
                 color: 'white',
                 fontWeight: 600,
@@ -525,13 +562,11 @@ const Settings = () => {
                 '&::before': { borderColor: 'divider' },
               }}
             >
-              <option value={0}>Privacy &amp; Upload</option>
-              <option value={1}>Sidebar</option>
-              <option value={2}>Integrations</option>
-              <option value={3}>Transcoding</option>
-              <option value={4}>Folder Rules</option>
-              <option value={5}>Actions</option>
-              <option value={6}>Security</option>
+              {visibleTabs.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.mobileLabel}
+                </option>
+              ))}
             </NativeSelect>
           </FormControl>
         ) : (
@@ -553,13 +588,9 @@ const Settings = () => {
               },
             }}
           >
-            <Tab label="General" />
-            <Tab label="Sidebar" />
-            <Tab label="Integrations" />
-            <Tab label="Transcoding" />
-            <Tab label="Folder Rules" />
-            <Tab label="Actions" />
-            <Tab label="Security" />
+            {visibleTabs.map((t) => (
+              <Tab key={t.key} value={t.key} label={t.label} />
+            ))}
           </Tabs>
         )}
 
@@ -592,7 +623,7 @@ const Settings = () => {
             {/* Scrollable content area */}
             <Box sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {/* General Settings */}
-              {activeTab === 0 && (
+              {activeTab === 'general' && (
                 <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                   <Box>
                     <LightTooltip
@@ -757,7 +788,7 @@ const Settings = () => {
               )}
 
               {/* Sidebar */}
-              {activeTab === 1 && (
+              {activeTab === 'sidebar' && (
                 <Stack spacing={2} sx={{ maxWidth: 500 }}>
                   <FormControlLabel
                     control={
@@ -847,7 +878,7 @@ const Settings = () => {
               )}
 
               {/* Integrations */}
-              {activeTab === 2 && (
+              {activeTab === 'integrations' && (
                 <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                   <header>Notifications</header>
                   <TextField
@@ -1057,7 +1088,7 @@ const Settings = () => {
               )}
 
               {/* Transcoding */}
-              {activeTab === 3 && (
+              {activeTab === 'transcoding' && (
                 <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                   <Typography variant="body2" color="text.secondary">
                     Transcoding will convert your videos to multiple quality levels to allow for additional quality
@@ -1207,7 +1238,7 @@ const Settings = () => {
               )}
 
               {/* Folder Rules */}
-              {activeTab === 4 && (
+              {activeTab === 'folders' && (
                 <Stack spacing={2} sx={{ maxWidth: 500, mt: -1 }}>
                   <Tabs
                     value={folderSubTab}
@@ -1481,7 +1512,7 @@ const Settings = () => {
               )}
 
               {/* Actions */}
-              {activeTab === 5 && (
+              {activeTab === 'actions' && (
                 <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
                   <Button
                     variant="contained"
@@ -1541,11 +1572,19 @@ const Settings = () => {
               )}
 
               {/* Security */}
-              {activeTab === 6 && <SecuritySettings />}
+              {activeTab === 'users' && <UserManagement />}
+
+              {activeTab === 'security' && (
+                <Stack spacing={4} sx={{ pt: 1 }}>
+                  <ChangePassword currentUser={currentUser} />
+                  <Divider />
+                  <SecuritySettings />
+                </Stack>
+              )}
             </Box>
 
             {/* Save button pinned to bottom */}
-            {activeTab !== 4 && activeTab !== 5 && activeTab !== 6 && (
+            {activeTab !== 'folders' && activeTab !== 'actions' && activeTab !== 'security' && activeTab !== 'users' && (
               <Box sx={{ pt: 2, maxWidth: 500, flexShrink: 0 }}>
                 <Divider sx={{ mb: 2 }} />
                 <Tooltip title={demoMode ? 'Settings cannot be changed in demo mode' : ''} placement="top">

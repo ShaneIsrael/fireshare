@@ -15,9 +15,12 @@ from ..models import (
     ImageTagLink,
     ImageView,
 )
+from .. import permissions as P
 from . import api
 
 
+from .helpers import viewer_sees_private
+from .decorators import require_perm
 def _is_session_unlocked(video_id):
     try:
         from .video import _is_session_unlocked as impl
@@ -97,7 +100,7 @@ def _folder_json(folder, authenticated):
 
 @api.route('/api/folders', methods=['GET'])
 def get_folders():
-    authenticated = current_user.is_authenticated
+    authenticated = viewer_sees_private()
 
     query = MediaFolder.query.filter(MediaFolder.available == True)
     if not authenticated:
@@ -130,7 +133,7 @@ def get_folder(uuid):
     if not folder:
         return Response(status=404, response='Folder not found.')
 
-    authenticated = current_user.is_authenticated
+    authenticated = viewer_sees_private()
 
     if not authenticated and (folder.private or not folder.available):
         return Response(status=404, response='Folder not found.')
@@ -147,7 +150,7 @@ def get_folder_videos(uuid):
     if not folder:
         return Response(status=404, response='Folder not found.')
 
-    authenticated = current_user.is_authenticated
+    authenticated = viewer_sees_private()
 
     if not authenticated and (folder.private or not folder.available):
         return Response(status=404, response='Folder not found.')
@@ -169,7 +172,7 @@ def get_folder_images(uuid):
     if not folder:
         return Response(status=404, response='Folder not found.')
 
-    authenticated = current_user.is_authenticated
+    authenticated = viewer_sees_private()
 
     if not authenticated and (folder.private or not folder.available):
         return Response(status=404, response='Folder not found.')
@@ -186,7 +189,7 @@ def get_folder_images(uuid):
 
 
 @api.route('/api/folders/<uuid>', methods=['PUT'])
-@login_required
+@require_perm(P.EDIT_ANY)
 def update_folder(uuid):
     folder = MediaFolder.query.filter_by(uuid=uuid).first()
     if not folder:

@@ -19,6 +19,7 @@ function stableDelay(id) {
 // Each card is always in the DOM as a placeholder. When it scrolls near the
 // viewport its full content mounts and fades in, keeping the masonry stable.
 const LazyImageCard = ({
+  hideUploader = false,
   img,
   listVersion,
   openImageHandler,
@@ -116,6 +117,7 @@ const LazyImageCard = ({
             editMode={editMode}
             selected={selected}
             onSelect={onSelect}
+            hideUploader={hideUploader}
           />
         </motion.div>
       )}
@@ -134,6 +136,7 @@ const ImageCards = React.memo(
     editMode = false,
     selectedImages,
     onImageSelect,
+    hideUploader = false,
   }) => {
     const [imgs, setImages] = React.useState(images || [])
     const [alert, setAlert] = React.useState({ open: false })
@@ -271,6 +274,7 @@ const ImageCards = React.memo(
                 editMode={editMode}
                 selected={selectedImages?.has(img.image_id)}
                 onSelect={onImageSelect}
+                hideUploader={hideUploader}
               />
             ))}
           </Box>

@@ -10,12 +10,15 @@ from flask_login import login_required, current_user
 from .. import db, logger
 from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, Image, ImageInfo, ImageGameLink, ImageView
 from ..steamgrid import SteamGridDBClient
+from .. import permissions as P
 from . import api
+from .decorators import require_perm
 from .helpers import (
     cancel_pending_transcode_jobs,
     delete_video_files,
     get_steamgriddb_api_key,
     login_required_unless_public_game_tag,
+    viewer_sees_private,
 )
 
 
@@ -68,7 +71,7 @@ def get_steamgrid_asset_options(game_id):
 
 
 @api.route('/api/games/<int:steamgriddb_id>/assets', methods=["PUT"])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 def update_game_asset(steamgriddb_id):
     import tempfile
 
@@ -161,7 +164,7 @@ def get_games():
         ImageGameLink.image_id == Image.image_id
     )
 
-    if current_user.is_authenticated:
+    if viewer_sees_private():
         # Show games that have at least one linked video OR image
         games = (
             db.session.query(GameMetadata)
@@ -447,7 +450,7 @@ def get_game_videos(steamgriddb_id):
         if not link.video:
             continue
 
-        if not current_user.is_authenticated:
+        if not viewer_sees_private():
             # Only show available, non-private videos to public users
             if not link.video.available:
                 continue
@@ -472,7 +475,7 @@ def get_game_images(steamgriddb_id):
     for link in ImageGameLink.query.filter_by(game_id=game.id).all():
         if not link.image:
             continue
-        if not current_user.is_authenticated:
+        if not viewer_sees_private():
             if not link.image.available:
                 continue
             if not link.image.info or link.image.info.private:
@@ -485,7 +488,7 @@ def get_game_images(steamgriddb_id):
 
 
 @api.route('/api/games/<int:steamgriddb_id>', methods=["DELETE"])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 def delete_game(steamgriddb_id):
     """
     Delete a game and optionally all associated videos.

@@ -12,8 +12,9 @@ from flask_login import login_required
 
 from .. import db, util
 from ..models import TranscodeJob, VideoInfo
+from .. import permissions as P
 from . import api
-from .decorators import demo_restrict
+from .decorators import demo_restrict, require_perm
 
 
 # Per-worker drain thread reference and lock to protect it.
@@ -222,7 +223,7 @@ def get_transcoding_status():
 
 
 @api.route('/api/admin/transcoding/start', methods=["POST"])
-@login_required
+@require_perm(P.TRANSCODE)
 @demo_restrict
 def start_transcoding():
     """Start bulk transcoding of all videos, or queue it if already running."""
@@ -234,7 +235,7 @@ def start_transcoding():
 
 
 @api.route('/api/admin/transcoding/start/<video_id>', methods=["POST"])
-@login_required
+@require_perm(P.TRANSCODE)
 @demo_restrict
 def start_transcoding_video(video_id):
     """Start transcoding for a single video, or queue it if already running."""
@@ -246,7 +247,7 @@ def start_transcoding_video(video_id):
 
 
 @api.route('/api/admin/transcoding/cancel', methods=["POST"])
-@login_required
+@require_perm(P.TRANSCODE)
 @demo_restrict
 def cancel_transcoding():
     """Cancel the running transcode and clear all pending jobs from the queue."""

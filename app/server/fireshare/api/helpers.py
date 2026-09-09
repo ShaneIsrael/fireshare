@@ -213,3 +213,18 @@ def get_video_path(id, subid=None, quality=None):
     ext = ".mp4" if subid else video.extension
     video_path = paths["processed"] / "video_links" / f"{id}{subid_suffix}{ext}"
     return str(video_path)
+
+
+def viewer_sees_private():
+    """Whether the current requester may see private media in listings.
+
+    This governs *discovery* — feeds, folder and tag listings, game pages, and
+    profiles. Direct access by id is deliberately not gated on it: "private" in
+    Fireshare means link-only, so anyone holding a share link can still open that
+    one item. Without the view_private permission a signed-in account simply sees
+    the same listings an anonymous visitor does.
+    """
+    from flask_login import current_user
+    from .. import permissions as P
+
+    return current_user.is_authenticated and current_user.can(P.VIEW_PRIVATE)
