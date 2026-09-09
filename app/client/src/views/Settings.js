@@ -208,16 +208,26 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
   React.useEffect(() => {
     async function fetch() {
       try {
-        // Fetch folder rules in parallel with config
+        // Only request what this account is allowed to have: the full config and
+        // the startup warnings are administrator-only, and folder rules follow
+        // manage_games. Asking regardless would just log 403s on every visit for
+        // an account that can only open the Security tab.
+        const canSeeConfig = Boolean(isAdmin)
+        const canSeeFolderRules = Boolean(isAdmin) || can('manage_games')
+
         const [conf, rulesRes, imageRulesRes] = await Promise.all([
-          ConfigService.getAdminConfig(),
-          GameService.getFolderRules(),
-          GameService.getImageFolderRules(),
+          canSeeConfig ? ConfigService.getAdminConfig() : Promise.resolve(null),
+          canSeeFolderRules ? GameService.getFolderRules() : Promise.resolve(null),
+          canSeeFolderRules ? GameService.getImageFolderRules() : Promise.resolve(null),
         ])
+        // Folder rules first: a curator can open that tab without being an
+        // administrator, so they must survive the config early-return below.
+        if (rulesRes) setFolderRules(rulesRes.data)
+        if (imageRulesRes) setImageFolderRules(imageRulesRes.data)
+
+        if (!conf) return
         setConfig(conf.data)
         setUpdatedConfig(conf.data)
-        setFolderRules(rulesRes.data)
-        setImageFolderRules(imageRulesRes.data)
         // Set transcoding enabled/gpu from config (only changes on container restart)
         if (conf.data.transcoding_status) {
           setTranscodingStatus((prev) => ({

@@ -21,11 +21,11 @@ from . import api
 from .helpers import cancel_pending_transcode_jobs, delete_video_files
 from .transcoding import _is_pid_running
 from .scan import _game_scan_state
-from .decorators import demo_restrict
+from .decorators import admin_required, demo_restrict
 
 
 @api.route('/api/admin/config', methods=["GET", "PUT"])
-@login_required
+@admin_required
 def get_or_update_config():
     paths = current_app.config['PATHS']
     demo_mode = current_app.config.get('DEMO_MODE', False)
@@ -68,7 +68,7 @@ def get_or_update_config():
 
 
 @api.route('/api/admin/warnings', methods=["GET"])
-@login_required
+@admin_required
 def get_warnings():
     warnings = current_app.config['WARNINGS']
     if request.method == 'GET':
@@ -81,6 +81,9 @@ def get_warnings():
 @api.route('/api/admin/stream')
 @login_required
 def admin_event_stream():
+    # Deliberately not admin-gated: the navbar transcoding and scan indicators
+    # subscribe to this for every signed-in user, and it carries progress counts
+    # rather than configuration. Same reasoning as /api/admin/transcoding/status.
     """SSE endpoint for real-time admin events (transcoding, etc.)."""
 
     # Capture config and app before entering generator (Flask context unavailable inside)
@@ -172,7 +175,7 @@ def admin_event_stream():
 
 
 @api.route('/api/admin/reset-database', methods=["POST"])
-@login_required
+@admin_required
 @demo_restrict
 def reset_database():
     """Reset selected video and game data while preserving config and user settings"""
