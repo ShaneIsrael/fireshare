@@ -57,6 +57,12 @@ const minimizedDrawerWidth = 57
 const CARD_SIZE = 300
 const DEMO_BANNER_HEIGHT = 34
 
+// Pages that have no controls of their own in the top bar. On desktop the app
+// bar and the spacer that reserves room for it are both dropped, so the content
+// starts at the very top. On mobile they stay, because the bar carries the
+// drawer toggle that navigation depends on there.
+const PAGES_WITHOUT_TOP_BAR = ['/files', '/settings', '/image', '/profile']
+
 const allPages = [
   { title: 'Videos', icon: <VideoLibraryIcon />, href: '/', private: false },
   { title: 'Images', icon: <PhotoLibraryIcon />, href: '/images', private: false },
@@ -259,6 +265,8 @@ function MainNavbar({
     }
     return [...allPages.slice(0, insertAt), entry, ...allPages.slice(insertAt)]
   }, [currentUser?.username])
+
+  const showTopBar = isMobile || !PAGES_WITHOUT_TOP_BAR.includes(page)
 
   const pages = withProfile.filter((p) => {
     if (p.adminOnly && !isAdmin) return false
@@ -646,9 +654,7 @@ function MainNavbar({
           </Typography>
         </Box>
       )}
-      {page !== '/login' &&
-        page !== '/watch' &&
-        (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && (
+      {page !== '/login' && page !== '/watch' && showTopBar && (
           <AppBar
             position="fixed"
             open={open}
@@ -800,9 +806,7 @@ function MainNavbar({
         }}
       >
         {showDemoBanner && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
-        {toolbar &&
-          page !== '/watch' &&
-          (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && <Toolbar />}
+        {toolbar && page !== '/watch' && showTopBar && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
