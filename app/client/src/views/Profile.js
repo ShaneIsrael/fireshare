@@ -26,6 +26,7 @@ import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
 import PhotoLibraryIcon from '@mui/icons-material/PhotoLibrary'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PersonOffIcon from '@mui/icons-material/PersonOff'
+import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 
 import { UserService } from '../services'
@@ -35,6 +36,29 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import EditImageModal from '../components/modal/EditImageModal'
 import UserAvatar, { gradientFor } from '../components/user/UserAvatar'
 import { dialogPaperSx, dialogTitleSx, inputSx, helperTextSx } from '../common/modalStyles'
+
+/** Short "how long ago" label for the profile subtext. */
+const relativeTime = (iso) => {
+  const then = new Date(iso)
+  if (Number.isNaN(then.getTime())) return null
+  const seconds = Math.max(0, Math.round((Date.now() - then.getTime()) / 1000))
+  const units = [
+    ['year', 31536000],
+    ['month', 2592000],
+    ['week', 604800],
+    ['day', 86400],
+    ['hour', 3600],
+    ['minute', 60],
+  ]
+  for (const [unit, size] of units) {
+    const n = Math.floor(seconds / size)
+    if (n >= 1) return `${n} ${unit}${n === 1 ? '' : 's'} ago`
+  }
+  return 'just now'
+}
+
+const BANNER_W = 1920
+const BANNER_H = 620
 
 const BIO_MAX = 280
 const DISPLAY_NAME_MAX = 64
@@ -76,10 +100,19 @@ const Profile = ({ authenticated }) => {
   const [tab, setTab] = React.useState(0)
   const [videos, setVideos] = React.useState(null)
   const [images, setImages] = React.useState(null)
+  const [games, setGames] = React.useState(null)
+  // logo_url is always populated when a game has a steamgriddb id, even if the
+  // asset was never downloaded. Track failures so the card can fall back to the
+  // game's name instead of rendering an unlabelled tile.
+  const [brokenLogos, setBrokenLogos] = React.useState(() => new Set())
   const [alert, setAlert] = React.useState({ open: false })
   // ImageCards has no modal of its own (unlike VideoCards), so the viewer is
   // owned here, the same way ImageFeed owns it.
   const [modalImage, setModalImage] = React.useState(null)
+  // Game art is served from the SteamGridDB asset cache, which may not have been
+  // downloaded (no API key, or a game with no art). Track load failure so the
+  // gradient underneath stays visible instead of showing a broken image.
+  const [bannerBroken, setBannerBroken] = React.useState(false)
 
   const [editOpen, setEditOpen] = React.useState(false)
   const [displayNameDraft, setDisplayNameDraft] = React.useState('')
@@ -88,6 +121,7 @@ const Profile = ({ authenticated }) => {
   const [saving, setSaving] = React.useState(false)
   const [uploading, setUploading] = React.useState(false)
   const fileInputRef = React.useRef(null)
+  const bannerInputRef = React.useRef(null)
 
   const load = React.useCallback(async () => {
     setLoading(true)
@@ -106,6 +140,10 @@ const Profile = ({ authenticated }) => {
     load()
   }, [load])
 
+  React.useEffect(() => {
+    setBannerBroken(false)
+  }, [username])
+
   // Media is fetched per tab, on first visit only.
   React.useEffect(() => {
     if (!profile) return
@@ -119,7 +157,12 @@ const Profile = ({ authenticated }) => {
         .then((res) => setImages(res.data.images || []))
         .catch(() => setImages([]))
     }
-  }, [tab, profile, username, videos, images])
+    if (tab === 2 && games === null) {
+      UserService.getProfileGames(username)
+        .then((res) => setGames(res.data || []))
+        .catch(() => setGames([]))
+    }
+  }, [tab, profile, username, videos, images, games])
 
   const handleImageOpen = React.useCallback((image) => {
     setModalImage(image)
@@ -212,6 +255,40 @@ const Profile = ({ authenticated }) => {
     setUploading(false)
   }
 
+  const handleBannerPicked = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    setUploading(true)
+    try {
+      await UserService.uploadBanner(file)
+      setBannerBroken(false)
+      setAlert({ open: true, type: 'success', message: 'Banner updated.' })
+      await load()
+    } catch (err) {
+      setAlert({
+        open: true,
+        type: 'error',
+        message: err.response?.data?.error || 'Could not upload that image.',
+      })
+    }
+    setUploading(false)
+  }
+
+  const removeBanner = async () => {
+    setUploading(true)
+    try {
+      await UserService.deleteBanner()
+      setBannerBroken(false)
+      setAlert({ open: true, type: 'info', message: 'Banner removed.' })
+      await load()
+    } catch (err) {
+      setAlert({ open: true, type: 'error', message: 'Could not remove your banner.' })
+    }
+    setUploading(false)
+  }
+
   const removeAvatar = async () => {
     setUploading(true)
     try {
@@ -272,6 +349,14 @@ const Profile = ({ authenticated }) => {
   const [gFrom, gTo] = gradientFor(profile.username)
   const shareUrl = `${window.location.origin}/u/${profile.username}`
   const hasNoAvatar = !profile.has_avatar
+  const bannerGame = profile.banner_game
+  // Precedence: an uploaded banner, then the most-uploaded game's art, then the
+  // generated gradient underneath.
+  const bannerArt = bannerBroken
+    ? null
+    : profile.banner_url || bannerGame?.banner_url || bannerGame?.hero_url || null
+  const bannerIsGameArt = !profile.banner_url && Boolean(bannerArt)
+  const lastUpload = profile.last_upload_at ? relativeTime(profile.last_upload_at) : null
 
   return (
     <Box sx={{ pb: 5 }}>
@@ -296,9 +381,16 @@ const Profile = ({ authenticated }) => {
         onChange={handleAvatarPicked}
         style={{ display: 'none' }}
       />
+      <input
+        ref={bannerInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        onChange={handleBannerPicked}
+        style={{ display: 'none' }}
+      />
 
-      {/* Banner. Tinted from the same per-user gradient as the fallback avatar so
-          a profile with no uploaded art still looks deliberate. */}
+      {/* Banner: the most-uploaded game's art where it exists, over a per-user
+          gradient that doubles as the fallback. */}
       <Box sx={{ position: 'relative', height: 200, overflow: 'hidden' }}>
         <Box
           sx={{
@@ -312,6 +404,25 @@ const Profile = ({ authenticated }) => {
             `,
           }}
         />
+        {bannerArt && (
+          <Box
+            component="img"
+            src={bannerArt}
+            alt=""
+            onError={() => setBannerBroken(true)}
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center',
+              // Matches the treatment GameVideosHeader gives the same artwork.
+              opacity: 0.7,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
         <Box
           sx={{
             position: 'absolute',
@@ -320,6 +431,30 @@ const Profile = ({ authenticated }) => {
               'linear-gradient(to bottom, rgba(0,30,60,0.15) 0%, rgba(0,30,60,0.6) 55%, #001E3C 100%)',
           }}
         />
+        {bannerIsGameArt && (
+          <Box
+            component={RouterLink}
+            to={`/games/${bannerGame.steamgriddb_id}`}
+            sx={{
+              position: 'absolute',
+              left: 24,
+              top: 20,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.07em',
+              textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.62)',
+              textDecoration: 'none',
+              '&:hover': { color: '#fff' },
+            }}
+          >
+            <SportsEsportsIcon sx={{ fontSize: 13 }} />
+            {bannerGame.name}
+          </Box>
+        )}
         {/* The theme gives every size="small" Button a -8px left margin, which
             would cancel this row's gap exactly. Reset it so the gap applies. */}
         <Box
@@ -444,13 +579,19 @@ const Profile = ({ authenticated }) => {
               {profile.bio}
             </Typography>
           )}
-          {profile.created_at && (
+          {(profile.created_at || lastUpload) && (
             <Typography sx={{ mt: 0.75, fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-              Joined{' '}
-              {new Date(profile.created_at).toLocaleDateString('en-US', {
-                month: 'long',
-                year: 'numeric',
-              })}
+              {profile.created_at && (
+                <>
+                  Joined{' '}
+                  {new Date(profile.created_at).toLocaleDateString('en-US', {
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </>
+              )}
+              {profile.created_at && lastUpload && ' · '}
+              {lastUpload && `Last upload ${lastUpload}`}
             </Typography>
           )}
         </Box>
@@ -527,6 +668,11 @@ const Profile = ({ authenticated }) => {
             iconPosition="start"
             label={`Images (${stats.images})`}
           />
+          <Tab
+            icon={<SportsEsportsIcon sx={{ fontSize: 17 }} />}
+            iconPosition="start"
+            label={`Games (${stats.games})`}
+          />
         </Tabs>
       </Box>
 
@@ -560,6 +706,139 @@ const Profile = ({ authenticated }) => {
               onImageOpen={handleImageOpen}
               hideUploader
             />
+          ))}
+        {tab === 2 &&
+          (games === null ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress />
+            </Box>
+          ) : games.length === 0 ? (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 1,
+                py: 7,
+                border: '1px solid #FFFFFF14',
+                borderRadius: '16px',
+                background: '#00000040',
+              }}
+            >
+              <SportsEsportsIcon sx={{ fontSize: 48, color: '#FFFFFF33' }} />
+              <Typography sx={{ fontWeight: 700, fontSize: 18 }}>No games yet</Typography>
+              <Typography sx={{ fontSize: 13.5, color: '#FFFFFF66' }}>
+                Uploads tagged with a game will show up here.
+              </Typography>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
+                gap: 2,
+              }}
+            >
+              {games.map((game) => (
+                <Box
+                  key={game.id}
+                  component={RouterLink}
+                  to={`/games/${game.steamgriddb_id}`}
+                  sx={{
+                    position: 'relative',
+                    height: 170,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    display: 'block',
+                    textDecoration: 'none',
+                    bgcolor: '#00000066',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    '&:hover': { transform: 'scale(1.04)', boxShadow: '0 8px 24px #00000080' },
+                    '&:focus-visible': { outline: '2px solid #3399FF', outlineOffset: 2 },
+                  }}
+                >
+                  {game.hero_url && (
+                    <Box
+                      component="img"
+                      src={game.hero_url}
+                      alt=""
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        filter: 'brightness(0.7)',
+                      }}
+                    />
+                  )}
+                  {game.logo_url && !brokenLogos.has(game.id) ? (
+                    <Box
+                      component="img"
+                      src={game.logo_url}
+                      alt={game.name}
+                      onError={() =>
+                        setBrokenLogos((prev) => new Set(prev).add(game.id))
+                      }
+                      sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        maxWidth: '65%',
+                        maxHeight: '65%',
+                        objectFit: 'contain',
+                        zIndex: 1,
+                      }}
+                    />
+                  ) : (
+                    <Typography
+                      sx={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'grid',
+                        placeItems: 'center',
+                        px: 2,
+                        textAlign: 'center',
+                        fontWeight: 800,
+                        fontSize: 18,
+                        color: '#fff',
+                        textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                      }}
+                    >
+                      {game.name}
+                    </Typography>
+                  )}
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      left: 10,
+                      bottom: 10,
+                      zIndex: 2,
+                      display: 'flex',
+                      gap: 0.75,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {game.video_count > 0 && (
+                      <Box sx={{ bgcolor: '#000000BF', borderRadius: '4px', px: 0.75, color: '#fff' }}>
+                        {game.video_count} video{game.video_count === 1 ? '' : 's'}
+                      </Box>
+                    )}
+                    {game.image_count > 0 && (
+                      <Box sx={{ bgcolor: '#000000BF', borderRadius: '4px', px: 0.75, color: '#fff' }}>
+                        {game.image_count} image{game.image_count === 1 ? '' : 's'}
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              ))}
+            </Box>
           ))}
       </Box>
 
@@ -598,6 +877,88 @@ const Profile = ({ authenticated }) => {
                   </Button>
                 )}
               </Stack>
+            </Box>
+
+            <Box>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#B2BAC2', mb: 1 }}>
+                BANNER
+              </Typography>
+              <Box
+                sx={{
+                  position: 'relative',
+                  height: 84,
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  border: '1px solid #1E4976',
+                  background: `
+                    radial-gradient(120% 150% at 12% 0%, ${gFrom}CC 0%, transparent 55%),
+                    linear-gradient(105deg, #0A1929 0%, #14385C 45%, #1E4976 70%, #0A1929 100%)
+                  `,
+                }}
+              >
+                {bannerArt && (
+                  <Box
+                    component="img"
+                    src={bannerArt}
+                    alt=""
+                    sx={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      opacity: 0.7,
+                    }}
+                  />
+                )}
+                <Typography
+                  sx={{
+                    position: 'absolute',
+                    left: 10,
+                    bottom: 8,
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: 'rgba(255,255,255,0.7)',
+                  }}
+                >
+                  {profile.banner_url
+                    ? 'Your image'
+                    : bannerIsGameArt
+                      ? `From ${bannerGame.name}`
+                      : 'No banner'}
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PhotoCameraIcon />}
+                  onClick={() => bannerInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {profile.has_banner ? 'Replace' : 'Upload'}
+                </Button>
+                {profile.has_banner && (
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<DeleteOutlineIcon />}
+                    onClick={removeBanner}
+                    disabled={uploading}
+                  >
+                    Remove
+                  </Button>
+                )}
+              </Stack>
+              <Typography sx={{ mt: 0.75, fontSize: 11.5, color: 'rgba(255,255,255,0.45)' }}>
+                Wide images work best — around {BANNER_W} &times; {BANNER_H} (roughly 3:1). Anything
+                else is centre-cropped to fit, so keep the important part in the middle.
+                {bannerIsGameArt || !profile.has_banner
+                  ? ' Leave this empty to use art from the game you upload most.'
+                  : ''}
+              </Typography>
             </Box>
 
             <TextField

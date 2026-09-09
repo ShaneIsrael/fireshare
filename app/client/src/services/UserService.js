@@ -11,6 +11,9 @@ class UserService {
   getProfileImages(username, sort = 'updated_at desc') {
     return Api().get(`/api/users/${encodeURIComponent(username)}/images`, { params: { sort } })
   }
+  getProfileGames(username) {
+    return Api().get(`/api/users/${encodeURIComponent(username)}/games`)
+  }
 
   // --- Own account ---
   updateProfile(details) {
@@ -29,6 +32,18 @@ class UserService {
   }
   deleteAvatar() {
     return Api().delete('/api/account/avatar')
+  }
+  uploadBanner(file, onProgress) {
+    const data = new FormData()
+    data.append('file', file)
+    return Api().post('/api/account/banner', data, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+      onUploadProgress: onProgress,
+    })
+  }
+  deleteBanner() {
+    return Api().delete('/api/account/banner')
   }
   changePassword(currentPassword, newPassword) {
     return Api().post('/api/account/password', {
@@ -72,6 +87,9 @@ class UserService {
   }
   removeUserAvatar(username) {
     return Api().delete(`/api/users/${encodeURIComponent(username)}/avatar`)
+  }
+  removeUserBanner(username) {
+    return Api().delete(`/api/users/${encodeURIComponent(username)}/banner`)
   }
 }
 

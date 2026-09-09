@@ -26,7 +26,7 @@ from .. import permissions as perms
 from ..models import User, Video, Image
 from . import api
 from .decorators import demo_restrict, strict_admin_required, json_body
-from .profile import _avatar_path
+from .profile import _avatar_path, _banner_path
 
 INVITE_TTL = timedelta(days=7)
 
@@ -250,12 +250,12 @@ def delete_user(user_id):
     reassigned += (Image.query.filter(Image.uploaded_by == user.id)
                    .update({'uploaded_by': None}, synchronize_session=False))
 
-    avatar = _avatar_path(user.id)
-    if avatar.is_file():
-        try:
-            avatar.unlink()
-        except OSError as ex:
-            logger.warning(f'Could not remove avatar file {avatar}: {ex}')
+    for artefact in (_avatar_path(user.id), _banner_path(user.id)):
+        if artefact.is_file():
+            try:
+                artefact.unlink()
+            except OSError as ex:
+                logger.warning(f'Could not remove {artefact}: {ex}')
 
     db.session.delete(user)
     db.session.commit()

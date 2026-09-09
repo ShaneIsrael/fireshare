@@ -31,6 +31,27 @@ def find_asset_with_extensions(asset_dir, base_name):
     return None
 
 
+def game_json_with_assets(game):
+    """game.json() with cache-busting query params on whichever assets exist.
+
+    Shared with the per-user games listing so both produce identical URLs, which
+    keeps the browser cache working across the two pages.
+    """
+    data = game.json()
+    if not game.steamgriddb_id:
+        return data
+    paths = current_app.config['PATHS']
+    asset_dir = paths['data'] / 'game_assets' / str(game.steamgriddb_id)
+    for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'),
+                      ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
+        asset_path = asset_dir / f'{base}.webp'
+        if not asset_path.exists():
+            asset_path = find_asset_with_extensions(asset_dir, base)
+        if asset_path and asset_path.exists() and data.get(key):
+            data[key] = data[key] + f'?v={int(asset_path.stat().st_mtime)}'
+    return data
+
+
 @api.route('/api/steamgrid/search', methods=["GET"])
 def search_steamgrid():
     query = request.args.get('query')
@@ -199,19 +220,7 @@ def get_games():
             .all()
         )
 
-    paths = current_app.config['PATHS']
-    result = []
-    for game in games:
-        data = game.json()
-        if game.steamgriddb_id:
-            asset_dir = paths['data'] / 'game_assets' / str(game.steamgriddb_id)
-            for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'), ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
-                asset_path = asset_dir / f'{base}.webp'
-                if not asset_path.exists():
-                    asset_path = find_asset_with_extensions(asset_dir, base)
-                if asset_path and asset_path.exists() and data.get(key):
-                    data[key] = data[key] + f'?v={int(asset_path.stat().st_mtime)}'
-        result.append(data)
+    result = [game_json_with_assets(game) for game in games]
     resp = jsonify(result)
     resp.headers['Cache-Control'] = 'no-store'
     return resp

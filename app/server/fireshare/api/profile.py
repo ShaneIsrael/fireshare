@@ -17,6 +17,7 @@ Security notes for everything in this module:
 """
 import os
 import tempfile
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,14 +29,20 @@ from sqlalchemy.sql import text
 from .. import db, logger
 from .. import permissions as perms
 from ..models import (User, Video, VideoInfo, VideoView, VideoTagLink, VideoGameLink,
-                      Image, ImageInfo, ImageView, ImageTagLink, ImageGameLink)
+                      Image, ImageInfo, ImageView, ImageTagLink, ImageGameLink,
+                      GameMetadata)
 from . import api
 from .decorators import demo_restrict, strict_admin_required, json_body
 
-# Re-encoded output is a square WebP, so one extension covers every upload.
+# Re-encoded output is always WebP, so one extension covers every upload.
 AVATAR_EXTENSION = 'webp'
 AVATAR_SIZE = 256
 AVATAR_QUALITY = 82
+# Matches the SteamGridDB hero crop this replaces, so an uploaded banner and the
+# auto-derived game art sit at the same proportions.
+BANNER_WIDTH = 1920
+BANNER_HEIGHT = 620
+BANNER_QUALITY = 82
 # Generous for a 256px square, tight enough that a worker never buffers anything
 # large. Checked before the body is read, then again against what was read.
 AVATAR_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
@@ -75,6 +82,15 @@ def _avatar_path(user_id):
     is never influenced by request content.
     """
     return _avatar_dir() / f"{int(user_id)}.{AVATAR_EXTENSION}"
+
+
+def _banner_dir():
+    return Path(current_app.config['PATHS']['data']) / 'banners'
+
+
+def _banner_path(user_id):
+    """Absolute path to a user's banner file. See _avatar_path on naming."""
+    return _banner_dir() / f"{int(user_id)}.{AVATAR_EXTENSION}"
 
 
 def _lookup_user(username):
@@ -157,21 +173,55 @@ def get_user_profile(username):
     ]
 
     total_views = 0
-    game_ids = set()
+    game_counts = Counter()
     if visible_video_ids:
         total_views += VideoView.query.filter(VideoView.video_id.in_(visible_video_ids)).count()
-        game_ids.update(
+        game_counts.update(
             row.game_id for row in VideoGameLink.query
             .filter(VideoGameLink.video_id.in_(visible_video_ids))
             .with_entities(VideoGameLink.game_id).all()
         )
     if visible_image_ids:
         total_views += ImageView.query.filter(ImageView.image_id.in_(visible_image_ids)).count()
-        game_ids.update(
+        game_counts.update(
             row.game_id for row in ImageGameLink.query
             .filter(ImageGameLink.image_id.in_(visible_image_ids))
             .with_entities(ImageGameLink.game_id).all()
         )
+    game_ids = set(game_counts)
+
+    # Most recent upload across whatever this viewer can see, so the profile can
+    # say how active the account is. Uses created_at (when it entered the
+    # library) rather than updated_at, which later edits would bump.
+    last_upload = None
+    if visible_video_ids:
+        last_upload = (Video.query
+                       .filter(Video.video_id.in_(visible_video_ids))
+                       .with_entities(func.max(Video.created_at)).scalar())
+    if visible_image_ids:
+        newest_image = (Image.query
+                        .filter(Image.image_id.in_(visible_image_ids))
+                        .with_entities(func.max(Image.created_at)).scalar())
+        if newest_image and (last_upload is None or newest_image > last_upload):
+            last_upload = newest_image
+
+    # Header art comes from whichever game this person uploads most, so a profile
+    # looks like what they actually play without anyone having to upload a banner.
+    # Ties break on the lower game id to keep the choice stable between requests.
+    banner_game = None
+    if game_counts:
+        top_game_id = min(game_counts, key=lambda gid: (-game_counts[gid], gid))
+        game = db.session.get(GameMetadata, top_game_id)
+        if game and game.steamgriddb_id:
+            art = game.json()
+            banner_game = {
+                'name': art['name'],
+                'steamgriddb_id': art['steamgriddb_id'],
+                # hero_2 is the wide banner crop; hero_1 is the fallback.
+                'banner_url': art['banner_url'],
+                'hero_url': art['hero_url'],
+                'upload_count': game_counts[top_game_id],
+            }
 
     is_self = current_user.is_authenticated and current_user.id == user.id
 
@@ -187,6 +237,8 @@ def get_user_profile(username):
             'total_views': total_views,
             'games': len(game_ids),
         },
+        'banner_game': banner_game,
+        'last_upload_at': last_upload.isoformat() if last_upload else None,
         'is_self': is_self,
         'can_edit': is_self or (current_user.is_authenticated and current_user.admin),
         'showing_private': include_private,
@@ -263,6 +315,66 @@ def get_user_images(username):
     return jsonify({'images': result})
 
 
+@api.route('/api/users/<username>/games', methods=['GET'])
+def get_user_games(username):
+    """Games this user has uploaded for, newest-uploaded first.
+
+    Mirrors /api/games so the profile tab can render the same cards, but scoped
+    to the media this viewer is allowed to see and annotated with how much of it
+    this person contributed.
+    """
+    user = _resolve_or_404(username)
+    include_private = _can_view_private_media(user)
+
+    video_q = Video.query.join(VideoInfo).filter(
+        Video.uploaded_by == user.id, Video.available == True
+    )
+    image_q = Image.query.join(ImageInfo).filter(
+        Image.uploaded_by == user.id, Image.available == True
+    )
+    if not include_private:
+        video_q = video_q.filter(VideoInfo.private == False)
+        image_q = image_q.filter(ImageInfo.private == False)
+
+    video_ids = [v.video_id for v in video_q.with_entities(Video.video_id).all()]
+    image_ids = [i.image_id for i in image_q.with_entities(Image.image_id).all()]
+
+    video_counts = Counter()
+    image_counts = Counter()
+    if video_ids:
+        video_counts.update(
+            row.game_id for row in VideoGameLink.query
+            .filter(VideoGameLink.video_id.in_(video_ids))
+            .with_entities(VideoGameLink.game_id).all()
+        )
+    if image_ids:
+        image_counts.update(
+            row.game_id for row in ImageGameLink.query
+            .filter(ImageGameLink.image_id.in_(image_ids))
+            .with_entities(ImageGameLink.game_id).all()
+        )
+
+    game_ids = set(video_counts) | set(image_counts)
+    if not game_ids:
+        return jsonify([])
+
+    from .game import game_json_with_assets
+
+    games = GameMetadata.query.filter(GameMetadata.id.in_(game_ids)).all()
+    result = []
+    for game in games:
+        data = game_json_with_assets(game)
+        data['video_count'] = video_counts.get(game.id, 0)
+        data['image_count'] = image_counts.get(game.id, 0)
+        result.append(data)
+
+    # Most-uploaded first, then alphabetically, matching how the banner picks.
+    result.sort(key=lambda g: (-(g['video_count'] + g['image_count']), (g['name'] or '').lower()))
+    resp = jsonify(result)
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
 @api.route('/api/account/profile', methods=['PUT'])
 @login_required
 @demo_restrict
@@ -310,13 +422,25 @@ def get_user_avatar(username):
     return response
 
 
-def _store_avatar(user, file_storage):
-    """Validate, re-encode, and persist an uploaded avatar.
+def _store_profile_image(user, file_storage, kind):
+    """Validate, re-encode, and persist an uploaded avatar or banner.
 
-    Returns None on success or an error message. Only decoded pixel data is
-    written out: the original bytes are never saved, so trailing payloads and
-    embedded metadata cannot survive the round trip.
+    kind is 'avatar' (square) or 'banner' (wide). Returns None on success or an
+    error message. Only decoded pixel data is written out: the original bytes are
+    never saved, so trailing payloads and embedded metadata cannot survive the
+    round trip.
     """
+    if kind == 'avatar':
+        target_size = (AVATAR_SIZE, AVATAR_SIZE)
+        quality = AVATAR_QUALITY
+        target = _avatar_path(user.id)
+    elif kind == 'banner':
+        target_size = (BANNER_WIDTH, BANNER_HEIGHT)
+        quality = BANNER_QUALITY
+        target = _banner_path(user.id)
+    else:
+        raise ValueError(f'unknown image kind {kind!r}')
+
     from PIL import Image as PILImage, ImageOps, UnidentifiedImageError
 
     # Cheap rejection before reading the body at all.
@@ -355,17 +479,16 @@ def _store_avatar(user, file_storage):
             # Honour EXIF rotation before the orientation tag is discarded.
             img = ImageOps.exif_transpose(img)
             img = img.convert('RGB')
-            # Centre-crop to a square, then downscale to the stored size.
-            img = ImageOps.fit(img, (AVATAR_SIZE, AVATAR_SIZE), method=PILImage.LANCZOS)
+            # Centre-crop to the target aspect, then scale to the stored size.
+            img = ImageOps.fit(img, target_size, method=PILImage.LANCZOS)
 
-            target = _avatar_path(user.id)
             target.parent.mkdir(parents=True, exist_ok=True)
             # Write to a temp file in the destination directory and replace, so a
             # concurrent read never observes a partially written avatar.
             fd, tmp_name = tempfile.mkstemp(dir=str(target.parent), suffix='.tmp')
             os.close(fd)
             try:
-                img.save(tmp_name, 'WEBP', quality=AVATAR_QUALITY, method=4)
+                img.save(tmp_name, 'WEBP', quality=quality, method=4)
                 os.replace(tmp_name, str(target))
             except Exception:
                 if os.path.exists(tmp_name):
@@ -374,7 +497,7 @@ def _store_avatar(user, file_storage):
     except PILImage.DecompressionBombError:
         return 'That image is too large to process.'
     except Exception as ex:
-        logger.error(f'Failed to process avatar for user {user.id}: {ex}')
+        logger.error(f'Failed to process {kind} for user {user.id}: {ex}')
         return 'That image could not be processed.'
 
     return None
@@ -387,7 +510,7 @@ def upload_own_avatar():
     if 'file' not in request.files:
         return jsonify({'error': 'No file was provided.'}), 400
 
-    error = _store_avatar(current_user, request.files['file'])
+    error = _store_profile_image(current_user, request.files['file'], 'avatar')
     if error:
         return jsonify({'error': error}), 400
 
@@ -433,6 +556,84 @@ def delete_user_avatar(username):
     db.session.commit()
     logger.info(f"Admin '{current_user.username}' removed the avatar for '{user.username}'")
     return jsonify({'avatar_url': None})
+
+
+# ---------------------------------------------------------------------------
+# Banners
+# ---------------------------------------------------------------------------
+
+@api.route('/api/users/<username>/banner', methods=['GET'])
+def get_user_banner(username):
+    """Serve a user's uploaded banner. Same reasoning as get_user_avatar."""
+    user = _lookup_user(username)
+    if user is None or user.disabled or not user.has_banner:
+        abort(404)
+
+    path = _banner_path(user.id)
+    if not path.is_file():
+        abort(404)
+
+    response = send_file(str(path), mimetype='image/webp', conditional=True)
+    response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Content-Security-Policy'] = "default-src 'none'; img-src 'self'"
+    return response
+
+
+@api.route('/api/account/banner', methods=['POST'])
+@login_required
+@demo_restrict
+def upload_own_banner():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file was provided.'}), 400
+
+    error = _store_profile_image(current_user, request.files['file'], 'banner')
+    if error:
+        return jsonify({'error': error}), 400
+
+    current_user.banner_version = (current_user.banner_version or 0) + 1
+    db.session.commit()
+    logger.info(f"User '{current_user.username}' updated their profile banner")
+    return jsonify({'banner_url': current_user.banner_url()})
+
+
+@api.route('/api/account/banner', methods=['DELETE'])
+@login_required
+@demo_restrict
+def delete_own_banner():
+    """Remove the override, so the profile falls back to game art or the gradient."""
+    path = _banner_path(current_user.id)
+    if path.is_file():
+        try:
+            path.unlink()
+        except OSError as ex:
+            logger.warning(f'Could not remove banner file {path}: {ex}')
+
+    current_user.banner_version = 0
+    db.session.commit()
+    return jsonify({'banner_url': None})
+
+
+@api.route('/api/users/<username>/banner', methods=['DELETE'])
+@strict_admin_required
+@demo_restrict
+def delete_user_banner(username):
+    """Let an administrator remove someone else's banner (moderation)."""
+    user = _lookup_user(username)
+    if user is None:
+        abort(404)
+
+    path = _banner_path(user.id)
+    if path.is_file():
+        try:
+            path.unlink()
+        except OSError as ex:
+            logger.warning(f'Could not remove banner file {path}: {ex}')
+
+    user.banner_version = 0
+    db.session.commit()
+    logger.info(f"Admin '{current_user.username}' removed the banner for '{user.username}'")
+    return jsonify({'banner_url': None})
 
 
 # ---------------------------------------------------------------------------

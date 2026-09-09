@@ -41,6 +41,9 @@ class User(UserMixin, db.Model):
     # 0 = no avatar uploaded. Bumped on each upload so clients can cache the file
     # forever and still pick up a change.
     avatar_version = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+    # 0 = no uploaded banner, so the profile falls back to the most-uploaded
+    # game's art and then to a generated gradient.
+    banner_version = db.Column(db.Integer, nullable=False, default=0, server_default='0')
 
     @property
     def granted_permissions(self):
@@ -80,6 +83,10 @@ class User(UserMixin, db.Model):
         return bool(self.avatar_version)
 
     @property
+    def has_banner(self):
+        return bool(self.banner_version)
+
+    @property
     def name(self):
         """The name to show for this user anywhere in the UI."""
         return self.display_name or self.username
@@ -88,6 +95,11 @@ class User(UserMixin, db.Model):
         if not self.has_avatar:
             return None
         return f"/api/users/{self.username}/avatar?v={self.avatar_version}"
+
+    def banner_url(self):
+        if not self.has_banner:
+            return None
+        return f"/api/users/{self.username}/banner?v={self.banner_version}"
 
     def mention_json(self):
         """The compact uploader reference embedded in video and image payloads."""
@@ -107,6 +119,8 @@ class User(UserMixin, db.Model):
             "bio": self.bio,
             "avatar_url": self.avatar_url(),
             "has_avatar": self.has_avatar,
+            "banner_url": self.banner_url(),
+            "has_banner": self.has_banner,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
