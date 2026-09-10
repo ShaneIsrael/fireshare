@@ -31,7 +31,6 @@ const AuthWrapper = ({ children, redirect }) => {
                 display_name: response.display_name,
                 name: response.name,
                 avatar_url: response.avatar_url,
-                ldap: response.ldap,
                 must_change_password: response.must_change_password,
               }
             : null,

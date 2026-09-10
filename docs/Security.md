@@ -147,8 +147,7 @@ with its password alone, and MFA can be set up again from Settings.
 
 ### Notes and limitations
 
-- **Local accounts only.** LDAP accounts authenticate against your directory server and can't enable
-  Fireshare MFA — use your directory's own. The demo account is excluded too.
+- **The demo account is excluded.**
 - **Set a persistent `SECRET_KEY`.** Sessions, including the short-lived state between the password and
   code steps, are signed with it; without one, every restart invalidates all sessions. See
   [EnvironmentVariables.md](./EnvironmentVariables.md).

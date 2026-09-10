@@ -99,7 +99,6 @@ def list_users():
             {'key': k, 'label': perms.PRESET_LABELS[k], 'permissions': list(v)}
             for k, v in perms.PRESETS.items()
         ],
-        'ldap_enabled': bool(current_app.config.get('LDAP_ENABLE')),
     })
 
 
@@ -136,7 +135,6 @@ def create_user():
     user = User(
         username=username,
         admin=make_admin,
-        ldap=False,
         permissions=perms.serialize_permissions(granted),
         display_name=perms.clean_display_name(body.get('display_name')),
         profile_public=bool(body.get('profile_public', True)),
@@ -280,9 +278,6 @@ def set_user_password(user_id):
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'User not found.'}), 404
-    if user.ldap:
-        return jsonify({'error': 'LDAP account passwords are managed by the directory.'}), 400
-
     password = body.get('password')
     error = perms.password_error(password)
     if error:
@@ -304,8 +299,6 @@ def create_user_invite(user_id):
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'User not found.'}), 404
-    if user.ldap:
-        return jsonify({'error': 'LDAP account passwords are managed by the directory.'}), 400
     if user.admin and user.id != current_user.id and user.env_managed:
         return jsonify({'error': 'This account is managed by environment variables.'}), 400
 
@@ -348,9 +341,6 @@ def admin_disable_user_mfa(user_id):
 @json_body
 def change_own_password():
     body = request.json_body
-
-    if current_user.ldap:
-        return jsonify({'error': 'Your password is managed by your organization\'s directory.'}), 400
 
     current_password = body.get('current_password')
     if not current_user.password or not isinstance(current_password, str) or \

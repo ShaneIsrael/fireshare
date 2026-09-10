@@ -20,16 +20,6 @@ source .env.dev
 
 pip install --upgrade pip setuptools wheel
 
-# Install python-ldap dependencies if needed (optional, won't fail the setup)
-if ! pip show python-ldap > /dev/null 2>&1; then
-  echo ""
-  echo "Note: python-ldap requires system libraries (libldap2-dev, libsasl2-dev on Linux"
-  echo "or openldap on macOS). If the install fails, you can install them with:"
-  echo "  Ubuntu/Debian: sudo apt-get install -y libldap2-dev libsasl2-dev"
-  echo "  macOS:         brew install openldap"
-  echo ""
-fi
-
 pip install -r app/server/requirements.txt
 pip install -e app/server
 

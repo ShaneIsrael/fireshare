@@ -1,5 +1,5 @@
 import React from 'react'
-import { Alert, Box, Button, Stack, TextField, Typography } from '@mui/material'
+import { Box, Button, Stack, TextField, Typography } from '@mui/material'
 import KeyIcon from '@mui/icons-material/Key'
 import { UserService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
@@ -7,7 +7,7 @@ import { inputSx, helperTextSx } from '../../common/modalStyles'
 
 const PASSWORD_MIN = 8
 
-const ChangePassword = ({ currentUser }) => {
+const ChangePassword = () => {
   const [current, setCurrent] = React.useState('')
   const [next, setNext] = React.useState('')
   const [confirm, setConfirm] = React.useState('')
@@ -15,12 +15,11 @@ const ChangePassword = ({ currentUser }) => {
   const [error, setError] = React.useState(null)
   const [alert, setAlert] = React.useState({ open: false })
 
-  const isLdap = Boolean(currentUser?.ldap)
   const tooShort = next.length > 0 && next.length < PASSWORD_MIN
   const mismatch = confirm.length > 0 && next !== confirm
   const sameAsOld = next.length > 0 && next === current
   const canSubmit =
-    !isLdap && current.length > 0 && next.length >= PASSWORD_MIN && next === confirm && !sameAsOld && !busy
+    current.length > 0 && next.length >= PASSWORD_MIN && next === confirm && !sameAsOld && !busy
 
   const submit = async (event) => {
     event.preventDefault()
@@ -50,59 +49,53 @@ const ChangePassword = ({ currentUser }) => {
         <Typography sx={{ fontSize: 15, fontWeight: 700 }}>Password</Typography>
       </Stack>
 
-      {isLdap ? (
-        <Alert severity="info" sx={{ fontSize: 12.5, maxWidth: 420 }}>
-          Your password is managed by your organization&rsquo;s directory. Change it there.
-        </Alert>
-      ) : (
-        <Box component="form" onSubmit={submit} sx={{ maxWidth: 420 }}>
-          <Stack spacing={2}>
-            <TextField
-              type="password"
-              label="Current password"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-              autoComplete="current-password"
-              fullWidth
-              sx={inputSx}
-            />
-            <TextField
-              type="password"
-              label="New password"
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-              autoComplete="new-password"
-              fullWidth
-              sx={inputSx}
-              error={tooShort || sameAsOld}
-              helperText={
-                sameAsOld
-                  ? 'Choose something different from your current password.'
-                  : `At least ${PASSWORD_MIN} characters.`
-              }
-              FormHelperTextProps={{ sx: helperTextSx }}
-            />
-            <TextField
-              type="password"
-              label="Confirm new password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              autoComplete="new-password"
-              fullWidth
-              sx={inputSx}
-              error={mismatch}
-              helperText={mismatch ? 'Passwords do not match.' : ' '}
-              FormHelperTextProps={{ sx: helperTextSx }}
-            />
-            {error && <Typography sx={{ fontSize: 13, color: '#FF6B6B' }}>{error}</Typography>}
-            <Box>
-              <Button type="submit" variant="contained" disabled={!canSubmit}>
-                {busy ? 'Changing…' : 'Change password'}
-              </Button>
-            </Box>
-          </Stack>
-        </Box>
-      )}
+      <Box component="form" onSubmit={submit} sx={{ maxWidth: 420 }}>
+        <Stack spacing={2}>
+          <TextField
+            type="password"
+            label="Current password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            autoComplete="current-password"
+            fullWidth
+            sx={inputSx}
+          />
+          <TextField
+            type="password"
+            label="New password"
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            autoComplete="new-password"
+            fullWidth
+            sx={inputSx}
+            error={tooShort || sameAsOld}
+            helperText={
+              sameAsOld
+                ? 'Choose something different from your current password.'
+                : `At least ${PASSWORD_MIN} characters.`
+            }
+            FormHelperTextProps={{ sx: helperTextSx }}
+          />
+          <TextField
+            type="password"
+            label="Confirm new password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
+            fullWidth
+            sx={inputSx}
+            error={mismatch}
+            helperText={mismatch ? 'Passwords do not match.' : ' '}
+            FormHelperTextProps={{ sx: helperTextSx }}
+          />
+          {error && <Typography sx={{ fontSize: 13, color: '#FF6B6B' }}>{error}</Typography>}
+          <Box>
+            <Button type="submit" variant="contained" disabled={!canSubmit}>
+              {busy ? 'Changing…' : 'Change password'}
+            </Button>
+          </Box>
+        </Stack>
+      </Box>
     </Box>
   )
 }

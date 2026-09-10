@@ -347,8 +347,6 @@ def list_users():
             flags = []
             if u.disabled:
                 flags.append('disabled')
-            if u.ldap:
-                flags.append('ldap')
             if u.env_managed:
                 flags.append('env-managed')
             if u.mfa_enabled:

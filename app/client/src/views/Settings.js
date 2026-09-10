@@ -1586,7 +1586,7 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
 
               {activeTab === 'security' && (
                 <Stack spacing={4} sx={{ pt: 1 }}>
-                  <ChangePassword currentUser={currentUser} />
+                  <ChangePassword />
                   <Divider />
                   <SecuritySettings />
                 </Stack>

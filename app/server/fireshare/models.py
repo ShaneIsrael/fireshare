@@ -15,7 +15,6 @@ class User(UserMixin, db.Model):
     # existing column — forcing NOT NULL would rebuild this table on upgrade, and
     # the migration normalizes the NULLs that older rows could carry.
     admin = db.Column(db.Boolean, default=False)
-    ldap = db.Column(db.Boolean, default=False)
     last_seen_version = db.Column(db.String(32), nullable=True)
     totp_secret = db.Column(db.String(64), nullable=True)
     mfa_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
@@ -139,7 +138,6 @@ class User(UserMixin, db.Model):
             "display_name": self.display_name,
             "name": self.name,
             "admin": bool(self.admin),
-            "ldap": bool(self.ldap),
             "permissions": granted,
             "permissions_label": perms.describe_permissions(self.admin, granted),
             "preset": perms.preset_for(granted) if not self.admin else 'admin',
