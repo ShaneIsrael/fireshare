@@ -155,15 +155,38 @@ Fireshare refuses, server-side, to:
 Disabling an account ends its access immediately, including any active session
 and any "remember me" cookie.
 
-## LDAP
+## LDAP has been removed
 
-When [LDAP](./LDAP.md) is enabled, directory accounts are created on first
-sign-in and given the Curator preset, which matches what a signed-in user could
-do before permissions existed. An administrator can narrow that afterwards.
+LDAP authentication is gone. Every account is a local account.
 
-Two things stay under the directory's control: whether the account is an
-administrator (derived from `LDAP_ADMIN_GROUP` on every sign-in) and the
-password. Fireshare will not set a password for an LDAP account.
+To make sure the change is never a surprise, Fireshare **refuses to start**
+while any `LDAP_*` variable is still set, and it does this before touching the
+database. Removing those variables is how you confirm the upgrade:
+
+```
+LDAP has been discontinued
+---------------------------------------------------------------------
+LDAP authentication has been removed from Fireshare in this version
+and all later versions. This instance still has an LDAP
+configuration, so Fireshare has not started and your database has
+not been modified.
+```
+
+Remove the variables from your compose file and start Fireshare again. On that
+first start, each directory account is converted to a local account:
+
+- Uploads, profile, display name and permissions are kept. Nothing is deleted,
+  and every account keeps its database id, so media stays attributed to whoever
+  uploaded it.
+- The account has no password, so it cannot sign in yet. Set one, or send an
+  invite, from **Settings → Users**.
+- Administrator status is left exactly as it was at that account's last
+  sign-in. It used to be re-derived from `LDAP_ADMIN_GROUP` on every login;
+  now it is an ordinary flag you manage yourself. Worth reviewing once after
+  the upgrade, since it is no longer maintained for you.
+
+If you still depend on a directory server, do not remove the variables. Pin
+your image to the release you were running before the upgrade and stay there.
 
 ## Command line
 

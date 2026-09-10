@@ -183,9 +183,6 @@ const UserManagement = () => {
     if (user.admin && enabledAdmins <= 1 && ['disable', 'delete', 'demote'].includes(action)) {
       return 'This is the only administrator. Promote someone else first.'
     }
-    if (user.ldap && ['password', 'invite'].includes(action)) {
-      return 'Passwords for directory accounts are managed by LDAP.'
-    }
     return null
   }
 
@@ -402,7 +399,6 @@ const UserManagement = () => {
           <TableHead>
             <TableRow>
               <TableCell>User</TableCell>
-              <TableCell>Source</TableCell>
               <TableCell>Access</TableCell>
               <TableCell align="center">2FA</TableCell>
               <TableCell>Status</TableCell>
@@ -432,9 +428,6 @@ const UserManagement = () => {
                   </Stack>
                 </TableCell>
                 <TableCell>
-                  <Typography sx={{ fontSize: 12.5 }}>{u.ldap ? 'LDAP' : 'Local'}</Typography>
-                </TableCell>
-                <TableCell>
                   <Stack direction="row" spacing={0.5} alignItems="center">
                     {u.admin && <ShieldOutlinedIcon sx={{ fontSize: 15, color: '#FFDC48' }} />}
                     <Typography sx={{ fontSize: 12.5, color: u.admin ? '#FFDC48' : '#B2BAC2' }}>
@@ -449,7 +442,7 @@ const UserManagement = () => {
                 </TableCell>
                 <TableCell align="center">
                   <Typography sx={{ fontSize: 12, color: u.mfa_enabled ? '#1DB45A' : 'rgba(255,255,255,0.35)' }}>
-                    {u.ldap ? '—' : u.mfa_enabled ? 'On' : 'Off'}
+                    {u.mfa_enabled ? 'On' : 'Off'}
                   </Typography>
                 </TableCell>
                 <TableCell>
@@ -768,13 +761,6 @@ const UserManagement = () => {
                     />
                   ))}
                 </Box>
-              )}
-
-              {editUser.ldap && (
-                <Alert severity="info" sx={{ fontSize: 12.5 }}>
-                  Administrator status for directory accounts is re-derived from LDAP group
-                  membership on every sign-in, so a change here may not stick.
-                </Alert>
               )}
             </Stack>
           )}

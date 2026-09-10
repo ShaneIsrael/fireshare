@@ -55,7 +55,6 @@ If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/Sha
 - RSS feed for new public videos
 - [Multiple users with per-user permissions](./docs/Users.md)
 - [Shareable user profiles for uploads](./docs/Users.md#profiles)
-- [LDAP support](./docs/LDAP.md)
 - [Two-factor authentication (TOTP authenticator apps)](./docs/Security.md#two-factor-authentication-mfa)
 - [Login IP whitelisting](./docs/Security.md#login-ip-whitelist)
 
@@ -192,10 +191,6 @@ Use the lite image by appending `-lite` to your tag:
 
 ## Configuration
 
-### LDAP
-
-See [LDAP.md](./docs/LDAP.md) for setup instructions.
-
 ### Security (IP Whitelist & Two-Factor Authentication)
 
 Fireshare can restrict logins to a whitelist of IP addresses/CIDR ranges and supports TOTP two-factor
@@ -312,7 +307,7 @@ If you update models, create a migration and review it before opening a pull req
 
 ## Troubleshooting
 
-See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for a full guide covering installation issues, playback problems, permission errors, transcoding, LDAP, and more.
+See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for a full guide covering installation issues, playback problems, permission errors, transcoding, and more.
 
 ---
 
