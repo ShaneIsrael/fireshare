@@ -41,6 +41,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined'
 import TuneIcon from '@mui/icons-material/Tune'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 
 import { UserService } from '../../services'
@@ -449,6 +450,22 @@ const UserManagement = () => {
                   <StatusPill status={u.status} />
                 </TableCell>
                 <TableCell align="right">
+                  {/* A real anchor rather than window.open, so cmd-click, middle-click
+                      and the browser's own context menu all behave as expected. A
+                      hidden profile stays reachable by an administrator, and this
+                      screen is admin-only, so it never opens onto a 404. */}
+                  <Tooltip title="Open profile in a new tab" placement="left">
+                    <IconButton
+                      size="small"
+                      component="a"
+                      href={`/profile/${encodeURIComponent(u.username)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ mr: 0.25 }}
+                    >
+                      <OpenInNewIcon sx={{ fontSize: 17 }} />
+                    </IconButton>
+                  </Tooltip>
                   <IconButton
                     size="small"
                     onClick={(e) => {
