@@ -32,6 +32,7 @@ import TagChip from '../components/ui/TagChip'
 import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
 import OutlinedIconButton from '../components/ui/OutlinedIconButton'
 import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
+import ToolbarFilterMenu from '../components/nav/ToolbarFilterMenu'
 import { SORT_OPTIONS, PRIVACY_OPTIONS, SORT_SELECT_WIDTH, PRIVACY_SELECT_WIDTH } from '../common/constants'
 import { inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
@@ -77,6 +78,7 @@ const Dashboard = ({
   const [toolbarTarget, setToolbarTarget] = React.useState(null)
   const theme = useTheme()
   const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   if (searchText !== search) {
     setSearch(searchText)
@@ -473,6 +475,37 @@ const Dashboard = ({
     setSelectedTagsForBulk([])
   }
 
+  // Same filters the desktop toolbar shows inline, described for the collapsed
+  // mobile menu. The defaults drive the "filters are active" dot on the button.
+  const mobileFilters = [
+    showFolderDropdown &&
+      folderList.length > 1 && {
+        key: 'folder',
+        label: 'Folder',
+        value: selectedFolder,
+        options: folderList.map((f) => ({ value: f, label: f })),
+        onChange: onFolderChange,
+        defaultValue: 'All Videos',
+        selectProps: { components: { SingleValue: MarqueeSingleValue, Option: MarqueeOption } },
+      },
+    {
+      key: 'sort',
+      label: 'Sort by',
+      value: dateSortOrder,
+      options: SORT_OPTIONS,
+      onChange: setDateSortOrder,
+      defaultValue: SORT_OPTIONS[0].value,
+    },
+    authenticated && {
+      key: 'privacy',
+      label: 'Visibility',
+      value: privacyFilter,
+      options: PRIVACY_OPTIONS,
+      onChange: setPrivacyFilter,
+      defaultValue: PRIVACY_OPTIONS[0].value,
+    },
+  ]
+
   return (
     <>
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
@@ -481,51 +514,54 @@ const Dashboard = ({
       {toolbarTarget &&
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
-            {!(editMode && isMdDown) && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-                {showFolderDropdown && folderList.length > 1 && (
-                  <Box sx={{ minWidth: { xs: 100, sm: 150 }, maxWidth: { xs: 130, sm: 200 }, flexShrink: 0 }}>
+            {!(editMode && isMdDown) &&
+              (isMobile ? (
+                <ToolbarFilterMenu filters={mobileFilters} />
+              ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+                  {showFolderDropdown && folderList.length > 1 && (
+                    <Box sx={{ minWidth: 150, maxWidth: 200, flexShrink: 0 }}>
+                      <Select
+                        value={selectedFolder}
+                        options={folderList.map((f) => ({ value: f, label: f }))}
+                        onChange={onFolderChange}
+                        styles={selectFolderTheme}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        blurInputOnSelect
+                        isSearchable={false}
+                        components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
+                      />
+                    </Box>
+                  )}
+                  <Box sx={{ minWidth: SORT_SELECT_WIDTH }}>
                     <Select
-                      value={selectedFolder}
-                      options={folderList.map((f) => ({ value: f, label: f }))}
-                      onChange={onFolderChange}
+                      value={dateSortOrder}
+                      options={SORT_OPTIONS}
+                      onChange={setDateSortOrder}
                       styles={selectFolderTheme}
                       menuPortalTarget={document.body}
                       menuPosition="fixed"
                       blurInputOnSelect
                       isSearchable={false}
-                      components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
                     />
                   </Box>
-                )}
-                <Box sx={{ minWidth: SORT_SELECT_WIDTH }}>
-                  <Select
-                    value={dateSortOrder}
-                    options={SORT_OPTIONS}
-                    onChange={setDateSortOrder}
-                    styles={selectFolderTheme}
-                    menuPortalTarget={document.body}
-                    menuPosition="fixed"
-                    blurInputOnSelect
-                    isSearchable={false}
-                  />
+                  {authenticated && (
+                    <Box sx={{ minWidth: PRIVACY_SELECT_WIDTH }}>
+                      <Select
+                        value={privacyFilter}
+                        options={PRIVACY_OPTIONS}
+                        onChange={setPrivacyFilter}
+                        styles={selectFolderTheme}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                    </Box>
+                  )}
                 </Box>
-                {authenticated && (
-                  <Box sx={{ minWidth: PRIVACY_SELECT_WIDTH }}>
-                    <Select
-                      value={privacyFilter}
-                      options={PRIVACY_OPTIONS}
-                      onChange={setPrivacyFilter}
-                      styles={selectFolderTheme}
-                      menuPortalTarget={document.body}
-                      menuPosition="fixed"
-                      blurInputOnSelect
-                      isSearchable={false}
-                    />
-                  </Box>
-                )}
-              </Box>
-            )}
+              ))}
             {authenticated && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
                 {editMode && (
