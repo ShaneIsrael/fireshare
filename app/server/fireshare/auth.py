@@ -10,106 +10,11 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
+from . import permissions as fs_permissions
 from .api.misc import _get_local_version, _fetch_release_notes
 from .api.decorators import demo_restrict
 from .ip_whitelist import login_ip_required, get_client_ip, is_ip_permitted
 from datetime import datetime, timezone
-try:
-    import ldap, ldap.filter
-except ImportError:
-    ldap = None
-from . import ldap_util
-
-def _ldap_search(app, formatted):
-    """Search for the user, reopening the connection once if the cached one went stale.
-
-    The service bind is made at startup and reused, so an LDAP server restart or an idle
-    timeout would otherwise break every login until Fireshare itself was restarted.
-    """
-    for attempt in (1, 2):
-        try:
-            conn = ldap_util.get_connection(app)
-            return conn.search_ext_s(
-                app.config["LDAP_BASEDN"],
-                ldap.SCOPE_SUBTREE,
-                filterstr=formatted,
-                attrlist=['memberOf']
-            )
-        except ldap.SERVER_DOWN:
-            ldap_util.reset_connection(app)
-            if attempt == 2:
-                raise
-
-
-def auth_user_ldap(username, password):
-    app = current_app._get_current_object()
-    # bind_s with an empty password is an unauthenticated bind, which many directories
-    # answer with success rather than INVALID_CREDENTIALS. Without this guard any
-    # username the filter resolves would authorize, no password needed.
-    if not password:
-        current_app.logger.debug("rejecting LDAP login with an empty password")
-        return False, False
-    formatted = app.config["LDAP_USER_FILTER"].format(
-        input=ldap.filter.escape_filter_chars(username),
-        basedn=app.config["LDAP_BASEDN"]
-    )
-    current_app.logger.debug("authenticating %s", username)
-    current_app.logger.debug("formatted LDAP query: %s", formatted)
-    
-    try:
-        out = _ldap_search(app, formatted)
-        current_app.logger.debug("LDAP search result: %s", out)
-
-        if out:
-            dn = out[0][0]
-            attrs = out[0][1]
-            admin = True
-
-            if attrs and 'memberOf' in attrs and current_app.config["LDAP_ADMIN_GROUP"]:
-                admin_str = '{},{}'.format(
-                    current_app.config["LDAP_ADMIN_GROUP"],
-                    current_app.config["LDAP_BASEDN"]
-                ).encode()
-                current_app.logger.debug("matching against admin group: %s", admin_str)
-                if admin_str in attrs['memberOf']:
-                    current_app.logger.debug("matched admin")
-                    admin = True
-                else:
-                    current_app.logger.debug("matched not admin")
-                    admin = False
-
-            current_app.logger.debug("user search yielded result")
-
-            # Same TLS setup as the service connection, otherwise the user bind would
-            # be the one connection with no CA configured.
-            conn2, _ = ldap_util.connect(app.config)
-            current_app.logger.debug("checking credentials")
-            try:
-                conn2.bind_s(dn, password)
-                current_app.logger.debug("authorized user")
-                return True, admin
-            except ldap.INVALID_CREDENTIALS:
-                current_app.logger.debug("not authorized user")
-                return False, False
-            finally:
-                # Including the wrong-password path, which used to leak the connection.
-                try:
-                    conn2.unbind_s()
-                except Exception:
-                    pass
-        else:
-            current_app.logger.debug("user search yielded no results")
-            return False, False
-
-    except ldap.LDAPError as e:
-        current_app.logger.error('LDAP authentication error: %s', ldap_util.describe_error(e, app.config))
-        current_app.logger.debug("failure at block1", exc_info=True)
-        return False, False
-    except Exception:
-        current_app.logger.exception('LDAP authentication error')
-        current_app.logger.debug("failure at block1")
-        return False, False
-
 
 auth = Blueprint('auth', __name__)
 CORS(auth, supports_credentials=True)
@@ -141,14 +46,28 @@ def _verify_totp(user, code):
             return step
     return None
 
+def _record_login(user):
+    user.last_login_at = datetime.utcnow()
+    db.session.commit()
+
+
 @auth.route('/api/login', methods=['POST'])
 @login_ip_required
 def login():
-    username = request.json['username']
-    password = request.json['password']
-    user = User.query.filter_by(username=username, ldap=False).first()
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return Response(response="Invalid request", status=400)
+    username = body.get('username')
+    password = body.get('password')
+    if not isinstance(username, str) or not isinstance(password, str):
+        return Response(response="Invalid username or password", status=401)
 
-    if user and check_password_hash(user.password, password):
+    user = User.query.filter_by(username=username).first()
+
+    # A user awaiting an invite has no password hash, and a disabled account must
+    # not authenticate at all. Both are reported as ordinary credential failures
+    # so the response never distinguishes them from a wrong password.
+    if user and user.password and not user.disabled and check_password_hash(user.password, password):
         if user.mfa_enabled and user.totp_secret:
             session['mfa_pending_user_id'] = user.id
             session['mfa_pending_at'] = time.time()
@@ -156,23 +75,8 @@ def login():
             return jsonify({'mfa_required': True})
         _clear_mfa_pending()
         login_user(user, remember=True)
+        _record_login(user)
         return Response(status=200)
-
-    if current_app.config["LDAP_ENABLE"]:
-        authorised, admin = auth_user_ldap(username, password)
-        if authorised:
-            userobj = User.query.filter_by(username=username, ldap=True).first()
-            if not userobj:
-                userobj = User(username=username, ldap=True, admin=admin)
-                db.session.add(userobj)
-                db.session.commit()
-            if userobj.admin != admin:
-                row = db.session.query(User).filter_by(id=userobj.id).first()
-                row.admin = admin
-                db.session.commit()
-            _clear_mfa_pending()
-            login_user(userobj, remember=True)
-            return Response(status=200)
 
     return Response(response="Invalid username or password", status=401)
 
@@ -189,7 +93,7 @@ def login_mfa():
         return jsonify({'error': 'Login session expired. Please sign in again.', 'restart': True}), 401
 
     user = db.session.get(User, pending_user_id)
-    if not user or not user.mfa_enabled or not user.totp_secret:
+    if not user or user.disabled or not user.mfa_enabled or not user.totp_secret:
         _clear_mfa_pending()
         return jsonify({'error': 'Login session expired. Please sign in again.', 'restart': True}), 401
 
@@ -200,6 +104,7 @@ def login_mfa():
         return jsonify({'error': 'Invalid authentication code.'}), 401
 
     user.totp_last_used = matched_step
+    user.last_login_at = datetime.utcnow()
     db.session.commit()
     _clear_mfa_pending()
     login_user(user, remember=True)
@@ -211,15 +116,13 @@ def mfa_status():
     is_demo = current_app.config.get('DEMO_MODE') and current_user.username == 'demo'
     return jsonify({
         'enabled': bool(current_user.mfa_enabled),
-        'supported': not current_user.ldap and not is_demo,
+        'supported': not is_demo,
     })
 
 @auth.route('/api/mfa/setup', methods=['POST'])
 @login_required
 @demo_restrict
 def mfa_setup():
-    if current_user.ldap:
-        return jsonify({'error': 'Two-factor authentication is not available for LDAP accounts.'}), 400
     if current_user.mfa_enabled:
         return jsonify({'error': 'Two-factor authentication is already enabled.'}), 400
 
@@ -270,23 +173,9 @@ def mfa_disable():
     db.session.commit()
     return jsonify({'enabled': False})
 
-@auth.route('/api/signup', methods=['POST'])
-@login_required
-@demo_restrict
-def signup():
-    username = request.json['username']
-    password = request.json['password']
-
-    user = User.query.filter_by(username=username).first()
-    
-    if user:
-        return Response(response="User already exists.", status=400)
-
-    new_user = User(username=username, password=generate_password_hash(password, method='pbkdf2:sha256'))
-    db.session.add(new_user)
-    db.session.commit()
-
-    return Response(status=200)
+# /api/signup was removed in favour of POST /api/admin/users. It was gated only by
+# @login_required while User.admin defaulted to True, so any signed-in non-admin
+# could create an administrator account.
 
 @auth.route('/api/loggedin', methods=['GET'])
 def loggedin():
@@ -319,6 +208,15 @@ def loggedin():
     return jsonify({
         'authenticated': True,
         'admin': current_user.admin,
+        'username': current_user.username,
+        'display_name': current_user.display_name,
+        'name': current_user.name,
+        'avatar_url': current_user.avatar_url(),
+        # Admins bypass every check, so the client is handed the full grantable set
+        # rather than an empty list it would have to special-case.
+        'permissions': (list(fs_permissions.GRANTABLE_PERMISSIONS) if current_user.admin
+                        else sorted(current_user.granted_permissions)),
+        'must_change_password': bool(current_user.must_change_password),
         'latest_release': latest_release,
         'login_allowed': login_allowed,
     })

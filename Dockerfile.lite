@@ -14,14 +14,13 @@ WORKDIR /
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     nginx-extras supervisor \
-    libldap2-dev libsasl2-dev libssl-dev \
+    libssl-dev \
     libffi-dev libc-dev \
     build-essential \
     gosu \
     ca-certificates \
     tzdata \
     ffmpeg \
-    libldap-2.5-0 libsasl2-2 \
     && rm -rf /var/lib/apt/lists/* /root/.cache/pip /tmp/*
 
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
@@ -39,7 +38,7 @@ COPY --from=client /app/build /app/build
 COPY --from=client /app/package.json /app
 RUN pip install --no-cache-dir --ignore-installed /app/server \
     && apt-get purge -y --auto-remove \
-        libldap2-dev libsasl2-dev libssl-dev \
+        libssl-dev \
         libffi-dev libc-dev \
         build-essential \
     && apt-get autoremove -y \

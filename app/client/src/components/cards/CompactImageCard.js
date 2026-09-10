@@ -10,6 +10,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { getPublicImageUrl, getImageThumbnailUrl } from '../../common/utils'
 import { ImageService } from '../../services'
+import UploaderMention from '../user/UploaderMention'
 import DeleteImageModal from '../modal/DeleteImageModal'
 
 const IMAGE_VERSION = Date.now()
@@ -24,6 +25,7 @@ const CompactImageCard = ({
   selected = false,
   onSelect,
   showTypeIndicator = false,
+  hideUploader = false,
 }) => {
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
   const [privateView, setPrivateView] = React.useState(image.info?.private)
@@ -394,14 +396,19 @@ const CompactImageCard = ({
               </Typography>
             )}
 
-            {image.created_at && (
-              <Typography sx={{ fontSize: 14, color: '#FFFFFF80', mt: 'auto', pt: 0.5 }}>
-                {new Date(image.created_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </Typography>
+            {(image.created_at || (image.uploader && !hideUploader)) && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 'auto', pt: 0.5, minWidth: 0 }}>
+                {image.created_at && (
+                  <Typography sx={{ fontSize: 14, color: '#FFFFFF80', flexShrink: 0 }}>
+                    {new Date(image.created_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </Typography>
+                )}
+                {!hideUploader && <UploaderMention uploader={image.uploader} sx={{ ml: 'auto' }} />}
+              </Box>
             )}
           </Box>
 

@@ -32,7 +32,7 @@ import TagChip from '../components/ui/TagChip'
 import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
 import OutlinedIconButton from '../components/ui/OutlinedIconButton'
 import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
-import { SORT_OPTIONS, PRIVACY_OPTIONS } from '../common/constants'
+import { SORT_OPTIONS, PRIVACY_OPTIONS, SORT_SELECT_WIDTH, PRIVACY_SELECT_WIDTH } from '../common/constants'
 import { inputSx, dialogPaperSx, dialogTitleSx } from '../common/modalStyles'
 
 const Dashboard = ({
@@ -498,7 +498,7 @@ const Dashboard = ({
                     />
                   </Box>
                 )}
-                <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+                <Box sx={{ minWidth: SORT_SELECT_WIDTH }}>
                   <Select
                     value={dateSortOrder}
                     options={SORT_OPTIONS}
@@ -511,7 +511,7 @@ const Dashboard = ({
                   />
                 </Box>
                 {authenticated && (
-                  <Box sx={{ minWidth: { xs: 110, sm: 130 } }}>
+                  <Box sx={{ minWidth: PRIVACY_SELECT_WIDTH }}>
                     <Select
                       value={privacyFilter}
                       options={PRIVACY_OPTIONS}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <meta name="theme-color" content="#001E3C">
+    <link rel="manifest" href="/manifest.json">
+
+    {% set summary = bio if bio else name ~ " on Fireshare — " ~ public_videos ~ " videos, " ~ public_images ~ " images." %}
+
+    <meta name="description" content="{{ summary }}">
+    <meta property="og:type" content="profile">
+    <meta property="og:url" content="{{ domain }}/u/{{ username }}">
+    <meta property="og:site_name" content="Fireshare">
+    <meta property="og:title" content="{{ name }} (@{{ username }})">
+    <meta property="og:description" content="{{ summary }}">
+    <meta property="profile:username" content="{{ username }}">
+    {% if avatar_path %}
+    <meta property="og:image" content="{{ domain }}{{ avatar_path }}">
+    <meta property="og:image:width" content="256">
+    <meta property="og:image:height" content="256">
+    {% else %}
+    <meta property="og:image" content="{{ domain }}/logo192.png">
+    {% endif %}
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ name }} (@{{ username }})">
+    <meta name="twitter:description" content="{{ summary }}">
+
+    <title>{{ name }} (@{{ username }}) · Fireshare</title>
+</head>
+
+<body>
+    {#
+      The username reaches the script through a data attribute rather than being
+      interpolated into a JS string literal, so it never passes through the
+      JavaScript parser. Jinja's HTML autoescaping covers the attribute (a quote
+      becomes &#34; and cannot close it), and getAttribute hands back the decoded
+      text, which is then encodeURIComponent'd into the path. Interpolating into
+      the script block instead would need |tojson, because autoescaping does not
+      make a value safe inside <script>.
+    #}
+    <div id="profile-redirect" data-username="{{ username }}" hidden></div>
+    <script>
+        (function () {
+            var target = document.getElementById('profile-redirect');
+            var username = target ? target.getAttribute('data-username') : '';
+            window.location.replace('/profile/' + encodeURIComponent(username) + window.location.search);
+        })();
+    </script>
+    <noscript>
+        <p>Continue to <a href="/profile/{{ username }}">{{ name }}&rsquo;s profile</a>.</p>
+    </noscript>
+</body>
+
+</html>

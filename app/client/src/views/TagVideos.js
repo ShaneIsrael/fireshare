@@ -6,7 +6,7 @@ import Select from 'react-select'
 import { TagService } from '../services'
 import VideoCards from '../components/cards/VideoCards'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
-import { SORT_OPTIONS } from '../common/constants'
+import { SORT_OPTIONS, SORT_SELECT_WIDTH } from '../common/constants'
 import { sortSelectTheme as selectSortTheme } from '../common/reactSelectThemes'
 
 const TagVideos = ({ cardSize, authenticated, searchText }) => {
@@ -97,7 +97,7 @@ const TagVideos = ({ cardSize, authenticated, searchText }) => {
     <>
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
+          <Box sx={{ minWidth: SORT_SELECT_WIDTH }}>
             <Select
               value={sortOrder}
               options={SORT_OPTIONS}

@@ -63,3 +63,8 @@ export const timeInputStyle = {
   colorScheme: 'dark',
   flex: 1,
 }
+
+// The theme strips MuiSwitch's default padding to get a compact track, which
+// also removes the space that normally sits between a switch and its label.
+// A Checkbox keeps its own padding, so this is only needed for switches.
+export const switchLabelSx = { ml: 1 }

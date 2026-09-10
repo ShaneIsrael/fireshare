@@ -48,6 +48,7 @@ import UploadCard from '../cards/UploadCard'
 import ImageUploadCard from '../cards/ImageUploadCard'
 import { RegisterUploadCardContext, RegisterImageUploadCardContext } from '../utils/GlobalDragDropOverlay'
 import Select from 'react-select'
+import PersonIcon from '@mui/icons-material/Person'
 import VersionBox from './VersionBox'
 import ReleaseNotesDialog from '../modal/ReleaseNotesDialog'
 
@@ -56,13 +57,21 @@ const minimizedDrawerWidth = 57
 const CARD_SIZE = 300
 const DEMO_BANNER_HEIGHT = 34
 
+// Pages that have no controls of their own in the top bar. On desktop the app
+// bar and the spacer that reserves room for it are both dropped, so the content
+// starts at the very top. On mobile they stay, because the bar carries the
+// drawer toggle that navigation depends on there.
+const PAGES_WITHOUT_TOP_BAR = ['/files', '/settings', '/image', '/profile']
+
 const allPages = [
   { title: 'Videos', icon: <VideoLibraryIcon />, href: '/', private: false },
   { title: 'Images', icon: <PhotoLibraryIcon />, href: '/images', private: false },
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
   { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
   { title: 'Folders', icon: <FolderCopyIcon />, href: '/folders', private: false },
-  { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true },
+  // Every /api/admin/files* endpoint checks current_user.admin, so gating this on
+  // manage_library would advertise a page whose every request answers 403.
+  { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, adminOnly: true },
   { title: 'Settings', icon: <SettingsIcon />, href: '/settings', private: true },
 ]
 
@@ -144,6 +153,9 @@ const AppBar = styled(MuiAppBar, {
 function MainNavbar({
   authenticated,
   isAdmin,
+  currentUser,
+  permissions = [],
+  can = () => false,
   latestRelease,
   loginAllowed,
   page,
@@ -243,8 +255,30 @@ function MainNavbar({
     return () => window.removeEventListener('ui_config_updated', handleUiConfigUpdate)
   }, [])
 
-  const pages = allPages.filter((p) => {
+  const withProfile = React.useMemo(() => {
+    if (!currentUser?.username) return allPages
+    const insertAt = allPages.findIndex((p) => p.href === '/files')
+    const entry = {
+      title: 'My Profile',
+      icon: <PersonIcon />,
+      href: `/profile/${currentUser.username}`,
+      matchPage: '/profile',
+      private: true,
+    }
+    return [...allPages.slice(0, insertAt), entry, ...allPages.slice(insertAt)]
+  }, [currentUser?.username])
+
+  const showTopBar = isMobile || !PAGES_WITHOUT_TOP_BAR.includes(page)
+
+  // The account/admin group at the bottom of the list. The divider goes above
+  // whichever of these renders first: My Profile only exists for a signed-in
+  // account and File Manager only for an administrator, so pinning the divider
+  // to a single entry would drop it for everyone else.
+  const ACCOUNT_GROUP = ['/profile', '/files', '/settings']
+
+  const allowedPages = withProfile.filter((p) => {
     if (p.adminOnly && !isAdmin) return false
+    if (p.perm && !can(p.perm)) return false
     if (p.href === '/' && uiConfig.show_videos === false) return false
     if (p.href === '/images' && uiConfig.show_images === false) return false
     if (p.href === '/games' && uiConfig.show_games === false) return false
@@ -252,6 +286,9 @@ function MainNavbar({
     if (p.href === '/folders' && uiConfig.show_folders === false) return false
     return true
   })
+
+  const pages = allowedPages.filter((p) => (p.private && authenticated) || !p.private)
+  const accountGroupStart = pages.findIndex((p) => ACCOUNT_GROUP.includes(p.matchPage || p.href))
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -441,43 +478,56 @@ function MainNavbar({
         }}
       >
         <List sx={{ pt: 1 }}>
-          {pages.map((p) => {
-            if ((p.private && authenticated) || !p.private)
-              return (
-                <React.Fragment key={p.title}>
-                  {p.href === '/files' && <Divider sx={{ mb: 1, width: '100%' }} />}
-                  <ListItem disablePadding sx={{ px: 1 }}>
-                    <ListItemButton
-                      selected={page === p.href}
-                      onClick={() => navigate(p.href)}
-                      sx={{ height: 50, mb: p.href !== '/settings' ? 1 : 0 }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40 }}>{p.icon}</ListItemIcon>
-                      <ListItemText
-                        primary={p.title}
-                        primaryTypographyProps={{
-                          fontSize: 18,
-                          fontWeight: 600,
-                        }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                </React.Fragment>
-              )
-            return null
-          })}
+          {pages.map((p, index) => (
+            <React.Fragment key={p.title}>
+              {index > 0 && index === accountGroupStart && <Divider sx={{ mb: 1, width: '100%' }} />}
+              <ListItem disablePadding sx={{ px: 1 }}>
+                <ListItemButton
+                  selected={page === (p.matchPage || p.href)}
+                  onClick={() => navigate(p.href)}
+                  sx={{
+                    height: 42,
+                    mb: index === pages.length - 1 ? 0 : 0.5,
+                    // In the minimized rail there is no label to align to. The
+                    // text node still flexes to fill even when clipped to zero
+                    // width, which pushes the icon off to the left, so it is
+                    // taken out of the flow and the icon is centred instead.
+                    ...(!open && {
+                      justifyContent: 'center',
+                      px: 0,
+                      '& .MuiListItemText-root': { display: 'none' },
+                    }),
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: open ? 34 : 0, '& svg': { fontSize: 21 } }}>
+                    {p.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={p.title}
+                    primaryTypographyProps={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            </React.Fragment>
+          ))}
         </List>
         <Divider />
+        {/* A signed-in account without the upload permission has no more upload
+            rights than a visitor, so it is handed the public upload path — which
+            still appears only when public uploads are enabled. */}
         <UploadCard
           ref={registerUploadCard}
-          authenticated={authenticated}
+          authenticated={authenticated && can('upload')}
           handleAlert={memoizedHandleAlert}
           mini={!effectiveOpen}
           onUploadComplete={() => setUploadTick((t) => t + 1)}
         />
         <ImageUploadCard
           ref={registerImageUploadCard}
-          authenticated={authenticated}
+          authenticated={authenticated && can('upload')}
           handleAlert={memoizedHandleAlert}
           mini={!effectiveOpen}
           onUploadComplete={() => setUploadTick((t) => t + 1)}
@@ -625,9 +675,7 @@ function MainNavbar({
           </Typography>
         </Box>
       )}
-      {page !== '/login' &&
-        page !== '/watch' &&
-        (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && (
+      {page !== '/login' && page !== '/watch' && showTopBar && (
           <AppBar
             position="fixed"
             open={open}
@@ -779,15 +827,16 @@ function MainNavbar({
         }}
       >
         {showDemoBanner && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
-        {toolbar &&
-          page !== '/watch' &&
-          (isMobile || (page !== '/files' && page !== '/settings' && page !== '/image')) && <Toolbar />}
+        {toolbar && page !== '/watch' && showTopBar && <Toolbar />}
         <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
           {alert.message}
         </SnackbarAlert>
         {React.cloneElement(children, {
           authenticated,
           isAdmin,
+          currentUser,
+          permissions,
+          can,
           searchText,
           cardSize: CARD_SIZE,
           selectedFolder: effectiveFolder,

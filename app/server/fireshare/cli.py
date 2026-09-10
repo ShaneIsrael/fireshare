@@ -6,7 +6,7 @@ import sys
 import click
 from datetime import datetime
 from flask import current_app, request
-from fireshare import create_app, db, util, logger
+from fireshare import create_app, db, util, logger, permissions
 from fireshare.models import User, Video, VideoInfo, FolderRule, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageFolderRule, MediaFolder
 from werkzeug.security import generate_password_hash
 from pathlib import Path
@@ -248,6 +248,26 @@ def _reconcile_media_folders(media_type, model, snapshot):
         folder.updated_at = datetime.utcnow()
 
 
+def _resolve_uploader(user_id):
+    """Validate an --uploaded-by id against the user table.
+
+    The value originates server-side from current_user.id, but this runs as its
+    own process, so a stale or bogus id is checked rather than trusted: writing
+    an unknown id would leave media pointing at an account that never existed.
+    """
+    if user_id is None:
+        return None
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return None
+    exists = db.session.query(User.id).filter(User.id == user_id).first()
+    if not exists:
+        logger.warning(f"Ignoring --uploaded-by={user_id}: no such user")
+        return None
+    return user_id
+
+
 @click.group()
 def cli():
     pass
@@ -261,12 +281,81 @@ def init_db():
 @cli.command()
 @click.option("--username", "-u", help="Username", required=True)
 @click.option("--password", "-p", help="Password", prompt=True, hide_input=True)
-def add_user(username, password):
+@click.option("--admin", is_flag=True, default=False, help="Create the account as an administrator.")
+@click.option("--preset", type=click.Choice(sorted(permissions.PRESETS)), default='contributor',
+              show_default=True, help="Permission preset for a non-admin account.")
+@click.option("--permissions", "permission_keys", default=None,
+              help="Comma-separated permission keys, overriding --preset. "
+                   f"Available: {', '.join(permissions.GRANTABLE_PERMISSIONS)}")
+def add_user(username, password, admin, preset, permission_keys):
+    """Create a local user account.
+
+    Accounts are non-admin by default. Prior to permissions being introduced this
+    command created administrators, because User.admin defaulted to True.
+    """
     with create_app().app_context():
-        new_user = User(username=username, password=generate_password_hash(password, method='pbkdf2:sha256'))
+        error = permissions.username_error(username)
+        if error:
+            click.echo(f"Error: {error}", err=True)
+            raise SystemExit(1)
+        username = permissions.normalize_username(username)
+
+        error = permissions.password_error(password)
+        if error:
+            click.echo(f"Error: {error}", err=True)
+            raise SystemExit(1)
+
+        if User.query.filter(func.lower(User.username) == username.lower()).first():
+            click.echo(f"Error: a user named {username} already exists.", err=True)
+            raise SystemExit(1)
+
+        if admin:
+            granted = []
+        elif permission_keys is not None:
+            requested = [k.strip() for k in permission_keys.split(',') if k.strip()]
+            granted = permissions.clean_permissions(requested)
+            unknown = sorted(set(requested) - set(granted))
+            if unknown:
+                click.echo(f"Error: unknown permission(s): {', '.join(unknown)}", err=True)
+                raise SystemExit(1)
+        else:
+            granted = list(permissions.PRESETS[preset])
+
+        new_user = User(
+            username=username,
+            password=generate_password_hash(password, method='pbkdf2:sha256'),
+            admin=admin,
+            permissions=permissions.serialize_permissions(granted),
+            created_at=datetime.utcnow(),
+        )
         db.session.add(new_user)
         db.session.commit()
-        click.echo(f"Created user {username}")
+        summary = 'administrator' if admin else permissions.describe_permissions(False, granted)
+        click.echo(f"Created user {username} ({summary})")
+
+
+@cli.command()
+def list_users():
+    """List local and directory accounts with their access level."""
+    with create_app().app_context():
+        users = User.query.order_by(User.id).all()
+        if not users:
+            click.echo("No users found.")
+            return
+        width = max(len(u.username or '') for u in users)
+        for u in users:
+            flags = []
+            if u.disabled:
+                flags.append('disabled')
+            if u.env_managed:
+                flags.append('env-managed')
+            if u.mfa_enabled:
+                flags.append('mfa')
+            if u.invite_token_hash:
+                flags.append('invite pending')
+            suffix = f"  [{', '.join(flags)}]" if flags else ''
+            access = permissions.describe_permissions(u.admin, u.granted_permissions)
+            click.echo(f"{(u.username or ''):<{width}}  {access}{suffix}")
 
 @cli.command()
 @click.option("--username", "-u", help="Username", required=True)
@@ -515,7 +604,8 @@ def scan_videos(root):
 @click.option("--tag-ids", help="comma-separated custom tag IDs to apply", required=False, default=None)
 @click.option("--game-id", type=int, help="game ID to apply", required=False, default=None)
 @click.option("--title", help="initial title for the video (defaults to filename stem)", required=False, default=None)
-def scan_video(ctx, path, tag_ids, game_id, title):
+@click.option("--uploaded-by", type=int, help="id of the user who uploaded this video", required=False, default=None)
+def scan_video(ctx, path, tag_ids, game_id, title, uploaded_by):
     with create_app().app_context():
         paths = current_app.config['PATHS']
         domain = current_app.config['DOMAIN']
@@ -581,7 +671,7 @@ def scan_video(ctx, path, tag_ids, game_id, title):
                 dirname = os.path.dirname(path)
                 top_level = dirname.split(os.sep)[0] if dirname else None
                 folder = _get_or_create_media_folder({}, top_level, "video") if top_level else None
-                v = Video(video_id=video_id, extension=video_file.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at, recorded_at=recorded_at, folder_id=folder.id if folder else None)
+                v = Video(video_id=video_id, extension=video_file.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at, recorded_at=recorded_at, folder_id=folder.id if folder else None, uploaded_by=_resolve_uploader(uploaded_by))
                 logger.info(f"Adding new Video {video_id} at {str(path)} (created {created_at.isoformat()}, updated {updated_at.isoformat()}, recorded {recorded_at.isoformat() if recorded_at else 'N/A'})")
                 db.session.add(v)
                 fd = os.open(str(video_links.absolute()), os.O_DIRECTORY)
@@ -1290,7 +1380,8 @@ def scan_images(root):
 @click.option("--game-id", type=int, help="Game ID to apply", required=False, default=None)
 @click.option("--tag-ids", help="Comma-separated custom tag IDs to apply", required=False, default=None)
 @click.option("--title", help="Initial title for the image", required=False, default=None)
-def scan_image(ctx, path, game_id, tag_ids, title):
+@click.option("--uploaded-by", type=int, help="id of the user who uploaded this image", required=False, default=None)
+def scan_image(ctx, path, game_id, tag_ids, title, uploaded_by):
     """Scan a single image file and index it."""
     with create_app().app_context():
         image_directory = current_app.config.get('IMAGE_DIRECTORY')
@@ -1355,7 +1446,7 @@ def scan_image(ctx, path, game_id, tag_ids, title):
             source_folder = rel_path.split('/')[0] if '/' in rel_path else None
             img = Image(image_id=iid, extension=img_file.suffix, path=rel_path,
                         available=True, created_at=created_at, updated_at=updated_at,
-                        source_folder=source_folder)
+                        source_folder=source_folder, uploaded_by=_resolve_uploader(uploaded_by))
             db.session.add(img)
             db.session.commit()
 
