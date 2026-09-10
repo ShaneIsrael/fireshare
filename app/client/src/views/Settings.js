@@ -83,7 +83,10 @@ const TAB_DEFS = [
   { key: 'integrations', label: 'Integrations', mobileLabel: 'Integrations', admin: true },
   { key: 'transcoding', label: 'Transcoding', mobileLabel: 'Transcoding', admin: true },
   { key: 'folders', label: 'Folder Rules', mobileLabel: 'Folder Rules', perm: 'manage_games' },
-  { key: 'actions', label: 'Actions', mobileLabel: 'Actions', perm: 'manage_library' },
+  // Scan Games is gated on manage_games server-side while the rest of the tab
+  // is manage_library, so either permission reveals the tab and the buttons
+  // inside it are gated individually.
+  { key: 'actions', label: 'Actions', mobileLabel: 'Actions', perm: ['manage_library', 'manage_games'] },
   { key: 'users', label: 'Users', mobileLabel: 'Users', admin: true },
   { key: 'security', label: 'Security', mobileLabel: 'Security' },
 ]
@@ -104,7 +107,7 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
     () =>
       TAB_DEFS.filter((t) => {
         if (t.admin) return Boolean(isAdmin)
-        if (t.perm) return Boolean(isAdmin) || can(t.perm)
+        if (t.perm) return Boolean(isAdmin) || [].concat(t.perm).some((k) => can(k))
         return true
       }),
     [isAdmin, can],
@@ -216,6 +219,10 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
   // whatever the operator was editing in the form.
   const canSeeConfig = Boolean(isAdmin)
   const canSeeFolderRules = Boolean(isAdmin) || can('manage_games')
+  // The Actions buttons answer to two different permissions; showing one the
+  // account does not hold would just render a button that 403s.
+  const canScanLibrary = Boolean(isAdmin) || can('manage_library')
+  const canScanGames = canSeeFolderRules
 
   React.useEffect(() => {
     async function fetch() {
@@ -1531,6 +1538,8 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
               {/* Actions */}
               {activeTab === 'actions' && (
                 <Stack spacing={2} sx={{ maxWidth: 500, pt: 2 }}>
+                  {canScanLibrary && (
+                    <>
                   <Button
                     variant="contained"
                     startIcon={<SensorsIcon />}
@@ -1549,6 +1558,9 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
                   >
                     Scan for New Images
                   </Button>
+                    </>
+                  )}
+                  {canScanGames && (
                   <Button
                     variant="contained"
                     startIcon={<SportsEsportsIcon />}
@@ -1558,6 +1570,9 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
                   >
                     Scan for Missing Games
                   </Button>
+                  )}
+                  {canScanLibrary && (
+                    <>
                   <Button
                     variant="contained"
                     startIcon={<CalendarMonthIcon />}
@@ -1585,6 +1600,8 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
                   >
                     Rescan Image / Video Dates
                   </Button>
+                    </>
+                  )}
                 </Stack>
               )}
 
