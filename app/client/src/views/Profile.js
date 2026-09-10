@@ -35,7 +35,8 @@ import ImageCards from '../components/cards/ImageCards'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import EditImageModal from '../components/modal/EditImageModal'
 import UserAvatar, { gradientFor } from '../components/user/UserAvatar'
-import { dialogPaperSx, dialogTitleSx, inputSx, helperTextSx } from '../common/modalStyles'
+import { dialogTitleSx, inputSx, helperTextSx } from '../common/modalStyles'
+import { useMobileFullScreenDialog } from '../common/utils'
 
 /** Short "how long ago" label for the profile subtext. */
 const relativeTime = (iso) => {
@@ -93,6 +94,7 @@ const StatBlock = ({ value, label, tone }) => (
 
 const Profile = ({ authenticated }) => {
   const { username } = useParams()
+  const mobileFullScreen = useMobileFullScreenDialog()
 
   const [profile, setProfile] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
@@ -848,7 +850,7 @@ const Profile = ({ authenticated }) => {
         onClose={() => setEditOpen(false)}
         fullWidth
         maxWidth="sm"
-        PaperProps={{ sx: dialogPaperSx }}
+        {...mobileFullScreen}
       >
         <DialogTitle sx={dialogTitleSx}>Edit profile</DialogTitle>
         <DialogContent>

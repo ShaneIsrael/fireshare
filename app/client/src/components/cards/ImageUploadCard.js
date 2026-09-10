@@ -22,7 +22,8 @@ import ImageIcon from '@mui/icons-material/Image'
 import styled from '@emotion/styled'
 import { ImageService, GameService } from '../../services'
 import { getSetting } from '../../common/utils'
-import { dialogPaperSx, dialogTitleSx, inputSx, labelSx } from '../../common/modalStyles'
+import { dialogTitleSx, inputSx, labelSx } from '../../common/modalStyles'
+import { useMobileFullScreenDialog } from '../../common/utils'
 
 const Input = styled('input')({ display: 'none' })
 
@@ -32,6 +33,8 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
   { authenticated, handleAlert, onUploadComplete, mini },
   ref,
 ) {
+  const mobileFullScreen = useMobileFullScreenDialog()
+
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [pendingFiles, setPendingFiles] = React.useState([])
   const [allGames, setAllGames] = React.useState([])
@@ -256,7 +259,7 @@ const ImageUploadCard = React.forwardRef(function ImageUploadCard(
         onClose={uploading ? undefined : handleCancel}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: dialogPaperSx }}
+        {...mobileFullScreen}
       >
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

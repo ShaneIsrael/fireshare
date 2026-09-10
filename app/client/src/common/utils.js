@@ -1,4 +1,7 @@
 import React from 'react'
+import { useMediaQuery, useTheme } from '@mui/material'
+
+import { dialogPaperSx, fullScreenDialogPaperSx } from './modalStyles'
 
 let isLocalhost =
   (window.location.hostname.indexOf('localhost') >= 0 || window.location.hostname.indexOf('127.0.0.1') >= 0) &&
@@ -46,6 +49,20 @@ export const useDebounce = (value, delay) => {
   }, [value, delay])
 
   return debouncedValue
+}
+
+// Dialogs that carry a real form are cramped when centred on a phone, so below
+// the sm breakpoint they take over the screen. Spread the result onto a Dialog:
+// it swaps in the edge-to-edge paper style along with fullScreen, so the two
+// can never drift apart.
+export const useMobileFullScreenDialog = () => {
+  const theme = useTheme()
+  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
+
+  return {
+    fullScreen,
+    PaperProps: { sx: fullScreen ? fullScreenDialogPaperSx : dialogPaperSx },
+  }
 }
 
 export const getSetting = (setting) =>

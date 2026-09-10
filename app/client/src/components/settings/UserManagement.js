@@ -48,6 +48,7 @@ import { UserService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import UserAvatar from '../user/UserAvatar'
 import { dialogPaperSx, dialogTitleSx, inputSx, helperTextSx, switchLabelSx } from '../../common/modalStyles'
+import { useMobileFullScreenDialog } from '../../common/utils'
 
 const PASSWORD_MIN = 8
 
@@ -122,6 +123,8 @@ const InviteLinkBlock = ({ url, onCopied }) => (
 )
 
 const UserManagement = () => {
+  const mobileFullScreen = useMobileFullScreenDialog()
+
   const [loading, setLoading] = React.useState(true)
   const [users, setUsers] = React.useState([])
   const [permissionList, setPermissionList] = React.useState([])
@@ -539,13 +542,7 @@ const UserManagement = () => {
       </Menu>
 
       {/* ---------- Add user ---------- */}
-      <Dialog
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{ sx: dialogPaperSx }}
-      >
+      <Dialog open={addOpen} onClose={() => setAddOpen(false)} fullWidth maxWidth="sm" {...mobileFullScreen}>
         <DialogTitle sx={dialogTitleSx}>{inviteUrl ? 'Setup link' : 'Add user'}</DialogTitle>
         <DialogContent>
           {inviteUrl ? (
