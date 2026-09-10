@@ -69,7 +69,9 @@ const allPages = [
   { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
   { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
   { title: 'Folders', icon: <FolderCopyIcon />, href: '/folders', private: false },
-  { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, perm: 'manage_library' },
+  // Every /api/admin/files* endpoint checks current_user.admin, so gating this on
+  // manage_library would advertise a page whose every request answers 403.
+  { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, adminOnly: true },
   { title: 'Settings', icon: <SettingsIcon />, href: '/settings', private: true },
 ]
 

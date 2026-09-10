@@ -205,16 +205,21 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
     }
   }
 
+  // Only request what this account is allowed to have: the full config and the
+  // startup warnings are administrator-only, and folder rules follow
+  // manage_games. Asking regardless would just log 403s on every visit for an
+  // account that can only open the Security tab.
+  //
+  // Hoisted out of the effect so they can be its dependencies. They are plain
+  // booleans on purpose: `can` is rebuilt on every AuthWrapper render, so
+  // depending on the function itself would refetch constantly and overwrite
+  // whatever the operator was editing in the form.
+  const canSeeConfig = Boolean(isAdmin)
+  const canSeeFolderRules = Boolean(isAdmin) || can('manage_games')
+
   React.useEffect(() => {
     async function fetch() {
       try {
-        // Only request what this account is allowed to have: the full config and
-        // the startup warnings are administrator-only, and folder rules follow
-        // manage_games. Asking regardless would just log 403s on every visit for
-        // an account that can only open the Security tab.
-        const canSeeConfig = Boolean(isAdmin)
-        const canSeeFolderRules = Boolean(isAdmin) || can('manage_games')
-
         const [conf, rulesRes, imageRulesRes] = await Promise.all([
           canSeeConfig ? ConfigService.getAdminConfig() : Promise.resolve(null),
           canSeeFolderRules ? GameService.getFolderRules() : Promise.resolve(null),
@@ -243,7 +248,9 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
       }
     }
     fetch()
-  }, [])
+    // Refetch if this account's access changes while Settings stays mounted:
+    // AuthWrapper rechecks /api/loggedin on a timer and on tab focus.
+  }, [canSeeConfig, canSeeFolderRules])
 
   React.useEffect(() => {
     if (activeTab === 'folders') {

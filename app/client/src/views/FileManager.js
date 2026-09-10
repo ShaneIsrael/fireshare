@@ -7,10 +7,10 @@ import VideoFileManager from '../components/admin/VideoFileManager'
 import ImageFileManager from '../components/admin/ImageFileManager'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 
-const FileManager = ({ authenticated }) => {
+const FileManager = ({ authenticated, isAdmin }) => {
   const [alert, setAlert] = React.useState({ open: false })
   const [tab, setTab] = React.useState(0)
-  if (!authenticated)
+  if (!authenticated || !isAdmin)
     return (
       <Box
         sx={{
@@ -30,7 +30,9 @@ const FileManager = ({ authenticated }) => {
         <LockOutlinedIcon sx={{ fontSize: 56, color: '#FFFFFF33' }} />
         <Box sx={{ textAlign: 'center' }}>
           <Typography sx={{ fontWeight: 700, fontSize: 20, color: 'white', mb: 0.5 }}>
-            You must be authenticated to access this page
+            {authenticated
+              ? 'The file manager is available to administrators only'
+              : 'You must be authenticated to access this page'}
           </Typography>
         </Box>
       </Box>

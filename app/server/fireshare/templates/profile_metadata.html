@@ -36,10 +36,13 @@
 
 <body>
     {#
-      The username reaches the client through a JSON-encoded data attribute
-      rather than being interpolated into a JS string literal. Jinja's HTML
-      autoescaping does not make a value safe inside a script block, and
-      |tojson produces a correctly escaped JS value in either position.
+      The username reaches the script through a data attribute rather than being
+      interpolated into a JS string literal, so it never passes through the
+      JavaScript parser. Jinja's HTML autoescaping covers the attribute (a quote
+      becomes &#34; and cannot close it), and getAttribute hands back the decoded
+      text, which is then encodeURIComponent'd into the path. Interpolating into
+      the script block instead would need |tojson, because autoescaping does not
+      make a value safe inside <script>.
     #}
     <div id="profile-redirect" data-username="{{ username }}" hidden></div>
     <script>

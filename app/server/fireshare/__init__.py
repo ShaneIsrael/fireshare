@@ -507,8 +507,16 @@ def create_app(init_schedule=False):
                 if app.config['ADMIN_USERNAME'] and admin.username != app.config['ADMIN_USERNAME']:
                     # Only rename when the target name is free, otherwise the unique
                     # constraint would abort startup.
+                    #
+                    # Compared case-insensitively, like account creation in
+                    # api/users.py. The column has no NOCASE collation, so the
+                    # unique constraint would happily accept a name differing only
+                    # by case — but profile lookups resolve on lower(username), so
+                    # the two rows would then be indistinguishable in a URL and one
+                    # of them would be unreachable.
                     clash = (_User.query
-                             .filter(_User.username == app.config['ADMIN_USERNAME'],
+                             .filter(db.func.lower(_User.username)
+                                     == app.config['ADMIN_USERNAME'].lower(),
                                      _User.id != admin.id)
                              .first())
                     if clash:
