@@ -1,10 +1,6 @@
 import os, sys, re, copy, tempfile
 import os.path
-try:
-    import ldap
-except ImportError:
-    ldap = None
-from . import ldap_util
+from . import ldap_retired
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -123,6 +119,10 @@ def update_config(path):
         atomic_write(path, json.dumps(updated, indent=2))
 
 def create_app(init_schedule=False):
+    # Before anything else, including the migration step that also builds the app:
+    # refuse to run while an LDAP configuration is still present.
+    ldap_retired.abort_if_ldap_configured(logger)
+
     app = Flask(__name__, static_url_path='', static_folder='build', template_folder='build')
     CORS(app, supports_credentials=True)
     if 'DATA_DIRECTORY' not in os.environ:
@@ -144,16 +144,6 @@ def create_app(init_schedule=False):
     app.config['ADMIN_USERNAME'] = os.getenv('ADMIN_USERNAME')
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
     app.config['DISABLE_ADMINCREATE'] = env_bool("DISABLE_ADMINCREATE")
-    app.config['LDAP_ENABLE'] = env_bool("LDAP_ENABLE")
-    app.config['LDAP_URL'] = os.getenv("LDAP_URL")
-    app.config['LDAP_STARTLS'] = env_bool("LDAP_STARTLS")
-    app.config['LDAP_TLS_CACERT'] = os.getenv("LDAP_TLS_CACERT")
-    app.config['LDAP_TLS_REQCERT'] = os.getenv("LDAP_TLS_REQCERT")
-    app.config['LDAP_BASEDN'] = os.getenv("LDAP_BASEDN")
-    app.config['LDAP_BINDDN'] = os.getenv("LDAP_BINDDN")
-    app.config['LDAP_PASSWORD'] = os.getenv("LDAP_PASSWORD")
-    app.config['LDAP_USER_FILTER'] = os.getenv("LDAP_USER_FILTER")
-    app.config['LDAP_ADMIN_GROUP'] = os.getenv("LDAP_ADMIN_GROUP")
     app.config['DEMO_MODE'] = os.getenv('DEMO_MODE', '').lower() in ('true', '1', 'yes')
     app.config['DEMO_UPLOAD_LIMIT_MB'] = int(os.getenv('DEMO_UPLOAD_LIMIT_MB', '0') or '0')
     app.config['ENABLE_TRANSCODING'] = (
@@ -220,7 +210,7 @@ def create_app(init_schedule=False):
         app.config['MINUTES_BETWEEN_VIDEO_SCANS'] = 5
     app.config['WARNINGS'] = []
 
-    if (app.config['ADMIN_PASSWORD'] and app.config['ADMIN_USERNAME'] == "admin") and app.config["DISABLE_ADMINCREATE"] == False and not app.config['LDAP_ENABLE']:
+    if (app.config['ADMIN_PASSWORD'] and app.config['ADMIN_USERNAME'] == "admin") and app.config["DISABLE_ADMINCREATE"] == False:
         stdPasswordWarning = "You are using the Default Login-Credentials, please consider changing it."
         app.config['WARNINGS'].append(stdPasswordWarning)
         logger.warning(stdPasswordWarning)
@@ -356,44 +346,6 @@ def create_app(init_schedule=False):
     except Exception as e:
         logger.warning(f"Could not reset stale transcode jobs: {e}")
 
-    if app.config["LDAP_ENABLE"]:
-        if ldap is None:
-            app.logger.error("LDAP is enabled but python-ldap is not installed. "
-                             "Install system dependencies (libldap2-dev libsasl2-dev on Linux, "
-                             "openldap on macOS) and run: pip install python-ldap")
-            exit(1)
-        if not app.config["LDAP_URL"] or not app.config["LDAP_BINDDN"] or not app.config["LDAP_BASEDN"] or not app.config["LDAP_USER_FILTER"]:
-            app.logger.error("Missing parameters for LDAP")
-            exit(1)
-
-        app.ldap_conn = None
-        try:
-            conn, tls = ldap_util.connect(app.config)
-            ldap_util.bind(conn, app.config)
-            app.ldap_conn = conn
-        except ldap_util.LdapConfigError as e:
-            # Bad LDAP_TLS_* configuration — no amount of retrying fixes this.
-            app.logger.error(str(e))
-            exit(1)
-        except ldap.LDAPError as e:
-            # Keep serving so local accounts can still log in; each login retries the bind.
-            failure = "LDAP connection failed: " + ldap_util.describe_error(e, app.config)
-            app.logger.error(failure)
-            app.config['WARNINGS'].append(
-                "LDAP is enabled but Fireshare could not connect to the LDAP server. "
-                "Check the server logs for details."
-            )
-        else:
-            if tls.get('cacert'):
-                app.logger.info("LDAP TLS verifying against %s", tls['cacert'])
-            if tls.get('reqcert'):
-                app.logger.info("LDAP TLS certificate checking set to %s", tls['reqcert'])
-            if tls.get('unsupported'):
-                app.logger.warning("This build of python-ldap ignores %s; it verifies against "
-                                   "the platform's own trust store instead.",
-                                   ', '.join(tls['unsupported']))
-            app.logger.info("LDAP connection successful")
-    
     login_manager = LoginManager()
     login_manager.init_app(app)
 
@@ -401,7 +353,16 @@ def create_app(init_schedule=False):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        try:
+            user = db.session.get(User, int(user_id))
+        except (TypeError, ValueError):
+            return None
+        # Refusing to load a disabled account is what actually ends its access:
+        # it invalidates live sessions and "remember me" cookies immediately,
+        # rather than leaving the user signed in until their session expires.
+        if user is None or user.disabled:
+            return None
+        return user
 
     # blueprint for auth routes in our app
     from .auth import auth as auth_blueprint
@@ -487,26 +448,86 @@ def create_app(init_schedule=False):
         from werkzeug.security import generate_password_hash, check_password_hash
         from .models import User as _User
         try:
-            admin = _User.query.filter_by(admin=True, ldap=False).first()
+            from datetime import datetime as _datetime
+
+            # ADMIN_USERNAME / ADMIN_PASSWORD are re-applied on every boot, so the
+            # account they own has to be identified unambiguously. Once a second
+            # administrator exists, "the first local admin" is an arbitrary row and
+            # this logic could rewrite the wrong person's credentials, so the
+            # bootstrap account is pinned with env_managed instead.
+            admin = _User.query.filter_by(env_managed=True).first()
+            if not admin:
+                # Pre-upgrade install, or one where the pin was lost: adopt the
+                # lowest-id local admin, which is the account the bootstrap created.
+                #
+                # A stored password is what makes an administrator local. This
+                # used to read `ldap=False`, but that column is dropped by the
+                # LDAP removal migration, and on the `flask db upgrade` run that
+                # applies it this code executes first — while directory rows are
+                # still present. Adopting one would rename a directory admin to
+                # ADMIN_USERNAME and hand it the env password. Fireshare never
+                # stored a password for a directory account, so requiring one
+                # excludes them, and on an LDAP-only instance it correctly falls
+                # through to creating a fresh local administrator below.
+                admin = (_User.query
+                         .filter(_User.admin == True, _User.password.isnot(None))
+                         .order_by(_User.id)
+                         .first())
+                if admin:
+                    admin.env_managed = True
+                    db.session.commit()
+
             if not admin and not app.config['DISABLE_ADMINCREATE']:
                 username = app.config['ADMIN_USERNAME'] or 'admin'
-                admin_user = _User(username=username, password=generate_password_hash(app.config['ADMIN_PASSWORD'] or 'admin', method='pbkdf2:sha256'), admin=True)
+                admin_user = _User(
+                    username=username,
+                    password=generate_password_hash(app.config['ADMIN_PASSWORD'] or 'admin', method='pbkdf2:sha256'),
+                    admin=True,
+                    env_managed=True,
+                    created_at=_datetime.utcnow(),
+                )
                 db.session.add(admin_user)
                 db.session.commit()
             if admin:
+                # The env-managed account must stay usable as an administrator;
+                # a demotion here would lock the operator out of their own instance.
+                if not admin.admin or admin.disabled:
+                    admin.admin = True
+                    admin.disabled = False
+                    db.session.commit()
                 if app.config['ADMIN_PASSWORD']:
                     try:
-                        password_mismatch = not check_password_hash(admin.password, app.config['ADMIN_PASSWORD'])
+                        password_mismatch = not check_password_hash(admin.password or '', app.config['ADMIN_PASSWORD'])
                     except ValueError:
                         password_mismatch = True  # old hash format (sha256), force reset to pbkdf2:sha256
                     if password_mismatch:
-                        row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
-                        row.password = generate_password_hash(app.config['ADMIN_PASSWORD'], method='pbkdf2:sha256')
+                        admin.password = generate_password_hash(app.config['ADMIN_PASSWORD'], method='pbkdf2:sha256')
+                        admin.must_change_password = False
                         db.session.commit()
                 if app.config['ADMIN_USERNAME'] and admin.username != app.config['ADMIN_USERNAME']:
-                    row = db.session.query(_User).filter_by(admin=True, ldap=False).first()
-                    row.username = app.config['ADMIN_USERNAME']
-                    db.session.commit()
+                    # Only rename when the target name is free, otherwise the unique
+                    # constraint would abort startup.
+                    #
+                    # Compared case-insensitively, like account creation in
+                    # api/users.py. The column has no NOCASE collation, so the
+                    # unique constraint would happily accept a name differing only
+                    # by case — but profile lookups resolve on lower(username), so
+                    # the two rows would then be indistinguishable in a URL and one
+                    # of them would be unreachable.
+                    clash = (_User.query
+                             .filter(db.func.lower(_User.username)
+                                     == app.config['ADMIN_USERNAME'].lower(),
+                                     _User.id != admin.id)
+                             .first())
+                    if clash:
+                        logger.error(
+                            f"Cannot apply ADMIN_USERNAME={app.config['ADMIN_USERNAME']!r}: another "
+                            f"account already uses that username. Leaving the admin account as "
+                            f"{admin.username!r}."
+                        )
+                    else:
+                        admin.username = app.config['ADMIN_USERNAME']
+                        db.session.commit()
             # Remove the non-admin demo account when DEMO_MODE is off.
             if not app.config['DEMO_MODE']:
                 stale_demo = _User.query.filter_by(username='demo', admin=False).first()
@@ -517,7 +538,10 @@ def create_app(init_schedule=False):
             # If the admin was previously named 'demo' (old demo mode behavior) and no
             # explicit ADMIN_USERNAME is configured, rename it to 'admin' first.
             if app.config['DEMO_MODE']:
-                admin = _User.query.filter_by(admin=True, ldap=False).first()
+                # Local admins only, for the same reason as the adoption query above.
+                admin = (_User.query
+                         .filter(_User.admin == True, _User.password.isnot(None))
+                         .first())
                 if admin and admin.username == 'demo' and not app.config['ADMIN_USERNAME']:
                     admin.username = 'admin'
                     db.session.commit()

@@ -9,7 +9,7 @@ import ImageCards from '../components/cards/ImageCards'
 import EditImageModal from '../components/modal/EditImageModal'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
-import { SORT_OPTIONS } from '../common/constants'
+import { SORT_OPTIONS, SORT_SELECT_WIDTH } from '../common/constants'
 import { sortSelectTheme as selectSortTheme } from '../common/reactSelectThemes'
 
 const FolderView = ({ authenticated, cardSize, searchText }) => {
@@ -178,7 +178,7 @@ const FolderView = ({ authenticated, cardSize, searchText }) => {
 
       {toolbarTarget &&
         ReactDOM.createPortal(
-          <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
+          <Box sx={{ minWidth: SORT_SELECT_WIDTH, flexShrink: 0 }}>
             <Select
               value={sortOrder}
               options={SORT_OPTIONS}

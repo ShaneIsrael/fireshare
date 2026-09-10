@@ -13,7 +13,7 @@
 - [Transcoding Issues](#transcoding-issues)
 - [Open Graph / Link Previews Not Working](#open-graph--link-previews-not-working)
 - [Webhook Notifications Not Sending](#webhook-notifications-not-sending)
-- [LDAP Authentication Issues](#ldap-authentication-issues)
+- [LDAP Has Been Removed](#ldap-has-been-removed)
 - [Stale Scan Lock](#stale-scan-lock)
 - [Corrupt Video Detected](#corrupt-video-detected)
 - [Database Errors](#database-errors)
@@ -118,11 +118,11 @@ chown -R 1000:1000 /path/to/data /path/to/processed /path/to/videos
 
 3. **`DISABLE_ADMINCREATE=true` with no existing admin user** will result in no admin account existing. Remove this variable, restart to let the admin account be created, then re-enable it if needed.
 
-4. **LDAP users cannot log in with local passwords.** If LDAP is enabled and the user was imported via LDAP, they must authenticate through LDAP only.
+4. **A former LDAP account cannot log in.** Accounts converted from LDAP have no password until an administrator sets one or sends an invite from **Settings → Users**. See [LDAP Has Been Removed](#ldap-has-been-removed).
 
 5. **Verify admin account state** by checking the database directly:
    ```sh
-   docker exec fireshare sqlite3 /data/db.sqlite "SELECT username, admin FROM user WHERE admin=1 AND ldap=0;"
+   docker exec fireshare sqlite3 /data/db.sqlite "SELECT username, admin FROM user WHERE admin=1;"
    ```
 
 6. **The login page redirects straight to the home page.** A `LOGIN_IP_WHITELIST` is set and your IP
@@ -194,8 +194,8 @@ python3 -c "import secrets; print(secrets.token_hex(32))"
 ### GPU transcoding not working
 
 1. Confirm your GPU supports NVENC. GTX 1050 or newer is required for H.264; RTX 40 series for AV1.
-2. On **Unraid**, you must add `--gpus=all` to Extra Parameters and set `NVIDIA_DRIVER_CAPABILITIES=all`.
-3. On standard Docker, add `runtime: nvidia` or `--gpus all` to your compose/run command.
+2. Make sure the container has GPU access. On standard Docker add `runtime: nvidia` or `--gpus all` to your compose file or run command. On **Unraid** add `--gpus=all` to Extra Parameters. The host needs the NVIDIA driver and NVIDIA Container Toolkit installed (on Unraid, the "NVIDIA Driver" plugin).
+3. Check `NVIDIA_DRIVER_CAPABILITIES`. The NVIDIA Container Toolkit only mounts the NVENC library (`libnvidia-encode.so.1`) when this variable includes `video`. The image defaults to `compute,utility,video`; if you override it, keep `video` or use `all`. Older images defaulted to `compute,utility`, so on those you must set it yourself. The telltale sign of this problem is `nvidia-smi` working inside the container while the logs say NVENC is not available to ffmpeg.
 4. If GPU encoding fails, Fireshare automatically falls back to CPU encoding. Check logs to see which encoder is being used.
 
 ### Encoder fallback order
@@ -240,17 +240,22 @@ DOMAIN=v.example.com
 
 ---
 
-## LDAP Authentication Issues
+## LDAP Has Been Removed
 
-See [LDAP.md](./LDAP.md) for full setup instructions.
+LDAP authentication was removed. If Fireshare will not start and the log shows
+`LDAP has been discontinued`, that is deliberate: an `LDAP_*` variable is still
+set, and Fireshare stops before migrating the database so the change cannot
+happen without you knowing.
 
-Common issues:
+**To continue the upgrade,** remove every `LDAP_*` variable from your compose
+file and start Fireshare again. The log lists the ones it found. Directory
+accounts are then converted to local accounts with no password — set one, or
+send an invite, from **Settings → Users**. See
+[Users.md](./Users.md#ldap-has-been-removed) for what is kept and what changes.
 
-- **`LDAP_ENABLE`** must be set to `true` along with all connection variables (`LDAP_URL`, `LDAP_BINDDN`, `LDAP_PASSWORD`, `LDAP_BASEDN`, `LDAP_USER_FILTER`). To turn LDAP off, set it to `false` or remove it.
-- **`ldap.SERVER_DOWN: Can't contact LDAP server` on an `ldaps://` URL** is usually a certificate problem, not a network one — OpenLDAP reports both the same way. See [TLS in LDAP.md](./LDAP.md#tls-ldaps-and-starttls). Fireshare verifies against the system CA bundle by default; use `LDAP_TLS_CACERT` for a private or self-signed CA.
-- **User filter format:** Use `{input}` as a placeholder for the username entered at login. Example: `uid={input}`.
-- **Admin group not working:** Admin group membership is determined via the `memberOf` attribute in LDAP. Ensure your LDAP server populates `memberOf` and that `LDAP_ADMIN_GROUP` matches the full DN of the group.
-- **LDAP users appearing as non-admin:** If a user was previously created as a local user before LDAP was enabled, they may have incorrect flags. The LDAP login flow sets the `ldap=true` flag on the user record after first LDAP login.
+**To keep using LDAP,** leave the variables in place and pin your image to the
+release you were running before the upgrade. This version cannot authenticate
+against a directory server.
 
 ---
 

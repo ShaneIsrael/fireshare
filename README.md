@@ -53,7 +53,8 @@ If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/Sha
 - Open Graph metadata for rich link previews
 - [Notifications to Discord and others](./docs/Notifications.md)
 - RSS feed for new public videos
-- [LDAP support](./docs/LDAP.md)
+- [Multiple users with per-user permissions](./docs/Users.md)
+- [Shareable user profiles for uploads](./docs/Users.md#profiles)
 - [Two-factor authentication (TOTP authenticator apps)](./docs/Security.md#two-factor-authentication-mfa)
 - [Login IP whitelisting](./docs/Security.md#login-ip-whitelist)
 
@@ -190,10 +191,6 @@ Use the lite image by appending `-lite` to your tag:
 
 ## Configuration
 
-### LDAP
-
-See [LDAP.md](./docs/LDAP.md) for setup instructions.
-
 ### Security (IP Whitelist & Two-Factor Authentication)
 
 Fireshare can restrict logins to a whitelist of IP addresses/CIDR ranges and supports TOTP two-factor
@@ -210,9 +207,21 @@ ENABLE_TRANSCODING=true
 TRANSCODE_GPU=true   # optional, NVIDIA only
 ```
 
-CPU transcoding works out of the box. For NVIDIA GPU transcoding, you only need an NVIDIA GPU on the host. The image handles drivers and toolkit.
+CPU transcoding works out of the box. For NVIDIA GPU transcoding you need three things: an NVIDIA GPU with NVENC support, the NVIDIA driver and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host, and the container started with GPU access (`--gpus all` or `runtime: nvidia`).
+
+The image ships with `NVIDIA_DRIVER_CAPABILITIES=compute,utility,video`, which is what makes the NVIDIA Container Toolkit mount the NVENC libraries into the container. You do not need to set it yourself. If you do override it, it must include `video` (or be `all`), otherwise `nvidia-smi` will work inside the container but ffmpeg will have no NVENC encoder and Fireshare will fall back to CPU transcoding.
 
 **GPU requirements:** NVIDIA GPU with NVENC support.
+
+#### Docker / Docker Compose Setup
+
+1. Install the NVIDIA driver and NVIDIA Container Toolkit on the host.
+2. In `docker-compose.yml`, uncomment either `runtime: nvidia` or the `deploy.resources.reservations.devices` block (or pass `--gpus all` to `docker run`).
+3. Set:
+   ```
+   ENABLE_TRANSCODING=true
+   TRANSCODE_GPU=true
+   ```
 
 #### Unraid Setup
 
@@ -223,6 +232,7 @@ CPU transcoding works out of the box. For NVIDIA GPU transcoding, you only need 
    TRANSCODE_GPU=true
    NVIDIA_DRIVER_CAPABILITIES=all
    ```
+   `NVIDIA_DRIVER_CAPABILITIES` is optional on current images, which already default to `compute,utility,video`. It is required on older images, and harmless to keep.
 3. Add `--gpus=all` to "Extra Parameters".
 
 #### Encoder Selection
@@ -297,7 +307,7 @@ If you update models, create a migration and review it before opening a pull req
 
 ## Troubleshooting
 
-See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for a full guide covering installation issues, playback problems, permission errors, transcoding, LDAP, and more.
+See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for a full guide covering installation issues, playback problems, permission errors, transcoding, and more.
 
 ---
 

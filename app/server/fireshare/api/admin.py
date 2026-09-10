@@ -12,17 +12,20 @@ from flask import current_app, jsonify, request, Response
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 
+from sqlalchemy import func
+
 from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageView, TranscodeJob, MediaFolder
+from .. import permissions as perms
 from . import api
 from .helpers import cancel_pending_transcode_jobs, delete_video_files
 from .transcoding import _is_pid_running
 from .scan import _game_scan_state
-from .decorators import demo_restrict
+from .decorators import admin_required, demo_restrict
 
 
 @api.route('/api/admin/config', methods=["GET", "PUT"])
-@login_required
+@admin_required
 def get_or_update_config():
     paths = current_app.config['PATHS']
     demo_mode = current_app.config.get('DEMO_MODE', False)
@@ -65,7 +68,7 @@ def get_or_update_config():
 
 
 @api.route('/api/admin/warnings', methods=["GET"])
-@login_required
+@admin_required
 def get_warnings():
     warnings = current_app.config['WARNINGS']
     if request.method == 'GET':
@@ -78,6 +81,9 @@ def get_warnings():
 @api.route('/api/admin/stream')
 @login_required
 def admin_event_stream():
+    # Deliberately not admin-gated: the navbar transcoding and scan indicators
+    # subscribe to this for every signed-in user, and it carries progress counts
+    # rather than configuration. Same reasoning as /api/admin/transcoding/status.
     """SSE endpoint for real-time admin events (transcoding, etc.)."""
 
     # Capture config and app before entering generator (Flask context unavailable inside)
@@ -169,7 +175,7 @@ def admin_event_stream():
 
 
 @api.route('/api/admin/reset-database', methods=["POST"])
-@login_required
+@admin_required
 @demo_restrict
 def reset_database():
     """Reset selected video and game data while preserving config and user settings"""
@@ -1239,3 +1245,100 @@ def delete_image_folder():
 
     db.session.commit()
     return jsonify(results)
+
+
+@api.route('/api/admin/files/bulk-set-uploader', methods=['POST'])
+@api.route('/api/admin/image-files/bulk-set-uploader', methods=['POST'])
+@login_required
+@demo_restrict
+def bulk_set_uploader():
+    """Attribute videos and/or images to a user, or clear their uploader.
+
+    Exists because everything indexed from disk before ownership was introduced
+    carries no uploader, so it appears on nobody's profile and is out of reach of
+    the edit_own / delete_own permissions. This is how an administrator adopts
+    that back-catalogue.
+    """
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
+        return Response(status=403, response='Admin access required.')
+
+    from ..models import User
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return Response(status=400, response='Expected a JSON object body.')
+
+    video_ids = data.get('video_ids') or []
+    image_ids = data.get('image_ids') or []
+    if not isinstance(video_ids, list) or not isinstance(image_ids, list):
+        return Response(status=400, response='video_ids and image_ids must be lists.')
+    video_ids = [v for v in video_ids if isinstance(v, str)]
+    image_ids = [i for i in image_ids if isinstance(i, str)]
+    if not video_ids and not image_ids:
+        return Response(status=400, response='No media IDs provided.')
+
+    # An explicit null means "make this unattributed again", which is different
+    # from the key being absent.
+    if 'username' not in data:
+        return Response(status=400, response='A username (or null to clear) must be provided.')
+
+    raw_username = data.get('username')
+    user = None
+    if raw_username is not None:
+        username = perms.normalize_username(raw_username)
+        if username is None:
+            return Response(status=400, response='That username is not valid.')
+        user = User.query.filter(func.lower(User.username) == username.lower()).first()
+        if not user:
+            return Response(status=404, response='No such user.')
+        if user.disabled:
+            return Response(status=400, response='That account is disabled.')
+
+    owner_id = user.id if user else None
+
+    updated_videos = 0
+    if video_ids:
+        updated_videos = (Video.query
+                          .filter(Video.video_id.in_(video_ids))
+                          .update({'uploaded_by': owner_id}, synchronize_session=False))
+    updated_images = 0
+    if image_ids:
+        updated_images = (Image.query
+                          .filter(Image.image_id.in_(image_ids))
+                          .update({'uploaded_by': owner_id}, synchronize_session=False))
+    db.session.commit()
+
+    target = user.username if user else 'nobody'
+    logger.info(
+        f"Admin '{current_user.username}' attributed {updated_videos} video(s) and "
+        f"{updated_images} image(s) to {target}"
+    )
+
+    return jsonify({
+        'updated_videos': updated_videos,
+        'updated_images': updated_images,
+        'username': user.username if user else None,
+    })
+
+
+@api.route('/api/admin/uploaders', methods=['GET'])
+@login_required
+def list_uploader_candidates():
+    """Accounts an administrator can attribute media to, for the File Manager picker."""
+    if not current_user.admin and not current_app.config.get('DEMO_MODE'):
+        return Response(status=403, response='Admin access required.')
+
+    from ..models import User
+
+    users = User.query.filter(User.disabled == False).order_by(User.username).all()
+    unattributed_videos = Video.query.filter(Video.uploaded_by.is_(None)).count()
+    unattributed_images = Image.query.filter(Image.uploaded_by.is_(None)).count()
+
+    return jsonify({
+        'users': [
+            {'username': u.username, 'name': u.name, 'avatar_url': u.avatar_url()}
+            for u in users
+        ],
+        'unattributed_videos': unattributed_videos,
+        'unattributed_images': unattributed_images,
+    })

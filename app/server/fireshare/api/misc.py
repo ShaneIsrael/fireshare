@@ -11,7 +11,7 @@ from .. import db, logger
 from ..models import Video, VideoInfo
 from ..cli import send_discord_webhook, send_generic_webhook
 from . import api
-from .decorators import demo_restrict
+from .decorators import admin_required, demo_restrict
 
 
 # Cache for local app version and release list (persists until server restart)
@@ -253,7 +253,7 @@ def rss_feed():
 
 
 @api.route('/api/test-discord-webhook', methods=['POST'])
-@login_required
+@admin_required
 @demo_restrict
 def test_discord_webhook():
     data = request.get_json()
@@ -277,7 +277,7 @@ def test_discord_webhook():
 
 
 @api.route('/api/test-webhook', methods=['POST'])
-@login_required
+@admin_required
 @demo_restrict
 def test_webhook():
     data = request.get_json()

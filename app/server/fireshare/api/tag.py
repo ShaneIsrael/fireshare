@@ -8,8 +8,10 @@ from sqlalchemy import func
 
 from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, VideoGameLink, VideoTagLink, CustomTag
+from .. import permissions as P
 from . import api
-from .helpers import cancel_pending_transcode_jobs, delete_video_files
+from .decorators import require_perm
+from .helpers import cancel_pending_transcode_jobs, delete_video_files, viewer_sees_private
 
 
 def _regenerate_boomerang_bg(video_id, extension, processed_directory):
@@ -27,7 +29,7 @@ def _regenerate_boomerang_bg(video_id, extension, processed_directory):
 
 @api.route('/api/tags', methods=["GET"])
 def get_tags():
-    if current_user.is_authenticated:
+    if viewer_sees_private():
         tags = CustomTag.query.order_by(CustomTag.name).all()
     else:
         tags = (
@@ -52,7 +54,7 @@ def get_tags():
             .join(Video, Video.video_id == VideoTagLink.video_id)
             .filter(VideoTagLink.tag_id == tag.id, Video.available.is_(True))
         )
-        if not current_user.is_authenticated:
+        if not viewer_sees_private():
             links = links.join(VideoInfo, VideoInfo.video_id == VideoTagLink.video_id).filter(VideoInfo.private.is_(False))
         t["video_count"] = links.count()
         random_link = links.order_by(func.random()).first()
@@ -62,7 +64,7 @@ def get_tags():
 
 
 @api.route('/api/tags', methods=["POST"])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def create_tag():
     data = request.json
     if not data or not data.get('name'):
@@ -88,7 +90,7 @@ def create_tag():
 
 
 @api.route('/api/tags/<int:tag_id>', methods=["PUT"])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def update_tag(tag_id):
     tag = db.session.get(CustomTag, tag_id)
     if not tag:
@@ -111,7 +113,7 @@ def update_tag(tag_id):
 
 
 @api.route('/api/tags/<int:tag_id>', methods=["DELETE"])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def delete_tag(tag_id):
     tag = db.session.get(CustomTag, tag_id)
     if not tag:
@@ -166,7 +168,7 @@ def get_tag_videos(tag_id):
     for link in tag.videos:
         if not link.video:
             continue
-        if not current_user.is_authenticated:
+        if not viewer_sees_private():
             if not link.video.available:
                 continue
             if not link.video.info or link.video.info.private:
@@ -186,7 +188,7 @@ def get_video_tags(video_id):
 
 
 @api.route('/api/videos/<video_id>/tags', methods=["POST"])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def add_tag_to_video(video_id):
     data = request.json
     if not data or not data.get('tag_id'):
@@ -216,7 +218,7 @@ def add_tag_to_video(video_id):
 
 
 @api.route('/api/videos/<video_id>/tags/<int:tag_id>', methods=["DELETE"])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def remove_tag_from_video(video_id, tag_id):
     link = VideoTagLink.query.filter_by(video_id=video_id, tag_id=tag_id).first()
     if not link:
@@ -227,7 +229,7 @@ def remove_tag_from_video(video_id, tag_id):
 
 
 @api.route('/api/tags/bulk-assign', methods=["POST"])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def bulk_assign_tag():
     data = request.json
     if not data or not data.get('tag_id') or not data.get('video_ids'):
@@ -261,7 +263,7 @@ def bulk_assign_tag():
 
 
 @api.route('/api/tags/bulk-remove', methods=["POST"])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def bulk_remove_tag():
     data = request.json
     if not data or not data.get('tag_id') or not data.get('video_ids'):

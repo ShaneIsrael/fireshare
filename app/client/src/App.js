@@ -16,6 +16,8 @@ import FolderView from './views/FolderView'
 import Tags from './views/Tags'
 import TagVideos from './views/TagVideos'
 import FileManager from './views/FileManager'
+import Profile from './views/Profile'
+import SetupPassword from './views/SetupPassword'
 import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
 import { getSetting, setSetting } from './common/utils'
@@ -193,6 +195,24 @@ export default function App() {
                     <FileManager />
                   </MainNavbar>
                 </AuthWrapper>
+              }
+            />
+            <Route
+              path="/profile/:username"
+              element={
+                <AuthWrapper>
+                  <MainNavbar page="/profile" collapsed={!drawerOpen} mainPadding={0}>
+                    <Profile />
+                  </MainNavbar>
+                </AuthWrapper>
+              }
+            />
+            <Route
+              path="/setup-password"
+              element={
+                <MainNavbar page="/setup-password" mainPadding={0} toolbar={false}>
+                  <SetupPassword />
+                </MainNavbar>
               }
             />
             <Route

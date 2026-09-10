@@ -28,7 +28,8 @@ import SnackbarAlert from '../components/alert/SnackbarAlert'
 import { folderSelectTheme as selectFolderTheme } from '../common/reactSelectThemes'
 import OutlinedIconButton from '../components/ui/OutlinedIconButton'
 import MarqueeSingleValue, { MarqueeOption } from '../components/ui/MarqueeSingleValue'
-import { SORT_OPTIONS } from '../common/constants'
+import { SORT_OPTIONS, PRIVACY_OPTIONS, SORT_SELECT_WIDTH, PRIVACY_SELECT_WIDTH } from '../common/constants'
+import ToolbarFilterMenu from '../components/nav/ToolbarFilterMenu'
 
 const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, onImageFoldersLoaded, onImageFolderChange, showFolderDropdown, uploadTick }) => {
   const [images, setImages] = React.useState([])
@@ -39,6 +40,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   const [alert, setAlert] = React.useState({ open: false })
   const [modalImage, setModalImage] = React.useState(null)
   const [sortOrder, setSortOrder] = React.useState(SORT_OPTIONS?.[0] || { value: 'newest', label: 'Newest' })
+  const [privacyFilter, setPrivacyFilter] = React.useState(PRIVACY_OPTIONS[0])
   const [randomized, setRandomized] = React.useState(false)
   const [randomizedImages, setRandomizedImages] = React.useState([])
   const [randomizeKey, setRandomizeKey] = React.useState(0)
@@ -52,6 +54,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const theme = useTheme()
   const isMdDown = useMediaQuery(theme.breakpoints.down('md'))
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   React.useEffect(() => {
     setToolbarTarget(document.getElementById('navbar-toolbar-extra'))
@@ -159,17 +162,22 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
   }, [folder.value])
 
   const displayImages = React.useMemo(() => {
-    if (folder.value === 'All Images') {
-      return filteredImages
-    }
-    return filteredImages?.filter(
-      (img) =>
-        img.path
-          .split('/')
-          .slice(0, -1)
-          .filter((f) => f !== '')[0] === folder.value,
-    )
-  }, [filteredImages, folder])
+    if (!filteredImages) return filteredImages
+
+    const folderFiltered =
+      folder.value === 'All Images'
+        ? filteredImages
+        : filteredImages.filter(
+            (img) =>
+              img.path
+                .split('/')
+                .slice(0, -1)
+                .filter((f) => f !== '')[0] === folder.value,
+          )
+
+    if (privacyFilter.value === 'all') return folderFiltered
+    return folderFiltered.filter((img) => img.info?.private === (privacyFilter.value === 'private'))
+  }, [filteredImages, folder, privacyFilter])
 
   const sortedImages = React.useMemo(() => {
     if (!displayImages) return []
@@ -199,6 +207,44 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
     setSortKey((k) => k + 1)
     window.scrollTo({ top: 0 })
   }
+
+  const handlePrivacyChange = (option) => {
+    setPrivacyFilter(option)
+    setRandomized(false)
+    setSortKey((k) => k + 1)
+    window.scrollTo({ top: 0 })
+  }
+
+  // Same filters the desktop toolbar shows inline, described for the collapsed
+  // mobile menu. The defaults drive the "filters are active" dot on the button.
+  const mobileFilters = [
+    showFolderDropdown &&
+      imageFolderList.length > 1 && {
+        key: 'folder',
+        label: 'Folder',
+        value: selectedImageFolder,
+        options: imageFolderList.map((f) => ({ value: f, label: f })),
+        onChange: onImageFolderChange,
+        defaultValue: 'All Images',
+        selectProps: { components: { SingleValue: MarqueeSingleValue, Option: MarqueeOption } },
+      },
+    {
+      key: 'sort',
+      label: 'Sort by',
+      value: sortOrder,
+      options: SORT_OPTIONS,
+      onChange: handleSortChange,
+      defaultValue: SORT_OPTIONS[0].value,
+    },
+    authenticated && {
+      key: 'privacy',
+      label: 'Visibility',
+      value: privacyFilter,
+      options: PRIVACY_OPTIONS,
+      onChange: handlePrivacyChange,
+      defaultValue: PRIVACY_OPTIONS[0].value,
+    },
+  ]
 
   const handleRandomize = () => {
     const shuffled = [...displayImages].sort(() => Math.random() - 0.5)
@@ -305,34 +351,54 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, flexWrap: 'nowrap', minWidth: 0 }}>
             {!(editMode && isMdDown) && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-                {showFolderDropdown && imageFolderList.length > 1 && (
-                  <Box sx={{ minWidth: { xs: 100, sm: 150 }, maxWidth: { xs: 130, sm: 200 }, flexShrink: 0 }}>
-                    <Select
-                      value={selectedImageFolder}
-                      options={imageFolderList.map((f) => ({ value: f, label: f }))}
-                      onChange={onImageFolderChange}
-                      styles={selectFolderTheme}
-                      menuPortalTarget={document.body}
-                      menuPosition="fixed"
-                      blurInputOnSelect
-                      isSearchable={false}
-                      components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
-                    />
-                  </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
+                {isMobile ? (
+                  <ToolbarFilterMenu filters={mobileFilters} />
+                ) : (
+                  <>
+                    {showFolderDropdown && imageFolderList.length > 1 && (
+                      <Box sx={{ minWidth: 150, maxWidth: 200, flexShrink: 0 }}>
+                        <Select
+                          value={selectedImageFolder}
+                          options={imageFolderList.map((f) => ({ value: f, label: f }))}
+                          onChange={onImageFolderChange}
+                          styles={selectFolderTheme}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          blurInputOnSelect
+                          isSearchable={false}
+                          components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
+                        />
+                      </Box>
+                    )}
+                    <Box sx={{ minWidth: SORT_SELECT_WIDTH }}>
+                      <Select
+                        value={sortOrder}
+                        options={SORT_OPTIONS}
+                        onChange={handleSortChange}
+                        styles={selectFolderTheme}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        blurInputOnSelect
+                        isSearchable={false}
+                      />
+                    </Box>
+                    {authenticated && (
+                      <Box sx={{ minWidth: PRIVACY_SELECT_WIDTH }}>
+                        <Select
+                          value={privacyFilter}
+                          options={PRIVACY_OPTIONS}
+                          onChange={handlePrivacyChange}
+                          styles={selectFolderTheme}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          blurInputOnSelect
+                          isSearchable={false}
+                        />
+                      </Box>
+                    )}
+                  </>
                 )}
-                <Box sx={{ minWidth: { xs: 120, sm: 150 } }}>
-                  <Select
-                    value={sortOrder}
-                    options={SORT_OPTIONS}
-                    onChange={handleSortChange}
-                    styles={selectFolderTheme}
-                    menuPortalTarget={document.body}
-                    menuPosition="fixed"
-                    blurInputOnSelect
-                    isSearchable={false}
-                  />
-                </Box>
                 <IconButton
                   onClick={handleRandomize}
                   title="Randomize order"

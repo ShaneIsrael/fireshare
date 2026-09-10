@@ -32,7 +32,8 @@ function checkUploadLimit(file, handleAlert) {
   }
   return true
 }
-import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, checkboxSx, helperTextSx } from '../../common/modalStyles'
+import { dialogTitleSx, inputSx, labelSx, checkboxSx, helperTextSx } from '../../common/modalStyles'
+import { useMobileFullScreenDialog } from '../../common/utils'
 import logo from '../../assets/logo.png'
 
 const Input = styled('input')({
@@ -99,6 +100,8 @@ const UploadCard = React.forwardRef(function UploadCard(
   { authenticated, handleAlert, mini, onUploadComplete, dropOnly = false },
   ref,
 ) {
+  const mobileFullScreen = useMobileFullScreenDialog()
+
   // Upload queue — supports multiple concurrent uploads, each with its own progress
   const [uploadQueue, setUploadQueue] = React.useState([])
   const startedUploadsRef = React.useRef(new Set())
@@ -735,7 +738,7 @@ const UploadCard = React.forwardRef(function UploadCard(
 
   if (dropOnly) {
     return (
-      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="md" fullWidth PaperProps={{ sx: dialogPaperSx }}>
+      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="md" fullWidth {...mobileFullScreen}>
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#2684FF', fontSize: 24, flexShrink: 0 }} />
@@ -744,9 +747,18 @@ const UploadCard = React.forwardRef(function UploadCard(
         </DialogTitle>
         <DialogContent sx={{ pt: '16px !important', px: 3 }}>
           {inlineTitleEl}
-          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+          {/* Side by side on desktop; stacked on a phone, where the dialog is fullscreen
+              and a half-width column would squeeze the fields for no reason. */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 3,
+              alignItems: { xs: 'stretch', sm: 'flex-start' },
+            }}
+          >
             {/* Thumbnail — left column */}
-            <Box sx={{ flex: 1 }}>
+            <Box sx={{ flex: { xs: 'none', sm: 1 }, width: '100%' }}>
               <Box
                 sx={{
                   width: '100%',
@@ -798,7 +810,16 @@ const UploadCard = React.forwardRef(function UploadCard(
             </Box>
 
             {/* Form fields — right column */}
-            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box
+              sx={{
+                flex: { xs: 'none', sm: 1 },
+                width: '100%',
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
               {/* Game selector */}
               <Box>
                 <Typography sx={labelSx}>Game</Typography>
@@ -1216,7 +1237,7 @@ const UploadCard = React.forwardRef(function UploadCard(
       </Grid>
 
       {/* Pre-upload metadata dialog */}
-      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="md" fullWidth PaperProps={{ sx: dialogPaperSx }}>
+      <Dialog open={dialogOpen} onClose={handleDialogCancel} maxWidth="md" fullWidth {...mobileFullScreen}>
         <DialogTitle sx={{ px: 3, pt: 2.5, pb: 0 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <CloudUploadIcon sx={{ color: '#fff', fontSize: 24, flexShrink: 0 }} />
@@ -1225,9 +1246,18 @@ const UploadCard = React.forwardRef(function UploadCard(
         </DialogTitle>
         <DialogContent sx={{ pt: '16px !important', px: 3 }}>
           {inlineTitleEl}
-          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+          {/* Side by side on desktop; stacked on a phone, where the dialog is fullscreen
+              and a half-width column would squeeze the fields for no reason. */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 3,
+              alignItems: { xs: 'stretch', sm: 'flex-start' },
+            }}
+          >
             {/* Thumbnail — left column */}
-            <Box sx={{ flex: 1 }}>
+            <Box sx={{ flex: { xs: 'none', sm: 1 }, width: '100%' }}>
               <Box
                 sx={{
                   width: '100%',
@@ -1279,7 +1309,16 @@ const UploadCard = React.forwardRef(function UploadCard(
             </Box>
 
             {/* Form fields — right column */}
-            <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box
+              sx={{
+                flex: { xs: 'none', sm: 1 },
+                width: '100%',
+                minWidth: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
               {/* Game selector */}
               <Box>
                 <Typography sx={labelSx}>Game</Typography>

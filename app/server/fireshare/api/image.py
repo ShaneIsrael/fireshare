@@ -15,15 +15,16 @@ from sqlalchemy.sql import text
 
 from .. import db, logger, util
 from ..models import Image, ImageInfo, ImageView, ImageGameLink, ImageTagLink, GameMetadata, MediaFolder
+from .. import permissions as P
 from . import api
-from .helpers import sanitize_upload_folder, secure_filename
-from .decorators import demo_restrict
+from .helpers import sanitize_upload_folder, secure_filename, viewer_sees_private
+from .decorators import demo_restrict, require_perm
 
 
 SUPPORTED_IMAGE_TYPES = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
 
 
-def _launch_scan_image(save_path, config, game_id=None, tag_ids=None, title=None):
+def _launch_scan_image(save_path, config, game_id=None, tag_ids=None, title=None, uploaded_by=None):
     """Launch scan-image in the background after an image upload."""
     image_directory = current_app.config.get('IMAGE_DIRECTORY')
     if not image_directory:
@@ -36,6 +37,8 @@ def _launch_scan_image(save_path, config, game_id=None, tag_ids=None, title=None
         cmd.append(f"--tag-ids={','.join(str(t) for t in tag_ids)}")
     if title:
         cmd.append(f"--title={title}")
+    if uploaded_by is not None:
+        cmd.append(f"--uploaded-by={int(uploaded_by)}")
     proc = Popen(cmd, shell=False, start_new_session=True)
     threading.Thread(target=proc.wait, daemon=True).start()
     return proc
@@ -46,7 +49,7 @@ def _launch_scan_image(save_path, config, game_id=None, tag_ids=None, title=None
 # ---------------------------------------------------------------------------
 
 @api.route('/api/upload/image', methods=['POST'])
-@login_required
+@require_perm(P.UPLOAD)
 def upload_image():
     paths = current_app.config['PATHS']
     image_directory = current_app.config.get('IMAGE_DIRECTORY')
@@ -96,7 +99,8 @@ def upload_image():
             save_path = str(upload_dir / f"{stem}-{uid}.{filetype}")
         file.save(save_path)
         _launch_scan_image(save_path, config, game_id=game_id, tag_ids=tag_ids,
-                           title=title if len(files) == 1 else None)
+                           title=title if len(files) == 1 else None,
+                           uploaded_by=current_user.id if current_user.is_authenticated else None)
         saved += 1
 
     if saved == 0:
@@ -156,7 +160,9 @@ def upload_image_public():
             uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
             save_path = str(upload_dir / f"{stem}-{uid}.{filetype}")
         file.save(save_path)
-        _launch_scan_image(save_path, config, game_id=game_id, tag_ids=tag_ids)
+        # Public endpoint: attributed only when the caller happens to be signed in.
+        _launch_scan_image(save_path, config, game_id=game_id, tag_ids=tag_ids,
+                           uploaded_by=current_user.id if current_user.is_authenticated else None)
         saved += 1
 
     if saved == 0:
@@ -238,7 +244,10 @@ def get_images():
     if sort not in allowed_sorts:
         return jsonify({"error": "Invalid sort parameter"}), 400
 
-    images = Image.query.join(ImageInfo).filter(Image.available == True).order_by(text(sort)).all()
+    query = Image.query.join(ImageInfo).filter(Image.available == True)
+    if not viewer_sees_private():
+        query = query.filter(ImageInfo.private == False)
+    images = query.order_by(text(sort)).all()
     result = []
     for img in images:
         j = img.json()
@@ -291,8 +300,11 @@ def get_image_details(image_id):
 
 
 @api.route('/api/image/details/<image_id>', methods=['PUT'])
-@login_required
+@require_perm(P.EDIT_OWN, P.EDIT_ANY)
 def update_image_details(image_id):
+    _img = Image.query.filter_by(image_id=image_id).first()
+    if _img and not current_user.can_modify(_img, 'edit'):
+        return Response(status=403, response='You can only edit your own uploads.')
     img = Image.query.filter_by(image_id=image_id).first()
     if not img or not img.info:
         return Response(status=404)
@@ -320,12 +332,14 @@ def update_image_details(image_id):
 
 
 @api.route('/api/image/delete/<image_id>', methods=['DELETE'])
-@login_required
+@require_perm(P.DELETE_OWN, P.DELETE_ANY)
 @demo_restrict
 def delete_image(image_id):
     img = Image.query.filter_by(image_id=image_id).first()
     if not img:
         return Response(status=404)
+    if not current_user.can_modify(img, 'delete'):
+        return Response(status=403, response='You can only delete your own uploads.')
 
     folder_id = img.folder_id
     paths = current_app.config['PATHS']
@@ -457,7 +471,7 @@ def get_image_views(image_id):
 # ---------------------------------------------------------------------------
 
 @api.route('/api/images/<image_id>/game', methods=['POST'])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 def link_image_game(image_id):
     img = Image.query.filter_by(image_id=image_id).first()
     if not img:
@@ -487,7 +501,7 @@ def get_image_game(image_id):
 
 
 @api.route('/api/images/<image_id>/game', methods=['DELETE'])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 def unlink_image_game(image_id):
     ImageGameLink.query.filter_by(image_id=image_id).delete()
     db.session.commit()
@@ -499,7 +513,7 @@ def unlink_image_game(image_id):
 # ---------------------------------------------------------------------------
 
 @api.route('/api/images/<image_id>/tags', methods=['POST'])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def add_image_tag(image_id):
     img = Image.query.filter_by(image_id=image_id).first()
     if not img:
@@ -515,7 +529,7 @@ def add_image_tag(image_id):
 
 
 @api.route('/api/images/<image_id>/tags/<int:tag_id>', methods=['DELETE'])
-@login_required
+@require_perm(P.MANAGE_TAGS)
 def remove_image_tag(image_id, tag_id):
     ImageTagLink.query.filter_by(image_id=image_id, tag_id=tag_id).delete()
     db.session.commit()

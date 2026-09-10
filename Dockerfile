@@ -125,7 +125,7 @@ COPY --from=ffmpeg-builder /usr/local/lib/lib* /usr/local/lib/
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
     nginx-extras supervisor \
-    libldap2-dev libsasl2-dev libssl-dev \
+    libssl-dev \
     libffi-dev libc-dev \
     build-essential \
     gosu \
@@ -134,7 +134,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     libx264-163 libx265-199 libvpx7 libaom3 libdav1d5 \
     libopus0 libvorbis0a libvorbisenc2 \
     libass9 libfreetype6 libmp3lame0 libwebp7 libwebpmux3 \
-    libldap-2.5-0 libsasl2-2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=python-source /opt/python3.14 /opt/python3.14
@@ -171,7 +170,7 @@ COPY --from=client /app/build /app/build
 COPY --from=client /app/package.json /app
 RUN python3.14 -m pip install --no-cache-dir --ignore-installed /app/server \
     && apt-get purge -y --auto-remove \
-        libldap2-dev libsasl2-dev libssl-dev \
+        libssl-dev \
         libffi-dev libc-dev \
         build-essential \
     && apt-get autoremove -y \
@@ -188,6 +187,11 @@ ENV ADMIN_PASSWORD=admin
 ENV ANALYTICS_TRACKING_SCRIPT=""
 ENV TZ=UTC
 ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+# The NVIDIA Container Toolkit only mounts the NVENC/NVDEC libraries when the
+# "video" driver capability is requested. The CUDA base image defaults to
+# "compute,utility", which leaves ffmpeg without libnvidia-encode.so.1 and
+# silently forces CPU transcoding. Users may still override this at run time.
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
 ENV PATH=/opt/python3.14/bin:/usr/local/bin:$PATH
 
 EXPOSE 80

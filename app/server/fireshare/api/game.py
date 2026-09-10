@@ -10,12 +10,15 @@ from flask_login import login_required, current_user
 from .. import db, logger
 from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, Image, ImageInfo, ImageGameLink, ImageView
 from ..steamgrid import SteamGridDBClient
+from .. import permissions as P
 from . import api
+from .decorators import require_perm
 from .helpers import (
     cancel_pending_transcode_jobs,
     delete_video_files,
     get_steamgriddb_api_key,
     login_required_unless_public_game_tag,
+    viewer_sees_private,
 )
 
 
@@ -26,6 +29,27 @@ def find_asset_with_extensions(asset_dir, base_name):
         if path.exists():
             return path
     return None
+
+
+def game_json_with_assets(game):
+    """game.json() with cache-busting query params on whichever assets exist.
+
+    Shared with the per-user games listing so both produce identical URLs, which
+    keeps the browser cache working across the two pages.
+    """
+    data = game.json()
+    if not game.steamgriddb_id:
+        return data
+    paths = current_app.config['PATHS']
+    asset_dir = paths['data'] / 'game_assets' / str(game.steamgriddb_id)
+    for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'),
+                      ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
+        asset_path = asset_dir / f'{base}.webp'
+        if not asset_path.exists():
+            asset_path = find_asset_with_extensions(asset_dir, base)
+        if asset_path and asset_path.exists() and data.get(key):
+            data[key] = data[key] + f'?v={int(asset_path.stat().st_mtime)}'
+    return data
 
 
 @api.route('/api/steamgrid/search', methods=["GET"])
@@ -68,7 +92,7 @@ def get_steamgrid_asset_options(game_id):
 
 
 @api.route('/api/games/<int:steamgriddb_id>/assets', methods=["PUT"])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 def update_game_asset(steamgriddb_id):
     import tempfile
 
@@ -161,7 +185,7 @@ def get_games():
         ImageGameLink.image_id == Image.image_id
     )
 
-    if current_user.is_authenticated:
+    if viewer_sees_private():
         # Show games that have at least one linked video OR image
         games = (
             db.session.query(GameMetadata)
@@ -196,19 +220,7 @@ def get_games():
             .all()
         )
 
-    paths = current_app.config['PATHS']
-    result = []
-    for game in games:
-        data = game.json()
-        if game.steamgriddb_id:
-            asset_dir = paths['data'] / 'game_assets' / str(game.steamgriddb_id)
-            for base, key in [('hero_1', 'hero_url'), ('hero_2', 'banner_url'), ('logo_1', 'logo_url'), ('icon_1', 'icon_url')]:
-                asset_path = asset_dir / f'{base}.webp'
-                if not asset_path.exists():
-                    asset_path = find_asset_with_extensions(asset_dir, base)
-                if asset_path and asset_path.exists() and data.get(key):
-                    data[key] = data[key] + f'?v={int(asset_path.stat().st_mtime)}'
-        result.append(data)
+    result = [game_json_with_assets(game) for game in games]
     resp = jsonify(result)
     resp.headers['Cache-Control'] = 'no-store'
     return resp
@@ -447,7 +459,7 @@ def get_game_videos(steamgriddb_id):
         if not link.video:
             continue
 
-        if not current_user.is_authenticated:
+        if not viewer_sees_private():
             # Only show available, non-private videos to public users
             if not link.video.available:
                 continue
@@ -472,7 +484,7 @@ def get_game_images(steamgriddb_id):
     for link in ImageGameLink.query.filter_by(game_id=game.id).all():
         if not link.image:
             continue
-        if not current_user.is_authenticated:
+        if not viewer_sees_private():
             if not link.image.available:
                 continue
             if not link.image.info or link.image.info.private:
@@ -485,7 +497,7 @@ def get_game_images(steamgriddb_id):
 
 
 @api.route('/api/games/<int:steamgriddb_id>', methods=["DELETE"])
-@login_required
+@require_perm(P.MANAGE_GAMES)
 def delete_game(steamgriddb_id):
     """
     Delete a game and optionally all associated videos.

@@ -3,17 +3,158 @@ import uuid as uuid_lib
 from datetime import datetime
 from flask_login import UserMixin
 from . import db
+from . import permissions as perms
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(100))
-    admin = db.Column(db.Boolean, default=True)
-    ldap = db.Column(db.Boolean, default=False)
+    password = db.Column(db.String(256), nullable=True)
+    # Defaults to False: a user created without an explicit admin flag must not
+    # inherit administrator rights (the old default=True silently minted admins
+    # through /api/signup and `fireshare add-user`). Left nullable to match the
+    # existing column — forcing NOT NULL would rebuild this table on upgrade, and
+    # the migration normalizes the NULLs that older rows could carry.
+    admin = db.Column(db.Boolean, default=False)
     last_seen_version = db.Column(db.String(32), nullable=True)
     totp_secret = db.Column(db.String(64), nullable=True)
     mfa_enabled = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
     totp_last_used = db.Column(db.Integer, nullable=True)  # last accepted 30s TOTP timestep, blocks code replay
+
+    # Granted capability keys as a JSON array. Ignored entirely when admin is set.
+    permissions = db.Column(db.Text, nullable=True)
+    disabled = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    # Marks the account whose username/password are re-asserted from ADMIN_USERNAME /
+    # ADMIN_PASSWORD on every boot. Pinning it to a specific row keeps that logic from
+    # rewriting an arbitrary administrator once more than one exists.
+    env_managed = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    must_change_password = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    invite_token_hash = db.Column(db.String(64), nullable=True, index=True)  # sha256 hex, never the raw token
+    invite_expires_at = db.Column(db.DateTime(), nullable=True)
+    created_at = db.Column(db.DateTime(), nullable=True)
+    last_login_at = db.Column(db.DateTime(), nullable=True)
+
+    # Profile
+    display_name = db.Column(db.String(64), nullable=True)
+    bio = db.Column(db.String(280), nullable=True)
+    profile_public = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
+    # 0 = no avatar uploaded. Bumped on each upload so clients can cache the file
+    # forever and still pick up a change.
+    avatar_version = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+    # 0 = no uploaded banner, so the profile falls back to the most-uploaded
+    # game's art and then to a generated gradient.
+    banner_version = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+
+    @property
+    def granted_permissions(self):
+        """The set of grantable keys this user holds (empty for admins, who bypass)."""
+        return perms.parse_permissions(self.permissions)
+
+    def can(self, permission):
+        """Whether this user may perform the named capability."""
+        if self.disabled:
+            return False
+        if self.admin:
+            return True
+        if permission not in perms.GRANTABLE_PERMISSIONS:
+            return False  # admin-only capability, never grantable
+        return permission in self.granted_permissions
+
+    def can_modify(self, media, action):
+        """Whether this user may 'edit' or 'delete' a specific Video or Image.
+
+        Ownership is only honoured for media that actually has an uploader: legacy
+        rows scanned off disk carry uploaded_by=None, and `None == None` would
+        otherwise hand every one of them to any user holding *_own.
+        """
+        if action not in ('edit', 'delete'):
+            raise ValueError(f"unknown action {action!r}")
+        if self.can(f'{action}_any'):
+            return True
+        owner_id = getattr(media, 'uploaded_by', None)
+        return (
+            self.can(f'{action}_own')
+            and owner_id is not None
+            and owner_id == self.id
+        )
+
+    @property
+    def has_avatar(self):
+        return bool(self.avatar_version)
+
+    @property
+    def has_banner(self):
+        return bool(self.banner_version)
+
+    @property
+    def name(self):
+        """The name to show for this user anywhere in the UI."""
+        return self.display_name or self.username
+
+    def avatar_url(self):
+        if not self.has_avatar:
+            return None
+        return f"/api/users/{self.username}/avatar?v={self.avatar_version}"
+
+    def banner_url(self):
+        if not self.has_banner:
+            return None
+        return f"/api/users/{self.username}/banner?v={self.banner_version}"
+
+    def mention_json(self):
+        """The compact uploader reference embedded in video and image payloads."""
+        return {
+            "username": self.username,
+            "display_name": self.display_name,
+            "name": self.name,
+            "avatar_url": self.avatar_url(),
+        }
+
+    def profile_json(self):
+        """The public-facing profile payload."""
+        return {
+            "username": self.username,
+            "display_name": self.display_name,
+            "name": self.name,
+            "bio": self.bio,
+            "avatar_url": self.avatar_url(),
+            "has_avatar": self.has_avatar,
+            "banner_url": self.banner_url(),
+            "has_banner": self.has_banner,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+    def admin_json(self):
+        """The privileged payload for the admin user list. Never leaves an admin route."""
+        granted = sorted(self.granted_permissions)
+        if self.invite_token_hash:
+            status = 'invited'
+        elif self.disabled:
+            status = 'disabled'
+        else:
+            status = 'active'
+        return {
+            "id": self.id,
+            "username": self.username,
+            "display_name": self.display_name,
+            "name": self.name,
+            "admin": bool(self.admin),
+            "permissions": granted,
+            "permissions_label": perms.describe_permissions(self.admin, granted),
+            "preset": perms.preset_for(granted) if not self.admin else 'admin',
+            "disabled": bool(self.disabled),
+            "env_managed": bool(self.env_managed),
+            "mfa_enabled": bool(self.mfa_enabled),
+            "must_change_password": bool(self.must_change_password),
+            "profile_public": bool(self.profile_public),
+            "avatar_url": self.avatar_url(),
+            "status": status,
+            "invite_expires_at": self.invite_expires_at.isoformat() if self.invite_expires_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_login_at": self.last_login_at.isoformat() if self.last_login_at else None,
+        }
+
+    def __repr__(self):
+        return "<User {} {}>".format(self.id, self.username)
 
 class Video(db.Model):
     __tablename__ = "video"
@@ -28,8 +169,12 @@ class Video(db.Model):
     recorded_at = db.Column(db.DateTime(), nullable=True)  # Extracted from filename
     source_folder = db.Column(db.String(256), nullable=True)  # Original folder name for game detection
     folder_id = db.Column(db.Integer, db.ForeignKey("media_folder.id"), nullable=True)
+    # None for anonymous public uploads and for anything scanned off disk before
+    # profiles existed. Cleared (never cascaded) when the uploader is deleted.
+    uploaded_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
 
     info      = db.relationship("VideoInfo", back_populates="video", uselist=False, lazy="joined")
+    uploader  = db.relationship("User", lazy="joined", foreign_keys=[uploaded_by])
 
     def json(self):
         j = {
@@ -39,6 +184,7 @@ class Video(db.Model):
             "available": self.available,
             "recorded_at": self.recorded_at.isoformat() if self.recorded_at else None,
             "info": self.info.json(),
+            "uploader": self.uploader.mention_json() if self.uploader else None,
         }
         return j
 
@@ -314,8 +460,11 @@ class Image(db.Model):
     updated_at    = db.Column(db.DateTime())
     source_folder = db.Column(db.String(256), nullable=True)
     folder_id     = db.Column(db.Integer, db.ForeignKey("media_folder.id"), nullable=True)
+    # See Video.uploaded_by.
+    uploaded_by   = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
 
     info          = db.relationship("ImageInfo", back_populates="image", uselist=False, lazy="joined")
+    uploader      = db.relationship("User", lazy="joined", foreign_keys=[uploaded_by])
 
     def json(self):
         return {
@@ -326,6 +475,7 @@ class Image(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "info": self.info.json() if self.info else {},
+            "uploader": self.uploader.mention_json() if self.uploader else None,
         }
 
     def __repr__(self):

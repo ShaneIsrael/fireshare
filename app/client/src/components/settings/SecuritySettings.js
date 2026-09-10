@@ -15,7 +15,6 @@ import {
 import SecurityIcon from '@mui/icons-material/Security'
 import { AuthService } from '../../services'
 import SnackbarAlert from '../alert/SnackbarAlert'
-import { getSetting } from '../../common/utils'
 import { dialogPaperSx, dialogTitleSx, inputSx, helperTextSx } from '../../common/modalStyles'
 
 const SecuritySettings = () => {
@@ -123,9 +122,7 @@ const SecuritySettings = () => {
         <CircularProgress size={24} />
       ) : !status.supported ? (
         <Typography sx={helperTextSx}>
-          {getSetting('is_demo_user')
-            ? 'Two-factor authentication is disabled in demo mode.'
-            : 'Two-factor authentication is not available for LDAP accounts.'}
+          Two-factor authentication is disabled in demo mode.
         </Typography>
       ) : status.enabled ? (
         <Button variant="outlined" color="error" onClick={() => { setCode(''); setDisableOpen(true) }} sx={{ maxWidth: 400 }}>

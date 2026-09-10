@@ -37,6 +37,17 @@ export const dialogPaperSx = {
   boxShadow: '0 16px 48px #00000099',
 }
 
+// A dialog that goes fullScreen on small viewports still gets the dark surface,
+// but the rounded corners, border and drop shadow only make sense when the
+// paper floats above the page — edge to edge they read as rendering artifacts.
+export const fullScreenDialogPaperSx = {
+  bgcolor: '#041223',
+  border: 'none',
+  borderRadius: 0,
+  boxShadow: 'none',
+  backgroundImage: 'none',
+}
+
 export const dialogTitleSx = {
   fontWeight: 800,
   color: 'white',
@@ -63,3 +74,8 @@ export const timeInputStyle = {
   colorScheme: 'dark',
   flex: 1,
 }
+
+// The theme strips MuiSwitch's default padding to get a compact track, which
+// also removes the space that normally sits between a switch and its label.
+// A Checkbox keeps its own padding, so this is only needed for switches.
+export const switchLabelSx = { ml: 1 }

@@ -16,6 +16,7 @@ import { getPosterUrl, getImageThumbnailUrl } from '../common/utils'
 import { sortSelectTheme as selectSortTheme } from '../common/reactSelectThemes'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
+import { SORT_SELECT_WIDTH } from '../common/constants'
 
 const FOLDER_SORT_OPTIONS = [
   { value: 'name_asc', label: 'Name A→Z' },
@@ -243,7 +244,7 @@ const Folders = ({ authenticated, searchText }) => {
       {toolbarTarget &&
         ReactDOM.createPortal(
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'nowrap', minWidth: 0 }}>
-            <Box sx={{ minWidth: { xs: 120, sm: 150 }, flexShrink: 0 }}>
+            <Box sx={{ minWidth: SORT_SELECT_WIDTH, flexShrink: 0 }}>
               <Select
                 value={sortOrder}
                 options={FOLDER_SORT_OPTIONS}

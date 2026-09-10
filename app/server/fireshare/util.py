@@ -563,8 +563,17 @@ def diagnose_nvenc_setup():
         'nvidia_smi_available': False,
         'libnvidia_encode_found': False,
         'library_paths': [],
-        'ffmpeg_has_nvenc': False
+        'ffmpeg_has_nvenc': False,
+        'driver_capabilities': os.environ.get('NVIDIA_DRIVER_CAPABILITIES', ''),
+        'driver_capabilities_has_video': False,
     }
+    
+    # The NVIDIA Container Toolkit only mounts libnvidia-encode.so.1 (NVENC) when the
+    # 'video' driver capability is requested, or when the value is 'all'. An unset
+    # variable falls back to the toolkit default of 'utility,compute', which has no video.
+    caps = {c.strip() for c in diagnostics['driver_capabilities'].split(',') if c.strip()}
+    diagnostics['driver_capabilities_has_video'] = bool(caps & {'all', 'video'})
+    logger.debug(f"NVIDIA_DRIVER_CAPABILITIES: {diagnostics['driver_capabilities'] or '(unset)'}")
     
     # Check if nvidia-smi is available
     try:
@@ -971,6 +980,14 @@ def transcode_video_quality(video_path, out_path, height, use_gpu=False, timeout
             logger.warning("✓ GPU is accessible (nvidia-smi works)")
             logger.warning("✗ But NVENC encoder is not available to ffmpeg")
             logger.warning("")
+            
+            if not diag['driver_capabilities_has_video']:
+                caps = diag['driver_capabilities'] or '(unset)'
+                logger.warning(f"NVIDIA_DRIVER_CAPABILITIES is {caps}, which does not include 'video'")
+                logger.warning("  The NVIDIA Container Toolkit only mounts libnvidia-encode.so.1 (NVENC) when")
+                logger.warning("  'video' is included. Set NVIDIA_DRIVER_CAPABILITIES=compute,utility,video")
+                logger.warning("  (or 'all') on the container, or remove your override to use the image default.")
+                logger.warning("")
             
             # Try to automatically fix the library path issue
             if diag['libnvidia_encode_found'] and diag['library_paths'] and len(diag['library_paths']) > 0:

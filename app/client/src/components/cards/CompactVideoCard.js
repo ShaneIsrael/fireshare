@@ -2,6 +2,7 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Box, Chip, Typography, IconButton, Menu, MenuItem, ListItemIcon, Skeleton, Tooltip } from '@mui/material'
 import TagChip from '../ui/TagChip'
+import UploaderMention from '../user/UploaderMention'
 import LockIcon from '@mui/icons-material/Lock'
 import LinkIcon from '@mui/icons-material/Link'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -37,6 +38,7 @@ const CompactVideoCard = ({
   onRemoveFromView,
   removeOnMove = false,
   showTypeIndicator = false,
+  hideUploader = false,
 }) => {
   const [intVideo, setIntVideo] = React.useState(video)
   const [hover, setHover] = React.useState(false)
@@ -963,22 +965,30 @@ const CompactVideoCard = ({
               </Box>
             )}
 
-            {/* Recorded date */}
-            {video.recorded_at && (
-              <Typography
+            {/* Bottom meta row: recorded date and the uploader byline. Sharing one
+                row keeps card height identical whether or not media has an owner. */}
+            {(video.recorded_at || (intVideo.uploader && !hideUploader)) && (
+              <Box
                 sx={{
-                  fontSize: 14,
-                  color: '#FFFFFF80',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
                   mt: 'auto',
                   pt: 0.5,
+                  minWidth: 0,
                 }}
               >
-                {new Date(video.recorded_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </Typography>
+                {video.recorded_at && (
+                  <Typography sx={{ fontSize: 14, color: '#FFFFFF80', flexShrink: 0 }}>
+                    {new Date(video.recorded_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </Typography>
+                )}
+                {!hideUploader && <UploaderMention uploader={intVideo.uploader} sx={{ ml: 'auto' }} />}
+              </Box>
             )}
           </Box>
 
