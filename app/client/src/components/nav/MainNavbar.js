@@ -270,7 +270,13 @@ function MainNavbar({
 
   const showTopBar = isMobile || !PAGES_WITHOUT_TOP_BAR.includes(page)
 
-  const pages = withProfile.filter((p) => {
+  // The account/admin group at the bottom of the list. The divider goes above
+  // whichever of these renders first: My Profile only exists for a signed-in
+  // account and File Manager only for an administrator, so pinning the divider
+  // to a single entry would drop it for everyone else.
+  const ACCOUNT_GROUP = ['/profile', '/files', '/settings']
+
+  const allowedPages = withProfile.filter((p) => {
     if (p.adminOnly && !isAdmin) return false
     if (p.perm && !can(p.perm)) return false
     if (p.href === '/' && uiConfig.show_videos === false) return false
@@ -280,6 +286,9 @@ function MainNavbar({
     if (p.href === '/folders' && uiConfig.show_folders === false) return false
     return true
   })
+
+  const pages = allowedPages.filter((p) => (p.private && authenticated) || !p.private)
+  const accountGroupStart = pages.findIndex((p) => ACCOUNT_GROUP.includes(p.matchPage || p.href))
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -469,31 +478,41 @@ function MainNavbar({
         }}
       >
         <List sx={{ pt: 1 }}>
-          {pages.map((p) => {
-            if ((p.private && authenticated) || !p.private)
-              return (
-                <React.Fragment key={p.title}>
-                  {p.href === '/files' && <Divider sx={{ mb: 1, width: '100%' }} />}
-                  <ListItem disablePadding sx={{ px: 1 }}>
-                    <ListItemButton
-                      selected={page === (p.matchPage || p.href)}
-                      onClick={() => navigate(p.href)}
-                      sx={{ height: 50, mb: p.href !== '/settings' ? 1 : 0 }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40 }}>{p.icon}</ListItemIcon>
-                      <ListItemText
-                        primary={p.title}
-                        primaryTypographyProps={{
-                          fontSize: 18,
-                          fontWeight: 600,
-                        }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                </React.Fragment>
-              )
-            return null
-          })}
+          {pages.map((p, index) => (
+            <React.Fragment key={p.title}>
+              {index > 0 && index === accountGroupStart && <Divider sx={{ mb: 1, width: '100%' }} />}
+              <ListItem disablePadding sx={{ px: 1 }}>
+                <ListItemButton
+                  selected={page === (p.matchPage || p.href)}
+                  onClick={() => navigate(p.href)}
+                  sx={{
+                    height: 42,
+                    mb: index === pages.length - 1 ? 0 : 0.5,
+                    // In the minimized rail there is no label to align to. The
+                    // text node still flexes to fill even when clipped to zero
+                    // width, which pushes the icon off to the left, so it is
+                    // taken out of the flow and the icon is centred instead.
+                    ...(!open && {
+                      justifyContent: 'center',
+                      px: 0,
+                      '& .MuiListItemText-root': { display: 'none' },
+                    }),
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: open ? 34 : 0, '& svg': { fontSize: 21 } }}>
+                    {p.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={p.title}
+                    primaryTypographyProps={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            </React.Fragment>
+          ))}
         </List>
         <Divider />
         {/* A signed-in account without the upload permission has no more upload
