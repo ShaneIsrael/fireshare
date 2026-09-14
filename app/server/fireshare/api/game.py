@@ -53,6 +53,7 @@ def game_json_with_assets(game):
 
 
 @api.route('/api/steamgrid/search', methods=["GET"])
+@login_required
 def search_steamgrid():
     query = request.args.get('query')
     if not query:
@@ -69,6 +70,7 @@ def search_steamgrid():
 
 
 @api.route('/api/steamgrid/game/<int:game_id>/assets', methods=["GET"])
+@login_required
 def get_steamgrid_assets(game_id):
     api_key = get_steamgriddb_api_key()
     if not api_key:
@@ -81,6 +83,7 @@ def get_steamgrid_assets(game_id):
 
 
 @api.route('/api/steamgrid/game/<int:game_id>/assets/options', methods=["GET"])
+@login_required
 def get_steamgrid_asset_options(game_id):
     api_key = get_steamgriddb_api_key()
     if not api_key:

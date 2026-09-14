@@ -6,7 +6,6 @@ import pyotp
 import qrcode
 from flask import Blueprint, redirect, request, Response, jsonify, current_app, session
 from flask_login import login_user, logout_user, current_user, login_required
-from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from .models import User
 from . import db
@@ -14,10 +13,10 @@ from . import permissions as fs_permissions
 from .api.misc import _get_local_version, _fetch_release_notes
 from .api.decorators import demo_restrict
 from .ip_whitelist import login_ip_required, get_client_ip, is_ip_permitted
+from . import login_throttle
 from datetime import datetime, timezone
 
 auth = Blueprint('auth', __name__)
-CORS(auth, supports_credentials=True)
 
 MFA_PENDING_MAX_AGE = 300
 MFA_MAX_ATTEMPTS = 5
@@ -26,6 +25,7 @@ def _clear_mfa_pending():
     session.pop('mfa_pending_user_id', None)
     session.pop('mfa_pending_at', None)
     session.pop('mfa_attempts', None)
+    session.pop('mfa_username', None)
 
 def _verify_totp(user, code):
     """
@@ -62,6 +62,17 @@ def login():
     if not isinstance(username, str) or not isinstance(password, str):
         return Response(response="Invalid username or password", status=401)
 
+    client_ip = get_client_ip()
+    wait = login_throttle.retry_after(client_ip, username)
+    if wait:
+        # The hash comparison below is deliberately skipped while throttled, so a
+        # blocked caller cannot keep the server doing pbkdf2 work for them.
+        return Response(
+            response=f"Too many failed sign-in attempts. Try again in {wait} seconds.",
+            status=429,
+            headers={'Retry-After': str(wait)},
+        )
+
     user = User.query.filter_by(username=username).first()
 
     # A user awaiting an invite has no password hash, and a disabled account must
@@ -72,12 +83,15 @@ def login():
             session['mfa_pending_user_id'] = user.id
             session['mfa_pending_at'] = time.time()
             session['mfa_attempts'] = 0
+            session['mfa_username'] = user.username
             return jsonify({'mfa_required': True})
         _clear_mfa_pending()
+        login_throttle.clear(client_ip, username)
         login_user(user, remember=True)
         _record_login(user)
         return Response(status=200)
 
+    login_throttle.record_failure(client_ip, username)
     return Response(response="Invalid username or password", status=401)
 
 @auth.route('/api/login/mfa', methods=['POST'])
@@ -92,6 +106,16 @@ def login_mfa():
         _clear_mfa_pending()
         return jsonify({'error': 'Login session expired. Please sign in again.', 'restart': True}), 401
 
+    # The per-session cap above resets whenever the password step is passed again,
+    # so on its own it only ever costs an attacker who already holds the password a
+    # fresh login round per five guesses. Failed codes are therefore counted against
+    # the same address/account budget as failed passwords.
+    client_ip = get_client_ip()
+    pending_username = session.get('mfa_username')
+    wait = login_throttle.retry_after(client_ip, pending_username)
+    if wait:
+        return jsonify({'error': f'Too many failed attempts. Try again in {wait} seconds.'}), 429
+
     user = db.session.get(User, pending_user_id)
     if not user or user.disabled or not user.mfa_enabled or not user.totp_secret:
         _clear_mfa_pending()
@@ -101,11 +125,13 @@ def login_mfa():
 
     matched_step = _verify_totp(user, (request.json or {}).get('code'))
     if matched_step is None:
+        login_throttle.record_failure(client_ip, pending_username)
         return jsonify({'error': 'Invalid authentication code.'}), 401
 
     user.totp_last_used = matched_step
     user.last_login_at = datetime.utcnow()
     db.session.commit()
+    login_throttle.clear(client_ip, pending_username)
     _clear_mfa_pending()
     login_user(user, remember=True)
     return jsonify({'authenticated': True})

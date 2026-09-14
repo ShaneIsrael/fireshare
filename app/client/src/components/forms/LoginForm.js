@@ -74,10 +74,12 @@ const LoginForm = function () {
       await completeLogin()
     } catch (err) {
       const status = err.response?.status
+      // 429 carries the throttle's own "try again in N seconds" text, which is the
+      // only way the user finds out why a correct password is being refused.
+      const showsServerMessage = status === 401 || status === 403 || status === 429
       setAlert({
-        type: status === 401 ? 'warning' : 'error',
-        message:
-          status === 401 || status === 403 ? errorMessage(err) : 'An unknown error occurred while trying to log in.',
+        type: status === 401 || status === 429 ? 'warning' : 'error',
+        message: showsServerMessage ? errorMessage(err) : 'An unknown error occurred while trying to log in.',
         open: true,
       })
       setLoading(false)

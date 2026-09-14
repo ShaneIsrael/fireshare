@@ -124,7 +124,24 @@ def create_app(init_schedule=False):
     ldap_retired.abort_if_ldap_configured(logger)
 
     app = Flask(__name__, static_url_path='', static_folder='build', template_folder='build')
-    CORS(app, supports_credentials=True)
+
+    # Cross-origin access is off unless an operator names the origins that need it.
+    # It used to be CORS(app, supports_credentials=True) with no origins, which
+    # flask-cors reads as "any origin": it echoed whatever Origin arrived back as
+    # Access-Control-Allow-Origin next to Access-Control-Allow-Credentials: true,
+    # so any site a signed-in user visited could call the API as them. Fireshare
+    # serves its frontend from this same origin, so nothing needs this by default.
+    cors_origins = [o.strip() for o in os.getenv('CORS_ORIGINS', '').split(',') if o.strip()]
+    if '*' in cors_origins:
+        logger.warning(
+            "CORS_ORIGINS=* cannot be combined with credentialed requests and has been "
+            "ignored. List the origins that need access explicitly."
+        )
+        cors_origins = [o for o in cors_origins if o != '*']
+    if cors_origins:
+        CORS(app, supports_credentials=True, origins=cors_origins)
+        logger.info(f"CORS enabled for: {', '.join(cors_origins)}")
+
     if 'DATA_DIRECTORY' not in os.environ:
         raise Exception("DATA_DIRECTORY not found in environment")
 
@@ -132,10 +149,33 @@ def create_app(init_schedule=False):
     app.config['DOMAIN'] = os.getenv('DOMAIN')
     app.config['THUMBNAIL_VIDEO_LOCATION'] = int(os.getenv('THUMBNAIL_VIDEO_LOCATION') or 0)
 
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
+    # The example value shipped uncommented in docker-compose.yml, so instances that
+    # never edited it were all signing cookies with a key published in this repo —
+    # enough to forge an admin remember-me cookie. Treat it as if it were unset.
+    _secret_key = os.getenv('SECRET_KEY') or ''
+    if _secret_key == 'replace_this_with_some_random_string':
+        logger.warning(
+            "SECRET_KEY is set to the example value from docker-compose.yml. That key is "
+            "public, so it is being ignored in favour of a generated one. Remove the line "
+            "from your compose file; sessions will not survive a restart until you do."
+        )
+        _secret_key = ''
+    app.config['SECRET_KEY'] = _secret_key or secrets.token_hex(32)
 
     from datetime import timedelta
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1)
+
+    # SameSite was never set, leaving both cookies on whatever the browser happened
+    # to default to. Lax is stated explicitly so a cross-site request cannot carry
+    # them regardless of that default. Secure is opt-in because plenty of instances
+    # are reached over plain HTTP on a LAN, where it would lock users out entirely.
+    secure_cookies = env_bool('SECURE_COOKIES')
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['SESSION_COOKIE_SECURE'] = secure_cookies
+    app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+    app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
+    app.config['REMEMBER_COOKIE_SECURE'] = secure_cookies
 
     app.config['DATA_DIRECTORY'] = os.getenv('DATA_DIRECTORY')
     app.config['VIDEO_DIRECTORY'] = os.getenv('VIDEO_DIRECTORY')

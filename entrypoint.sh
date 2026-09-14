@@ -120,10 +120,33 @@ log "Nginx ready"
 export PATH=/opt/python3.14/bin:/usr/local/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-if [ -z "$SECRET_KEY" ]; then
-    export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-    log "SECRET_KEY not set — generated ephemeral key for this session"
+# The placeholder that shipped uncommented in docker-compose.yml counts as unset.
+# It signs the session and remember-me cookies, so anyone who had read it in the
+# public repo could forge an admin cookie against an instance still carrying it.
+if [ "$SECRET_KEY" = "replace_this_with_some_random_string" ]; then
+    warn "SECRET_KEY is still the example value from docker-compose.yml — ignoring it and using a generated key instead."
+    warn "Remove that line from your compose file; a key is generated and kept in /data automatically."
+    SECRET_KEY=""
 fi
+
+# Kept in the data directory rather than regenerated per boot, so a restart does
+# not sign every existing session out.
+SECRET_KEY_FILE="$DATA_DIRECTORY/.secret_key"
+if [ -z "$SECRET_KEY" ]; then
+    if [ -s "$SECRET_KEY_FILE" ]; then
+        SECRET_KEY=$(cat "$SECRET_KEY_FILE")
+        log "Loaded persisted SECRET_KEY from $SECRET_KEY_FILE"
+    else
+        SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+        if (umask 077 && printf '%s' "$SECRET_KEY" > "$SECRET_KEY_FILE") 2>/dev/null; then
+            chown appuser:appuser "$SECRET_KEY_FILE" 2>/dev/null || true
+            log "SECRET_KEY not set — generated one and saved it to $SECRET_KEY_FILE"
+        else
+            warn "SECRET_KEY not set and $SECRET_KEY_FILE is not writable — using an ephemeral key; sessions will not survive a restart."
+        fi
+    fi
+fi
+export SECRET_KEY
 
 # ── Database ──────────────────────────────────────────────────────────────────
 section "Database"

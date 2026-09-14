@@ -6,6 +6,7 @@ import requests
 import logging
 from typing import Optional, List, Dict
 from pathlib import Path
+from urllib.parse import quote
 from PIL import Image as PILImage
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,9 @@ class SteamGridDBClient:
             List of game dictionaries with id, name, release_date
         """
         try:
-            url = f"{self.BASE_URL}/search/autocomplete/{query}"
+            # Escaped: the query reaches here straight from a request parameter, and
+            # unescaped "/" or ".." in it would address a different API path.
+            url = f"{self.BASE_URL}/search/autocomplete/{quote(query, safe='')}"
             response = requests.get(url, headers=self.headers, timeout=10)
             response.raise_for_status()
 
