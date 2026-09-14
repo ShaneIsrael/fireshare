@@ -16,7 +16,11 @@ services:
       # If you need to reset your username and password after the first run, you can set these variables again and restart the container, then log in with the new credentials and remove the variables again.
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=admin
-      - SECRET_KEY=replace_this_with_some_random_string
+      # Signs the login session and remember-me cookies. Leave this unset: a random
+      # key is generated on first start and kept in /data so it survives restarts.
+      # Only set it yourself if you run several Fireshare containers that must share
+      # sessions, and if you do, use a long random value unique to your deployment.
+      # - SECRET_KEY=
       # Optional: only allow logins from these IPs/CIDR ranges (comma separated, IPv4/IPv6). Empty or unset disables the whitelist. See docs/Security.md
       # - LOGIN_IP_WHITELIST=203.0.113.5,10.0.0.0/8
       # Number of trusted reverse-proxy hops used to determine the real client IP. The bundled nginx counts as 1; set to 2 when behind an additional reverse proxy (Traefik, NPM, Cloudflare, ...).

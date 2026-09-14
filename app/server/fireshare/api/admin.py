@@ -18,7 +18,7 @@ from .. import db, logger, util
 from ..models import Video, VideoInfo, VideoView, GameMetadata, VideoGameLink, VideoTagLink, Image, ImageInfo, ImageGameLink, ImageTagLink, ImageView, TranscodeJob, MediaFolder
 from .. import permissions as perms
 from . import api
-from .helpers import cancel_pending_transcode_jobs, delete_video_files
+from .helpers import cancel_pending_transcode_jobs, delete_video_files, resolve_media_subfolder
 from .transcoding import _is_pid_running
 from .scan import _game_scan_state
 from .decorators import admin_required, demo_restrict
@@ -462,7 +462,10 @@ def bulk_move_files():
 
     paths = current_app.config['PATHS']
     video_path = paths['video']
-    target_folder_path = video_path / target_folder
+    resolved = resolve_media_subfolder(video_path, target_folder)
+    if not resolved:
+        return Response(status=400, response=f"Folder '{target_folder}' is not inside the video directory.")
+    target_folder_path, target_folder = resolved
 
     if not target_folder_path.is_dir():
         return Response(status=400, response=f"Folder '{target_folder}' does not exist.")
@@ -477,7 +480,7 @@ def bulk_move_files():
 
         old_file_path = video_path / video.path
         filename = Path(video.path).name
-        new_path = f"{target_folder}/{filename}"
+        new_path = f"{target_folder}/{filename}" if target_folder else filename
         new_file_path = video_path / new_path
 
         if old_file_path.resolve() == new_file_path.resolve():
@@ -497,7 +500,12 @@ def bulk_move_files():
             os.symlink(new_file_path.absolute(), link_path)
 
             video.path = new_path
-            video.folder_id = _get_or_create_media_folder(target_folder.split('/')[0], "video").id
+            # Media sitting directly in the root carries no folder row, matching how
+            # the disk scan records it.
+            video.folder_id = (
+                _get_or_create_media_folder(target_folder.split('/')[0], "video").id
+                if target_folder else None
+            )
 
             from ..models import FolderRule
             folder_rule = FolderRule.query.filter_by(folder_path=target_folder).first()
@@ -1045,7 +1053,10 @@ def bulk_move_images():
         return Response(status=503, response='IMAGE_DIRECTORY is not configured.')
 
     image_path = Path(image_directory)
-    target_folder_path = image_path / target_folder
+    resolved = resolve_media_subfolder(image_path, target_folder)
+    if not resolved:
+        return Response(status=400, response=f"Folder '{target_folder}' is not inside the image directory.")
+    target_folder_path, target_folder = resolved
     paths = current_app.config['PATHS']
 
     if not target_folder_path.is_dir():
@@ -1061,7 +1072,7 @@ def bulk_move_images():
 
         old_file_path = image_path / img.path
         filename = Path(img.path).name
-        new_path = f"{target_folder}/{filename}"
+        new_path = f"{target_folder}/{filename}" if target_folder else filename
         new_file_path = image_path / new_path
 
         if old_file_path.resolve() == new_file_path.resolve():
@@ -1081,7 +1092,10 @@ def bulk_move_images():
             os.symlink(new_file_path.absolute(), link_path)
 
             img.path = new_path
-            img.folder_id = _get_or_create_media_folder(target_folder.split('/')[0], "image").id
+            img.folder_id = (
+                _get_or_create_media_folder(target_folder.split('/')[0], "image").id
+                if target_folder else None
+            )
             db.session.commit()
             results['moved'].append(img_id)
         except Exception as e:

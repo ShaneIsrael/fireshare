@@ -1167,6 +1167,90 @@ def seconds_to_dur_string(sec):
     else:
         return ':'.join([str(mins), str(s).zfill(2)])
 
+def _case_affinity(candidate, query):
+    """How strongly a candidate's own casing is echoed by the query.
+
+    Only ever used to break a tie. Folding case away is what lets a filename match
+    a game at all, but it also makes "RUMBLE" and "rumble" — two different games —
+    score identically against a clip named "RUMBLE clip". The casing the query
+    itself used is the only signal left to separate them.
+    """
+    if candidate and candidate in query:
+        return len(candidate)
+    return sum(1 for a, b in zip(candidate, query) if a == b)
+
+
+def _match_game_by_name(query, games, score_cutoff):
+    """Pick the local game a name refers to, preferring an exact match to a fuzzy one.
+
+    Three things this has to get right, none of which the previous inline
+    process.extractOne() call did:
+
+    * It was handed a list of (name, game) tuples as the choices, so rapidfuzz
+      scored the query against the tuple rather than the name and returned 0 for
+      everything — no local match could ever clear the cutoff, and every lookup
+      fell through to a SteamGridDB search. It also read the game back out of
+      result[2], which for a list of choices is the index, not the element.
+    * Scoring is case-insensitive, because a filename's casing rarely matches the
+      publisher's. An exact, case-sensitive hit is still taken first, so a name
+      that matches outright is never talked out of by a fuzzy score.
+    * Once case is folded away, names differing only in case tie. extractOne
+      resolves a tie by returning whichever it reached first, which is row order —
+      so which of two real games got suggested came down to which was added first.
+      Ties are broken on case instead.
+
+    Returns (game, score_out_of_100), or (None, 0) when nothing clears the cutoff.
+    """
+    from rapidfuzz import fuzz, process
+
+    stripped = (query or '').strip()
+    if not stripped or not games:
+        return None, 0
+
+    for game in games:
+        if game.name == stripped:
+            return game, 100
+
+    names = [g.name or '' for g in games]
+    scored = process.extract(
+        stripped,
+        names,
+        scorer=fuzz.token_set_ratio,
+        processor=str.lower,
+        score_cutoff=score_cutoff,
+        limit=None,
+    )
+    if not scored:
+        return None, 0
+
+    best_score = max(entry[1] for entry in scored)
+    tied = [entry for entry in scored if entry[1] == best_score]
+    best = max(tied, key=lambda entry: (_case_affinity(entry[0], stripped), entry[0]))
+    return games[best[2]], best_score
+
+
+def _pick_steamgrid_result(query, results):
+    """Choose among SteamGridDB hits, preferring an exact name match to the top hit.
+
+    The autocomplete endpoint orders by its own relevance, which does not separate
+    two games whose names differ only in case, so taking results[0] on faith is how
+    a clip of "RUMBLE" ends up labelled "rumble".
+    """
+    stripped = (query or '').strip()
+    for result in results:
+        if (result.get('name') or '') == stripped:
+            return result
+    case_variants = [r for r in results if (r.get('name') or '').lower() == stripped.lower()]
+    if case_variants:
+        # Same tie-break as the local lookup: nearest on case, rather than trusting
+        # an ordering that does not distinguish these at all.
+        return max(
+            case_variants,
+            key=lambda r: (_case_affinity(r.get('name') or '', stripped), r.get('name') or ''),
+        )
+    return results[0]
+
+
 def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, path: str = None):
     """
     Fuzzy match a video filename against existing games in database using RapidFuzz.
@@ -1180,7 +1264,6 @@ def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, pa
     Returns:
         dict with 'game_id', 'game_name', 'steamgriddb_id', 'confidence', 'source' or None
     """
-    from rapidfuzz import fuzz, process
     from fireshare.models import GameMetadata
     import re
 
@@ -1203,16 +1286,11 @@ def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, pa
                 # Try matching folder name against local game database
                 games = GameMetadata.query.all()
                 if games:
-                    game_choices = [(game.name, game) for game in games]
-                    result = process.extractOne(
-                        folder_name,
-                        game_choices,
-                        scorer=fuzz.token_set_ratio,
-                        score_cutoff=80  # Higher threshold for folder match
+                    matched_game, score = _match_game_by_name(
+                        folder_name, games, score_cutoff=80  # Higher threshold for folder match
                     )
 
-                    if result:
-                        matched_name, score, matched_game = result[0], result[1], result[2]
+                    if matched_game:
                         best_match = {
                             'game_id': matched_game.id,
                             'game_name': matched_game.name,
@@ -1232,7 +1310,7 @@ def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, pa
                     try:
                         results = client.search_games(folder_name)
                         if results and len(results) > 0:
-                            top_result = results[0]
+                            top_result = _pick_steamgrid_result(folder_name, results)
                             # Use higher confidence for folder-based SteamGridDB match
                             detected = {
                                 'game_id': None,
@@ -1249,8 +1327,10 @@ def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, pa
             else:
                 logger.debug(f"Skipping folder-based detection for upload folder: '{folder_name}'")
 
-    # Clean filename for better matching
-    clean_name = filename.lower()
+    # Clean filename for better matching. The original casing is kept: it is what
+    # tells "RUMBLE" from "rumble" further down, and the only pattern below that
+    # cares about case already asks for re.IGNORECASE.
+    clean_name = filename
     # Remove common patterns: dates, numbers, "gameplay", etc.
     clean_name = re.sub(r'\d{4}-\d{2}-\d{2}', '', clean_name)  # Remove dates like 2024-01-14
     clean_name = re.sub(r'\d{8}', '', clean_name)  # Remove YYYYMMDD format
@@ -1269,19 +1349,12 @@ def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, pa
     if not games:
         logger.debug("No games in database to match against")
     else:
-        # Create list of (game_name, game_object) tuples for rapidfuzz
-        game_choices = [(game.name, game) for game in games]
-
-        # Use token_set_ratio - ignores word order and extra words
-        result = process.extractOne(
-            clean_name,
-            game_choices,
-            scorer=fuzz.token_set_ratio,
-            score_cutoff=65  # Minimum confidence (0-100 scale)
+        # token_set_ratio ignores word order and extra words
+        matched_game, score = _match_game_by_name(
+            clean_name, games, score_cutoff=65  # Minimum confidence (0-100 scale)
         )
 
-        if result:
-            matched_name, score, matched_game = result[0], result[1], result[2]
+        if matched_game:
             best_match = {
                 'game_id': matched_game.id,
                 'game_name': matched_game.name,
@@ -1301,8 +1374,9 @@ def detect_game_from_filename(filename: str, steamgriddb_api_key: str = None, pa
         try:
             results = client.search_games(clean_name)
             if results and len(results) > 0:
-                # Take the first result (SteamGridDB returns best matches first)
-                top_result = results[0]
+                # SteamGridDB returns best matches first, but cannot tell two names
+                # apart that differ only in case, so prefer an exact hit if there is one.
+                top_result = _pick_steamgrid_result(clean_name, results)
                 detected = {
                     'game_id': None,  # Not in our DB yet
                     'game_name': top_result.get('name'),

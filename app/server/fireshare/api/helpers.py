@@ -5,6 +5,7 @@ import secrets
 import shutil
 import time
 from functools import wraps
+from pathlib import Path
 from flask import current_app
 from .. import db, logger
 from ..models import TranscodeJob, Video
@@ -33,6 +34,33 @@ def sanitize_upload_folder(name):
     # the upload folder listing, which skips dotfiles.
     folder = folder.lstrip('.').strip()
     return folder or None
+
+
+def resolve_media_subfolder(root, folder):
+    """Join a client-supplied folder onto a media root without letting it escape.
+
+    The move endpoints accept nested folders, so the single-level
+    sanitize_upload_folder() above is too strict for them; what has to hold is only
+    that the result stays inside the root. Both ways out need closing: pathlib's `/`
+    operator discards the root entirely when the right-hand side is absolute
+    ("/etc"), and a relative "../" walks out of it just as effectively.
+
+    The comparison is deliberately lexical. Resolving symlinks would also reject a
+    folder the operator symlinked into their media directory, which is a supported
+    way to lay a library out, and nothing reachable over the API can create a
+    symlink inside the root for an attacker to aim at.
+
+    Returns (absolute_path, folder_relative_to_root) with the folder normalised, or
+    None when it escapes the root.
+    """
+    if folder is None:
+        return None
+    root_str = os.path.normpath(str(root))
+    candidate = os.path.normpath(os.path.join(root_str, str(folder)))
+    if candidate != root_str and not candidate.startswith(root_str + os.sep):
+        return None
+    relative = os.path.relpath(candidate, root_str)
+    return Path(candidate), ('' if relative == '.' else Path(relative).as_posix())
 
 
 def remove_derived_dir(derived_path, attempts=4, delay=0.25):

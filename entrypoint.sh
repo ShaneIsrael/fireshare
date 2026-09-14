@@ -120,10 +120,35 @@ log "Nginx ready"
 export PATH=/opt/python3.14/bin:/usr/local/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
+# Both placeholders shipped filled in — one in docker-compose.yml, one in the
+# README's compose example — so an instance that never edited the line signs its
+# login cookies with a key published in the repo. Either counts as unset.
+case "$SECRET_KEY" in
+    replace_this_with_some_random_string|replace_with_random_string_can_be_anything)
+        warn "SECRET_KEY is still an example value from the Fireshare docs — ignoring it and using a generated key instead."
+        warn "Remove that line from your compose file; a key is generated and kept in /data automatically."
+        SECRET_KEY=""
+        ;;
+esac
+
+# Kept in the data directory rather than regenerated per boot, so a restart does
+# not sign every existing session out.
+SECRET_KEY_FILE="$DATA_DIRECTORY/.secret_key"
 if [ -z "$SECRET_KEY" ]; then
-    export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-    log "SECRET_KEY not set — generated ephemeral key for this session"
+    if [ -s "$SECRET_KEY_FILE" ]; then
+        SECRET_KEY=$(cat "$SECRET_KEY_FILE")
+        log "Loaded persisted SECRET_KEY from $SECRET_KEY_FILE"
+    else
+        SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+        if (umask 077 && printf '%s' "$SECRET_KEY" > "$SECRET_KEY_FILE") 2>/dev/null; then
+            chown appuser:appuser "$SECRET_KEY_FILE" 2>/dev/null || true
+            log "SECRET_KEY not set — generated one and saved it to $SECRET_KEY_FILE"
+        else
+            warn "SECRET_KEY not set and $SECRET_KEY_FILE is not writable — using an ephemeral key; sessions will not survive a restart."
+        fi
+    fi
 fi
+export SECRET_KEY
 
 # ── Database ──────────────────────────────────────────────────────────────────
 section "Database"

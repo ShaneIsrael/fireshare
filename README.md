@@ -131,7 +131,8 @@ services:
     environment:
       - ADMIN_USERNAME=your-admin-username
       - ADMIN_PASSWORD=your-admin-password
-      - SECRET_KEY=replace_with_random_string_can_be_anything
+      # A key for signing login cookies is generated on first start and kept in
+      # /data, so there is nothing to set here. See docs/Security.md
       # The domain your instance is hosted at. e.x: demo.fireshare.net
       # this is required for opengraph to work correctly for shared links.
       - DOMAIN=

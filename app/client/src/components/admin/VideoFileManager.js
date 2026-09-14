@@ -636,7 +636,7 @@ export default function VideoFileManager({ setAlert }) {
       setActionLoading(true)
       try {
         const { data } = await Api().post(endpoint, body)
-        const updatedCount = (data.updated ?? data.moved ?? data.deleted ?? []).length
+        const updatedCount = data.updated_videos ?? (data.updated ?? data.moved ?? data.deleted ?? []).length
         const errorCount = (data.errors ?? []).length
         if (errorCount > 0) {
           setAlert({

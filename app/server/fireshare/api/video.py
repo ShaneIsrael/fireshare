@@ -28,6 +28,7 @@ from .helpers import (
     cancel_pending_transcode_jobs,
     delete_video_files,
     get_video_path,
+    resolve_media_subfolder,
     viewer_sees_private,
 )
 from .decorators import demo_restrict, require_perm
@@ -501,13 +502,16 @@ def move_video(id):
     paths = current_app.config['PATHS']
     video_path = paths['video']
 
-    target_folder_path = video_path / target_folder
+    resolved = resolve_media_subfolder(video_path, target_folder)
+    if not resolved:
+        return Response(status=400, response=f"Folder '{target_folder}' is not inside the video directory.")
+    target_folder_path, target_folder = resolved
     if not target_folder_path.is_dir():
         return Response(status=400, response=f"Folder '{target_folder}' does not exist.")
 
     old_file_path = video_path / video.path
     filename = Path(video.path).name
-    new_path = f"{target_folder}/{filename}"
+    new_path = f"{target_folder}/{filename}" if target_folder else filename
     new_file_path = video_path / new_path
 
     if old_file_path.resolve() == new_file_path.resolve():
@@ -589,9 +593,20 @@ def handle_video_details(id):
             new_start = data.pop('start_time', _UNSET)
             new_end   = data.pop('end_time',   _UNSET)
 
-            # Update remaining VideoInfo fields generically
-            if data:
-                db.session.query(VideoInfo).filter_by(video_id=id).update(data)
+            # Only these are the client's to set. The previous blanket update of
+            # whatever remained in the body also reached video_id (which carries no
+            # uniqueness constraint, so a row could be repointed at someone else's
+            # video) and password_hash (writable as a raw string, side-stepping the
+            # hashing directly below).
+            editable = {
+                field: data[field]
+                for field in ('title', 'description', 'private')
+                if field in data
+            }
+            if 'private' in editable:
+                editable['private'] = bool(editable['private'])
+            if editable:
+                db.session.query(VideoInfo).filter_by(video_id=id).update(editable)
 
             # Handle password changes
             generated_password = None
