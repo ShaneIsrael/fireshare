@@ -6,6 +6,11 @@ can be used together.
 - [Login IP Whitelist](#login-ip-whitelist) — restrict which IPs may log in.
 - [Two-Factor Authentication (MFA)](#two-factor-authentication-mfa) — require a TOTP code after the password.
 
+Separate from those, [Cookies and cross-origin access](#cookies-and-cross-origin-access) covers the
+browser-facing defaults and the two variables that change them. The defaults suit a normal deployment;
+you only need that section if you serve the frontend from a different origin, or you terminate HTTPS
+and want to say so.
+
 ---
 
 ## Login IP Whitelist
@@ -148,10 +153,100 @@ with its password alone, and MFA can be set up again from Settings.
 ### Notes and limitations
 
 - **The demo account is excluded.**
-- **Set a persistent `SECRET_KEY`.** Sessions, including the short-lived state between the password and
-  code steps, are signed with it; without one, every restart invalidates all sessions. See
-  [EnvironmentVariables.md](./EnvironmentVariables.md).
+- **Sessions are signed with the instance's session key**, including the short-lived state between the
+  password and code steps. Fireshare generates and persists one for you — see
+  [The session signing key](#the-session-signing-key).
 - Codes validate with a ±30 second tolerance, so keep the server and phone clocks reasonably accurate.
+
+---
+
+## Cookies and cross-origin access
+
+Fireshare serves its own frontend, so the browser calls the API from the same origin it loaded the page
+from. The defaults assume exactly that, and **a normal deployment needs nothing here.**
+
+| Variable         | Description                                                                                                     | Default     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- | ----------- |
+| `CORS_ORIGINS`   | Comma-separated origins allowed to call the API from a *different* origin, with cookies. Unset means same-origin only. | *(unset)* |
+| `SECURE_COOKIES` | Set to `true` to mark the login cookies `Secure`, so browsers only ever send them over HTTPS.                     | `false`     |
+
+### Cross-origin requests (`CORS_ORIGINS`)
+
+Unset, the API answers no cross-origin request. This is what you want when Fireshare serves its own
+frontend: the page and the API share an origin, so nothing is cross-origin in the first place.
+
+Set it only if the frontend is served from somewhere else — a separate dev server, or a frontend hosted
+apart from the backend:
+
+```yaml
+# docker-compose.yml
+environment:
+  - CORS_ORIGINS=https://fireshare.example.com,http://192.168.1.50:3000
+```
+
+Each entry is a full origin — scheme, host, and port if it isn't the default — matched exactly:
+
+| Entry                       | Matches                                             |
+| --------------------------- | --------------------------------------------------- |
+| `https://app.example.com`   | ✅ `https://app.example.com`                         |
+|                             | ❌ `http://app.example.com` — different scheme       |
+|                             | ❌ `https://app.example.com:8443` — different port   |
+| `http://192.168.1.50:3000`  | ✅ only that host **and** port                       |
+
+No trailing slash, and no paths — `https://app.example.com/` is not an origin and matches nothing. On
+startup, an active list logs:
+
+```
+CORS enabled for: https://fireshare.example.com
+```
+
+> **`*` is rejected.** Allowing any origin while also allowing cookies means any site your users visit
+> could call the API as them, which browsers refuse to do in the literal `*` form for that exact reason.
+> A `*` entry is dropped with a warning in the logs; list the origins you actually need.
+
+### Cookie flags (`SECURE_COOKIES`)
+
+The login cookies are always `HttpOnly` (unreadable from JavaScript) and always `SameSite=Lax`, so
+another site's scripts cannot cause a browser to attach them to a background request aimed at your
+instance. (`Lax` still allows them on an ordinary top-level link click, which is what keeps shared
+links working when you are already signed in.)
+
+`Secure` is the one part left to you, because it depends on how you reach your instance. It defaults to
+off: plenty of instances are reached over plain HTTP on a LAN, and a `Secure` cookie is simply never
+sent over HTTP, so defaulting it on would leave those users unable to log in at all.
+
+**Set it to `true` if you reach Fireshare over HTTPS** — directly, or through a reverse proxy that
+terminates TLS:
+
+```yaml
+environment:
+  - SECURE_COOKIES=true
+```
+
+> **Turn this on only once HTTPS actually works.** With `SECURE_COOKIES=true` on a plain-HTTP instance,
+> the login request succeeds and the browser then discards the cookie, so you land back on the login
+> page with no error. If that happens, set it back to `false` and restart.
+
+### The session signing key
+
+Login cookies are signed with a per-instance key. You do not need to set one: Fireshare generates a
+random key on first start and saves it to `/data/.secret_key`, so it survives restarts and upgrades and
+sessions stay valid across them.
+
+Set `SECRET_KEY` yourself only if several Fireshare containers have to share sessions, in which case
+give them all the same long random value:
+
+```sh
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
+> **Don't paste an example value from any documentation, including this repo's.** A signing key is only
+> worth anything while it is secret to your instance — a value published anywhere is a value anyone can
+> sign a cookie with. Older compose files and README examples shipped with a placeholder filled in; if
+> yours still has one, delete the line and let Fireshare generate its own. Those published placeholders
+> are refused on startup and replaced with a generated key, which signs out existing sessions once.
+
+---
 
 ## User accounts and permissions
 

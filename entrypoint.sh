@@ -120,14 +120,16 @@ log "Nginx ready"
 export PATH=/opt/python3.14/bin:/usr/local/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 
-# The placeholder that shipped uncommented in docker-compose.yml counts as unset.
-# It signs the session and remember-me cookies, so anyone who had read it in the
-# public repo could forge an admin cookie against an instance still carrying it.
-if [ "$SECRET_KEY" = "replace_this_with_some_random_string" ]; then
-    warn "SECRET_KEY is still the example value from docker-compose.yml — ignoring it and using a generated key instead."
-    warn "Remove that line from your compose file; a key is generated and kept in /data automatically."
-    SECRET_KEY=""
-fi
+# Both placeholders shipped filled in — one in docker-compose.yml, one in the
+# README's compose example — so an instance that never edited the line signs its
+# login cookies with a key published in the repo. Either counts as unset.
+case "$SECRET_KEY" in
+    replace_this_with_some_random_string|replace_with_random_string_can_be_anything)
+        warn "SECRET_KEY is still an example value from the Fireshare docs — ignoring it and using a generated key instead."
+        warn "Remove that line from your compose file; a key is generated and kept in /data automatically."
+        SECRET_KEY=""
+        ;;
+esac
 
 # Kept in the data directory rather than regenerated per boot, so a restart does
 # not sign every existing session out.

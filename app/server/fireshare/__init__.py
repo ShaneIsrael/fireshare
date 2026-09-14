@@ -149,14 +149,19 @@ def create_app(init_schedule=False):
     app.config['DOMAIN'] = os.getenv('DOMAIN')
     app.config['THUMBNAIL_VIDEO_LOCATION'] = int(os.getenv('THUMBNAIL_VIDEO_LOCATION') or 0)
 
-    # The example value shipped uncommented in docker-compose.yml, so instances that
-    # never edited it were all signing cookies with a key published in this repo —
-    # enough to forge an admin remember-me cookie. Treat it as if it were unset.
+    # Both of these shipped filled in — one in docker-compose.yml, one in the README's
+    # compose example — so instances that never edited the line were signing cookies
+    # with a key published in this repo. A signing key is worth nothing once public,
+    # so treat either as if it were unset.
+    PUBLISHED_SECRET_KEYS = {
+        'replace_this_with_some_random_string',
+        'replace_with_random_string_can_be_anything',
+    }
     _secret_key = os.getenv('SECRET_KEY') or ''
-    if _secret_key == 'replace_this_with_some_random_string':
+    if _secret_key in PUBLISHED_SECRET_KEYS:
         logger.warning(
-            "SECRET_KEY is set to the example value from docker-compose.yml. That key is "
-            "public, so it is being ignored in favour of a generated one. Remove the line "
+            "SECRET_KEY is set to an example value published in the Fireshare docs. That key "
+            "is public, so it is being ignored in favour of a generated one. Remove the line "
             "from your compose file; sessions will not survive a restart until you do."
         )
         _secret_key = ''

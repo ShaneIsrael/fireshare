@@ -166,19 +166,20 @@ only valid within a ±30 second window.
 
 ## Sessions Expire on Every Restart
 
-If users are logged out every time the container restarts, `SECRET_KEY` is not set.
+Current versions generate a signing key on first start and persist it to `/data/.secret_key`, so
+sessions survive restarts on their own. If everyone is still logged out on every restart, that file is
+not surviving:
 
-Without `SECRET_KEY`, a random key is generated on each startup, invalidating all existing session cookies.
+- **`/data` isn't a persistent volume**, or is mounted read-only. Check the mount, then look for
+  `generated one and saved it to` in the startup logs. If instead you see `not writable — using an
+  ephemeral key`, the container cannot write to `/data`.
+- **`SECRET_KEY` is set to a different value on each start.** Either leave it unset and let Fireshare
+  manage it, or set one fixed value.
 
-**Fix:** Set a stable, random value in your environment:
-```yaml
-SECRET_KEY=some-long-random-string-here
-```
+A single sign-out after upgrading is expected if your compose file still carries the old example
+`SECRET_KEY`: that published value is refused and replaced with a generated one. Delete the line.
 
-Generate one with:
-```sh
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
+See [Security.md](./Security.md#the-session-signing-key).
 
 ---
 
