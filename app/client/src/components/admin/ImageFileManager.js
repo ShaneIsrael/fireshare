@@ -34,6 +34,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import FolderIcon from '@mui/icons-material/Folder'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import LockIcon from '@mui/icons-material/Lock'
+import PersonIcon from '@mui/icons-material/Person'
 import LockOpenIcon from '@mui/icons-material/LockOpen'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
@@ -305,6 +306,9 @@ export default function ImageFileManager({ setAlert }) {
   const [moveModalOpen, setMoveModalOpen] = useState(false)
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false)
   const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+  const [uploaderDialogOpen, setUploaderDialogOpen] = useState(false)
+  const [uploaderChoice, setUploaderChoice] = useState(null)
+  const [uploaderOptions, setUploaderOptions] = useState([])
   const [colVisAnchor, setColVisAnchor] = useState(null)
 
   // Rename form state
@@ -493,7 +497,7 @@ export default function ImageFileManager({ setAlert }) {
       setActionLoading(true)
       try {
         const { data } = await Api().post(endpoint, body)
-        const updatedCount = (data.updated ?? data.moved ?? data.deleted ?? []).length
+        const updatedCount = data.updated_images ?? (data.updated ?? data.moved ?? data.deleted ?? []).length
         const errorCount = (data.errors ?? []).length
         if (errorCount > 0) {
           setAlert({
@@ -595,6 +599,23 @@ export default function ImageFileManager({ setAlert }) {
     } finally {
       setActionLoading(false)
     }
+  }
+
+  useEffect(() => {
+    if (!uploaderDialogOpen) return
+    Api()
+      .get('/api/admin/uploaders')
+      .then((res) => setUploaderOptions(res.data.users || []))
+      .catch(() => setUploaderOptions([]))
+  }, [uploaderDialogOpen])
+
+  const handleSetUploader = async () => {
+    const ok = await runBulkAction(
+      '/api/admin/image-files/bulk-set-uploader',
+      { image_ids: [...selected], username: uploaderChoice },
+      uploaderChoice ? `Attributed to ${uploaderChoice}` : 'Uploader cleared',
+    )
+    if (ok) setUploaderDialogOpen(false)
   }
 
   const handleSetPrivacy = async (isPrivate) => {
@@ -709,6 +730,26 @@ export default function ImageFileManager({ setAlert }) {
                   </IconButton>
                 </span>
               </Tooltip>
+              <Tooltip title="Set uploader">
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={onlyEmptyFoldersSelected}
+                    onClick={() => {
+                      setUploaderChoice(null)
+                      setUploaderDialogOpen(true)
+                    }}
+                    sx={{
+                      border: '1px solid #3399FF44',
+                      borderRadius: 1,
+                      color: '#7FBFFF',
+                      '&:hover': { bgcolor: '#3399FF12' },
+                    }}
+                  >
+                    <PersonIcon sx={{ fontSize: 20 }} />
+                  </IconButton>
+                </span>
+              </Tooltip>
               <Tooltip title="Rename">
                 <span>
                   <IconButton
@@ -807,6 +848,28 @@ export default function ImageFileManager({ setAlert }) {
                       }}
                     >
                       Move
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip title="Attribute selected images to a user">
+                  <span>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={onlyEmptyFoldersSelected}
+                      startIcon={<PersonIcon />}
+                      onClick={() => {
+                        setUploaderChoice(null)
+                        setUploaderDialogOpen(true)
+                      }}
+                      sx={{
+                        textTransform: 'none',
+                        borderColor: '#3399FF44',
+                        color: '#7FBFFF',
+                        '&:hover': { borderColor: '#3399FF99', bgcolor: '#3399FF12' },
+                      }}
+                    >
+                      Uploader
                     </Button>
                   </span>
                 </Tooltip>
@@ -1692,6 +1755,55 @@ export default function ImageFileManager({ setAlert }) {
             sx={{ textTransform: 'none' }}
           >
             {actionLoading ? 'Applying…' : 'Apply'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Set Uploader modal ── */}
+      <Dialog
+        open={uploaderDialogOpen}
+        onClose={() => !actionLoading && setUploaderDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{ sx: dialogPaperSx }}
+      >
+        <DialogTitle sx={dialogTitleSx}>Set uploader</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#FFFFFFAA', fontSize: 13.5, mb: 2 }}>
+            Attribute {selected.size} selected image{selected.size === 1 ? '' : 's'} to an account.
+            This is how library content indexed from disk gets an owner, so it appears on their
+            profile and comes under their edit and delete permissions.
+          </DialogContentText>
+          <Select
+            options={[
+              { value: null, label: 'No uploader (unattributed)' },
+              ...uploaderOptions.map((u) => ({
+                value: u.username,
+                label: u.name === u.username ? `@${u.username}` : `${u.name} (@${u.username})`,
+              })),
+            ]}
+            value={
+              uploaderChoice === null
+                ? { value: null, label: 'No uploader (unattributed)' }
+                : uploaderOptions
+                    .filter((u) => u.username === uploaderChoice)
+                    .map((u) => ({
+                      value: u.username,
+                      label: u.name === u.username ? `@${u.username}` : `${u.name} (@${u.username})`,
+                    }))[0] || null
+            }
+            onChange={(opt) => setUploaderChoice(opt ? opt.value : null)}
+            styles={selectFolderTheme}
+            menuPortalTarget={document.body}
+            placeholder="Choose an account..."
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setUploaderDialogOpen(false)} disabled={actionLoading} sx={{ color: '#B2BAC2' }}>
+            Cancel
+          </Button>
+          <Button onClick={handleSetUploader} variant="contained" disabled={actionLoading}>
+            {actionLoading ? 'Applying...' : 'Apply'}
           </Button>
         </DialogActions>
       </Dialog>
