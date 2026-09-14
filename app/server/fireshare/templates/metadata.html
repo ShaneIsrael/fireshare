@@ -13,7 +13,19 @@
     <meta name="theme-color" content="#ffffff">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="theme-color" content="#000000">
-    <meta name="description" content="{{ video.info.description if video.info.description else 'Self-host your media and share with unique links.' }}">
+    {# Nothing in this body is ever read by a person — it redirects to /watch/ —
+       so the unfurled share card is the one place a recipient sees who uploaded
+       the clip. Falls back to the description alone when the video has no
+       uploader, which is the case for anonymous uploads and anything indexed
+       off disk before ownership existed. #}
+    {% set byline = ('Uploaded by ' ~ video.uploader.name) if video.uploader else '' %}
+    {% set body = video.info.description if video.info.description else '' %}
+    {% set summary = (byline ~ ' — ' ~ body) if (byline and body) else (byline or body or 'Self-host your media and share with unique links.') %}
+
+    <meta name="description" content="{{ summary }}">
+    {% if video.uploader %}
+    <meta name="author" content="{{ video.uploader.name }}">
+    {% endif %}
     <link rel="apple-touch-icon" href="/logo192.png">
     <link rel="manifest" href="/manifest.json">
     <meta property="og:type" content="video" data-react-helmet="true">
@@ -25,7 +37,10 @@
     {% endif %}
     <meta property="og:site_name" content="Fireshare" data-react-helmet="true">
     <meta property="og:title" content="{{ video.info.title }}" data-react-helmet="true">
-    <meta property="og:description" content="{{ video.info.description if video.info.description else 'Self-host your media and share with unique links.' }}" data-react-helmet="true">
+    <meta property="og:description" content="{{ summary }}" data-react-helmet="true">
+    {% if video.uploader %}
+    <meta property="profile:username" content="{{ video.uploader.username }}" data-react-helmet="true">
+    {% endif %}
     {% if not password_protected %}
     <meta property="og:video:width" content="{{ video.info.width }}" data-react-helmet="true">
     <meta property="og:video:height" content="{{ video.info.height }}" data-react-helmet="true">

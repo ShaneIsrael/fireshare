@@ -11,7 +11,17 @@
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
     <meta name="msapplication-TileColor" content="#da532c">
     <meta name="theme-color" content="#ffffff">
-    <meta name="description" content="{{ image.info.description if image.info and image.info.description else 'Self-host your media and share with unique links.' }}">
+    {# See metadata.html: the unfurled share card is the only place a recipient
+       sees who uploaded this, since the body redirects to /image/. The game
+       prefix stays ahead of the byline so the card still leads with the subject. #}
+    {% set byline = ('Uploaded by ' ~ image.uploader.name) if image.uploader else '' %}
+    {% set body = image.info.description if image.info and image.info.description else '' %}
+    {% set summary = (byline ~ ' — ' ~ body) if (byline and body) else (byline or body or 'Self-host your media and share with unique links.') %}
+
+    <meta name="description" content="{{ summary }}">
+    {% if image.uploader %}
+    <meta name="author" content="{{ image.uploader.name }}">
+    {% endif %}
     <link rel="apple-touch-icon" href="/logo192.png">
     <link rel="manifest" href="/manifest.json">
     <meta property="og:type" content="article" data-react-helmet="true">
@@ -20,7 +30,10 @@
     <meta property="og:image:secure_url" content="{{ domain }}/_content/derived/{{ image.image_id }}/thumbnail.webp" data-react-helmet="true">
     <meta property="og:site_name" content="Fireshare" data-react-helmet="true">
     <meta property="og:title" content="{{ image.info.title if image.info else image.image_id }}" data-react-helmet="true">
-    <meta property="og:description" content="{% if game %}{{ game.name }} — {% endif %}{{ image.info.description if image.info and image.info.description else 'Self-host your media and share with unique links.' }}" data-react-helmet="true">
+    <meta property="og:description" content="{% if game %}{{ game.name }} — {% endif %}{{ summary }}" data-react-helmet="true">
+    {% if image.uploader %}
+    <meta property="profile:username" content="{{ image.uploader.username }}" data-react-helmet="true">
+    {% endif %}
     {% if image.info %}
     <meta property="og:image:width" content="{{ image.info.width }}" data-react-helmet="true">
     <meta property="og:image:height" content="{{ image.info.height }}" data-react-helmet="true">

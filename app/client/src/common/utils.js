@@ -320,3 +320,18 @@ export const formatResolution = (width, height) => {
   if (shortSide >= 480) return '480p'
   return `${width}×${height}`
 }
+
+// The name shown for an uploader, matching what UploaderMention renders so a
+// sort on the Uploader column orders by the text actually on screen.
+export const uploaderLabel = (uploader) => (uploader ? uploader.name || uploader.username : '')
+
+// Sort key for the Uploader column. Unattributed media sorts as though it were
+// greater than every name, so it clusters at the end ascending and at the top
+// descending — finding it is the whole point of the column, so it has to be
+// reachable by one click rather than scattered through the list.
+export const uploaderSortKey = (uploader) => (uploader ? uploaderLabel(uploader).toLowerCase() : '￿')
+
+// The option label for the uploader pickers: "Name (@username)", or just
+// "@username" when the account has no distinct display name.
+export const uploaderOptionLabel = (u) =>
+  u.name && u.name !== u.username ? `${u.name} (@${u.username})` : `@${u.username}`

@@ -11,6 +11,7 @@ import NotFound from './NotFound'
 import { VideoService, GameService } from '../services'
 import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoSources } from '../common/utils'
 import VideoJSPlayer from '../components/player/VideoJSPlayer'
+import UploaderMention from '../components/user/UploaderMention'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -206,29 +207,40 @@ const Watch = ({ authenticated }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
+      {/*
+        Every child here has to be a plain element: react-helmet reads each
+        child's `type` as a tag name, and a Fragment's type is a Symbol, which
+        threw "Cannot convert a Symbol value to a string" and took the whole
+        page down for any video without a password. Repeat the condition per tag
+        rather than grouping them.
+
+        Meta values also go in `content`, not `value` — react-helmet only carries
+        over the attributes a meta tag actually has, so `value` produced tags
+        that said nothing. Crawlers read the server-rendered /w/ page anyway
+        (templates/metadata.html), but these should still be right.
+      */}
       <Helmet>
         <title>{details?.info?.title}</title>
-        <meta name="description" value={details?.info?.description}></meta>
-        <meta property="og:type" value="video" />
-        <meta property="og:url" value={window.location.href} />
-        <meta property="og:title" value={details?.info?.title} />
-        {details?.info?.description && <meta property="og:description" value={details?.info?.description} />}
-        <meta property="og:image" value={`${URL}/api/video/poster?id=${id}`} />
+        <meta name="description" content={details?.info?.description} />
+        <meta name="author" content={details?.uploader?.name || ''} />
+        <meta property="og:type" content="video" />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:title" content={details?.info?.title} />
+        {details?.info?.description && <meta property="og:description" content={details?.info?.description} />}
+        <meta property="og:image" content={`${URL}/api/video/poster?id=${id}`} />
         {!details?.info?.has_password && (
-          <>
-            <meta
-              property="og:video"
-              value={
-                SERVED_BY === 'nginx'
-                  ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
-                  : `${URL}/api/video?id=${id}`
-              }
-            />
-            <meta property="og:video:width" value={details?.info?.width} />
-            <meta property="og:video:height" value={details?.info?.height} />
-          </>
+          <meta
+            property="og:video"
+            content={
+              SERVED_BY === 'nginx'
+                ? `${URL}/_content/video/${id}${details?.extension || '.mp4'}`
+                : `${URL}/api/video?id=${id}`
+            }
+          />
         )}
-        <meta property="og:site_name" value="Fireshare" />
+        {!details?.info?.has_password && <meta property="og:video:width" content={details?.info?.width} />}
+        {!details?.info?.has_password && <meta property="og:video:height" content={details?.info?.height} />}
+        <meta property="og:site_name" content="Fireshare" />
       </Helmet>
       <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
         {unlocked ? (
@@ -357,7 +369,7 @@ const Watch = ({ authenticated }) => {
               >
                 {details?.info?.title || 'Untitled'}
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                 {views != null && (
                   <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>
                     {views.toLocaleString()} {views === 1 ? 'view' : 'views'}
@@ -373,6 +385,12 @@ const Watch = ({ authenticated }) => {
                         year: 'numeric',
                       })}
                     </Typography>
+                  </>
+                )}
+                {details?.uploader && (
+                  <>
+                    <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>|</Typography>
+                    <UploaderMention uploader={details.uploader} size={20} />
                   </>
                 )}
               </Box>

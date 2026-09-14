@@ -334,6 +334,7 @@ const ImageFeed = ({ authenticated, searchText, cardSize, selectedImageFolder, o
           },
           ...(update.game !== undefined && { game: update.game }),
           ...(update.created_at !== undefined && { created_at: update.created_at }),
+          ...(update.uploader !== undefined && { uploader: update.uploader }),
         }
       }
       setImages((prev) => prev.map(updateImage))

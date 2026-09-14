@@ -391,6 +391,7 @@ const CompactVideoCard = ({
       if (update.description !== undefined) setDescription(update.description || '')
       if ('game' in update) setGame(update.game)
       if (update.tags !== undefined) setLocalTags(update.tags)
+      if ('uploader' in update) setIntVideo((v) => ({ ...v, uploader: update.uploader }))
     }
   }
 
@@ -440,6 +441,7 @@ const CompactVideoCard = ({
         currentRecordedAt={video.recorded_at}
         currentGame={game}
         currentHasPassword={intVideo?.info?.has_password}
+        currentUploader={intVideo?.uploader}
         alertHandler={alertHandler}
       />
 

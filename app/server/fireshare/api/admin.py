@@ -378,6 +378,10 @@ def get_admin_files():
             'created_at': v.created_at.isoformat() if v.created_at else None,
             'recorded_at': v.recorded_at.isoformat() if v.recorded_at else None,
             'game': game_map.get(v.video_id),
+            # Same shape the feeds use, so the file manager can render the byline
+            # with UploaderMention. Video.uploader is lazy="joined", so this costs
+            # no extra query.
+            'uploader': v.uploader.mention_json() if v.uploader else None,
         })
 
     return jsonify({'files': files, 'folders': folders})
@@ -972,6 +976,8 @@ def get_admin_image_files():
             'available': img.available,
             'created_at': img.created_at.isoformat() if img.created_at else None,
             'game': game_map.get(img.image_id),
+            # See the matching field in get_admin_files.
+            'uploader': img.uploader.mention_json() if img.uploader else None,
         })
 
     return jsonify({'files': files, 'folders': folders})

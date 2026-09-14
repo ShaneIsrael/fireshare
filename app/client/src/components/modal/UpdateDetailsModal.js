@@ -20,8 +20,10 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import LockIcon from '@mui/icons-material/Lock'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { VideoService, GameService, TagService } from '../../services'
+import Api from '../../services/Api'
 import GameSearch from '../game/GameSearch'
 import DateField from './DateField'
+import { UploaderSelect, useUploaderCandidates } from '../user/UploaderPicker'
 import { labelSx, inputSx, rowBoxSx, dialogPaperSx } from '../../common/modalStyles'
 
 const modalSx = {
@@ -313,6 +315,7 @@ const UpdateDetailsModal = ({
   currentRecordedAt,
   currentGame,
   currentHasPassword,
+  currentUploader,
   alertHandler,
 }) => {
   const [title, setTitle] = React.useState(currentTitle)
@@ -325,7 +328,9 @@ const UpdateDetailsModal = ({
   const [allTags, setAllTags] = React.useState([])
   const [tagInput, setTagInput] = React.useState('')
   const [hasPassword, setHasPassword] = React.useState(currentHasPassword || false)
+  const [uploader, setUploader] = React.useState(currentUploader?.username ?? null)
   const initialTagsRef = React.useRef([])
+  const { users: uploaderCandidates, forbidden: uploaderForbidden } = useUploaderCandidates(open)
 
   React.useEffect(() => {
     if (!open) return
@@ -333,6 +338,7 @@ const UpdateDetailsModal = ({
     setDescription(currentDescription)
     setLinkedGame(currentGame || null)
     setHasPassword(currentHasPassword || false)
+    setUploader(currentUploader?.username ?? null)
     setTagInput('')
     Promise.all([TagService.getVideoTags(videoId), TagService.getTags()])
       .then(([videoTagsRes, allTagsRes]) => {
@@ -396,12 +402,27 @@ const UpdateDetailsModal = ({
 
       const finalTags = [...localTags.filter((lt) => lt.id && !toRemove.find((t) => t.id === lt.id)), ...createdTags]
 
+      // Attribution goes through the admin bulk route rather than the details
+      // PUT, which deliberately whitelists only title/description/private.
+      const uploaderChanged = !uploaderForbidden && uploader !== (currentUploader?.username ?? null)
+      let finalUploader = currentUploader ?? null
+      if (uploaderChanged) {
+        await Api().post('/api/admin/files/bulk-set-uploader', {
+          video_ids: [videoId],
+          username: uploader,
+        })
+        finalUploader = uploader
+          ? uploaderCandidates.find((u) => u.username === uploader) || { username: uploader }
+          : null
+      }
+
       alertHandler?.({ open: true, type: 'success', message: 'Video details updated!' })
       close({
         title: title || currentTitle,
         description: description ?? currentDescription,
         game: linkedGame,
         tags: finalTags,
+        ...(uploaderChanged && { uploader: finalUploader }),
       })
     } catch (err) {
       alertHandler?.({ open: true, type: 'error', message: err.response?.data || 'An unknown error occurred.' })
@@ -482,6 +503,16 @@ const UpdateDetailsModal = ({
               inputSx={inputSx}
             />
           </LabeledField>
+
+          {!uploaderForbidden && (
+            <>
+              <Divider sx={{ borderColor: '#FFFFFF14' }} />
+
+              <LabeledField label="Uploader">
+                <UploaderSelect users={uploaderCandidates} value={uploader} onChange={setUploader} disabled={loading} />
+              </LabeledField>
+            </>
+          )}
 
           <Divider sx={{ borderColor: '#FFFFFF14' }} />
 
