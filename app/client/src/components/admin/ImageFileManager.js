@@ -49,7 +49,16 @@ import FolderPrivacyToggle from './FolderPrivacyToggle'
 import FolderLinkActions from './FolderLinkActions'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, rowBoxSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
-import { formatSize, formatTableDate, formatResolution } from '../../common/utils'
+import {
+  formatSize,
+  formatTableDate,
+  formatResolution,
+  uploaderLabel,
+  uploaderOptionLabel,
+  uploaderSortKey,
+} from '../../common/utils'
+import UploaderMention from '../user/UploaderMention'
+import UploaderPicker from '../user/UploaderPicker'
 
 function sortFiles(files, column, dir) {
   const sorted = [...files]
@@ -63,6 +72,8 @@ function sortFiles(files, column, dir) {
       return sorted.sort(
         (a, b) => mul * ((a.size || 0) + (a.derived_size || 0) - ((b.size || 0) + (b.derived_size || 0))),
       )
+    case 'uploader':
+      return sorted.sort((a, b) => mul * uploaderSortKey(a.uploader).localeCompare(uploaderSortKey(b.uploader)))
     case 'date':
       return sorted.sort((a, b) => mul * (new Date(a.created_at || 0) - new Date(b.created_at || 0)))
     default:
@@ -96,7 +107,7 @@ const folderRowSx = {
 }
 
 // Columns that can be toggled visible/hidden
-const TOGGLEABLE_COLUMNS = ['Total Size', 'Resolution', 'Privacy', 'Date']
+const TOGGLEABLE_COLUMNS = ['Total Size', 'Resolution', 'Privacy', 'Uploader', 'Date']
 
 function smartClean(title) {
   let result = title || ''
@@ -259,6 +270,17 @@ const ImageFileRow = React.memo(function ImageFileRow({ file, isSelected, onTogg
         </TableCell>
       )}
 
+      {/* Uploader */}
+      {!hiddenColumns.has('Uploader') && (
+        <TableCell sx={{ ...bodyCellSx, maxWidth: 170, overflow: 'hidden' }}>
+          {file.uploader ? (
+            <UploaderMention uploader={file.uploader} size={16} />
+          ) : (
+            <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>Unattributed</Typography>
+          )}
+        </TableCell>
+      )}
+
       {/* Date */}
       {!hiddenColumns.has('Date') && (
         <TableCell sx={{ ...bodyCellSx }}>
@@ -285,6 +307,8 @@ export default function ImageFileManager({ setAlert }) {
   const [search, setSearch] = useState('')
   const [folderFilter, setFolderFilter] = useState('__all__')
   const [gameFilter, setGameFilter] = useState('__all__')
+  // '__all__', '__none__' for unattributed, or a username.
+  const [uploaderFilter, setUploaderFilter] = useState('__all__')
   const [sortColumn, setSortColumn] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -308,7 +332,6 @@ export default function ImageFileManager({ setAlert }) {
   const [renameDialogOpen, setRenameDialogOpen] = useState(false)
   const [uploaderDialogOpen, setUploaderDialogOpen] = useState(false)
   const [uploaderChoice, setUploaderChoice] = useState(null)
-  const [uploaderOptions, setUploaderOptions] = useState([])
   const [colVisAnchor, setColVisAnchor] = useState(null)
 
   // Rename form state
@@ -352,6 +375,60 @@ export default function ImageFileManager({ setAlert }) {
     return games
   }, [files])
 
+  // Derived from the files themselves rather than /api/admin/uploaders: the
+  // filter should only offer accounts that actually have images here, and the
+  // count then cannot disagree with what the table is showing.
+  const uniqueUploaders = useMemo(() => {
+    const byUsername = new Map()
+    for (const f of files) {
+      if (f.uploader?.username && !byUsername.has(f.uploader.username)) {
+        byUsername.set(f.uploader.username, f.uploader)
+      }
+    }
+    return [...byUsername.values()].sort((a, b) => uploaderSortKey(a).localeCompare(uploaderSortKey(b)))
+  }, [files])
+
+  const unattributedCount = useMemo(() => files.filter((f) => !f.uploader).length, [files])
+
+  const uploaderFilterOptions = useMemo(
+    () => [
+      { value: '__all__', label: 'All Uploaders' },
+      ...(unattributedCount > 0 ? [{ value: '__none__', label: 'Unattributed' }] : []),
+      ...uniqueUploaders.map((u) => ({ value: u.username, label: uploaderOptionLabel(u) })),
+    ],
+    [uniqueUploaders, unattributedCount],
+  )
+
+  const uploaderFilterValue = useMemo(
+    () => uploaderFilterOptions.find((o) => o.value === uploaderFilter) || uploaderFilterOptions[0],
+    [uploaderFilterOptions, uploaderFilter],
+  )
+
+  // One-click route into the job this column exists for: how much of the library
+  // still has no owner, and a jump straight to it.
+  const unattributedActive = uploaderFilter === '__none__'
+  const unattributedChip =
+    unattributedCount > 0 ? (
+      <Tooltip title={unattributedActive ? 'Show every uploader again' : 'Show only images with no uploader'}>
+        <Chip
+          size="small"
+          icon={<PersonIcon sx={{ fontSize: 14, color: 'inherit !important' }} />}
+          label={`${unattributedCount} unattributed`}
+          onClick={() => setUploaderFilter(unattributedActive ? '__all__' : '__none__')}
+          sx={{
+            height: 28,
+            fontSize: 12,
+            cursor: 'pointer',
+            bgcolor: unattributedActive ? '#3399FF22' : '#FFFFFF0D',
+            color: unattributedActive ? '#66B2FF' : '#FFFFFF88',
+            border: '1px solid',
+            borderColor: unattributedActive ? '#3399FF66' : '#FFFFFF1E',
+            '&:hover': { bgcolor: unattributedActive ? '#3399FF30' : '#FFFFFF16' },
+          }}
+        />
+      </Tooltip>
+    ) : null
+
   const filteredFiles = useMemo(() => {
     let result = files
 
@@ -363,15 +440,25 @@ export default function ImageFileManager({ setAlert }) {
       result = result.filter((f) => f.game === gameFilter)
     }
 
+    if (uploaderFilter === '__none__') {
+      result = result.filter((f) => !f.uploader)
+    } else if (uploaderFilter !== '__all__') {
+      result = result.filter((f) => f.uploader?.username === uploaderFilter)
+    }
+
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       result = result.filter(
-        (f) => (f.title || '').toLowerCase().includes(q) || (f.filename || '').toLowerCase().includes(q),
+        (f) =>
+          (f.title || '').toLowerCase().includes(q) ||
+          (f.filename || '').toLowerCase().includes(q) ||
+          uploaderLabel(f.uploader).toLowerCase().includes(q) ||
+          (f.uploader?.username || '').toLowerCase().includes(q),
       )
     }
 
     return sortFiles(result, sortColumn, sortDir)
-  }, [files, folderFilter, gameFilter, search, sortColumn, sortDir])
+  }, [files, folderFilter, gameFilter, uploaderFilter, search, sortColumn, sortDir])
 
   // Group files by folder — always include every known folder, even empty ones
   const groupedFiles = useMemo(() => {
@@ -386,7 +473,7 @@ export default function ImageFileManager({ setAlert }) {
       return [[folderFilter, filesByFolder.get(folderFilter) || []]]
     }
 
-    const includeEmpty = !search.trim() && gameFilter === '__all__'
+    const includeEmpty = !search.trim() && gameFilter === '__all__' && uploaderFilter === '__all__'
     const allFolders = includeEmpty ? [...new Set([...folders, ...filesByFolder.keys()])] : [...filesByFolder.keys()]
 
     const pairs = allFolders.map((f) => [f, filesByFolder.get(f) || []])
@@ -407,6 +494,8 @@ export default function ImageFileManager({ setAlert }) {
           return mul * ((a.size || 0) - (b.size || 0))
         case 'total_size':
           return mul * ((a.size || 0) + (a.derived_size || 0) - ((b.size || 0) + (b.derived_size || 0)))
+        case 'uploader':
+          return mul * uploaderSortKey(a.uploader).localeCompare(uploaderSortKey(b.uploader))
         case 'date':
           return mul * (new Date(a.created_at || 0) - new Date(b.created_at || 0))
         default:
@@ -414,7 +503,7 @@ export default function ImageFileManager({ setAlert }) {
       }
     })
     return pairs
-  }, [filteredFiles, folders, folderFilter, sortColumn, sortDir, search, gameFilter])
+  }, [filteredFiles, folders, folderFilter, sortColumn, sortDir, search, gameFilter, uploaderFilter])
 
   const filteredIds = useMemo(() => new Set(filteredFiles.map((f) => f.image_id)), [filteredFiles])
 
@@ -600,14 +689,6 @@ export default function ImageFileManager({ setAlert }) {
       setActionLoading(false)
     }
   }
-
-  useEffect(() => {
-    if (!uploaderDialogOpen) return
-    Api()
-      .get('/api/admin/uploaders')
-      .then((res) => setUploaderOptions(res.data.users || []))
-      .catch(() => setUploaderOptions([]))
-  }, [uploaderDialogOpen])
 
   const handleSetUploader = async () => {
     const ok = await runBulkAction(
@@ -976,7 +1057,7 @@ export default function ImageFileManager({ setAlert }) {
         <Box sx={{ mb: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
           <TextField
             size="small"
-            placeholder="Search by name or title…"
+            placeholder="Search by name, title or uploader…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             fullWidth
@@ -1025,7 +1106,20 @@ export default function ImageFileManager({ setAlert }) {
                 />
               </Box>
             )}
+            {uniqueUploaders.length > 0 && (
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Select
+                  options={uploaderFilterOptions}
+                  value={uploaderFilterValue}
+                  onChange={(opt) => setUploaderFilter(opt.value)}
+                  styles={selectFolderTheme}
+                  isSearchable={false}
+                  components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
+                />
+              </Box>
+            )}
           </Box>
+          {unattributedChip && <Box sx={{ display: 'flex' }}>{unattributedChip}</Box>}
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', maxWidth: '100%' }}>
             <Tooltip title="Create a new empty folder in /images">
               <OutlinedIconButton
@@ -1071,7 +1165,7 @@ export default function ImageFileManager({ setAlert }) {
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
           <TextField
             size="small"
-            placeholder="Search by name or title…"
+            placeholder="Search by name, title or uploader…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{
@@ -1126,6 +1220,21 @@ export default function ImageFileManager({ setAlert }) {
               />
             </Box>
           )}
+
+          {uniqueUploaders.length > 0 && (
+            <Box sx={{ minWidth: 175 }}>
+              <Select
+                options={uploaderFilterOptions}
+                value={uploaderFilterValue}
+                onChange={(opt) => setUploaderFilter(opt.value)}
+                styles={selectFolderTheme}
+                isSearchable={false}
+                components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
+              />
+            </Box>
+          )}
+
+          {unattributedChip}
 
           <Tooltip title="Create a new empty folder in /images">
             <OutlinedIconButton
@@ -1250,6 +1359,11 @@ export default function ImageFileManager({ setAlert }) {
                   col: null,
                   label: 'Privacy',
                   sx: { width: 75, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Uploader') && {
+                  col: 'uploader',
+                  label: 'Uploader',
+                  sx: { width: 170, minWidth: 170, whiteSpace: 'nowrap' },
                 },
                 !hiddenColumns.has('Date') && {
                   col: 'date',
@@ -1774,29 +1888,7 @@ export default function ImageFileManager({ setAlert }) {
             This is how library content indexed from disk gets an owner, so it appears on their
             profile and comes under their edit and delete permissions.
           </DialogContentText>
-          <Select
-            options={[
-              { value: null, label: 'No uploader (unattributed)' },
-              ...uploaderOptions.map((u) => ({
-                value: u.username,
-                label: u.name === u.username ? `@${u.username}` : `${u.name} (@${u.username})`,
-              })),
-            ]}
-            value={
-              uploaderChoice === null
-                ? { value: null, label: 'No uploader (unattributed)' }
-                : uploaderOptions
-                    .filter((u) => u.username === uploaderChoice)
-                    .map((u) => ({
-                      value: u.username,
-                      label: u.name === u.username ? `@${u.username}` : `${u.name} (@${u.username})`,
-                    }))[0] || null
-            }
-            onChange={(opt) => setUploaderChoice(opt ? opt.value : null)}
-            styles={selectFolderTheme}
-            menuPortalTarget={document.body}
-            placeholder="Choose an account..."
-          />
+          <UploaderPicker value={uploaderChoice} onChange={setUploaderChoice} disabled={actionLoading} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => setUploaderDialogOpen(false)} disabled={actionLoading} sx={{ color: '#B2BAC2' }}>

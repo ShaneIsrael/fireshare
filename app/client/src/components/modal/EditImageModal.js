@@ -22,10 +22,12 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import { CopyToClipboard } from 'react-copy-to-clipboard'
 import { ImageService } from '../../services'
+import Api from '../../services/Api'
 import { getPublicImageUrl, getImageUrl } from '../../common/utils'
 import { labelSx, inputSx, dialogPaperSx } from '../../common/modalStyles'
 import GameSearch from '../game/GameSearch'
 import DateField from './DateField'
+import { UploaderSelect, useUploaderCandidates } from '../user/UploaderPicker'
 
 const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onNext, onPrev }) => {
   const theme = useTheme()
@@ -38,10 +40,13 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
   const [panningDisabled, setPanningDisabled] = React.useState(true)
   const [selectedDate, setSelectedDate] = React.useState(null)
   const [selectedTime, setSelectedTime] = React.useState('')
+  const [uploader, setUploader] = React.useState(null)
+  const { users: uploaderCandidates, forbidden: uploaderForbidden } = useUploaderCandidates(open && authenticated)
   const wasOpenRef = React.useRef(false)
   const saveTimerRef = React.useRef(null)
   const latestTitleRef = React.useRef('')
   const latestCreatedAtRef = React.useRef(undefined)
+  const latestUploaderRef = React.useRef(undefined)
   const transformRef = React.useRef(null)
   const prevZoomedRef = React.useRef(false)
 
@@ -60,8 +65,10 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       setPanningDisabled(true)
       setSelectedDate(null)
       setSelectedTime('')
+      setUploader(null)
       latestTitleRef.current = ''
       latestCreatedAtRef.current = undefined
+      latestUploaderRef.current = undefined
       return
     }
     const t =
@@ -75,7 +82,9 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
     setTitle(t)
     latestTitleRef.current = t
     latestCreatedAtRef.current = undefined
+    latestUploaderRef.current = undefined
     setPrivateView(image.info?.private || false)
+    setUploader(image.uploader?.username ?? null)
     if (image.created_at) {
       const d = new Date(image.created_at)
       const pad = (n) => n.toString().padStart(2, '0')
@@ -196,6 +205,7 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       private: privateView,
       game: selectedGame,
       ...(latestCreatedAtRef.current !== undefined && { created_at: latestCreatedAtRef.current }),
+      ...(latestUploaderRef.current !== undefined && { uploader: latestUploaderRef.current }),
     })
   }
 
@@ -220,6 +230,31 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
       alertHandler?.({ open: true, type: 'info', message: 'Game link removed' })
     } catch (err) {
       alertHandler?.({ open: true, type: 'error', message: 'Failed to unlink game' })
+    }
+  }
+
+  // Attribution goes through the admin bulk route rather than the image details
+  // PUT, which does not accept an uploader — reassigning ownership is an
+  // administrator's call, not part of editing a caption.
+  const handleUploaderChange = async (username) => {
+    const previous = uploader
+    setUploader(username)
+    try {
+      await Api().post('/api/admin/image-files/bulk-set-uploader', {
+        image_ids: [imageId],
+        username,
+      })
+      latestUploaderRef.current = username
+        ? uploaderCandidates.find((u) => u.username === username) || { username }
+        : null
+      alertHandler?.({
+        open: true,
+        type: 'success',
+        message: username ? `Attributed to ${username}` : 'Uploader cleared',
+      })
+    } catch (err) {
+      setUploader(previous)
+      alertHandler?.({ open: true, type: 'error', message: 'Failed to update uploader.' })
     }
   }
 
@@ -603,6 +638,14 @@ const EditImageModal = ({ open, onClose, image, alertHandler, authenticated, onN
                     />
                   </Box>
                 )}
+              </Box>
+            )}
+
+            {/* Uploader — administrators only */}
+            {!uploaderForbidden && (
+              <Box>
+                <Typography sx={labelSx}>Uploader</Typography>
+                <UploaderSelect users={uploaderCandidates} value={uploader} onChange={handleUploaderChange} />
               </Box>
             )}
 

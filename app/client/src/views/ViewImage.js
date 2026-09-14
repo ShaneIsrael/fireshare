@@ -7,6 +7,7 @@ import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'
 import SnackbarAlert from '../components/alert/SnackbarAlert'
 import NotFound from './NotFound'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
+import UploaderMention from '../components/user/UploaderMention'
 import { ImageService } from '../services'
 import { getPublicImageUrl, getImageUrl, copyToClipboard } from '../common/utils'
 
@@ -206,7 +207,7 @@ const ViewImage = ({ authenticated }) => {
                 >
                   {title}
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                   {views != null && (
                     <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>
                       {(views.count ?? 0).toLocaleString()} {(views.count ?? 0) === 1 ? 'view' : 'views'}
@@ -222,6 +223,12 @@ const ViewImage = ({ authenticated }) => {
                           year: 'numeric',
                         })}
                       </Typography>
+                    </>
+                  )}
+                  {details?.uploader && (
+                    <>
+                      <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>|</Typography>
+                      <UploaderMention uploader={details.uploader} size={20} />
                     </>
                   )}
                 </Box>

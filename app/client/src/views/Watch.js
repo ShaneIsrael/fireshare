@@ -11,6 +11,7 @@ import NotFound from './NotFound'
 import { VideoService, GameService } from '../services'
 import { getServedBy, getUrl, getPublicWatchUrl, copyToClipboard, getVideoSources } from '../common/utils'
 import VideoJSPlayer from '../components/player/VideoJSPlayer'
+import UploaderMention from '../components/user/UploaderMention'
 
 const URL = getUrl()
 const PURL = getPublicWatchUrl()
@@ -221,6 +222,7 @@ const Watch = ({ authenticated }) => {
       <Helmet>
         <title>{details?.info?.title}</title>
         <meta name="description" content={details?.info?.description} />
+        <meta name="author" content={details?.uploader?.name || ''} />
         <meta property="og:type" content="video" />
         <meta property="og:url" content={window.location.href} />
         <meta property="og:title" content={details?.info?.title} />
@@ -367,7 +369,7 @@ const Watch = ({ authenticated }) => {
               >
                 {details?.info?.title || 'Untitled'}
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                 {views != null && (
                   <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>
                     {views.toLocaleString()} {views === 1 ? 'view' : 'views'}
@@ -383,6 +385,12 @@ const Watch = ({ authenticated }) => {
                         year: 'numeric',
                       })}
                     </Typography>
+                  </>
+                )}
+                {details?.uploader && (
+                  <>
+                    <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>|</Typography>
+                    <UploaderMention uploader={details.uploader} size={20} />
                   </>
                 )}
               </Box>

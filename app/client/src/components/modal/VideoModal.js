@@ -46,6 +46,7 @@ import SnackbarAlert from '../alert/SnackbarAlert'
 import VideoJSPlayer from '../player/VideoJSPlayer'
 import GameSearch from '../game/GameSearch'
 import SuggestionCard from '../cards/SuggestionCard'
+import UploaderMention from '../user/UploaderMention'
 import WaveformCropper from './WaveformCropper'
 
 const URL = getUrl()
@@ -963,7 +964,7 @@ const VideoModal = ({
                         <Box
                           sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', mt: 0.5, gap: 2 }}
                         >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                             <Typography sx={{ fontSize: 14, color: '#FFFFFF55', flexShrink: 0 }}>
                               {(vid.view_count ?? 0).toLocaleString()} {vid.view_count === 1 ? 'view' : 'views'}
                             </Typography>
@@ -977,6 +978,12 @@ const VideoModal = ({
                                     year: 'numeric',
                                   })}
                                 </Typography>
+                              </>
+                            )}
+                            {vid.uploader && (
+                              <>
+                                <Typography sx={{ fontSize: 14, color: '#FFFFFF55' }}>|</Typography>
+                                <UploaderMention uploader={vid.uploader} size={20} />
                               </>
                             )}
                           </Box>

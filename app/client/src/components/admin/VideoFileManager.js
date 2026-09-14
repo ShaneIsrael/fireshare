@@ -53,7 +53,17 @@ import FolderPrivacyToggle from './FolderPrivacyToggle'
 import FolderLinkActions from './FolderLinkActions'
 import { dialogPaperSx, dialogTitleSx, inputSx, labelSx, rowBoxSx } from '../../common/modalStyles'
 import Api from '../../services/Api'
-import { formatSize, formatTableDate, formatDuration, formatResolution } from '../../common/utils'
+import {
+  formatSize,
+  formatTableDate,
+  formatDuration,
+  formatResolution,
+  uploaderLabel,
+  uploaderOptionLabel,
+  uploaderSortKey,
+} from '../../common/utils'
+import UploaderMention from '../user/UploaderMention'
+import UploaderPicker from '../user/UploaderPicker'
 
 function sortFiles(files, column, dir) {
   const sorted = [...files]
@@ -69,6 +79,8 @@ function sortFiles(files, column, dir) {
       )
     case 'duration':
       return sorted.sort((a, b) => mul * ((a.duration || 0) - (b.duration || 0)))
+    case 'uploader':
+      return sorted.sort((a, b) => mul * uploaderSortKey(a.uploader).localeCompare(uploaderSortKey(b.uploader)))
     case 'date':
       return sorted.sort((a, b) => mul * (new Date(a.created_at || 0) - new Date(b.created_at || 0)))
     default:
@@ -109,6 +121,7 @@ const TOGGLEABLE_COLUMNS = [
   'Cropped',
   'Privacy',
   'Password',
+  'Uploader',
   'Date',
   'Total Size',
 ]
@@ -379,6 +392,17 @@ const VideoFileRow = React.memo(function VideoFileRow({ file, isSelected, onTogg
         </TableCell>
       )}
 
+      {/* Uploader */}
+      {!hiddenColumns.has('Uploader') && (
+        <TableCell sx={{ ...bodyCellSx, maxWidth: 170, overflow: 'hidden' }}>
+          {file.uploader ? (
+            <UploaderMention uploader={file.uploader} size={16} />
+          ) : (
+            <Typography sx={{ fontSize: 11, color: '#FFFFFF33' }}>Unattributed</Typography>
+          )}
+        </TableCell>
+      )}
+
       {/* Date */}
       {!hiddenColumns.has('Date') && (
         <TableCell sx={{ ...bodyCellSx }}>
@@ -407,6 +431,8 @@ export default function VideoFileManager({ setAlert }) {
   const [search, setSearch] = useState('')
   const [folderFilter, setFolderFilter] = useState('__all__')
   const [gameFilter, setGameFilter] = useState('__all__')
+  // '__all__', '__none__' for unattributed, or a username.
+  const [uploaderFilter, setUploaderFilter] = useState('__all__')
   const [sortColumn, setSortColumn] = useState('date')
   const [sortDir, setSortDir] = useState('desc')
 
@@ -434,7 +460,6 @@ export default function VideoFileManager({ setAlert }) {
   const [setPasswordDialogOpen, setSetPasswordDialogOpen] = useState(false)
   const [uploaderDialogOpen, setUploaderDialogOpen] = useState(false)
   const [uploaderChoice, setUploaderChoice] = useState(null)
-  const [uploaderOptions, setUploaderOptions] = useState([])
   const [removePasswordDialogOpen, setRemovePasswordDialogOpen] = useState(false)
   const [bulkPasswordInput, setBulkPasswordInput] = useState('')
   const [colVisAnchor, setColVisAnchor] = useState(null)
@@ -484,6 +509,60 @@ export default function VideoFileManager({ setAlert }) {
     return games
   }, [files])
 
+  // Derived from the files themselves rather than /api/admin/uploaders: the
+  // filter should only offer accounts that actually have videos here, and the
+  // count then cannot disagree with what the table is showing.
+  const uniqueUploaders = useMemo(() => {
+    const byUsername = new Map()
+    for (const f of files) {
+      if (f.uploader?.username && !byUsername.has(f.uploader.username)) {
+        byUsername.set(f.uploader.username, f.uploader)
+      }
+    }
+    return [...byUsername.values()].sort((a, b) => uploaderSortKey(a).localeCompare(uploaderSortKey(b)))
+  }, [files])
+
+  const unattributedCount = useMemo(() => files.filter((f) => !f.uploader).length, [files])
+
+  const uploaderFilterOptions = useMemo(
+    () => [
+      { value: '__all__', label: 'All Uploaders' },
+      ...(unattributedCount > 0 ? [{ value: '__none__', label: 'Unattributed' }] : []),
+      ...uniqueUploaders.map((u) => ({ value: u.username, label: uploaderOptionLabel(u) })),
+    ],
+    [uniqueUploaders, unattributedCount],
+  )
+
+  const uploaderFilterValue = useMemo(
+    () => uploaderFilterOptions.find((o) => o.value === uploaderFilter) || uploaderFilterOptions[0],
+    [uploaderFilterOptions, uploaderFilter],
+  )
+
+  // One-click route into the job this column exists for: how much of the library
+  // still has no owner, and a jump straight to it.
+  const unattributedActive = uploaderFilter === '__none__'
+  const unattributedChip =
+    unattributedCount > 0 ? (
+      <Tooltip title={unattributedActive ? 'Show every uploader again' : 'Show only videos with no uploader'}>
+        <Chip
+          size="small"
+          icon={<PersonIcon sx={{ fontSize: 14, color: 'inherit !important' }} />}
+          label={`${unattributedCount} unattributed`}
+          onClick={() => setUploaderFilter(unattributedActive ? '__all__' : '__none__')}
+          sx={{
+            height: 28,
+            fontSize: 12,
+            cursor: 'pointer',
+            bgcolor: unattributedActive ? '#3399FF22' : '#FFFFFF0D',
+            color: unattributedActive ? '#66B2FF' : '#FFFFFF88',
+            border: '1px solid',
+            borderColor: unattributedActive ? '#3399FF66' : '#FFFFFF1E',
+            '&:hover': { bgcolor: unattributedActive ? '#3399FF30' : '#FFFFFF16' },
+          }}
+        />
+      </Tooltip>
+    ) : null
+
   const filteredFiles = useMemo(() => {
     let result = files
 
@@ -495,15 +574,25 @@ export default function VideoFileManager({ setAlert }) {
       result = result.filter((f) => f.game === gameFilter)
     }
 
+    if (uploaderFilter === '__none__') {
+      result = result.filter((f) => !f.uploader)
+    } else if (uploaderFilter !== '__all__') {
+      result = result.filter((f) => f.uploader?.username === uploaderFilter)
+    }
+
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       result = result.filter(
-        (f) => (f.title || '').toLowerCase().includes(q) || (f.filename || '').toLowerCase().includes(q),
+        (f) =>
+          (f.title || '').toLowerCase().includes(q) ||
+          (f.filename || '').toLowerCase().includes(q) ||
+          uploaderLabel(f.uploader).toLowerCase().includes(q) ||
+          (f.uploader?.username || '').toLowerCase().includes(q),
       )
     }
 
     return sortFiles(result, sortColumn, sortDir)
-  }, [files, folderFilter, gameFilter, search, sortColumn, sortDir])
+  }, [files, folderFilter, gameFilter, uploaderFilter, search, sortColumn, sortDir])
 
   // Group files by folder — always include every known folder, even empty ones
   const groupedFiles = useMemo(() => {
@@ -518,8 +607,8 @@ export default function VideoFileManager({ setAlert }) {
       return [[folderFilter, filesByFolder.get(folderFilter) || []]]
     }
 
-    // Include empty folders only when no filters are active (search/game filter would hide them anyway)
-    const includeEmpty = !search.trim() && gameFilter === '__all__'
+    // Include empty folders only when no filters are active (search/game/uploader filters would hide them anyway)
+    const includeEmpty = !search.trim() && gameFilter === '__all__' && uploaderFilter === '__all__'
     const allFolders = includeEmpty ? [...new Set([...folders, ...filesByFolder.keys()])] : [...filesByFolder.keys()]
 
     // Build [folder, files] pairs then sort folder groups by the "best" file
@@ -546,6 +635,8 @@ export default function VideoFileManager({ setAlert }) {
           return mul * ((a.size || 0) + (a.derived_size || 0) - ((b.size || 0) + (b.derived_size || 0)))
         case 'duration':
           return mul * ((a.duration || 0) - (b.duration || 0))
+        case 'uploader':
+          return mul * uploaderSortKey(a.uploader).localeCompare(uploaderSortKey(b.uploader))
         case 'date':
           return mul * (new Date(a.created_at || 0) - new Date(b.created_at || 0))
         default:
@@ -553,7 +644,7 @@ export default function VideoFileManager({ setAlert }) {
       }
     })
     return pairs
-  }, [filteredFiles, folders, folderFilter, sortColumn, sortDir, search, gameFilter])
+  }, [filteredFiles, folders, folderFilter, sortColumn, sortDir, search, gameFilter, uploaderFilter])
 
   const filteredIds = useMemo(() => new Set(filteredFiles.map((f) => f.video_id)), [filteredFiles])
 
@@ -753,14 +844,6 @@ export default function VideoFileManager({ setAlert }) {
     const ok = await runBulkAction('/api/admin/files/bulk-remove-crop', { video_ids: [...selected] }, 'Removed crop')
     if (ok) setRemoveCropDialogOpen(false)
   }
-
-  useEffect(() => {
-    if (!uploaderDialogOpen) return
-    Api()
-      .get('/api/admin/uploaders')
-      .then((res) => setUploaderOptions(res.data.users || []))
-      .catch(() => setUploaderOptions([]))
-  }, [uploaderDialogOpen])
 
   const handleSetUploader = async () => {
     const ok = await runBulkAction(
@@ -1359,7 +1442,7 @@ export default function VideoFileManager({ setAlert }) {
           {/* Row 1: search full width */}
           <TextField
             size="small"
-            placeholder="Search by name or title…"
+            placeholder="Search by name, title or uploader…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             fullWidth
@@ -1409,7 +1492,20 @@ export default function VideoFileManager({ setAlert }) {
                 />
               </Box>
             )}
+            {uniqueUploaders.length > 0 && (
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Select
+                  options={uploaderFilterOptions}
+                  value={uploaderFilterValue}
+                  onChange={(opt) => setUploaderFilter(opt.value)}
+                  styles={selectFolderTheme}
+                  isSearchable={false}
+                  components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
+                />
+              </Box>
+            )}
           </Box>
+          {unattributedChip && <Box sx={{ display: 'flex' }}>{unattributedChip}</Box>}
           {/* Row 3: utility buttons */}
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', maxWidth: '100%' }}>
             <Tooltip title="Create a new empty folder in /videos">
@@ -1474,7 +1570,7 @@ export default function VideoFileManager({ setAlert }) {
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5, flexWrap: 'wrap', gap: 1 }}>
           <TextField
             size="small"
-            placeholder="Search by name or title…"
+            placeholder="Search by name, title or uploader…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             InputProps={{
@@ -1529,6 +1625,21 @@ export default function VideoFileManager({ setAlert }) {
               />
             </Box>
           )}
+
+          {uniqueUploaders.length > 0 && (
+            <Box sx={{ minWidth: 175 }}>
+              <Select
+                options={uploaderFilterOptions}
+                value={uploaderFilterValue}
+                onChange={(opt) => setUploaderFilter(opt.value)}
+                styles={selectFolderTheme}
+                isSearchable={false}
+                components={{ SingleValue: MarqueeSingleValue, Option: MarqueeOption }}
+              />
+            </Box>
+          )}
+
+          {unattributedChip}
 
           <Tooltip title="Create a new empty folder in /videos">
             <OutlinedIconButton
@@ -1692,6 +1803,11 @@ export default function VideoFileManager({ setAlert }) {
                   col: null,
                   label: 'Password',
                   sx: { width: 75, whiteSpace: 'nowrap' },
+                },
+                !hiddenColumns.has('Uploader') && {
+                  col: 'uploader',
+                  label: 'Uploader',
+                  sx: { width: 170, minWidth: 170, whiteSpace: 'nowrap' },
                 },
                 !hiddenColumns.has('Date') && {
                   col: 'date',
@@ -2281,29 +2397,7 @@ export default function VideoFileManager({ setAlert }) {
             This is how library content indexed from disk gets an owner, so it appears on their
             profile and comes under their edit and delete permissions.
           </DialogContentText>
-          <Select
-            options={[
-              { value: null, label: 'No uploader (unattributed)' },
-              ...uploaderOptions.map((u) => ({
-                value: u.username,
-                label: u.name === u.username ? `@${u.username}` : `${u.name} (@${u.username})`,
-              })),
-            ]}
-            value={
-              uploaderChoice === null
-                ? { value: null, label: 'No uploader (unattributed)' }
-                : uploaderOptions
-                    .filter((u) => u.username === uploaderChoice)
-                    .map((u) => ({
-                      value: u.username,
-                      label: u.name === u.username ? `@${u.username}` : `${u.name} (@${u.username})`,
-                    }))[0] || null
-            }
-            onChange={(opt) => setUploaderChoice(opt ? opt.value : null)}
-            styles={selectFolderTheme}
-            menuPortalTarget={document.body}
-            placeholder="Choose an account..."
-          />
+          <UploaderPicker value={uploaderChoice} onChange={setUploaderChoice} disabled={actionLoading} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => setUploaderDialogOpen(false)} disabled={actionLoading} sx={{ color: '#B2BAC2' }}>

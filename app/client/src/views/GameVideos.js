@@ -332,6 +332,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
             },
             ...(update.game !== undefined && { game: update.game }),
             ...(update.created_at !== undefined && { created_at: update.created_at }),
+            ...(update.uploader !== undefined && { uploader: update.uploader }),
           }
         }),
       )
@@ -347,6 +348,7 @@ const GameVideos = ({ cardSize, authenticated, searchText }) => {
             },
             ...(update.game !== undefined && { game: update.game }),
             ...(update.created_at !== undefined && { created_at: update.created_at }),
+            ...(update.uploader !== undefined && { uploader: update.uploader }),
           }
         }),
       )
