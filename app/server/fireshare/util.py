@@ -1167,11 +1167,24 @@ def seconds_to_dur_string(sec):
     else:
         return ':'.join([str(mins), str(s).zfill(2)])
 
+def _case_affinity(candidate, query):
+    """How strongly a candidate's own casing is echoed by the query.
+
+    Only ever used to break a tie. Folding case away is what lets a filename match
+    a game at all, but it also makes "RUMBLE" and "rumble" — two different games —
+    score identically against a clip named "RUMBLE clip". The casing the query
+    itself used is the only signal left to separate them.
+    """
+    if candidate and candidate in query:
+        return len(candidate)
+    return sum(1 for a, b in zip(candidate, query) if a == b)
+
+
 def _match_game_by_name(query, games, score_cutoff):
     """Pick the local game a name refers to, preferring an exact match to a fuzzy one.
 
-    Two things this has to get right, both of which the previous inline
-    process.extractOne() call did not:
+    Three things this has to get right, none of which the previous inline
+    process.extractOne() call did:
 
     * It was handed a list of (name, game) tuples as the choices, so rapidfuzz
       scored the query against the tuple rather than the name and returned 0 for
@@ -1179,12 +1192,14 @@ def _match_game_by_name(query, games, score_cutoff):
       fell through to a SteamGridDB search. It also read the game back out of
       result[2], which for a list of choices is the index, not the element.
     * Scoring is case-insensitive, because a filename's casing rarely matches the
-      publisher's. But an exact, case-sensitive hit is taken first, so two games
-      whose names differ only in case ("RUMBLE" and "rumble" are both real, and
-      different, games) stay distinguishable instead of being decided by whichever
-      the scorer happened to reach first.
+      publisher's. An exact, case-sensitive hit is still taken first, so a name
+      that matches outright is never talked out of by a fuzzy score.
+    * Once case is folded away, names differing only in case tie. extractOne
+      resolves a tie by returning whichever it reached first, which is row order —
+      so which of two real games got suggested came down to which was added first.
+      Ties are broken on case instead.
 
-    Returns (game, score_out_of_100), or (None, 0) when nothing is a safe answer.
+    Returns (game, score_out_of_100), or (None, 0) when nothing clears the cutoff.
     """
     from rapidfuzz import fuzz, process
 
@@ -1196,26 +1211,22 @@ def _match_game_by_name(query, games, score_cutoff):
         if game.name == stripped:
             return game, 100
 
-    same_but_for_case = [g for g in games if (g.name or '').lower() == stripped.lower()]
-    if len(same_but_for_case) == 1:
-        return same_but_for_case[0], 100
-    if same_but_for_case:
-        # Several games differ from each other only in case and none of them is an
-        # exact hit, so there is nothing left to choose on. Offering a coin flip is
-        # worse than offering nothing.
-        return None, 0
-
     names = [g.name or '' for g in games]
-    result = process.extractOne(
+    scored = process.extract(
         stripped,
         names,
         scorer=fuzz.token_set_ratio,
         processor=str.lower,
         score_cutoff=score_cutoff,
+        limit=None,
     )
-    if not result:
+    if not scored:
         return None, 0
-    return games[result[2]], result[1]
+
+    best_score = max(entry[1] for entry in scored)
+    tied = [entry for entry in scored if entry[1] == best_score]
+    best = max(tied, key=lambda entry: (_case_affinity(entry[0], stripped), entry[0]))
+    return games[best[2]], best_score
 
 
 def _pick_steamgrid_result(query, results):
@@ -1229,9 +1240,14 @@ def _pick_steamgrid_result(query, results):
     for result in results:
         if (result.get('name') or '') == stripped:
             return result
-    for result in results:
-        if (result.get('name') or '').lower() == stripped.lower():
-            return result
+    case_variants = [r for r in results if (r.get('name') or '').lower() == stripped.lower()]
+    if case_variants:
+        # Same tie-break as the local lookup: nearest on case, rather than trusting
+        # an ordering that does not distinguish these at all.
+        return max(
+            case_variants,
+            key=lambda r: (_case_affinity(r.get('name') or '', stripped), r.get('name') or ''),
+        )
     return results[0]
 
 
