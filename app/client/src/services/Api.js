@@ -7,7 +7,7 @@ const controller = new AbortController()
 
 const instance = axios.create({
   baseURL: URL,
-  timeout: 10000,
+  timeout: 25000,
 })
 
 instance.interceptors.request.use((config) => {
