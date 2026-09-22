@@ -5,6 +5,7 @@ import random
 import re
 import string
 import threading
+from pathlib import Path
 from subprocess import Popen
 
 from flask import current_app, jsonify, request, Response
@@ -12,6 +13,7 @@ from flask_login import login_required, current_user
 
 from .. import logger, util
 from ..constants import SUPPORTED_FILE_TYPES
+from ..models import Video
 from .. import permissions as P
 from . import api
 from .decorators import require_perm
@@ -46,6 +48,46 @@ def _parse_upload_metadata():
 def _current_uploader_id():
     """The id to attribute an upload to, or None for an anonymous public upload."""
     return current_user.id if current_user.is_authenticated else None
+
+
+def _reject_duplicate(save_path):
+    """
+    If the file just written to save_path has the same content hash as a video
+    already in the library, delete it and return a 409 response pointing at the
+    existing video. Returns None when the upload is genuinely new.
+
+    A row whose own file is missing from disk does not count: that upload is a
+    restore, and scan-video flips the row back to available. Nor does the row
+    whose path *is* save_path, which is the same restore landing exactly where
+    the missing original used to live.
+    """
+    paths = current_app.config['PATHS']
+    try:
+        video_id = util.video_id(Path(save_path))
+    except OSError as e:
+        logger.warning(f"Could not hash upload {save_path} for duplicate check: {e}")
+        return None
+    existing = Video.query.filter_by(video_id=video_id).first()
+    if not existing:
+        return None
+    existing_file = paths['video'] / existing.path
+    if not existing_file.is_file() or existing_file.resolve() == Path(save_path).resolve():
+        return None
+    try:
+        os.remove(save_path)
+    except OSError as e:
+        logger.warning(f"Could not remove duplicate upload {save_path}: {e}")
+    title = existing.info.title if existing.info and existing.info.title else Path(existing.path).stem
+    logger.info(f"Rejected duplicate upload {save_path}: identical to video {video_id} at {existing.path}")
+    resp = jsonify({
+        'error': 'duplicate',
+        'message': 'This video is already in the library.',
+        'video_id': video_id,
+        'title': title,
+        'url': f'/w/{video_id}',
+    })
+    resp.status_code = 409
+    return resp
 
 
 def _launch_scan_video(save_path, config, tag_ids=None, game_id=None, title=None, uploaded_by=None):
@@ -137,6 +179,9 @@ def public_upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
+    duplicate = _reject_duplicate(save_path)
+    if duplicate:
+        return duplicate
     _launch_scan_video(save_path, config, *_parse_upload_metadata(),
                        uploaded_by=_current_uploader_id())
     return Response(status=201)
@@ -235,6 +280,9 @@ def public_upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
+    duplicate = _reject_duplicate(save_path)
+    if duplicate:
+        return duplicate
     _launch_scan_video(save_path, config, *_parse_upload_metadata(),
                        uploaded_by=_current_uploader_id())
     return Response(status=201)
@@ -335,6 +383,9 @@ def upload_video():
         uid = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
         save_path = os.path.join(paths['video'], upload_folder, f"{name_no_type}-{uid}.{filetype}")
     file.save(save_path)
+    duplicate = _reject_duplicate(save_path)
+    if duplicate:
+        return duplicate
     _launch_scan_video(save_path, config, *_parse_upload_metadata(),
                        uploaded_by=_current_uploader_id())
     return Response(status=201)
@@ -439,6 +490,9 @@ def upload_videoChunked():
             os.remove(save_path)
         return Response(status=500, response="Error reassembling file")
 
+    duplicate = _reject_duplicate(save_path)
+    if duplicate:
+        return duplicate
     _launch_scan_video(save_path, config, *_parse_upload_metadata(),
                        uploaded_by=_current_uploader_id())
     return Response(status=201)

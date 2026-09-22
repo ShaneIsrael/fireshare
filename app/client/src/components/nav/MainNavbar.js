@@ -841,7 +841,12 @@ function MainNavbar({
       >
         {showDemoBanner && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
         {toolbar && page !== '/watch' && showTopBar && <Toolbar />}
-        <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+        <SnackbarAlert
+          severity={alert.type}
+          open={alert.open}
+          autoHideDuration={alert.autoHideDuration}
+          setOpen={(open) => setAlert({ ...alert, open })}
+        >
           {alert.message}
         </SnackbarAlert>
         {React.cloneElement(children, {

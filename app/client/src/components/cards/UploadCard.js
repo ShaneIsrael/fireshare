@@ -17,12 +17,62 @@ import {
   InputAdornment,
   Checkbox,
   FormControlLabel,
+  Link,
 } from '@mui/material'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import styled from '@emotion/styled'
 import { keyframes } from '@emotion/react'
 import { VideoService, GameService, TagService } from '../../services'
 import { getSetting } from '../../common/utils'
+
+const FINISHED_STATUSES = new Set(['done', 'error', 'duplicate'])
+const isFinished = (item) => FINISHED_STATUSES.has(item.status)
+
+function summarizeBatch(succeeded, duplicates, failed, total) {
+  if (duplicates.length === 0 && failed === 0) {
+    return succeeded === 1
+      ? 'Your upload will be available in a few seconds.'
+      : `${succeeded} uploads will be available in a few seconds.`
+  }
+  if (succeeded === 0 && failed === 0) {
+    return duplicates.length === 1
+      ? `${duplicates[0].file.name} is already in the library.`
+      : `All ${duplicates.length} of those videos are already in the library.`
+  }
+  const parts = []
+  if (duplicates.length > 0) parts.push(`${duplicates.length} already in the library`)
+  if (failed > 0) parts.push(`${failed} failed`)
+  return `${succeeded} of ${total} uploads succeeded — ${parts.join(', ')}.`
+}
+
+// Links to the existing copies of duplicate uploads. They open in a new tab so
+// the page the uploader is sitting on is left alone.
+function renderDuplicateLinks(items) {
+  const link = (item, label) => (
+    <Link
+      href={item.duplicate.url}
+      target="_blank"
+      rel="noopener"
+      color="inherit"
+      underline="always"
+      sx={{ fontWeight: 700 }}
+    >
+      {label}
+    </Link>
+  )
+  if (items.length === 1) return link(items[0], 'Open the existing video')
+  return (
+    <>
+      Open the existing videos:{' '}
+      {items.map((item, idx) => (
+        <React.Fragment key={item.id}>
+          {idx > 0 && ', '}
+          {link(item, item.duplicate.title || item.file.name)}
+        </React.Fragment>
+      ))}
+    </>
+  )
+}
 
 function checkUploadLimit(file, handleAlert) {
   const limitMb = getSetting('upload_limit_mb') || 0
@@ -473,6 +523,13 @@ const UploadCard = React.forwardRef(function UploadCard(
       updateQueueItem(item.id, { status: 'done', progress: 1 })
       if (onUploadComplete) onUploadComplete()
     } catch (err) {
+      // The server hashes every upload and answers 409 when that content is
+      // already in the library. It has removed its copy; nothing more to do.
+      const duplicate = err?.response?.status === 409 ? err.response.data : null
+      if (duplicate?.video_id) {
+        updateQueueItem(item.id, { status: 'duplicate', progress: 1, duplicate })
+        return
+      }
       updateQueueItem(item.id, { status: 'error' })
       handleAlert({
         type: 'error',
@@ -500,19 +557,21 @@ const UploadCard = React.forwardRef(function UploadCard(
     }
 
     // Once every upload has finished, show a single summary alert and reset the card
-    if (uploadQueue.every((i) => i.status === 'done' || i.status === 'error')) {
+    if (uploadQueue.every(isFinished)) {
       const succeeded = uploadQueue.filter((i) => i.status === 'done').length
-      const failed = uploadQueue.length - succeeded
-      if (succeeded > 0) {
+      const duplicates = uploadQueue.filter((i) => i.status === 'duplicate')
+      const failed = uploadQueue.length - succeeded - duplicates.length
+      if (succeeded > 0 || duplicates.length > 0) {
         handleAlert({
-          type: failed > 0 ? 'warning' : 'success',
-          message:
-            failed > 0
-              ? `${succeeded} of ${uploadQueue.length} uploads succeeded — ${failed} failed.`
-              : succeeded === 1
-                ? 'Your upload will be available in a few seconds.'
-                : `${succeeded} uploads will be available in a few seconds.`,
-          autohideDuration: 3500,
+          type: failed > 0 ? 'warning' : succeeded > 0 ? 'success' : 'info',
+          message: (
+            <>
+              {summarizeBatch(succeeded, duplicates, failed, uploadQueue.length)}
+              {duplicates.length > 0 && <> {renderDuplicateLinks(duplicates)}</>}
+            </>
+          ),
+          // A message with a link in it needs to stay up long enough to click.
+          autoHideDuration: duplicates.length > 0 ? 10000 : 3500,
           open: true,
         })
       }
@@ -539,7 +598,7 @@ const UploadCard = React.forwardRef(function UploadCard(
     0,
   )
   const aggregateProgress = totalQueueBytes > 0 ? Math.min(loadedQueueBytes / totalQueueBytes, 1) : 0
-  const finishedCount = uploadQueue.filter((i) => i.status === 'done' || i.status === 'error').length
+  const finishedCount = uploadQueue.filter(isFinished).length
   const allSent = isUploading && uploadQueue.every((i) => i.status !== 'queued' && i.status !== 'uploading')
   const singleUpload = uploadQueue.length === 1 ? uploadQueue[0] : null
 
@@ -1179,9 +1238,11 @@ const UploadCard = React.forwardRef(function UploadCard(
                                         color:
                                           item.status === 'error'
                                             ? '#FF6B6B'
-                                            : item.status === 'done'
-                                              ? '#6BFF95'
-                                              : '#FFFFFFCC',
+                                            : item.status === 'duplicate'
+                                              ? '#FFD166'
+                                              : item.status === 'done'
+                                                ? '#6BFF95'
+                                                : '#FFFFFFCC',
                                       }}
                                     >
                                       {item.status === 'queued'
@@ -1192,7 +1253,9 @@ const UploadCard = React.forwardRef(function UploadCard(
                                             ? 'Done'
                                             : item.status === 'error'
                                               ? 'Failed'
-                                              : `${(100 * item.progress).toFixed(0)}%`}
+                                              : item.status === 'duplicate'
+                                                ? 'Already exists'
+                                                : `${(100 * item.progress).toFixed(0)}%`}
                                     </Typography>
                                   </Box>
                                   <Box
@@ -1212,7 +1275,9 @@ const UploadCard = React.forwardRef(function UploadCard(
                                         background:
                                           item.status === 'error'
                                             ? '#FF6B6B'
-                                            : 'linear-gradient(90deg, #BC00E6, #FF2E80, #FF6B00)',
+                                            : item.status === 'duplicate'
+                                              ? '#FFD166'
+                                              : 'linear-gradient(90deg, #BC00E6, #FF2E80, #FF6B00)',
                                         transition: 'width 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)',
                                       }}
                                     />
