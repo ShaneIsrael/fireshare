@@ -4,4 +4,4 @@ from flask import Blueprint
 templates_path = os.environ.get('TEMPLATE_PATH') or 'templates'
 api = Blueprint('api', __name__, template_folder=templates_path)
 
-from . import transcoding, scan, misc, admin, video, upload, game, tag, image, folder, profile, users  # noqa: E402,F401
+from . import transcoding, scan, misc, admin, video, upload, game, tag, image, folder, profile, users, relink  # noqa: E402,F401

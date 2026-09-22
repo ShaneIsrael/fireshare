@@ -19,11 +19,11 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:3001',
-      '^/w/': 'http://localhost:3001',
-      '^/i/': 'http://localhost:3001',
+      '/api': 'http://127.0.0.1:3001',
+      '^/w/': 'http://127.0.0.1:3001',
+      '^/i/': 'http://127.0.0.1:3001',
       // Profile share links render Open Graph metadata server-side, same as /w/ and /i/.
-      '^/u/': 'http://localhost:3001',
+      '^/u/': 'http://127.0.0.1:3001',
     },
   },
   optimizeDeps: {

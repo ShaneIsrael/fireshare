@@ -1,7 +1,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
-  <a href="https://github.com/ShaneIsrael/fireshare">
+  <a href="https://github.com/fireshare-app/fireshare">
     <img src="app/client/src/assets/logo.png" alt="Logo" width="120" height="160">
   </a>
 
@@ -10,17 +10,17 @@
   <p align="center">
     Share your game clips, videos, or other media via unique links.
     <br /><br />
-    <a href="https://github.com/shaneisrael/fireshare/actions">
-      <img alt="Docker Build" src="https://github.com/shaneisrael/fireshare/actions/workflows/docker-publish-main.yml/badge.svg" />
+    <a href="https://github.com/fireshare-app/fireshare/actions">
+      <img alt="Docker Build" src="https://github.com/fireshare-app/fireshare/actions/workflows/docker-publish-main.yml/badge.svg" />
     </a>
     <a href="https://hub.docker.com/r/shaneisrael/fireshare">
       <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/shaneisrael/fireshare?label=docker%20pulls">
     </a>
     <a href="https://hub.docker.com/r/shaneisrael/fireshare/tags?page=1&ordering=last_updated">
-      <img alt="GitHub tag (latest SemVer)" src="https://img.shields.io/github/v/tag/shaneisrael/fireshare?label=version">
+      <img alt="GitHub tag (latest SemVer)" src="https://img.shields.io/github/v/tag/fireshare-app/fireshare?label=version">
     </a>
-    <a href="https://github.com/shaneisrael/fireshare/stargazers">
-      <img alt="GitHub stars" src="https://img.shields.io/github/stars/shaneisrael/fireshare">
+    <a href="https://github.com/fireshare-app/fireshare/stargazers">
+      <img alt="GitHub stars" src="https://img.shields.io/github/stars/fireshare-app/fireshare">
     </a>
     <br /><br />
     <a href="https://www.buymeacoffee.com/shaneisrael">
@@ -29,7 +29,7 @@
     <br /><br />
     <a href="https://demo.fireshare.net">Live Demo</a>
     &nbsp;&middot;&nbsp;
-    <a href="https://github.com/ShaneIsrael/fireshare/issues">Report a Bug</a>
+    <a href="https://github.com/fireshare-app/fireshare/issues">Report a Bug</a>
   </p>
 </p>
 
@@ -267,7 +267,7 @@ See [EnvironmentVariables.md](./docs/EnvironmentVariables.md) for the full list 
 
 1. Clone the repo:
    ```sh
-   git clone https://github.com/ShaneIsrael/fireshare.git
+   git clone https://github.com/fireshare-app/fireshare.git
    ```
 2. Start backend services from the project root:
    ```sh
@@ -296,7 +296,7 @@ Contributions are welcome. For larger changes, open an issue first to align on s
 5. Rebase on latest `develop`
 6. Open a pull request to `develop`
 
-For issues and feature requests, visit the [issue tracker](https://github.com/ShaneIsrael/fireshare/issues).
+For issues and feature requests, visit the [issue tracker](https://github.com/fireshare-app/fireshare/issues).
 
 **Please DO NOT open a pull request for a feature or addition that was not previously discussed with me. Pull requests that do this will be automatically closed.**
 
@@ -316,11 +316,11 @@ See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for a full guide covering in
 
 If you like the project, consider giving it a star. It helps increase visibility and supports continued development.
 
-<a href="https://www.star-history.com/?repos=shaneisrael%2Ffireshare&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=fireshare-app%2Ffireshare&type=date&legend=top-left">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=shaneisrael/fireshare&type=date&legend=top-left" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=fireshare-app/fireshare&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=fireshare-app/fireshare&type=date&legend=top-left" />
+    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=fireshare-app/fireshare&type=date&legend=top-left" />
   </picture>
 </a>
 

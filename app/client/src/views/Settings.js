@@ -30,6 +30,7 @@ import SendIcon from '@mui/icons-material/Send'
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import UpdateIcon from '@mui/icons-material/Update'
+import SyncAltIcon from '@mui/icons-material/SyncAlt'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import FolderIcon from '@mui/icons-material/Folder'
 import FolderCopyIcon from '@mui/icons-material/FolderCopy'
@@ -39,13 +40,16 @@ import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StopIcon from '@mui/icons-material/Stop'
-import { ConfigService, VideoService, GameService, ImageService } from '../services'
+import { ConfigService, VideoService, GameService, ImageService, LibraryService } from '../services'
 import { setSetting, getSetting } from '../common/utils'
 import LightTooltip from '../components/ui/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 import SecuritySettings from '../components/settings/SecuritySettings'
 import ChangePassword from '../components/settings/ChangePassword'
 import UserManagement from '../components/settings/UserManagement'
+import SidebarPagesEditor from '../components/settings/SidebarPagesEditor'
+import RelinkMovedFilesDialog from '../components/settings/RelinkMovedFilesDialog'
+import { resolveSidebarPages, sidebarPagesPatch } from '../common/sidebarPages'
 
 import _ from 'lodash'
 import { WarningService, adminSSE } from '../services'
@@ -91,6 +95,13 @@ const TAB_DEFS = [
   { key: 'security', label: 'Security', mobileLabel: 'Security' },
 ]
 
+const missingCountLabel = ({ videos, images }) => {
+  const parts = []
+  if (videos) parts.push(`${videos} ${videos === 1 ? 'video' : 'videos'}`)
+  if (images) parts.push(`${images} ${images === 1 ? 'image' : 'images'}`)
+  return parts.join(' and ')
+}
+
 const Settings = ({ isAdmin, currentUser, can = () => false }) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
@@ -103,6 +114,8 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
   const [webhookUrl, setWebhookUrl] = React.useState('')
   const [webhookJson, setWebhookJson] = React.useState('') //needed?
   const [showSteamGridKey, setShowSteamGridKey] = React.useState(false)
+  const [relinkOpen, setRelinkOpen] = React.useState(false)
+  const [missingMedia, setMissingMedia] = React.useState(null)
   const visibleTabs = React.useMemo(
     () =>
       TAB_DEFS.filter((t) => {
@@ -223,6 +236,16 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
   // account does not hold would just render a button that 403s.
   const canScanLibrary = Boolean(isAdmin) || can('manage_library')
   const canScanGames = canSeeFolderRules
+
+  // How much the library has lost track of, shown beside the relink action.
+  const refreshMissingMedia = React.useCallback(() => {
+    LibraryService.relinkStatus()
+      .then((res) => setMissingMedia(res.data.missing || null))
+      .catch(() => setMissingMedia(null))
+  }, [])
+  React.useEffect(() => {
+    if (activeTab === 'actions' && canScanLibrary) refreshMissingMedia()
+  }, [activeTab, canScanLibrary, refreshMissingMedia])
 
   React.useEffect(() => {
     async function fetch() {
@@ -572,6 +595,14 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
       <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
         {alert.message}
       </SnackbarAlert>
+      <RelinkMovedFilesDialog
+        open={relinkOpen}
+        onClose={(changed) => {
+          setRelinkOpen(false)
+          if (changed) refreshMissingMedia()
+        }}
+        alertHandler={setAlert}
+      />
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, maxHeight: 'calc(100vh - 50px)' }}>
         {/* Mobile: select box at top */}
         {isMobile ? (
@@ -814,76 +845,16 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
               {/* Sidebar */}
               {activeTab === 'sidebar' && (
                 <Stack spacing={2} sx={{ maxWidth: 500 }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_videos !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_videos: e.target.checked },
-                          }))
-                        }
-                      />
+                  <SidebarPagesEditor
+                    pages={resolveSidebarPages(updatedConfig.ui_config)}
+                    onChange={(pages) =>
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        ui_config: { ...prev.ui_config, ...sidebarPagesPatch(pages) },
+                      }))
                     }
-                    label="Videos"
                   />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_images !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_images: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Images"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_games !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_games: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Games"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_tags !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_tags: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Tags"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_folders !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_folders: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Folders"
-                  />
+                  <Divider sx={{ my: 1 }} />
                   <FormControlLabel
                     control={
                       <Checkbox
@@ -1600,6 +1571,34 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
                   >
                     Rescan Image / Video Dates
                   </Button>
+                    </>
+                  )}
+                  {canScanLibrary && (
+                    <>
+                      <Divider sx={{ width: '100%', maxWidth: 400, my: 1 }} />
+                      <Button
+                        variant="outlined"
+                        startIcon={<SyncAltIcon />}
+                        onClick={() => setRelinkOpen(true)}
+                        size="large"
+                        sx={{ width: '100%', maxWidth: 400 }}
+                      >
+                        Find Moved Files
+                      </Button>
+                      <Typography sx={{ fontSize: 13, color: '#B2BAC2', maxWidth: 400, lineHeight: 1.5 }}>
+                        {missingMedia && missingMedia.videos + missingMedia.images > 0 ? (
+                          <>
+                            <Box component="span" sx={{ color: 'white', fontWeight: 600 }}>
+                              {missingCountLabel(missingMedia)}
+                            </Box>{' '}
+                            {missingMedia.videos + missingMedia.images === 1 ? 'is' : 'are'} missing from{' '}
+                            {missingMedia.videos + missingMedia.images === 1 ? 'its' : 'their'} last known location.
+                            This hashes every file that is not indexed where it sits to find where they went.
+                          </>
+                        ) : (
+                          'Finds videos and images that were moved on disk outside Fireshare and points their records at the new location. Nothing is currently missing.'
+                        )}
+                      </Typography>
                     </>
                   )}
                 </Stack>

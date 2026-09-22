@@ -183,6 +183,8 @@ class Video(db.Model):
             "path": self.path,
             "available": self.available,
             "recorded_at": self.recorded_at.isoformat() if self.recorded_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "info": self.info.json(),
             "uploader": self.uploader.mention_json() if self.uploader else None,
         }

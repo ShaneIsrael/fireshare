@@ -16,6 +16,7 @@ import MuiAppBar from '@mui/material/AppBar'
 import { styled } from '@mui/material/styles'
 
 import MenuIcon from '@mui/icons-material/Menu'
+import HomeIcon from '@mui/icons-material/Home'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseIcon from '@mui/icons-material/Close'
 import VideoLibraryIcon from '@mui/icons-material/VideoLibrary'
@@ -39,6 +40,7 @@ import Search from './Search'
 import LightTooltip from '../ui/LightTooltip'
 import SnackbarAlert from '../alert/SnackbarAlert'
 import { getSetting, setSetting } from '../../common/utils'
+import { resolveSidebarPages } from '../../common/sidebarPages'
 import GameScanStatus from './GameScanStatus'
 import TranscodingStatus from './TranscodingStatus'
 import FolderSuggestionInline from './FolderSuggestionInline'
@@ -63,12 +65,16 @@ const DEMO_BANNER_HEIGHT = 34
 // drawer toggle that navigation depends on there.
 const PAGES_WITHOUT_TOP_BAR = ['/files', '/settings', '/image', '/profile']
 
+// Content pages carry the key that Settings → Sidebar orders and hides them by
+// (see common/sidebarPages.js). Entries without a key form the fixed account
+// group that always follows them.
 const allPages = [
-  { title: 'Videos', icon: <VideoLibraryIcon />, href: '/', private: false },
-  { title: 'Images', icon: <PhotoLibraryIcon />, href: '/images', private: false },
-  { title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
-  { title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
-  { title: 'Folders', icon: <FolderCopyIcon />, href: '/folders', private: false },
+  { key: 'home', title: 'Home', icon: <HomeIcon />, href: '/home', private: false },
+  { key: 'videos', title: 'Videos', icon: <VideoLibraryIcon />, href: '/', private: false },
+  { key: 'images', title: 'Images', icon: <PhotoLibraryIcon />, href: '/images', private: false },
+  { key: 'games', title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
+  { key: 'tags', title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
+  { key: 'folders', title: 'Folders', icon: <FolderCopyIcon />, href: '/folders', private: false },
   // Every /api/admin/files* endpoint checks current_user.admin, so gating this on
   // manage_library would advertise a page whose every request answers 403.
   { title: 'File Manager', icon: <FolderOpenIcon />, href: '/files', private: true, adminOnly: true },
@@ -276,14 +282,21 @@ function MainNavbar({
   // to a single entry would drop it for everyone else.
   const ACCOUNT_GROUP = ['/profile', '/files', '/settings']
 
-  const allowedPages = withProfile.filter((p) => {
+  // Content pages appear in the order the administrator arranged them under
+  // Settings → Sidebar, minus any dragged into its inactive zone. The account
+  // group keeps its fixed place after them.
+  const sidebarPages = React.useMemo(() => resolveSidebarPages(uiConfig), [uiConfig])
+  const orderedPages = React.useMemo(() => {
+    const content = sidebarPages
+      .filter((entry) => entry.enabled)
+      .map((entry) => withProfile.find((p) => p.key === entry.key))
+      .filter(Boolean)
+    return [...content, ...withProfile.filter((p) => !p.key)]
+  }, [withProfile, sidebarPages])
+
+  const allowedPages = orderedPages.filter((p) => {
     if (p.adminOnly && !isAdmin) return false
     if (p.perm && !can(p.perm)) return false
-    if (p.href === '/' && uiConfig.show_videos === false) return false
-    if (p.href === '/images' && uiConfig.show_images === false) return false
-    if (p.href === '/games' && uiConfig.show_games === false) return false
-    if (p.href === '/tags' && uiConfig.show_tags === false) return false
-    if (p.href === '/folders' && uiConfig.show_folders === false) return false
     return true
   })
 

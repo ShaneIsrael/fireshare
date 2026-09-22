@@ -139,7 +139,7 @@ def send_discord_webhook(webhook_url=None, video_url=None):
     payload = {
         "content": video_url,
         "username": "Fireshare",
-        "avatar_url": "https://github.com/ShaneIsrael/fireshare/raw/develop/app/client/src/assets/logo_square.png",
+        "avatar_url": "https://github.com/fireshare-app/fireshare/raw/develop/app/client/src/assets/logo_square.png",
     }
     try:
         response = requests.post(webhook_url, json=payload)
@@ -266,6 +266,25 @@ def _resolve_uploader(user_id):
         logger.warning(f"Ignoring --uploaded-by={user_id}: no such user")
         return None
     return user_id
+
+
+def _root_admin():
+    """The account that adopts media a library scan finds on disk.
+
+    A file that appeared in the media directory was put there by whoever runs
+    the server, so it is attributed to the bootstrap administrator: the
+    env-managed account, or on an install that predates that pin the lowest-id
+    local administrator, mirroring how create_app identifies it. None when no
+    administrator exists yet, in which case the media stays unowned and can be
+    adopted later from File Manager -> Uploader.
+    """
+    admin = User.query.filter_by(env_managed=True).first()
+    if not admin:
+        admin = (User.query
+                 .filter(User.admin.is_(True), User.password.isnot(None))
+                 .order_by(User.id)
+                 .first())
+    return admin
 
 
 @click.group()
@@ -417,6 +436,7 @@ def scan_videos(root):
             logger.info(f"Skipped {skipped_count} transcoded video file(s)")
         
         video_rows = Video.query.all()
+        owner = _root_admin()
 
         # Snapshot existing folder assignments before reassigning, for reconciliation
         folder_snapshot = {vr.id: vr.folder_id for vr in video_rows}
@@ -454,12 +474,14 @@ def scan_videos(root):
                 created_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                 updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                 recorded_at = util.extract_date_from_file(vf)
-                v = Video(video_id=video_id, extension=vf.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at, recorded_at=recorded_at, folder_id=folder.id if folder else None)
+                v = Video(video_id=video_id, extension=vf.suffix, path=path, available=True, created_at=created_at, updated_at=updated_at, recorded_at=recorded_at, folder_id=folder.id if folder else None, uploaded_by=owner.id if owner else None)
                 logger.info(f"Adding new Video {video_id} at {str(path)} (created {created_at.isoformat()}, updated {updated_at.isoformat()}, recorded {recorded_at.isoformat() if recorded_at else 'N/A'})")
                 new_videos.append(v)
 
         if new_videos:
             db.session.add_all(new_videos)
+            if owner:
+                logger.info(f"Attributed {len(new_videos)} newly indexed video(s) to '{owner.username}'")
         else:
             logger.info(f"No new videos found, checked {len(video_files)} files.")
         db.session.commit()
@@ -661,6 +683,7 @@ def scan_video(ctx, path, tag_ids, game_id, title, uploaded_by):
                     updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                     logger.debug(f"Updating Video {video_id}, updated_at={updated_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "updated_at": updated_at })
+                db.session.commit()
             else:
                 created_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                 updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
@@ -1238,6 +1261,7 @@ def scan_images(root):
         logger.info(f"Found {len(image_files)} image file(s)")
 
         image_rows = Image.query.all()
+        owner = _root_admin()
 
         # Snapshot existing folder assignments before reassigning, for reconciliation
         folder_snapshot = {ir.id: ir.folder_id for ir in image_rows}
@@ -1291,12 +1315,15 @@ def scan_images(root):
                 source_folder = rel_path.split('/')[0] if '/' in rel_path else None
                 img = Image(image_id=iid, extension=img_file.suffix, path=rel_path,
                             available=True, created_at=created_at, updated_at=updated_at,
-                            source_folder=source_folder, folder_id=folder_id)
+                            source_folder=source_folder, folder_id=folder_id,
+                            uploaded_by=owner.id if owner else None)
                 logger.info(f"Adding new Image {iid} at {rel_path}")
                 new_images.append(img)
 
         if new_images:
             db.session.add_all(new_images)
+            if owner:
+                logger.info(f"Attributed {len(new_images)} newly indexed image(s) to '{owner.username}'")
         db.session.commit()
 
         fd = os.open(str(image_links.absolute()), os.O_DIRECTORY)
