@@ -46,6 +46,8 @@ import GameSearch from '../components/game/GameSearch'
 import SecuritySettings from '../components/settings/SecuritySettings'
 import ChangePassword from '../components/settings/ChangePassword'
 import UserManagement from '../components/settings/UserManagement'
+import SidebarPagesEditor from '../components/settings/SidebarPagesEditor'
+import { resolveSidebarPages, sidebarPagesPatch } from '../common/sidebarPages'
 
 import _ from 'lodash'
 import { WarningService, adminSSE } from '../services'
@@ -814,76 +816,16 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
               {/* Sidebar */}
               {activeTab === 'sidebar' && (
                 <Stack spacing={2} sx={{ maxWidth: 500 }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_videos !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_videos: e.target.checked },
-                          }))
-                        }
-                      />
+                  <SidebarPagesEditor
+                    pages={resolveSidebarPages(updatedConfig.ui_config)}
+                    onChange={(pages) =>
+                      setUpdatedConfig((prev) => ({
+                        ...prev,
+                        ui_config: { ...prev.ui_config, ...sidebarPagesPatch(pages) },
+                      }))
                     }
-                    label="Videos"
                   />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_images !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_images: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Images"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_games !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_games: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Games"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_tags !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_tags: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Tags"
-                  />
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={updatedConfig.ui_config?.show_folders !== false}
-                        onChange={(e) =>
-                          setUpdatedConfig((prev) => ({
-                            ...prev,
-                            ui_config: { ...prev.ui_config, show_folders: e.target.checked },
-                          }))
-                        }
-                      />
-                    }
-                    label="Folders"
-                  />
+                  <Divider sx={{ my: 1 }} />
                   <FormControlLabel
                     control={
                       <Checkbox

@@ -10,6 +10,7 @@ import { getPublicImageUrl, getImageThumbnailUrl } from '../../common/utils'
 import { ImageService } from '../../services'
 import DeleteImageModal from '../modal/DeleteImageModal'
 import CheckIcon from '@mui/icons-material/Check'
+import ImageIcon from '@mui/icons-material/Image'
 import TagChip from '../ui/TagChip'
 import UploaderMention from '../user/UploaderMention'
 
@@ -25,6 +26,8 @@ const MasonryImageCard = ({
   selected = false,
   onSelect,
   hideUploader = false,
+  // Marks the card as a photo when it sits among videos, as on the Home feed.
+  showTypeIndicator = false,
 }) => {
   const [hover, setHover] = React.useState(false)
   const [thumbnailHover, setThumbnailHover] = React.useState(false)
@@ -221,6 +224,29 @@ const MasonryImageCard = ({
             </IconButton>
           )}
         </Box>
+
+        {showTypeIndicator && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              width: 28,
+              height: 28,
+              borderRadius: '6px',
+              bgcolor: '#000000A6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+              zIndex: 1,
+              opacity: thumbnailHover ? 0 : 1,
+              transition: 'opacity 0.2s ease-in-out',
+            }}
+          >
+            <ImageIcon sx={{ fontSize: 18, color: 'rgba(255,255,255,0.85)' }} />
+          </Box>
+        )}
 
         {/* Top-right buttons - show on hover */}
         <Box

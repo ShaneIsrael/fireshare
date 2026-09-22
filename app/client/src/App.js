@@ -6,6 +6,7 @@ import Login from './views/Login'
 import Watch from './views/Watch'
 import ViewImage from './views/ViewImage'
 import Dashboard from './views/Dashboard'
+import Home from './views/Home'
 import NotFound from './views/NotFound'
 import Settings from './views/Settings'
 import ImageFeed from './views/ImageFeed'
@@ -22,6 +23,7 @@ import darkTheme from './common/darkTheme'
 import { ConfigService } from './services'
 import { getSetting, setSetting } from './common/utils'
 import AuthWrapper from './components/utils/AuthWrapper'
+import LandingRoute from './components/utils/LandingRoute'
 import MainNavbar from './components/nav/MainNavbar'
 import GlobalDragDropOverlay from './components/utils/GlobalDragDropOverlay'
 
@@ -51,15 +53,33 @@ export default function App() {
             <Route
               path="/"
               element={
+                <LandingRoute>
+                  <AuthWrapper>
+                    <MainNavbar
+                      page="/"
+                      collapsed={!drawerOpen}
+                      searchable
+                      styleToggle
+                      searchPlaceholder="Search title, game, or #tag..."
+                    >
+                      <Dashboard />
+                    </MainNavbar>
+                  </AuthWrapper>
+                </LandingRoute>
+              }
+            />
+            <Route
+              path="/home"
+              element={
                 <AuthWrapper>
                   <MainNavbar
-                    page="/"
+                    page="/home"
                     collapsed={!drawerOpen}
                     searchable
                     styleToggle
                     searchPlaceholder="Search title, game, or #tag..."
                   >
-                    <Dashboard />
+                    <Home />
                   </MainNavbar>
                 </AuthWrapper>
               }
