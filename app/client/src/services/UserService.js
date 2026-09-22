@@ -52,6 +52,23 @@ class UserService {
     })
   }
 
+  // --- Upload tokens (machine credentials for the authenticated user) ---
+  listUploadTokens() {
+    return Api().get('/api/account/upload-tokens')
+  }
+  createUploadToken(name) {
+    return Api().post('/api/account/upload-tokens', { name })
+  }
+  renameUploadToken(id, name) {
+    return Api().put(`/api/account/upload-tokens/${id}`, { name })
+  }
+  regenerateUploadToken(id) {
+    return Api().post(`/api/account/upload-tokens/${id}/regenerate`)
+  }
+  deleteUploadToken(id) {
+    return Api().delete(`/api/account/upload-tokens/${id}`)
+  }
+
   // --- Invite redemption (unauthenticated) ---
   checkSetupToken(token) {
     return Api().get('/api/account/setup-password', { params: { token } })
