@@ -49,7 +49,7 @@ def _fetch_releases():
 
     try:
         response = http_requests.get(
-            'https://api.github.com/repos/ShaneIsrael/fireshare/releases',
+            'https://api.github.com/repos/fireshare-app/fireshare/releases',
             headers={'Accept': 'application/vnd.github.v3+json'},
             params={'per_page': 10},
             timeout=10

@@ -139,7 +139,7 @@ def send_discord_webhook(webhook_url=None, video_url=None):
     payload = {
         "content": video_url,
         "username": "Fireshare",
-        "avatar_url": "https://github.com/ShaneIsrael/fireshare/raw/develop/app/client/src/assets/logo_square.png",
+        "avatar_url": "https://github.com/fireshare-app/fireshare/raw/develop/app/client/src/assets/logo_square.png",
     }
     try:
         response = requests.post(webhook_url, json=payload)
@@ -683,6 +683,7 @@ def scan_video(ctx, path, tag_ids, game_id, title, uploaded_by):
                     updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                     logger.debug(f"Updating Video {video_id}, updated_at={updated_at}")
                     db.session.query(Video).filter_by(video_id=existing.video_id).update({ "updated_at": updated_at })
+                db.session.commit()
             else:
                 created_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))
                 updated_at = datetime.fromtimestamp(os.path.getmtime(f"{videos_path}/{path}"))

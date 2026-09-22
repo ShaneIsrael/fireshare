@@ -6,8 +6,8 @@ import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism'
 import BugReportIcon from '@mui/icons-material/BugReport'
 import NewReleasesIcon from '@mui/icons-material/NewReleases'
 
-const GITHUB_URL = 'https://github.com/ShaneIsrael/fireshare'
-const ISSUES_URL = 'https://github.com/ShaneIsrael/fireshare/issues'
+const GITHUB_URL = 'https://github.com/fireshare-app/fireshare'
+const ISSUES_URL = 'https://github.com/fireshare-app/fireshare/issues'
 const COFFEE_URL = 'https://buymeacoffee.com/shaneisrael'
 
 const actionIconSx = {
