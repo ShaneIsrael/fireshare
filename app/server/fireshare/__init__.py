@@ -333,7 +333,11 @@ def create_app(init_schedule=False):
 
     if _should_cleanup:
         import glob as _glob
-        chunk_files = _glob.glob(str(paths['video'] / '**' / '*.part[0-9][0-9][0-9][0-9]'), recursive=True)
+        # Images are swept too: token uploads can be chunked, and an image one
+        # leaves its parts under the image root rather than the video root.
+        chunk_roots = [paths['video']] + ([paths['images']] if 'images' in paths else [])
+        chunk_files = [f for root in chunk_roots
+                       for f in _glob.glob(str(root / '**' / '*.part[0-9][0-9][0-9][0-9]'), recursive=True)]
         for chunk_file in chunk_files:
             try:
                 os.remove(chunk_file)
