@@ -26,7 +26,9 @@ import hashlib
 import json
 import os
 import random
+import re
 import secrets
+import shutil
 import string
 import threading
 import time
@@ -345,7 +347,16 @@ def delete_upload_token(token_id):
 
 # ---------------------------------------------------------------------------
 # Token-authenticated upload
+#
+# Both routes funnel through _prepare_upload / _finish_upload so a chunked
+# upload and a single-shot one cannot drift apart in what they accept, where
+# they file it, or how they attribute it.
 # ---------------------------------------------------------------------------
+
+# A cap on totalChunks. Every chunk is one request and one file on disk, so an
+# absurd value is a way to make the server create a great many of both.
+MAX_CHUNKS = 20000
+
 
 def _resolve_game_id(game_id):
     """The game to link the upload to, from `game_id` or a `game` name.
@@ -379,18 +390,25 @@ def _unique_save_path(directory, filename, filetype):
     return save_path
 
 
-@api.route('/api/upload/token', methods=['POST'])
-@upload_token_required
-def token_upload(token_user):
-    """Upload one video or image as the token's owner.
+def _media_type_for(filetype):
+    if filetype in SUPPORTED_FILE_TYPES:
+        return 'video'
+    if filetype in SUPPORTED_IMAGE_TYPES:
+        return 'image'
+    return None
 
-    multipart/form-data:
-      file      the media (required); the extension decides video or image
-      title     optional title for the item
-      folder    optional destination folder under the media root
-      game_id   optional Fireshare game id, or
-      game      optional game name, resolved against existing games
-      tag_ids   optional comma-separated tag ids
+
+def _supported_types_message():
+    supported = ', '.join(sorted(set(SUPPORTED_FILE_TYPES) | SUPPORTED_IMAGE_TYPES))
+    return f'Unsupported file type. Supported: {supported}.'
+
+
+def _prepare_upload(raw_filename, file_size):
+    """Validate a token upload and work out where it belongs.
+
+    Returns (plan, error_response). The plan carries everything both routes need
+    after this point; the destination directory exists by the time it is handed
+    back, because the chunked route writes its parts into it.
     """
     paths = current_app.config['PATHS']
     try:
@@ -398,37 +416,24 @@ def token_upload(token_user):
             config = json.load(configfile)
     except Exception:
         logger.error("Invalid or corrupt config file")
-        return Response(status=500, response='Invalid or corrupt config file.')
+        return None, Response(status=500, response='Invalid or corrupt config file.')
 
-    if 'file' not in request.files:
-        return Response(status=400, response='A "file" part is required.')
-    file = request.files['file']
-    if not file.filename:
-        return Response(status=400, response='The uploaded file has no name.')
-
-    filename = secure_filename(file.filename)
+    filename = secure_filename(raw_filename or '')
     if not filename:
-        return Response(status=400, response='The uploaded file has no usable name.')
+        return None, Response(status=400, response='The uploaded file has no usable name.')
     filetype = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+    media_type = _media_type_for(filetype)
+    if not media_type:
+        return None, Response(status=400, response=_supported_types_message())
 
-    if filetype in SUPPORTED_FILE_TYPES:
-        media_type = 'video'
-    elif filetype in SUPPORTED_IMAGE_TYPES:
-        media_type = 'image'
-    else:
-        supported = ', '.join(sorted(set(SUPPORTED_FILE_TYPES) | SUPPORTED_IMAGE_TYPES))
-        return Response(status=400, response=f'Unsupported file type. Supported: {supported}.')
-
-    file.seek(0, 2)
-    size_err = _check_upload_size(file.tell())
-    file.seek(0)
+    size_err = _check_upload_size(file_size)
     if size_err:
-        return size_err
+        return None, size_err
 
     tag_ids, game_id, title = _parse_upload_metadata()
     game_id, game_err = _resolve_game_id(game_id)
     if game_err:
-        return game_err, 400
+        return None, (game_err, 400)
 
     # Same default as /api/upload and /api/upload/image: a token belongs to a real
     # account with the upload permission, so it files media where that account's
@@ -441,34 +446,192 @@ def token_upload(token_user):
     if media_type == 'image':
         image_directory = current_app.config.get('IMAGE_DIRECTORY')
         if not image_directory:
-            return Response(status=503, response='IMAGE_DIRECTORY is not configured.')
+            return None, Response(status=503, response='IMAGE_DIRECTORY is not configured.')
         upload_directory = Path(image_directory) / upload_folder
-        upload_directory.mkdir(parents=True, exist_ok=True)
-        save_path = _unique_save_path(str(upload_directory), filename, filetype)
-        file.save(save_path)
-        _launch_scan_image(save_path, config, game_id=game_id, tag_ids=tag_ids,
-                           title=title, uploaded_by=token_user.id)
     else:
         upload_directory = paths['video'] / upload_folder
-        upload_directory.mkdir(parents=True, exist_ok=True)
-        save_path = _unique_save_path(str(upload_directory), filename, filetype)
-        file.save(save_path)
+    upload_directory.mkdir(parents=True, exist_ok=True)
+
+    return {
+        'config': config,
+        'filename': filename,
+        'filetype': filetype,
+        'media_type': media_type,
+        'upload_folder': upload_folder,
+        'upload_directory': str(upload_directory),
+        'tag_ids': tag_ids,
+        'game_id': game_id,
+        'title': title,
+    }, None
+
+
+def _finish_upload(plan, save_path, token_user):
+    """Hand a fully written upload to the background scan and answer the caller."""
+    if plan['media_type'] == 'image':
+        _launch_scan_image(save_path, plan['config'], game_id=plan['game_id'],
+                           tag_ids=plan['tag_ids'], title=plan['title'],
+                           uploaded_by=token_user.id)
+    else:
         duplicate = _reject_duplicate(save_path)
         if duplicate:
             return duplicate
-        _launch_scan_video(save_path, config, tag_ids, game_id, title,
-                           uploaded_by=token_user.id)
+        _launch_scan_video(save_path, plan['config'], plan['tag_ids'], plan['game_id'],
+                           plan['title'], uploaded_by=token_user.id)
 
     logger.info(
-        f"Token upload: {media_type} '{os.path.basename(save_path)}' into '{upload_folder}' "
-        f"as '{token_user.username}'"
+        f"Token upload: {plan['media_type']} '{os.path.basename(save_path)}' into "
+        f"'{plan['upload_folder']}' as '{token_user.username}'"
     )
     return jsonify({
         'status': 'accepted',
-        'media_type': media_type,
+        'media_type': plan['media_type'],
         'filename': os.path.basename(save_path),
-        'folder': upload_folder,
+        'folder': plan['upload_folder'],
     }), 201
+
+
+@api.route('/api/upload/token', methods=['POST'])
+@upload_token_required
+def token_upload(token_user):
+    """Upload one video or image as the token's owner, in a single request.
+
+    multipart/form-data:
+      file      the media (required); the extension decides video or image
+      title     optional title for the item
+      folder    optional destination folder under the media root
+      game_id   optional Fireshare game id, or
+      game      optional game name, resolved against existing games
+      tag_ids   optional comma-separated tag ids
+    """
+    if 'file' not in request.files:
+        return Response(status=400, response='A "file" part is required.')
+    file = request.files['file']
+    if not file.filename:
+        return Response(status=400, response='The uploaded file has no name.')
+
+    file.seek(0, 2)
+    file_size = file.tell()
+    file.seek(0)
+
+    plan, error = _prepare_upload(file.filename, file_size)
+    if error:
+        return error
+
+    save_path = _unique_save_path(plan['upload_directory'], plan['filename'], plan['filetype'])
+    file.save(save_path)
+    return _finish_upload(plan, save_path, token_user)
+
+
+def _positive_int(value, maximum=None):
+    """A positive int from form input, or None.
+
+    The browser-facing chunked routes call int() straight on the form value,
+    which turns a malformed request into a 500. A token route is driven by
+    somebody else's code, so bad input is expected and answered with a 400.
+    """
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed < 1 or (maximum is not None and parsed > maximum):
+        return None
+    return parsed
+
+
+@api.route('/api/upload/token/chunked', methods=['POST'])
+@upload_token_required
+def token_upload_chunked(token_user):
+    """Upload one video or image in chunks, for files too large to send at once.
+
+    Send each chunk as its own request, in any order, with the same checkSum
+    throughout. Every request but the last answers 202; the one that completes
+    the set reassembles the file and answers 201 exactly as /api/upload/token
+    does, including a 409 when the finished video is already in the library.
+
+    multipart/form-data:
+      blob         this chunk's bytes (required)
+      chunkPart    1-based index of this chunk (required)
+      totalChunks  how many chunks make up the file (required)
+      checkSum     caller-chosen id grouping the chunks, [A-Za-z0-9_-] (required)
+      fileName     the finished file's name; its extension picks video or image (required)
+      fileSize     the finished file's size in bytes, verified after reassembly (required)
+      title / folder / game_id / game / tag_ids as for /api/upload/token
+    """
+    if 'blob' not in request.files:
+        return Response(status=400, response='A "blob" part is required.')
+    blob = request.files['blob']
+
+    total_chunks = _positive_int(request.form.get('totalChunks'), MAX_CHUNKS)
+    if not total_chunks:
+        return Response(status=400, response=f'totalChunks must be between 1 and {MAX_CHUNKS}.')
+    chunk_part = _positive_int(request.form.get('chunkPart'), total_chunks)
+    if not chunk_part:
+        return Response(status=400, response='chunkPart must be between 1 and totalChunks.')
+    file_size = _positive_int(request.form.get('fileSize'))
+    if file_size is None:
+        return Response(status=400, response='fileSize must be a positive integer.')
+
+    check_sum = re.sub(r'[^a-zA-Z0-9_-]', '', request.form.get('checkSum') or '')
+    if not check_sum:
+        return Response(status=400, response='A checkSum grouping the chunks is required.')
+
+    plan, error = _prepare_upload(request.form.get('fileName'), file_size)
+    if error:
+        return error
+    upload_directory = plan['upload_directory']
+
+    temp_path = os.path.join(upload_directory, f"{check_sum}.part{chunk_part:04d}")
+    # The checkSum is already reduced to [A-Za-z0-9_-], so this cannot currently
+    # escape; kept because it is the guarantee that matters, not the regex.
+    if not os.path.realpath(temp_path).startswith(os.path.realpath(upload_directory) + os.sep):
+        return Response(status=400)
+
+    with open(temp_path, 'wb') as f:
+        f.write(blob.read())
+
+    chunk_paths = [os.path.join(upload_directory, f"{check_sum}.part{i:04d}")
+                   for i in range(1, total_chunks + 1)]
+    if not all(os.path.exists(p) for p in chunk_paths):
+        return Response(status=202)
+
+    save_path = _unique_save_path(upload_directory, plan['filename'], plan['filetype'])
+    try:
+        with open(save_path, 'wb') as output_file:
+            for chunk_path in chunk_paths:
+                with open(chunk_path, 'rb') as chunk_file:
+                    shutil.copyfileobj(chunk_file, output_file)
+                os.remove(chunk_path)
+
+        if os.path.getsize(save_path) != file_size:
+            os.remove(save_path)
+            return Response(status=500, response='File size mismatch after reassembly.')
+    except Exception as e:
+        logger.warning(f"Failed to reassemble token upload {check_sum}: {e}")
+        for chunk_path in chunk_paths:
+            if os.path.exists(chunk_path):
+                os.remove(chunk_path)
+        if os.path.exists(save_path):
+            os.remove(save_path)
+        return Response(status=500, response='Error reassembling file.')
+
+    return _finish_upload(plan, save_path, token_user)
+
+
+# ---------------------------------------------------------------------------
+# Token-authenticated discovery
+# ---------------------------------------------------------------------------
+
+def _list_subfolders(root):
+    """Visible immediate subdirectories of a media root, sorted."""
+    folders = []
+    try:
+        for entry in os.scandir(root):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                folders.append(entry.name)
+    except Exception:
+        return []
+    folders.sort()
+    return folders
 
 
 @api.route('/api/upload/token', methods=['GET'])
@@ -477,7 +640,8 @@ def token_upload_check(token_user):
     """Confirm a token works, and report what it may do, without uploading.
 
     Integrations need a way to validate their configuration that does not involve
-    putting a file in somebody's library.
+    putting a file in somebody's library. Deliberately cheap — the folder and game
+    listings live on /api/upload/token/options.
     """
     paths = current_app.config['PATHS']
     try:
@@ -494,4 +658,46 @@ def token_upload_check(token_user):
         'images_enabled': bool(current_app.config.get('IMAGE_DIRECTORY')),
         'supported_video_types': sorted(SUPPORTED_FILE_TYPES),
         'supported_image_types': sorted(SUPPORTED_IMAGE_TYPES),
+    })
+
+
+@api.route('/api/upload/token/options', methods=['GET'])
+@upload_token_required
+def token_upload_options(token_user):
+    """The folders and games an upload may name, so a tool can offer real choices.
+
+    Games are listed in full rather than through /api/games, which hides games
+    with nothing linked to them yet: those are exactly the ones an upload might
+    be the first to use, and `game` name resolution already accepts them.
+    """
+    paths = current_app.config['PATHS']
+    try:
+        with open(paths['data'] / 'config.json', 'r') as configfile:
+            config = json.load(configfile)
+        default_folder = config['app_config'].get('admin_upload_folder_name', 'uploads')
+    except Exception:
+        default_folder = None
+
+    video_folders = _list_subfolders(paths['video'])
+    image_directory = current_app.config.get('IMAGE_DIRECTORY')
+    image_folders = _list_subfolders(image_directory) if image_directory else []
+
+    # The default is offerable whether or not it has been created on disk yet.
+    for folders in (video_folders, image_folders):
+        if default_folder and default_folder not in folders:
+            folders.append(default_folder)
+            folders.sort()
+
+    games = GameMetadata.query.order_by(GameMetadata.name).all()
+
+    return jsonify({
+        'default_folder': default_folder,
+        'folders': {
+            'video': video_folders,
+            'image': image_folders,
+        },
+        'games': [
+            {'id': g.id, 'name': g.name, 'steamgriddb_id': g.steamgriddb_id}
+            for g in games
+        ],
     })

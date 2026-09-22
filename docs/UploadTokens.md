@@ -85,6 +85,90 @@ appears in the library once that finishes.
 | `429` | Too many invalid tokens from this address. Retry after the `Retry-After` header. |
 | `503` | An image was uploaded but `IMAGE_DIRECTORY` is not configured. |
 
+## Uploading in chunks
+
+Large videos can go up a piece at a time instead of in one request:
+
+```
+POST /api/upload/token/chunked
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+Send each chunk as its own request, in any order, using the same `checkSum`
+throughout. Every request but the last answers `202`; whichever one completes the
+set reassembles the file and answers `201` exactly as `/api/upload/token` does —
+including the `409` when the finished video turns out to be a duplicate.
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `blob` | yes | This chunk's bytes. |
+| `chunkPart` | yes | 1-based index of this chunk. |
+| `totalChunks` | yes | How many chunks make up the file (max 20000). |
+| `checkSum` | yes | A caller-chosen id grouping the chunks. `A-Z a-z 0-9 _ -` only. |
+| `fileName` | yes | The finished file's name; its extension picks video or image. |
+| `fileSize` | yes | The finished file's size in bytes, verified after reassembly. |
+
+`title`, `folder`, `game_id`, `game` and `tag_ids` work as they do for a
+single-shot upload — send them with whichever chunk you like, but sending them
+with every chunk is simplest, since you cannot know in advance which request will
+be the one that completes the set.
+
+Pick a `checkSum` that is unique per upload; two files sharing one will have their
+chunks mixed together. A content hash of the file is the obvious choice, and is
+where the name comes from.
+
+If an upload is abandoned part way, the orphaned `.partNNNN` files are swept on
+the next Fireshare restart.
+
+```bash
+# 8 MiB chunks, in order
+split -b 8388608 -d -a 4 big.mp4 chunk_
+total=$(ls chunk_* | wc -l | tr -d ' ')
+size=$(wc -c < big.mp4 | tr -d ' ')
+id=$(shasum -a 256 big.mp4 | cut -c1-32)
+
+i=1
+for c in chunk_*; do
+  curl -X POST https://fireshare.example.com/api/upload/token/chunked \
+    -H "Authorization: Bearer fsk_your_token_here" \
+    -F "blob=@$c" \
+    -F "chunkPart=$i" \
+    -F "totalChunks=$total" \
+    -F "checkSum=$id" \
+    -F "fileName=big.mp4" \
+    -F "fileSize=$size" \
+    -F "title=A long clip"
+  i=$((i + 1))
+done
+```
+
+## Listing folders and games
+
+To offer real choices rather than making a user type a folder name from memory:
+
+```bash
+curl https://fireshare.example.com/api/upload/token/options \
+  -H "Authorization: Bearer fsk_your_token_here"
+```
+
+```json
+{
+  "default_folder": "uploads",
+  "folders": {
+    "video": ["uploads", "clips"],
+    "image": ["uploads", "screenshots"]
+  },
+  "games": [
+    { "id": 3, "name": "VALORANT", "steamgriddb_id": 12345 }
+  ]
+}
+```
+
+Every game in the library is listed, including ones with nothing linked to them
+yet — `/api/games` hides those, but they are exactly the games an upload might be
+the first to use, and the `game` field already accepts them.
+
 ## Checking a token
 
 `GET /api/upload/token` with the same header validates a token without uploading
