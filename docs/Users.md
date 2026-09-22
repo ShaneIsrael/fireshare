@@ -121,9 +121,15 @@ the administrator is the accurate owner. Reassign anything that belongs to
 someone else from **File Manager → Uploader**; the upgrade prints how many items
 it attributed.
 
-After that, media has **no uploader** when it was:
+Files a library scan finds on disk are attributed to that same administrator
+account as they are indexed. Nothing on the server's own filesystem can say who
+put it there, and the person who runs the server is the one who did, so the
+administrator is the accurate owner; hand anything that belongs to someone else
+to them from **File Manager → Uploader**. Uploads made while signed in belong to
+the account that made them.
 
-- indexed from disk by a library scan,
+Media has **no uploader** when it was:
+
 - uploaded through the public (unauthenticated) upload form, or
 - had its uploader deliberately cleared.
 
