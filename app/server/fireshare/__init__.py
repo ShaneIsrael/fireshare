@@ -333,17 +333,32 @@ def create_app(init_schedule=False):
 
     if _should_cleanup:
         import glob as _glob
+        import time as _time
+        # Only parts that have gone stale. Sweeping unconditionally would destroy
+        # uploads that are merely in flight: a token client holding a partly sent
+        # set has no way to tell that its parts are gone, so every restart of this
+        # container during an upload would strand that upload at 202. An age cut
+        # still collects what the sweep is actually for — sets abandoned by a tool
+        # that never came back — because each part carries the mtime of the moment
+        # it was written, and an upload in progress is nowhere near the threshold.
+        _CHUNK_MAX_AGE_SECONDS = 24 * 60 * 60
+        cutoff = _time.time() - _CHUNK_MAX_AGE_SECONDS
         # Images are swept too: token uploads can be chunked, and an image one
         # leaves its parts under the image root rather than the video root.
+        # '.assembling' is a chunked upload caught mid-reassembly; it never carries
+        # a media extension, so nothing will have scanned it.
         chunk_roots = [paths['video']] + ([paths['images']] if 'images' in paths else [])
-        chunk_files = [f for root in chunk_roots
-                       for f in _glob.glob(str(root / '**' / '*.part[0-9][0-9][0-9][0-9]'), recursive=True)]
+        chunk_patterns = ('*.part[0-9][0-9][0-9][0-9]', '*.assembling')
+        chunk_files = [f for root in chunk_roots for pattern in chunk_patterns
+                       for f in _glob.glob(str(root / '**' / pattern), recursive=True)]
         for chunk_file in chunk_files:
             try:
+                if os.path.getmtime(chunk_file) > cutoff:
+                    continue
                 os.remove(chunk_file)
-                logger.info(f"Removed leftover upload chunk: {chunk_file}")
+                logger.info(f"Removed stale upload chunk: {chunk_file}")
             except OSError as e:
-                logger.warning(f"Failed to remove leftover upload chunk {chunk_file}: {e}")
+                logger.warning(f"Failed to remove stale upload chunk {chunk_file}: {e}")
 
     # Ensure game_assets directory exists
     game_assets_dir = paths['data'] / 'game_assets'

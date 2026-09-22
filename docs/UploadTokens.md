@@ -96,9 +96,18 @@ Content-Type: multipart/form-data
 ```
 
 Send each chunk as its own request, in any order, using the same `checkSum`
-throughout. Every request but the last answers `202`; whichever one completes the
-set reassembles the file and answers `201` exactly as `/api/upload/token` does —
-including the `409` when the finished video turns out to be a duplicate.
+throughout. Every request but the last answers `202` with a count of the parts
+held so far; whichever one completes the set reassembles the file and answers
+`201` exactly as `/api/upload/token` does — including the `409` when the finished
+video turns out to be a duplicate.
+
+```json
+{ "status": "partial", "received": 18, "total": 34 }
+```
+
+`received` is what is on the server right now, not what you have sent. If it is
+lower than the number of chunks you have had accepted, the set is gone — see
+*Losing a set*, below — and the upload must start again under a fresh `checkSum`.
 
 | Field | Required | Description |
 | --- | --- | --- |
@@ -109,17 +118,39 @@ including the `409` when the finished video turns out to be a duplicate.
 | `fileName` | yes | The finished file's name; its extension picks video or image. |
 | `fileSize` | yes | The finished file's size in bytes, verified after reassembly. |
 
-`title`, `folder`, `game_id`, `game` and `tag_ids` work as they do for a
-single-shot upload — send them with whichever chunk you like, but sending them
-with every chunk is simplest, since you cannot know in advance which request will
-be the one that completes the set.
+**`folder` must be identical on every chunk.** It decides which directory the
+parts are written into, so a chunk that names a different folder — or omits it,
+and so lands in the default — leaves its part somewhere the completing request
+will not look. The set then never completes and the upload sits at `202` forever.
+
+`title`, `game_id`, `game` and `tag_ids` are read from whichever request completes
+the set. Since you cannot know in advance which one that is, send them on every
+chunk as well.
 
 Pick a `checkSum` that is unique per upload; two files sharing one will have their
 chunks mixed together. A content hash of the file is the obvious choice, and is
-where the name comes from.
+where the name comes from — though if the same file may be uploaded to two folders
+at once, add something to tell the two apart.
 
-If an upload is abandoned part way, the orphaned `.partNNNN` files are swept on
-the next Fireshare restart.
+Send one file's chunks one at a time. Two requests that both observe a complete
+set will both try to reassemble it, and the one that loses finds the parts already
+consumed and answers `500`. Uploading several *files* at once is fine.
+
+### Losing a set
+
+Parts live on disk until the upload completes. They survive a restart, and are
+swept only once they are a day old — so an interrupted upload can usually be
+resumed by sending the chunks that were never accepted.
+
+Two things end a set early, and both look the same from outside: the daily sweep
+catching an upload that took longer than that, and anything that clears the media
+directory underneath Fireshare. Either way the `received` count in the `202` drops
+below what you have sent, which is the signal to discard the `checkSum` and start
+the file again.
+
+A `500` reading `File size mismatch after reassembly` is also a start-over rather
+than something to retry a chunk against: reassembly consumes the parts as it goes,
+so there is nothing left to resume from.
 
 ```bash
 # 8 MiB chunks, in order
@@ -168,6 +199,42 @@ curl https://fireshare.example.com/api/upload/token/options \
 Every game in the library is listed, including ones with nothing linked to them
 yet — `/api/games` hides those, but they are exactly the games an upload might be
 the first to use, and the `game` field already accepts them.
+
+## Asking before you upload
+
+The duplicate rejection on the upload routes only fires once the file is on disk,
+which for a chunked upload means the whole thing has crossed the network before
+the `409` comes back. A tool that can hash its own file first can skip the
+transfer entirely:
+
+```
+GET /api/upload/token/exists?video_id=<hex>
+```
+
+`video_id` is the identity Fireshare uses everywhere else: an **xxh3_128 hexdigest
+of the first 16 MB** of the file, 32 hex characters, exactly as `util.video_id`
+computes it. Anything else is a `400`.
+
+```bash
+curl "https://fireshare.example.com/api/upload/token/exists?video_id=$ID" \
+  -H "Authorization: Bearer fsk_your_token_here"
+```
+
+```json
+{
+  "exists": true,
+  "video_id": "9f2c...",
+  "title": "Ace on Ascent",
+  "url": "/w/9f2c..."
+}
+```
+
+A video whose file is missing from disk answers `exists: false`: that upload is a
+restore, and Fireshare wants it. This only applies to videos — images are not
+deduplicated.
+
+Worth doing before a large upload and before re-scanning a folder you may have
+sent already; there is no point paying for the transfer to be told at the end.
 
 ## Checking a token
 
