@@ -43,7 +43,7 @@ from .. import db, logger
 from .. import permissions as P
 from ..constants import SUPPORTED_FILE_TYPES
 from ..ip_whitelist import get_client_ip
-from ..models import GameMetadata, UploadToken, User
+from ..models import GameMetadata, UploadToken, User, Video
 from . import api
 from .decorators import json_body, require_perm
 from .helpers import sanitize_upload_folder, secure_filename
@@ -591,27 +591,54 @@ def token_upload_chunked(token_user):
 
     chunk_paths = [os.path.join(upload_directory, f"{check_sum}.part{i:04d}")
                    for i in range(1, total_chunks + 1)]
-    if not all(os.path.exists(p) for p in chunk_paths):
-        return Response(status=202)
+    held = sum(1 for p in chunk_paths if os.path.exists(p))
+    if held != total_chunks:
+        # How many parts are really here, rather than a bare "not yet". A caller
+        # that believes it has sent more than this has lost its set — the startup
+        # sweep ran, or the media directory was cleared underneath it — and must
+        # start the file over instead of sending its remaining chunks into a set
+        # that can never complete. Without this number the upload sits at 202
+        # forever with nothing to distinguish it from ordinary progress.
+        return jsonify({
+            'status': 'partial',
+            'received': held,
+            'total': total_chunks,
+        }), 202
 
-    save_path = _unique_save_path(upload_directory, plan['filename'], plan['filetype'])
+    # Reassemble under a staging name and rename into place. A crash partway
+    # through the copy would otherwise leave a truncated file under a real media
+    # extension, and the scheduled bulk-import picks such a file up within minutes
+    # and ingests it as a genuine video. os.rename is atomic within a filesystem,
+    # and the staging file sits in the destination directory precisely so that
+    # holds.
+    staging_path = os.path.join(upload_directory, f"{check_sum}.assembling")
+    save_path = None
     try:
-        with open(save_path, 'wb') as output_file:
+        with open(staging_path, 'wb') as output_file:
             for chunk_path in chunk_paths:
                 with open(chunk_path, 'rb') as chunk_file:
                     shutil.copyfileobj(chunk_file, output_file)
                 os.remove(chunk_path)
 
-        if os.path.getsize(save_path) != file_size:
-            os.remove(save_path)
+        if os.path.getsize(staging_path) != file_size:
+            os.remove(staging_path)
             return Response(status=500, response='File size mismatch after reassembly.')
+
+        # Claimed as late as possible, so the window in which a concurrent upload
+        # could take the same name is as short as it can be made.
+        save_path = _unique_save_path(upload_directory, plan['filename'], plan['filetype'])
+        os.rename(staging_path, save_path)
     except Exception as e:
         logger.warning(f"Failed to reassemble token upload {check_sum}: {e}")
-        for chunk_path in chunk_paths:
-            if os.path.exists(chunk_path):
-                os.remove(chunk_path)
-        if os.path.exists(save_path):
-            os.remove(save_path)
+        leftovers = chunk_paths + [staging_path]
+        if save_path:
+            leftovers.append(save_path)
+        for leftover in leftovers:
+            try:
+                if os.path.exists(leftover):
+                    os.remove(leftover)
+            except OSError:
+                pass
         return Response(status=500, response='Error reassembling file.')
 
     return _finish_upload(plan, save_path, token_user)
@@ -700,4 +727,47 @@ def token_upload_options(token_user):
             {'id': g.id, 'name': g.name, 'steamgriddb_id': g.steamgriddb_id}
             for g in games
         ],
+    })
+
+
+@api.route('/api/upload/token/exists', methods=['GET'])
+@upload_token_required
+def token_upload_exists(token_user):
+    """Whether a video is already in the library, before anything is uploaded.
+
+    The duplicate rejection on the upload routes only fires once the file is on
+    disk, which for a chunked upload means the whole thing has crossed the network
+    before the 409 comes back. A tool that can hash its own file locally can ask
+    first and skip the transfer entirely — which is what makes re-scanning a folder
+    that was already uploaded tolerable rather than a full re-send.
+
+    video_id is the same identity the rest of Fireshare uses: an xxh3_128 hexdigest
+    of the first 16 MB of the file, as util.video_id computes it.
+    """
+    video_id = (request.args.get('video_id') or '').strip().lower()
+    if not re.fullmatch(r'[0-9a-f]{32}', video_id):
+        return jsonify({
+            'error': 'bad_video_id',
+            'message': 'video_id must be a 32-character xxh3_128 hex digest.',
+        }), 400
+
+    existing = Video.query.filter_by(video_id=video_id).first()
+
+    # A row whose own file is missing from disk does not count, exactly as in
+    # _reject_duplicate: that upload is a restore, and scan-video flips the row
+    # back to available once it lands.
+    if existing:
+        paths = current_app.config['PATHS']
+        if not (paths['video'] / existing.path).is_file():
+            existing = None
+
+    if not existing:
+        return jsonify({'exists': False})
+
+    title = existing.info.title if existing.info and existing.info.title else Path(existing.path).stem
+    return jsonify({
+        'exists': True,
+        'video_id': video_id,
+        'title': title,
+        'url': f'/w/{video_id}',
     })
