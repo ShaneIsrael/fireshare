@@ -15,6 +15,8 @@ import {
   Typography,
 } from '@mui/material'
 import TerminalIcon from '@mui/icons-material/Terminal'
+import CloudSyncIcon from '@mui/icons-material/CloudSync'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
@@ -25,6 +27,7 @@ import { dialogPaperSx, dialogTitleSx, inputSx, helperTextSx, rowBoxSx } from '.
 
 const NAME_MAX = 64
 const DOCS_URL = 'https://github.com/fireshare-app/fireshare/blob/main/docs/UploadTokens.md'
+const FIRESYNC_URL = 'https://github.com/fireshare-app/firesync/releases'
 
 // Matches the external links in the Settings panes.
 const docsLinkStyle = { color: '#2684FF', textDecoration: 'none' }
@@ -130,14 +133,48 @@ const UploadTokens = () => {
       </Stack>
 
       <Typography sx={{ ...helperTextSx, maxWidth: 560, mb: 2 }}>
-        Let a script or another tool upload videos and images to Fireshare on your behalf, without your password.
-        Uploads made with a token are credited to you and obey the permissions you hold right now — if your upload
-        access is removed, every token stops working with it.{' '}
+        Let a script or another tool upload videos and images on your behalf, without your password.{' '}
         <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" style={docsLinkStyle}>
           Read the documentation
-        </a>{' '}
-        for the full list of upload options.
+        </a>
+        .
       </Typography>
+
+      {/* A token is only half of what someone wanting automatic uploads needs, and
+          writing the other half yourself is the assumed default until told
+          otherwise. Said here because this is the page they are on when the
+          question occurs to them. */}
+      <Box
+        sx={{
+          ...rowBoxSx,
+          alignItems: 'flex-start',
+          maxWidth: 560,
+          mb: 2.5,
+          py: 1.5,
+          borderColor: '#66B2FF40',
+        }}
+      >
+        <CloudSyncIcon sx={{ color: '#66B2FF', mt: 0.25 }} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: 14, color: 'white' }}>
+            Firesync
+          </Typography>
+          <Typography sx={{ ...helperTextSx, fontSize: 13, mt: 0.5 }}>
+            Rather not write the script yourself? Firesync is a companion app for Windows and Linux that watches
+            folders on your machine and uploads new clips and screenshots here on its own, with per-folder rules for
+            where they land. It signs in with a token from this page, never your password.
+          </Typography>
+          <a
+            href={FIRESYNC_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ ...docsLinkStyle, fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8 }}
+          >
+            Download Firesync
+            <OpenInNewIcon sx={{ fontSize: 14 }} />
+          </a>
+        </Box>
+      </Box>
 
       {tokens === null ? (
         <CircularProgress size={24} />
