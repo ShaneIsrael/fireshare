@@ -43,7 +43,8 @@ from .. import db, logger
 from .. import permissions as P
 from ..constants import SUPPORTED_FILE_TYPES
 from ..ip_whitelist import get_client_ip
-from ..models import FolderRule, GameMetadata, ImageFolderRule, UploadToken, User, Video
+from ..models import (FolderRule, GameMetadata, Image, ImageFolderRule, UploadToken, User,
+                      Video)
 from . import api
 from .decorators import json_body, require_perm
 from .helpers import sanitize_upload_folder, secure_filename
@@ -750,33 +751,62 @@ def token_upload_options(token_user):
 @api.route('/api/upload/token/exists', methods=['GET'])
 @upload_token_required
 def token_upload_exists(token_user):
-    """Whether a video is already in the library, before anything is uploaded.
+    """Whether a file is already in the library, before anything is uploaded.
 
-    The duplicate rejection on the upload routes only fires once the file is on
-    disk, which for a chunked upload means the whole thing has crossed the network
-    before the 409 comes back. A tool that can hash its own file locally can ask
-    first and skip the transfer entirely — which is what makes re-scanning a folder
-    that was already uploaded tolerable rather than a full re-send.
+    Pass exactly one of `video_id` or `image_id`. Both are the same identity the
+    rest of Fireshare uses: an xxh3_128 hexdigest of the first 16 MB of the file,
+    as `util.video_id` and `util.image_id` compute it — so a tool that can hash
+    its own file locally can ask first and skip the transfer entirely.
 
-    video_id is the same identity the rest of Fireshare uses: an xxh3_128 hexdigest
-    of the first 16 MB of the file, as util.video_id computes it.
+    That saving is worth more than it looks, and differs by media type:
+
+    * For a video, the duplicate rejection on the upload routes only fires once
+      the file is on disk, which for a chunked upload means the whole thing has
+      crossed the network before the 409 comes back.
+    * For an image there is no rejection at all. The upload is accepted and the
+      scan quietly folds it into the existing row, so the client is never told —
+      it simply pays for the transfer and sees a success.
+
+    Either way, re-scanning a folder that was already uploaded should not mean
+    re-sending it.
     """
     video_id = (request.args.get('video_id') or '').strip().lower()
-    if not re.fullmatch(r'[0-9a-f]{32}', video_id):
+    image_id = (request.args.get('image_id') or '').strip().lower()
+
+    if bool(video_id) == bool(image_id):
         return jsonify({
-            'error': 'bad_video_id',
-            'message': 'video_id must be a 32-character xxh3_128 hex digest.',
+            'error': 'bad_request',
+            'message': 'Pass exactly one of video_id or image_id.',
         }), 400
 
-    existing = Video.query.filter_by(video_id=video_id).first()
+    kind = 'video' if video_id else 'image'
+    media_id = video_id or image_id
+    if not re.fullmatch(r'[0-9a-f]{32}', media_id):
+        return jsonify({
+            'error': f'bad_{kind}_id',
+            'message': f'{kind}_id must be a 32-character xxh3_128 hex digest.',
+        }), 400
+
+    if kind == 'video':
+        existing = Video.query.filter_by(video_id=media_id).first()
+        root = current_app.config['PATHS']['video']
+        viewer = 'w'
+    else:
+        image_directory = current_app.config.get('IMAGE_DIRECTORY')
+        if not image_directory:
+            return jsonify({
+                'error': 'images_disabled',
+                'message': 'This instance is not configured for images.',
+            }), 503
+        existing = Image.query.filter_by(image_id=media_id).first()
+        root = Path(image_directory)
+        viewer = 'i'
 
     # A row whose own file is missing from disk does not count, exactly as in
-    # _reject_duplicate: that upload is a restore, and scan-video flips the row
+    # _reject_duplicate: that upload is a restore, and the scan flips the row
     # back to available once it lands.
-    if existing:
-        paths = current_app.config['PATHS']
-        if not (paths['video'] / existing.path).is_file():
-            existing = None
+    if existing and not (root / existing.path).is_file():
+        existing = None
 
     if not existing:
         return jsonify({'exists': False})
@@ -784,7 +814,7 @@ def token_upload_exists(token_user):
     title = existing.info.title if existing.info and existing.info.title else Path(existing.path).stem
     return jsonify({
         'exists': True,
-        'video_id': video_id,
+        f'{kind}_id': media_id,
         'title': title,
-        'url': f'/w/{video_id}',
+        'url': f'/{viewer}/{media_id}',
     })
