@@ -8,7 +8,7 @@
 // because saving writes both.
 export const SIDEBAR_PAGES = [
   { key: 'home', href: '/home', title: 'Home', legacyFlag: 'show_home' },
-  { key: 'videos', href: '/', title: 'Videos', legacyFlag: 'show_videos' },
+  { key: 'videos', href: '/videos', title: 'Videos', legacyFlag: 'show_videos' },
   { key: 'images', href: '/images', title: 'Images', legacyFlag: 'show_images' },
   { key: 'games', href: '/games', title: 'Games', legacyFlag: 'show_games' },
   { key: 'tags', href: '/tags', title: 'Tags', legacyFlag: 'show_tags' },
@@ -63,10 +63,11 @@ export function sidebarPagesPatch(pages) {
 }
 
 // Where "/" should take a visitor: the first page still shown in the sidebar.
-// Undefined until the config has been loaded at least once, "/" (the Videos
-// page, which lives there) when nothing is left to prefer.
+// Undefined until the config has been loaded at least once, and the Videos page
+// when every page has been hidden -- never "/" itself, which would loop back
+// here.
 export function landingHref(uiConfig) {
   if (!uiConfig) return undefined
   const first = resolveSidebarPages(uiConfig).find((p) => p.enabled)
-  return first ? KNOWN.get(first.key).href : '/'
+  return first ? KNOWN.get(first.key).href : '/videos'
 }

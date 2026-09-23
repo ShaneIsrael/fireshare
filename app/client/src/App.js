@@ -50,22 +50,25 @@ export default function App() {
         <CssBaseline />
         <GlobalDragDropOverlay>
           <Routes>
+            {/* "/" is not a page of its own: it forwards to whichever page the
+                administrator put at the top of the sidebar. The Videos page it
+                used to hold now lives at "/videos" so that the sidebar can link
+                to it without passing back through that decision. */}
+            <Route path="/" element={<LandingRoute />} />
             <Route
-              path="/"
+              path="/videos"
               element={
-                <LandingRoute>
-                  <AuthWrapper>
-                    <MainNavbar
-                      page="/"
-                      collapsed={!drawerOpen}
-                      searchable
-                      styleToggle
-                      searchPlaceholder="Search title, game, or #tag..."
-                    >
-                      <Dashboard />
-                    </MainNavbar>
-                  </AuthWrapper>
-                </LandingRoute>
+                <AuthWrapper>
+                  <MainNavbar
+                    page="/videos"
+                    collapsed={!drawerOpen}
+                    searchable
+                    styleToggle
+                    searchPlaceholder="Search title, game, or #tag..."
+                  >
+                    <Dashboard />
+                  </MainNavbar>
+                </AuthWrapper>
               }
             />
             <Route
