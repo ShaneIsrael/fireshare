@@ -4,15 +4,15 @@ import { ConfigService } from '../../services'
 import { getSetting, setSetting } from '../../common/utils'
 import { landingHref } from '../../common/sidebarPages'
 
-// "/" opens whichever content page the administrator put at the top of the
-// sidebar (Settings → Sidebar). The Videos page lives at "/" itself, so when it
-// is on top the children render here directly and every existing link keeps
-// working; any other page is a redirect that carries the query string along.
+// "/" is a redirect, not a page: it opens whichever content page the
+// administrator put at the top of the sidebar (Settings → Sidebar), carrying
+// the query string along. Every content page, Videos included, has a path of
+// its own, so a link to one is never routed through this decision.
 //
 // The decision is made from the cached ui_config so a returning visitor is not
 // held up by a request. Only a browser that has never loaded the app waits for
 // the config, since guessing there would send it to the wrong page.
-export default function LandingRoute({ children }) {
+export default function LandingRoute() {
   const location = useLocation()
   const [target, setTarget] = React.useState(() => landingHref(getSetting('ui_config')))
 
@@ -26,7 +26,7 @@ export default function LandingRoute({ children }) {
         setTarget(landingHref(res.data))
       })
       .catch(() => {
-        if (!cancelled) setTarget('/')
+        if (!cancelled) setTarget('/videos')
       })
     return () => {
       cancelled = true
@@ -34,6 +34,5 @@ export default function LandingRoute({ children }) {
   }, [target])
 
   if (target === undefined) return null
-  if (target === '/') return children
   return <Navigate to={`${target}${location.search}`} replace />
 }

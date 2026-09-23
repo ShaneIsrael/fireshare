@@ -57,6 +57,7 @@ If Fireshare is useful to you, [GitHub Sponsors](https://github.com/sponsors/Sha
 - [Shareable user profiles for uploads](./docs/Users.md#profiles)
 - [Two-factor authentication (TOTP authenticator apps)](./docs/Security.md#two-factor-authentication-mfa)
 - [Login IP whitelisting](./docs/Security.md#login-ip-whitelist)
+- [Upload tokens for scripts and other tools](./docs/UploadTokens.md)
 
 ## Supported Video Formats
 

@@ -44,6 +44,12 @@ class User(UserMixin, db.Model):
     # game's art and then to a generated gradient.
     banner_version = db.Column(db.Integer, nullable=False, default=0, server_default='0')
 
+    # Long-lived credentials for machine uploads. Deleted with the account: a
+    # token outliving its owner would authenticate as a user that no longer exists.
+    upload_tokens = db.relationship(
+        "UploadToken", back_populates="user", cascade="all, delete-orphan", lazy="select"
+    )
+
     @property
     def granted_permissions(self):
         """The set of grantable keys this user holds (empty for admins, who bypass)."""
@@ -645,3 +651,40 @@ class TranscodeJob(db.Model):
     def __repr__(self):
         return "<TranscodeJob id={} video_id={} status={}>".format(self.id, self.video_id, self.status)
 
+
+
+class UploadToken(db.Model):
+    """A long-lived bearer credential that lets an external tool upload as its owner.
+
+    Only the sha256 of the secret is stored, so a database copy cannot be replayed
+    against the API and a lost token can only be replaced, never recovered. The
+    token carries no permissions of its own: every request re-reads the owner's
+    account, so revoking `upload` or disabling the user stops it immediately.
+    """
+    __tablename__ = "upload_token"
+
+    id           = db.Column(db.Integer, primary_key=True)
+    user_id      = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    name         = db.Column(db.String(64), nullable=False)
+    # sha256 hex of the raw token. Unique so a hash collision cannot silently
+    # shadow another user's credential.
+    token_hash   = db.Column(db.String(64), unique=True, index=True, nullable=False)
+    # The leading, non-secret part of the token, shown in the UI so an owner can
+    # tell two tokens apart without the server ever holding the rest.
+    prefix       = db.Column(db.String(24), nullable=False)
+    created_at   = db.Column(db.DateTime(), nullable=True)
+    last_used_at = db.Column(db.DateTime(), nullable=True)
+
+    user         = db.relationship("User", back_populates="upload_tokens")
+
+    def json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "prefix": self.prefix,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None,
+        }
+
+    def __repr__(self):
+        return "<UploadToken {} {} user:{}>".format(self.id, self.prefix, self.user_id)

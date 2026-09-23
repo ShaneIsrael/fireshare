@@ -45,6 +45,7 @@ import { setSetting, getSetting } from '../common/utils'
 import LightTooltip from '../components/ui/LightTooltip'
 import GameSearch from '../components/game/GameSearch'
 import SecuritySettings from '../components/settings/SecuritySettings'
+import UploadTokens from '../components/settings/UploadTokens'
 import ChangePassword from '../components/settings/ChangePassword'
 import UserManagement from '../components/settings/UserManagement'
 import SidebarPagesEditor from '../components/settings/SidebarPagesEditor'
@@ -1612,6 +1613,14 @@ const Settings = ({ isAdmin, currentUser, can = () => false }) => {
                   <ChangePassword />
                   <Divider />
                   <SecuritySettings />
+                  {/* Only an account that may upload has anything to mint a token for;
+                      the routes behind this pane enforce the same permission. */}
+                  {(isAdmin || can('upload')) && (
+                    <>
+                      <Divider />
+                      <UploadTokens />
+                    </>
+                  )}
                 </Stack>
               )}
             </Box>

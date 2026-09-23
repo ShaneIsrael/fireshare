@@ -70,7 +70,7 @@ const PAGES_WITHOUT_TOP_BAR = ['/files', '/settings', '/image', '/profile']
 // group that always follows them.
 const allPages = [
   { key: 'home', title: 'Home', icon: <HomeIcon />, href: '/home', private: false },
-  { key: 'videos', title: 'Videos', icon: <VideoLibraryIcon />, href: '/', private: false },
+  { key: 'videos', title: 'Videos', icon: <VideoLibraryIcon />, href: '/videos', private: false },
   { key: 'images', title: 'Images', icon: <PhotoLibraryIcon />, href: '/images', private: false },
   { key: 'games', title: 'Games', icon: <SportsEsportsIcon />, href: '/games', private: false },
   { key: 'tags', title: 'Tags', icon: <LocalOfferIcon />, href: '/tags', private: false },
@@ -841,7 +841,12 @@ function MainNavbar({
       >
         {showDemoBanner && <Box sx={{ height: DEMO_BANNER_HEIGHT, flexShrink: 0 }} />}
         {toolbar && page !== '/watch' && showTopBar && <Toolbar />}
-        <SnackbarAlert severity={alert.type} open={alert.open} setOpen={(open) => setAlert({ ...alert, open })}>
+        <SnackbarAlert
+          severity={alert.type}
+          open={alert.open}
+          autoHideDuration={alert.autoHideDuration}
+          setOpen={(open) => setAlert({ ...alert, open })}
+        >
           {alert.message}
         </SnackbarAlert>
         {React.cloneElement(children, {
