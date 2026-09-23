@@ -340,7 +340,7 @@ const Profile = ({ authenticated }) => {
             This user does not exist, or their profile is not shared.
           </Typography>
         </Box>
-        <Button component={RouterLink} to="/" variant="outlined" sx={{ mt: 1 }}>
+        <Button component={RouterLink} to="/videos" variant="outlined" sx={{ mt: 1 }}>
           Back to videos
         </Button>
       </Box>
