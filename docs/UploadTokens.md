@@ -222,18 +222,26 @@ them.
 
 ## Asking before you upload
 
-The duplicate rejection on the upload routes only fires once the file is on disk,
-which for a chunked upload means the whole thing has crossed the network before
-the `409` comes back. A tool that can hash its own file first can skip the
-transfer entirely:
+A tool that can hash its own file first can skip the transfer entirely:
 
 ```
 GET /api/upload/token/exists?video_id=<hex>
+GET /api/upload/token/exists?image_id=<hex>
 ```
 
-`video_id` is the identity Fireshare uses everywhere else: an **xxh3_128 hexdigest
-of the first 16 MB** of the file, 32 hex characters, exactly as `util.video_id`
-computes it. Anything else is a `400`.
+Pass exactly one of the two; passing both or neither is a `400`. Either id is the
+identity Fireshare uses everywhere else: an **xxh3_128 hexdigest of the first
+16 MB** of the file, 32 hex characters, exactly as `util.video_id` and
+`util.image_id` compute it. Anything else is a `400`.
+
+This is worth more than it looks, and for different reasons per media type:
+
+* **Videos** are rejected on upload, but only once the file is on disk — which
+  for a chunked upload means the whole thing has crossed the network before the
+  `409` comes back.
+* **Images** are never rejected. The upload is accepted and the scan folds it
+  into the existing row, so a caller that does not ask first pays for the
+  transfer and is told it succeeded. Asking is the only way to know.
 
 ```bash
 curl "https://fireshare.example.com/api/upload/token/exists?video_id=$ID" \
@@ -249,12 +257,13 @@ curl "https://fireshare.example.com/api/upload/token/exists?video_id=$ID" \
 }
 ```
 
-A video whose file is missing from disk answers `exists: false`: that upload is a
-restore, and Fireshare wants it. This only applies to videos — images are not
-deduplicated.
+An image answers the same shape with `image_id` and an `/i/` url. Either kind
+answers `{"exists": false}` when nothing matches, and also when the row exists but
+its file is missing from disk: that upload is a restore, and Fireshare wants it.
+Asking for an `image_id` on an instance with images turned off is a `503`.
 
-Worth doing before a large upload and before re-scanning a folder you may have
-sent already; there is no point paying for the transfer to be told at the end.
+Worth doing before every upload, not just a large one, and especially before
+re-scanning a folder you may have sent already.
 
 ## Checking a token
 
