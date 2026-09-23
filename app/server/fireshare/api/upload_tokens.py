@@ -43,7 +43,7 @@ from .. import db, logger
 from .. import permissions as P
 from ..constants import SUPPORTED_FILE_TYPES
 from ..ip_whitelist import get_client_ip
-from ..models import GameMetadata, UploadToken, User, Video
+from ..models import FolderRule, GameMetadata, ImageFolderRule, UploadToken, User, Video
 from . import api
 from .decorators import json_body, require_perm
 from .helpers import sanitize_upload_folder, secure_filename
@@ -717,11 +717,28 @@ def token_upload_options(token_user):
 
     games = GameMetadata.query.order_by(GameMetadata.name).all()
 
+    # Which folder each game's media lives in. Fireshare reads these the other
+    # way round -- anything scanned in a folder is tagged with that folder's
+    # game -- but a tool deciding where to *put* an upload needs the same
+    # mapping, and filing a clip in the folder its game already owns is how it
+    # ends up tagged without the tool having to ask for a tag at all. Rules
+    # without a game are left out: they describe nothing a caller can act on.
+    def rules_json(rules):
+        return [
+            {'folder': r.folder_path, 'game_id': r.game_id, 'game': r.game.name}
+            for r in rules
+            if r.game
+        ]
+
     return jsonify({
         'default_folder': default_folder,
         'folders': {
             'video': video_folders,
             'image': image_folders,
+        },
+        'folder_rules': {
+            'video': rules_json(FolderRule.query.all()),
+            'image': rules_json(ImageFolderRule.query.all()),
         },
         'games': [
             {'id': g.id, 'name': g.name, 'steamgriddb_id': g.steamgriddb_id}

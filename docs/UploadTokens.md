@@ -200,6 +200,26 @@ Every game in the library is listed, including ones with nothing linked to them
 yet — `/api/games` hides those, but they are exactly the games an upload might be
 the first to use, and the `game` field already accepts them.
 
+### Folder rules
+
+`folder_rules` is the folder-to-game mapping Fireshare uses when scanning: media
+found in a listed folder is tagged with that folder's game.
+
+```json
+{
+  "folder_rules": {
+    "video": [{ "folder": "valorant", "game_id": 3, "game": "VALORANT" }],
+    "image": [{ "folder": "screenshots", "game_id": 3, "game": "VALORANT" }]
+  }
+}
+```
+
+A tool deciding where to put an upload can read it the other way round: send a
+clip to the folder its game already owns and Fireshare tags it on the way in,
+without the upload having to name a game at all. Rules pointing at a game that
+no longer exists are left out, since there is nothing a caller could do with
+them.
+
 ## Asking before you upload
 
 The duplicate rejection on the upload routes only fires once the file is on disk,
