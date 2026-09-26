@@ -4,6 +4,7 @@ from datetime import datetime
 from flask_login import UserMixin
 from . import db
 from . import permissions as perms
+from . import media_codecs
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -244,6 +245,7 @@ class VideoInfo(db.Model):
         return end - start
 
     def json(self):
+        stream = self.vcodec
         return {
             "title": self.title,
             "description": self.description,
@@ -252,6 +254,10 @@ class VideoInfo(db.Model):
             "height": self.height,
             "duration": round(self._cropped_duration()) if self.duration else 0,
             "framerate": self.framerate,
+            # What the player needs to ask the browser whether the source will
+            # play smoothly, before choosing it over a transcode.
+            "codec": media_codecs.codec_string(stream),
+            "bitrate": media_codecs.stream_bitrate(stream),
             "has_480p": self.has_480p,
             "has_720p": self.has_720p,
             "has_1080p": self.has_1080p,
