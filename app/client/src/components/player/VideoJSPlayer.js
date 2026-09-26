@@ -4,6 +4,7 @@ import './videoSkinOverrides.css'
 import { createPlayer, useMedia, Poster } from '@videojs/react'
 import { Video, videoFeatures } from '@videojs/react/video'
 import CustomVideoSkin from './CustomVideoSkin'
+import usePlayableSources from './usePlayableSources'
 
 // Tolerance threshold for checking if player is already at the desired start time (in seconds)
 const SEEK_TOLERANCE_SECONDS = 0.5
@@ -384,13 +385,7 @@ function FrameStepKeys() {
   return null
 }
 
-/**
- * VideoJSPlayer — a drop-in replacement powered by Video.js 10.
- *
- * Accepts the same props as the previous v8 component so that consumers
- * (Watch.js, VideoModal.js) do not need to change their usage.
- */
-const VideoJSPlayer = ({
+const PlayerWithSources = ({
   sources,
   poster,
   autoplay = false,
@@ -456,6 +451,21 @@ const VideoJSPlayer = ({
       <FrameStepKeys />
     </Player.Provider>
   )
+}
+
+/**
+ * VideoJSPlayer — a drop-in replacement powered by Video.js 10.
+ *
+ * Accepts the same props as the previous v8 component so that consumers
+ * (Watch.js, VideoModal.js) do not need to change their usage.
+ *
+ * Mounts once the starting source is settled, so a source this device cannot
+ * play smoothly is never loaded just to be switched away from.
+ */
+const VideoJSPlayer = ({ sources, ...props }) => {
+  const playable = usePlayableSources(sources)
+  if (!playable) return null
+  return <PlayerWithSources sources={playable} {...props} />
 }
 
 export default VideoJSPlayer

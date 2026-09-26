@@ -215,9 +215,62 @@ export const getImageUrl = (imageId) => {
   return `${baseUrl}/api/image?id=${imageId}`
 }
 
+// Transcodes are H.264 unless an admin has switched the encoder to AV1, and nothing
+// records which one a given transcode used, so they are described as H.264. The
+// description is only used to ask whether the device decodes that kind of file in
+// hardware.
+const TRANSCODE_CODEC = 'avc1.640033'
+
+// Rough bits per pixel per frame, for a file that does not record its bitrate. The
+// browser decides on codec, size and frame rate; the bitrate only has to be plausible.
+const ESTIMATED_BITS_PER_PIXEL = 0.1
+
+const describeMedia = (contentType, width, height, framerate, bitrate) => {
+  if (!width || !height) return null
+  const fps = framerate > 0 ? framerate : 30
+  return {
+    contentType,
+    width,
+    height,
+    framerate: fps,
+    bitrate: bitrate > 0 ? bitrate : Math.round(width * height * fps * ESTIMATED_BITS_PER_PIXEL),
+  }
+}
+
+/**
+ * What the source file is, in the terms navigator.mediaCapabilities asks for, so the
+ * player can check it will play smoothly before starting on it.
+ *
+ * Null when that is unknown or must not matter: the editor always needs the uncut
+ * original, and an .mkv's source is Fireshare's own H.264 conversion rather than the
+ * file the stored codec describes.
+ */
+const getSourceMedia = (videoInfo, extension, { hasCrop, forceOriginal }) => {
+  if (forceOriginal || extension === '.mkv' || !videoInfo?.codec) return null
+  // A crop is a stream copy into MP4, so it keeps the original's codec.
+  const container = extension === '.webm' && !hasCrop ? 'video/webm' : 'video/mp4'
+  return describeMedia(
+    `${container}; codecs="${videoInfo.codec}"`,
+    videoInfo.width,
+    videoInfo.height,
+    videoInfo.framerate,
+    videoInfo.bitrate,
+  )
+}
+
+// Transcodes are scaled to the target height with the source's aspect ratio and frame
+// rate, as ffmpeg's scale=-2:<height> does.
+const getTranscodeMedia = (videoInfo, height) => {
+  if (!videoInfo?.width || !videoInfo?.height) return null
+  const width = Math.round((videoInfo.width * height) / videoInfo.height / 2) * 2
+  return describeMedia(`video/mp4; codecs="${TRANSCODE_CODEC}"`, width, height, videoInfo.framerate)
+}
+
 /**
  * Generates video sources array for Video.js player with quality options
- * Defaults to original quality, with 720p and 1080p as alternatives
+ * Defaults to original quality, with 720p and 1080p as alternatives. Each source
+ * carries a `media` description so the player can move the default to a transcode
+ * when this device cannot play the original smoothly.
  * @param {string} videoId - The video ID
  * @param {Object} videoInfo - Video info object containing has_720p, has_1080p flags
  * @param {string} extension - Video file extension (e.g., '.mp4', '.mkv')
@@ -248,6 +301,7 @@ export const getVideoSources = (videoId, videoInfo, extension, { forceOriginal =
     type: 'video/mp4',
     label: 'Source',
     selected: true,
+    media: getSourceMedia(videoInfo, extension, { hasCrop, forceOriginal }),
   })
 
   if (has1080p) {
@@ -255,6 +309,7 @@ export const getVideoSources = (videoId, videoInfo, extension, { forceOriginal =
       src: getVideoUrl(videoId, '1080p', extension),
       type: 'video/mp4',
       label: '1080p',
+      media: getTranscodeMedia(videoInfo, 1080),
     })
   }
 
@@ -263,6 +318,7 @@ export const getVideoSources = (videoId, videoInfo, extension, { forceOriginal =
       src: getVideoUrl(videoId, '720p', extension),
       type: 'video/mp4',
       label: '720p',
+      media: getTranscodeMedia(videoInfo, 720),
     })
   }
 
@@ -271,6 +327,7 @@ export const getVideoSources = (videoId, videoInfo, extension, { forceOriginal =
       src: getVideoUrl(videoId, '480p', extension),
       type: 'video/mp4',
       label: '480p',
+      media: getTranscodeMedia(videoInfo, 480),
     })
   }
 
